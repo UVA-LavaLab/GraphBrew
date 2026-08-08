@@ -110,7 +110,7 @@ UNIFIED_DIFF_PATCHES = [
     # S68 queue-servicing fix: nextPrefetchReadyTime returns curTick()
     # when pfqMissingTranslation has entries even if pfq is empty.
     # Required for prefetchers like ECG_PFX that emit only cross-page
-    # candidates. See research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
+    # candidates.
     ("mem/cache/prefetch/queued_hh.patch", "."),
     # S68 latency-readiness guard: getPacket() returns nullptr if the
     # front-of-queue prefetch's tick is in the future, preserving the
@@ -118,10 +118,8 @@ UNIFIED_DIFF_PATCHES = [
     ("mem/cache/prefetch/queued_cc_latency.patch", "."),
     # ECG masked-load OoO producer: bind the per-dynamic graph mask
     # ({dest,tier,epoch1,epoch2} for K2) to the property load's own demand
-    # Request so it reaches the LLC race-free on DerivO3CPU. The mailbox is
-    # overwritten
-    # ~100% of the time under OoO — see research/ecg-hpca/evidence/ooo_ecg_load_propagation_
-    # and_design.md). exec_context.hh adds default-noop hint hooks;
+    # Request so it reaches the LLC without relying on a shared mailbox under
+    # DerivO3CPU. exec_context.hh adds default-noop hint hooks;
     # o3/dyn_inst.hh overrides it with per-dynamic state; o3/lsq.cc attaches the
     # extension in LSQRequest::addReq (gated on env GEM5_ECG_PRODUCER). The
     # ea_code caller lives in the decoder_ecg_extract.isa snippet.

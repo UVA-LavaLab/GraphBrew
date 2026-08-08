@@ -2,9 +2,9 @@
 (Objective 3 of the Sniper parity slice).
 
 Unlike ``ecg_victim_policy.h`` (enforced byte-identical across cache_sim/
-gem5/Sniper by ``test_ecg_victim_policy_ssot.py``), the P-OPT next-reference
+gem5/Sniper by ``test_shared_ecg_policy.py``), the P-OPT next-reference
 lookup used by PageRank's rereference matrix has THREE INDEPENDENTLY
-MAINTAINED copies with no SSOT enforcement:
+independently maintained copies:
 
 * ``cache_sim::RereferenceConfig::findNextRef``
   (bench/include/cache_sim/graph_cache_context.h)

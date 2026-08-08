@@ -303,9 +303,8 @@ def create_system(args):
         }
         if args.prefetcher_level == "l1d":
             system.cpu.dcache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
-            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
-            # prefetches unless prefetcher.mmu is set. See
-            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
+            # gem5 Queued::notify drops cross-page prefetches unless the
+            # prefetcher has an MMU.
             _pf = system.cpu.dcache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -313,9 +312,8 @@ def create_system(args):
                 _pf.registerMMU(system.cpu.dtb)
         else:
             system.l2cache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
-            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
-            # prefetches unless prefetcher.mmu is set. See
-            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
+            # gem5 Queued::notify drops cross-page prefetches unless the
+            # prefetcher has an MMU.
             _pf = system.l2cache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -324,9 +322,8 @@ def create_system(args):
     elif args.prefetcher == "ECG_PFX":
         if args.prefetcher_level == "l1d":
             system.cpu.dcache.prefetcher = make_ecg_pfx_prefetcher()
-            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
-            # prefetches unless prefetcher.mmu is set. See
-            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
+            # gem5 Queued::notify drops cross-page prefetches unless the
+            # prefetcher has an MMU.
             _pf = system.cpu.dcache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -334,9 +331,8 @@ def create_system(args):
                 _pf.registerMMU(system.cpu.dtb)
         else:
             system.l2cache.prefetcher = make_ecg_pfx_prefetcher()
-            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
-            # prefetches unless prefetcher.mmu is set. See
-            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
+            # gem5 Queued::notify drops cross-page prefetches unless the
+            # prefetcher has an MMU.
             _pf = system.l2cache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -352,9 +348,8 @@ def create_system(args):
         else:
             system.l2cache.prefetcher = make_stride_prefetcher(**stride_kwargs)
             _pf = system.l2cache.prefetcher
-        # S68-MMU-PATCH: gem5 Queued::notify drops cross-page prefetches
-        # unless prefetcher.mmu is set. See
-        # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
+        # gem5 Queued::notify drops cross-page prefetches unless the
+        # prefetcher has an MMU.
         if hasattr(system.cpu, 'mmu'):
             _pf.registerMMU(system.cpu.mmu)
         elif hasattr(system.cpu, 'dtb'):

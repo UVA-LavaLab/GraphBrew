@@ -19,8 +19,8 @@
 //   - setCurrentVertices() maps to a magic instruction writing registers
 //
 // References:
-//   - GRASP: Faldu et al., HPCA 2020 (DBG + 3-tier RRIP)
-//   - P-OPT: Balaji et al., HPCA 2021 (transpose-based Belady approximation)
+//   - GRASP: Faldu et al. (2020), DBG + 3-tier RRIP
+//   - P-OPT: Balaji et al. (2021), transpose-based Belady approximation
 //   - ECG:   Mughrabi et al., GrAPL (MASK encoding + multi-region + prefetch)
 //
 // Author: GraphBrew Team
@@ -1420,7 +1420,8 @@ struct GraphCacheContext {
     // exact_in_off/exact_in_nbr below), NOT g.out_neigh. Self-contained: built by
     // buildOutEdgeMasks(), never touches the PR in-edge path or the shared
     // exact_off/exact_nbr. On symmetric graphs (in==out) these equal the in-edge
-    // masks. See research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md.
+    // masks. The two builders remain independent so direction-specific state
+    // cannot overwrite the PageRank in-edge path.
     std::vector<std::vector<uint64_t>> out_edge_masks_by_src;
     std::vector<std::vector<uint16_t>> out_edge_epoch_by_src;
     std::vector<std::vector<uint16_t>> out_edge_epoch_sched_by_src;
@@ -1595,7 +1596,8 @@ struct GraphCacheContext {
     // sizes). Lets a direction-optimizing kernel swap the transpose-correct matrix per
     // phase WITHOUT reserving a second LLC way (POPT_DUAL_REREF). The matrix is
     // non-owned, so this is a pointer swap; do it between phases (no active parallel
-    // region). See research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md S9.
+    // region). This preserves one reserved rereference way while allowing
+    // direction-specific matrices.
     uint64_t reref_swap_count = 0;  // # real-time per-direction loads (observability)
     inline void setActiveRerefMatrix(const uint8_t* matrix) {
         if (rereference.matrix != matrix) reref_swap_count++;
@@ -1811,7 +1813,7 @@ struct GraphCacheContext {
         return UINT32_MAX;
     }
 
-    // Classify address into GRASP 3-tier reuse (Faldu et al. HPCA 2020).
+    // Classify address into GRASP 3-tier reuse (Faldu et al., 2020).
     //
     // After DBG reorder, highest-degree vertices are at front (low addresses).
     // The original GRASP uses the trace-header `f` percentage of LLC capacity

@@ -1,8 +1,7 @@
 // Mechanism test for POPT_DUAL_REREF (real-time per-direction reref load). The dual
 // reref is inert on the symmetric eval corpus (CSR==CSC) and forward-looking for a
-// future direction-optimizing kernel with irregular property access in BOTH directions
-// (BFS-parent is sequential, so BFS doesn't benefit — see
-// research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md S9). This test runs on a DIRECTED
+// future direction-optimizing kernel with irregular property access in both
+// directions (BFS-parent is sequential, so BFS does not benefit). This test runs on a directed
 // graph (in_neigh != out_neigh) to prove the two matrices genuinely differ and that
 // setActiveRerefMatrix repoints the single reserved reref way.
 #include "cache_sim/graph_cache_context.h"

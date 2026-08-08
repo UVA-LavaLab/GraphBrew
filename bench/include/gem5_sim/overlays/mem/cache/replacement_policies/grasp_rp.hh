@@ -3,7 +3,7 @@
 // ============================================================================
 //
 // Graph-aware cache Replacement with Software Prefetching (GRASP)
-// Faldu et al., HPCA 2020
+// Faldu et al. (2020)
 //
 // Extends BRRIP with degree-based insertion and promotion:
 //   - High-reuse (hot hubs): insert RRPV=1, hit → RRPV=0

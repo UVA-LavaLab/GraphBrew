@@ -25,7 +25,7 @@ RECENCY_RTL = RTL_ROOT / "k2_recency_rank.sv"
 TESTBENCH = RTL_ROOT / "tb_k2_physical_logic.sv"
 REPLACEMENT_TESTBENCH = RTL_ROOT / "tb_k2_replacement_path.sv"
 REQUEST_TESTBENCH = RTL_ROOT / "tb_k2_request_path.sv"
-POLICY_SSOT = PROJECT_ROOT / "bench/include/ecg_victim_policy.h"
+POLICY_SOURCE = PROJECT_ROOT / "bench/include/ecg_victim_policy.h"
 
 
 def source_entry(path: Path) -> dict[str, str]:
@@ -43,7 +43,7 @@ def manifest() -> dict[str, Any]:
         "replacement_ranking_subcomponent": {
             "top": "k2_victim_select",
             "source": source_entry(VICTIM_RTL),
-            "policy_ssot": source_entry(POLICY_SSOT),
+            "policy_source": source_entry(POLICY_SOURCE),
             "parameters": {
                 "WAYS": 16,
                 "RRPV_BITS": 3,

@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[4]
 PR = ROOT / "bench" / "bin_sim" / "pr"
 ROI = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
 SYNTH_BIN = ROOT / "bench" / "bin_sim" / "test_ecg_prefetch"
-SSOT_TEST = ROOT / "scripts" / "test" / "test_ecg_victim_policy_ssot.py"
+SHARED_POLICY_TEST = ROOT / "scripts" / "test" / "test_shared_ecg_policy.py"
 # Power-law cell with genuine L3 pressure so the prefetch path is exercised
 # (email-Eu-core's property array fits the cache -> no pressure -> vacuous).
 GRAPH = ROOT / "results" / "graphs" / "web-Google" / "web-Google.sg"
@@ -58,14 +58,16 @@ def run_synthetic():
     return p.returncode == 0
 
 
-def run_ssot():
-    """The shared-decision SSOT: assert cache_sim/gem5/Sniper call the one
-    selectPrefetchTarget (byte-identical decision across simulators)."""
-    p = subprocess.run([sys.executable, "-m", "pytest", str(SSOT_TEST),
-                        "-q", "-k", "prefetch or shared"],
+def run_shared_policy_check():
+    """Assert every simulator calls the shared selectPrefetchTarget."""
+    p = subprocess.run([
+        sys.executable, "-m", "pytest", str(SHARED_POLICY_TEST),
+        "-q", "-k", "prefetch or shared"],
                        cwd=str(ROOT), capture_output=True, text=True, timeout=120)
     line = next((l for l in p.stdout.splitlines() if "passed" in l or "failed" in l), "")
-    print(f"  [SSOT] shared selectPrefetchTarget across sims: {line.strip() or 'see pytest'}")
+    print(
+        "  [shared-policy] selectPrefetchTarget across simulators: "
+        f"{line.strip() or 'see pytest'}")
     return p.returncode == 0
 
 
@@ -135,7 +137,7 @@ def main():
     ok = True
     print("== synthetic exact-target test (shared decision; covers cache_sim + gem5 + Sniper) ==")
     ok &= run_synthetic()
-    ok &= run_ssot()
+    ok &= run_shared_policy_check()
     print("\n-- live prefetch behaviour (cache_sim; each prefetcher obeys its spec) --")
     ok &= verify_live()
     print("\n" + ("ALL PREFETCH CHECKS PASSED" if ok else "PREFETCH VERIFICATION FAILED"))

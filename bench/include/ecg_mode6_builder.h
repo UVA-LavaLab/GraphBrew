@@ -29,7 +29,7 @@
 //     [33:49] next-ref epoch (16 bits)
 //     [49:64] prefetch target (15 bits, 0 = no prefetch)
 //
-// LOAD-BEARING note (see research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md): the
+// LOAD-BEARING note: the
 // ECG_GRASP_POPT headline EVICTION reads only the epoch (the 7-bit POPT-quant field
 // is vestigial there; it survives for legacy cache_sim modes + gem5 decode). The
 // prefetch target is read only by ECG_PFX. DIRECTION: the next-ref matrix must be the

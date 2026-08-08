@@ -1,1 +1,1 @@
-"""ECG paper-analysis utilities."""
+"""K2 experiment-analysis utilities."""

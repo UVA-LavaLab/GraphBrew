@@ -8,6 +8,8 @@ module k2_recency_rank_update #(
     input  logic [WAYS*RANK_BITS-1:0] rank_i,
     output logic [WAYS*RANK_BITS-1:0] rank_o
 );
+    localparam logic [RANK_BITS-1:0] NEWEST_RANK =
+        RANK_BITS'(WAYS - 1);
     logic [RANK_BITS-1:0] accessed_rank;
 
     always_comb begin
@@ -16,8 +18,8 @@ module k2_recency_rank_update #(
             rank_i[accessed_way_i*RANK_BITS +: RANK_BITS];
         if (access_i) begin
             for (integer way = 0; way < WAYS; way = way + 1) begin
-                if (way == accessed_way_i)
-                    rank_o[way*RANK_BITS +: RANK_BITS] = WAYS - 1;
+                if (INDEX_BITS'(way) == accessed_way_i)
+                    rank_o[way*RANK_BITS +: RANK_BITS] = NEWEST_RANK;
                 else if (
                         rank_i[way*RANK_BITS +: RANK_BITS] >
                         accessed_rank)
@@ -56,7 +58,7 @@ module k2_recency_rank_state #(
     always_ff @(posedge clk_i) begin
         if (reset_i) begin
             for (integer way = 0; way < WAYS; way = way + 1)
-                rank_o[way*RANK_BITS +: RANK_BITS] <= way;
+                rank_o[way*RANK_BITS +: RANK_BITS] <= RANK_BITS'(way);
         end else if (access_i) begin
             rank_o <= next_rank;
         end

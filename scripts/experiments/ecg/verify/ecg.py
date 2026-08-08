@@ -703,7 +703,7 @@ def run_field_parity():
     ecg_mode6_builder.h pack/extract layout (cache_sim, gem5 kernel+decoder, Sniper all
     use it) AND the ISA DRIFT GUARD: the gem5 decoder_ecg_extract.isa hand-codes the wide
     shifts (dest>>0/epoch>>24/pfx>>40) instead of calling the builder — this asserts those
-    hand-coded shifts still equal the builder SSOT, so a wide-layout change that forgets the
+    hand-coded shifts still equal the shared builder, so a wide-layout change that forgets the
     .isa fails HERE (fast) instead of silently mis-decoding in gem5."""
     binp = Path("/tmp") / "verify_field_parity"
     cc = subprocess.run(["g++", "-O2", "-std=c++17", f"-I{ROOT}/bench/include",
@@ -716,7 +716,7 @@ def run_field_parity():
         if "ISA drift" in line or "RESULT:" in line:
             print("  " + line.strip())
     ok = (p.returncode == 0)
-    print(f"  field-parity (ISA layout SSOT + drift guard): [{'OK ' if ok else 'FAIL'}]")
+    print(f"  field-parity (shared ISA layout + drift guard): [{'OK ' if ok else 'FAIL'}]")
     return ok
 
 
@@ -734,7 +734,7 @@ def run_epoch_pair_unit():
     if p.stdout.strip():
         print("  " + p.stdout.strip())
     ok = p.returncode == 0
-    print(f"  epoch-pair builder/wire/distance SSOT: [{'OK ' if ok else 'FAIL'}]")
+    print(f"  shared epoch-pair builder/wire/distance: [{'OK ' if ok else 'FAIL'}]")
     return ok
 
 

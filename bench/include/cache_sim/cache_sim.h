@@ -323,9 +323,9 @@ enum class EvictionPolicy {
     PLRU,     // Pseudo-LRU (tree-based)
     SRRIP,    // Static Re-Reference Interval Prediction
     HAWKEYE,  // Hawkeye-style OPTgen + static-access-site predictor
-    PIN,      // LRU-with-pinning of high-reuse graph regions (Faldu et al., HPCA 2020 baseline)
-    GRASP,    // Graph-aware cache Replacement with Software Prefetching (Faldu et al., HPCA 2020)
-    POPT,     // Practical Optimal cache replacement for Graph Analytics (Balaji et al., HPCA 2021)
+    PIN,      // LRU with pinning of high-reuse graph regions (Faldu et al., 2020)
+    GRASP,    // Graph-aware cache replacement (Faldu et al., 2020)
+    POPT,     // Practical optimal graph-cache replacement (Balaji et al., 2021)
     ECG       // Expressing Locality for Caching in Graphs — fat-ID encoding (Mughrabi et al., GrAPL)
 };
 
@@ -496,7 +496,7 @@ struct POPTState {
     uint32_t current_vertex = 0;   // Current destination vertex being processed
     bool enabled = false;          // Whether P-OPT state has been initialized
 
-    // Algorithm 2 from P-OPT paper (Balaji et al., HPCA 2021, Section 4.1):
+    // Algorithm 2 from the P-OPT paper (Balaji et al., 2021, Section 4.1):
     // Compute next-reference distance for a cache line.
     //
     // Encoding (from makeOffsetMatrix in popt.h, matching reference llc.cpp):
@@ -545,7 +545,7 @@ struct POPTState {
 
 // ============================================================================
 // GRASP State: Degree-aware retention with 3-tier RRIP insertion
-// (Faldu et al., HPCA 2020 — reference: grasp.cpp + common.h)
+// (Faldu et al., 2020; reference implementation: grasp.cpp + common.h)
 //
 // GRASP uses DBG-reordered vertex data where high-degree vertices are
 // placed at the front of the array.  Three reuse tiers:
@@ -1068,7 +1068,7 @@ public:
             }
         }
 
-        // GRASP: 3-tier RRIP insertion matching Faldu et al. HPCA 2020.
+        // GRASP: 3-tier RRIP insertion matching Faldu et al. (2020).
         // HIGH reuse (hubs):    RRPV = 1 (P_RRIP — protect in cache)
         // MODERATE reuse:       RRPV = 6 (I_RRIP — intermediate)
         // LOW reuse (cold/OOB): RRPV = 7 (M_RRIP — evict sooner)
@@ -1099,7 +1099,7 @@ public:
         }
 
         // PIN: set pin bit when newly inserted line falls in the high-reuse
-        // region (Faldu et al., HPCA 2020 PIN baseline, mirrors upstream pin.cpp).
+        // region (Faldu et al., 2020 PIN baseline; mirrors upstream pin.cpp).
         if (policy_ == EvictionPolicy::PIN) {
             set[victim_idx].pin = false;
             if (graph_ctx_ && graph_ctx_->num_regions > 0) {
@@ -1371,7 +1371,7 @@ private:
             set[idx].rrpv = hawkeye_policy::insertionRrpv(friendly);
         }
 
-        // GRASP: 3-tier hit promotion (Faldu et al. HPCA 2020)
+        // GRASP: 3-tier hit promotion (Faldu et al., 2020)
         // Hot region → RRPV=0 (aggressive reset), others → decrement by 1
         if (policy_ == EvictionPolicy::GRASP) {
             uint64_t addr = set[idx].line_addr;
@@ -1579,7 +1579,7 @@ private:
         return victim;
     }
 
-    // PIN (Faldu et al., HPCA 2020 PIN baseline, mirrors upstream pin.cpp):
+    // PIN (Faldu et al., 2020 baseline; mirrors upstream pin.cpp):
     // LRU among unpinned ways. Returns SIZE_MAX to signal bypass when every
     // way in the set is pinned, matching upstream's all-pinned bypass.
     size_t findVictimPIN(std::vector<CacheLine>& set) {
@@ -1673,7 +1673,7 @@ private:
 
     // ================================================================
     // GRASP: Graph-aware cache Replacement with Software Prefetching
-    // (Faldu et al., HPCA 2020 — reference: grasp.cpp)
+    // (Faldu et al., 2020; reference: grasp.cpp)
     //
     // RRIP-based policy with 3-tier insertion depending on address region:
     //   High-reuse (hot hubs):    insert RRPV = 1 (P_RRIP), hit → 0
@@ -1700,7 +1700,7 @@ private:
 
     // ================================================================
     // P-OPT: Practical Optimal cache replacement for Graph Analytics
-    // (Balaji et al., HPCA 2021 — reference: llc.cpp)
+    // (Balaji et al., 2021; reference: llc.cpp)
     //
     // Uses the graph's transpose (encoded in a compressed rereference
     // matrix) to predict exactly when each cache line will be accessed
@@ -2365,7 +2365,7 @@ public:
         //   distinction that matters, and it issues unconditionally with no
         //   MSHR, queue, lateness or bandwidth backpressure. A mechanism built
         //   so that it cannot be wrong cannot confirm a hypothesis; the frozen
-        // metrics in research/ecg-hpca/PAPER.md Section 5 make results that
+        // reporting rules in wiki/Evaluation-Methodology.md make results that
         //   depend on it ineligible for performance claims.
         //
         // Both are applied identically to every policy.
@@ -2686,7 +2686,7 @@ public:
     // ------------------------------------------------------------------
     // P-OPT rereference-matrix column stream
     // ------------------------------------------------------------------
-    // Balaji & Lucia (HPCA'21) keep the current and next Rereference-Matrix
+    // Balaji and Lucia keep the current and next rereference-matrix
     // columns resident in reserved LLC ways and stream in a fresh column at
     // every epoch boundary. cache_sim consults the matrix host-side, so that
     // stream previously existed only as a flat analytic charge added to the

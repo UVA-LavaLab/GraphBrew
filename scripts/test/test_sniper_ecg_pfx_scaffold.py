@@ -268,7 +268,7 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
     assert "NucaCache::read(IntPtr address, core_id_t requester" in setup
     assert "NucaCache::write(IntPtr address, core_id_t requester" in setup
 
-    # Paper runs use the real outer clock + delivered epoch, not the live oracle.
+    # Controlled runs use the real outer clock and delivered epoch, not the live oracle.
     assert 'env["SNIPER_ENABLE_VERTEX_HINTS"] = "1"' in runner
     assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
     assert 'int(args.line_size) // 4' in runner

@@ -6,7 +6,7 @@ together, because K2's trade only resolves when all three are read at once: it
 can spend more bandwidth while exposing far fewer demand misses to full DRAM
 latency, and which side binds depends on saturation.
 
-Pre-registered before the run (see research/ecg-hpca/RESULTS.md):
+Specified before execution in the experiment configuration:
   low utilisation  -> the measured reductions in exposed demand misses should
                       appear as speedup at BOTH record widths
   high utilisation -> the 8-byte width should lose in proportion to its traffic
@@ -28,7 +28,7 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-RUNS = ROOT / "results/ecg_experiments/final_paper_runs"
+RUNS = ROOT / "results/ecg_experiments/runs"
 
 # Utilisation below this is treated as "the memory system has headroom".
 SATURATION_LOW = 20.0

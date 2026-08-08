@@ -53,10 +53,10 @@ def test_k2_override_cannot_exceed_baseline_associativity():
             args(17), roi_matrix.parse_policy_spec("ECG:K2"), "8MB")
 
 
-def test_paper_runner_forwards_k2_way_override():
+def test_experiment_runner_forwards_k2_way_override():
     text = (
         roi_matrix.PROJECT_ROOT /
-        "scripts/experiments/ecg/flows/paper_run.py").read_text()
+        "scripts/experiments/ecg/flows/experiment_run.py").read_text()
     assert '"--k2-l3-ways"' in text
     assert 'settings.get("k2_l3_ways", 0)' in text
 
@@ -64,7 +64,7 @@ def test_paper_runner_forwards_k2_way_override():
 def test_manifest_defines_both_equal_area_sensitivities():
     manifest = json.loads(
         (roi_matrix.PROJECT_ROOT /
-         "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+         "scripts/experiments/ecg/experiment_manifest.json").read_text())
     assert "ecg_equal_area_15" in manifest["profiles"]
     assert "ecg_equal_area_14" in manifest["profiles"]
     stages = {

@@ -10,7 +10,7 @@ from m5.objects.Prefetcher import QueuedPrefetcher
 
 class GraphDropletPrefetcher(QueuedPrefetcher):
     """DROPLET: Data-awaRe decOuPLed prEfeTcher for Graphs
-    (Basak et al., HPCA 2019)
+    (Basak et al., 2019)
 
     Separated prefetch engines for edge-list (stride) and property data
     (indirect). The indirect chain: edge_list[i] → neighbor_id →
@@ -24,11 +24,11 @@ class GraphDropletPrefetcher(QueuedPrefetcher):
     cxx_class = 'gem5::prefetch::GraphDropletPrefetcher'
 
     prefetch_degree = Param.Int(1,
-        "Number of edge-list cache lines to prefetch ahead (Basak HPCA'19 default: 1).")
+        "Number of edge-list cache lines to prefetch ahead (Basak et al. default: 1).")
     indirect_degree = Param.Int(16,
-        "Number of indirect property prefetches per edge access (Basak HPCA'19 default: 16 = one 64B line of 4B IDs).")
+        "Number of indirect property prefetches per edge access (Basak et al. default: 16 = one 64B line of 4B IDs).")
     stride_table_size = Param.Int(64,
-        "Number of entries in the stride detector table (Basak HPCA'19 default: 64).")
+        "Number of entries in the stride detector table (Basak et al. default: 64).")
 
 
 class GraphEcgPfxPrefetcher(QueuedPrefetcher):

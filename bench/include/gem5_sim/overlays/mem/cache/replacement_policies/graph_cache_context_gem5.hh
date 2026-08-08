@@ -14,8 +14,8 @@
 //   - Per-access hints can be delivered by custom ECG instruction / CSR
 //
 // References:
-//   - GRASP: Faldu et al., HPCA 2020
-//   - P-OPT: Balaji et al., HPCA 2021
+//   - GRASP: Faldu et al. (2020)
+//   - P-OPT: Balaji et al. (2021)
 //   - ECG:   Mughrabi et al., GrAPL @ IPDPS 2026
 // ============================================================================
 

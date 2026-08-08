@@ -1040,7 +1040,7 @@ def test_real_decoder_probe_covers_compact_streamshield_k2m_request():
 
 def test_proposal_o3_manifest_profile_is_exact_and_mechanism_only():
     manifest = json.loads(read(
-        "scripts/experiments/ecg/final_paper_manifest.json"))
+        "scripts/experiments/ecg/experiment_manifest.json"))
     assert "ecg_proposal_k2m_o3_gate" in manifest["profiles"]
     stage = next(
         item for item in manifest["stages"]
@@ -1058,7 +1058,7 @@ def test_proposal_o3_manifest_profile_is_exact_and_mechanism_only():
     assert "ECG_K2_DELIVERY_TRACE" not in stage["env"]
     assert "ECG_STREAM_BYPASS_TRACE" not in stage["env"]
     runner = read("scripts/experiments/ecg/roi_matrix.py")
-    paper_run = read("scripts/experiments/ecg/flows/paper_run.py")
+    experiment_run = read("scripts/experiments/ecg/flows/experiment_run.py")
     assert 'env["ECG_K2_DELIVERY_TRACE"] = "2048"' in runner
     assert 'env["ECG_STREAM_BYPASS_TRACE"] = "2048"' in runner
     assert 'env["ECG_K2_DELIVERY_TRACE"] = "131072"' in runner
@@ -1068,23 +1068,8 @@ def test_proposal_o3_manifest_profile_is_exact_and_mechanism_only():
     assert '"mechanism_probe_exact_request"' in runner
     assert 'row.setdefault("status", "ok")' in runner
     assert "planning-missing-gem5-guest-sha256" in runner
-    assert "planning-missing-gem5-guest-sha256" in paper_run
+    assert "planning-missing-gem5-guest-sha256" in experiment_run
     assert "rather than request-count or performance coverage" in stage["notes"]
-    freeze = read(
-        "scripts/experiments/ecg/flows/freeze_proposal_k2m.py")
-    assert "graphbrew-proposal-k2m-o3-evidence-v1" in freeze
-    assert "gem5_k2_coalesced_line_accepts" in freeze
-    assert "paper_pipeline_manifest.json" in freeze
-    assert "paper pipeline input does not match proposal rows" in freeze
-    assert "probe and proposal run used different gem5 binaries" in freeze
-    assert "source/source.diff.gz" in freeze
-    assert "decoder probe expected payload is not canonical" in freeze
-    assert "raw artifact roster mismatch" in freeze
-    assert "raw receipt mismatch" in freeze
-    assert "resolved run source fingerprint mismatch" in freeze
-    assert "paper pipeline input set is not exact" in freeze
-    assert "raw/environments" in freeze
-    assert "cell environment mismatch" in freeze
     assert 'stdout_path.suffix + ".env.json"' in runner
 
 

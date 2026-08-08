@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate one-policy Slurm shards from the final-paper manifest."""
+"""Generate one-policy Slurm shards from the experiment manifest."""
 
 from __future__ import annotations
 
@@ -14,11 +14,11 @@ ECG_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = ECG_DIR.parents[2]
 sys.path.insert(0, str(ECG_DIR))
 
-from flows import paper_run  # noqa: E402
+from flows import experiment_run  # noqa: E402
 
 
 def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
-    manifest = paper_run.load_manifest(Path(args.manifest))
+    manifest = experiment_run.load_manifest(Path(args.manifest))
     graph_sets = manifest.get("graph_sets", {})
     rows: list[tuple[str, ...]] = []
 
@@ -31,11 +31,11 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
             if args.only and not any(
                     token in str(stage["name"]) for token in args.only):
                 continue
-            settings = paper_run.merged_defaults(manifest, stage)
+            settings = experiment_run.merged_defaults(manifest, stage)
             screen_path = str(settings.get("screen_config", ""))
             if screen_path:
-                screen = paper_run.load_manifest(
-                    paper_run.resolve_path(screen_path))
+                screen = experiment_run.load_manifest(
+                    experiment_run.resolve_path(screen_path))
                 if not screen.get(
                         "execution", {}).get(
                             "policy_sharding_allowed", True):
@@ -52,20 +52,20 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
                 raise SystemExit(
                     f"unknown graph_set={graph_set_name!r} "
                     f"in stage {stage['name']}")
-            policies = paper_run.filter_policy_specs(
+            policies = experiment_run.filter_policy_specs(
                 [str(policy) for policy in stage.get("policies", [])],
                 args.policy,
             )
             for graph in graph_sets[graph_set_name]:
                 graph_name = str(graph["name"])
-                if not paper_run.token_matches(graph_name, args.graph):
+                if not experiment_run.token_matches(graph_name, args.graph):
                     continue
-                if not paper_run.graph_uses_synthetic_options(graph):
-                    paper_run.find_graph_path(
+                if not experiment_run.graph_uses_synthetic_options(graph):
+                    experiment_run.find_graph_path(
                         graph, Path(args.graph_dir),
                         args.allow_missing_graphs)
                 for benchmark in stage.get("benchmarks", []):
-                    if not paper_run.token_matches(
+                    if not experiment_run.token_matches(
                             str(benchmark), args.benchmark):
                         continue
                     for policy in policies:
@@ -85,9 +85,9 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate Slurm shard TSV rows from final_paper_manifest.json")
+        description="Generate Slurm shard TSV rows from experiment_manifest.json")
     parser.add_argument("--profile", nargs="+", default=["ecg_smoke"])
-    parser.add_argument("--manifest", default=str(paper_run.DEFAULT_MANIFEST))
+    parser.add_argument("--manifest", default=str(experiment_run.DEFAULT_MANIFEST))
     parser.add_argument(
         "--graph-dir", default=str(PROJECT_ROOT / "results" / "graphs"))
     parser.add_argument("--only", nargs="*", default=[])
@@ -108,7 +108,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    args.run_tag = paper_run.sanitize(args.run_tag)
+    args.run_tag = experiment_run.sanitize(args.run_tag)
     rows = build_rows(args)
     if not rows:
         raise SystemExit("no shard rows matched the requested filters")

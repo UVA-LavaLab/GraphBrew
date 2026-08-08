@@ -19,13 +19,8 @@ graphs/
 cache_results
 results/models/
 results/data/
-research/*
-!research/README.md
-!research/ecg-hpca/
-!research/ecg-hpca/**
+research/
 /test/
-agent
-paper
 docs/
 plans/
 # gem5 cloned repository (large, managed by scripts/setup_gem5.py)

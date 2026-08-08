@@ -255,7 +255,7 @@ GEM5_STAT_KEYS = {
     # construction), which makes it useless for attributing ROI cost -- and
     # actively misleading, since it implies an IPC above 1 on an in-order
     # TimingSimpleCPU. commitStats0.numInsts IS reset, so it measures the
-    # region the paper reports. Needed because a software-decoded record can
+    # reported region. Needed because a software-decoded record can
     # cost more instructions than the memory traffic it saves.
     "roi_insts": "system.cpu.commitStats0.numInsts",
     "roi_cycles": "system.cpu.numCycles",
@@ -640,7 +640,7 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
     reserve_model = getattr(args, "popt_reserve_model", "fixed_one")
     matrix_fits = True
     if reserve_model == "size_correct":
-        # PAPER-FAITHFUL charge (Balaji & Lucia, HPCA'21, Sec V.D): P-OPT keeps
+        # Reference-compatible charge: P-OPT keeps
         # `active_columns` Rereference-Matrix columns RESIDENT in reserved LLC
         # ways -- "enough ways need to be reserved as to be able to store
         # 2 * numLines * 1B"; "P-OPT never evicts Rereference Matrix data". The
@@ -650,7 +650,7 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
         max_reservable = max(assoc - min_data_ways, 0)
         if needed_ways > max_reservable:
             # The two resident columns cannot fit while leaving min_data_ways of
-            # data: the paper's design point is INFEASIBLE at this (graph, LLC).
+            # data: the configured design point is infeasible at this graph/LLC.
             # We still emit a clamped number (data = min_data_ways) as a labeled
             # P-OPT-favorable sensitivity, but flag the cell as infeasible.
             matrix_fits = False
@@ -661,7 +661,7 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
         # LEGACY / P-OPT-FAVORABLE sensitivity ("fixed_one", the historical
         # default): charge a single reserved streaming-buffer way regardless of
         # |V|. This UNDER-charges large graphs (the resident columns span many
-        # ways) and is retained only for comparison; it is NOT paper-faithful.
+        # ways) and is retained only for comparison; it is not size-correct.
         reserved_ways = 1 if (assoc - min_data_ways) >= 1 else 0
     reserved_bytes = reserved_ways * bytes_per_way
     effective_ways = max(assoc - reserved_ways, min_data_ways)
@@ -1115,7 +1115,7 @@ def validate_selected_gem5_guest(
             raise SystemExit(f"gem5 guest binary is missing: {binary}")
         if expected and actual != expected:
             raise SystemExit(
-                "gem5 guest does not match paper-run expected hash: "
+                "gem5 guest does not match experiment-run expected hash: "
                 f"{actual} != {expected}")
         VALIDATED_GEM5_GUEST = binary
         VALIDATED_GEM5_GUEST_SHA256 = actual
@@ -1136,7 +1136,7 @@ def validate_selected_gem5_guest(
             f"cannot stage validated gem5 guest: {error}") from error
     if expected and VALIDATED_GEM5_GUEST_SHA256 != expected:
         raise SystemExit(
-            "validated gem5 guest does not match paper-run expected hash: "
+            "validated gem5 guest does not match experiment-run expected hash: "
             f"{VALIDATED_GEM5_GUEST_SHA256} != {expected}")
 
 
@@ -1167,7 +1167,7 @@ def validate_expected_gem5_inputs(args: argparse.Namespace) -> None:
         actual = hash_input_path(path)
         if expected and actual != expected:
             raise SystemExit(
-                f"{label} does not match paper-run expected hash: "
+                f"{label} does not match experiment-run expected hash: "
                 f"{actual} != {expected}")
 
 
@@ -2101,7 +2101,7 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         cmd = [setarch, platform.machine(), "-R", *cmd]
     elif args.require_cache_sim_aslr_disable:
         raise RuntimeError(
-            "Paper cache_sim runs require setarch -R, but setarch is unavailable.")
+            "Controlled cache_sim runs require setarch -R, but setarch is unavailable.")
     charge = policy_cache_geometry(args, spec, l3_size)
     effective_l3_size = str(charge["popt_effective_l3_size"])
     effective_l3_ways = str(charge["popt_effective_l3_ways"])
@@ -3130,7 +3130,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row["sniper_aslr_disabled"] = 1
     elif args.require_sniper_aslr_disable:
         raise RuntimeError(
-            "Paper Sniper runs require setarch -R, but setarch is unavailable.")
+            "Controlled Sniper runs require setarch -R, but setarch is unavailable.")
 
     env = dict(os.environ)
     scrub_cell_mechanism_env(env)
@@ -4359,8 +4359,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         default="fixed_one",
                         help="P-OPT reserved-LLC-way charge model for *_CHARGED policies. "
                              "'fixed_one' (legacy default, P-OPT-favorable): one streaming-buffer "
-                             "way regardless of |V|. 'size_correct' (paper-faithful, Balaji & Lucia "
-                             "HPCA'21 Sec V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
+                             "way regardless of |V|. 'size_correct' (reference-compatible "
+                             "P-OPT Section V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
                              "ways for the resident rereference-matrix columns (scales with |V|; "
                              "marks cells popt_matrix_fits=0 when the columns cannot fit).")
     parser.add_argument("--stream-prefetch-model", choices=["stride", "oracle"],
@@ -4446,7 +4446,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
              "per-event traces disabled so gem5 target time is admissible.")
     parser.add_argument(
         "--expected-gem5-guest-sha256", default="",
-        help="Require the staged RISC-V guest to match this paper-run hash.")
+        help="Require the staged RISC-V guest to match this experiment-run hash.")
     parser.add_argument("--expected-gem5-opt-sha256", default="")
     parser.add_argument("--expected-gem5-config-sha256", default="")
     parser.add_argument("--expected-graph-sha256", default="")
@@ -4503,7 +4503,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--sniper-roi-icount", default="0",
                         help="Cap the Sniper DETAILED ROI at this many instructions (aggregated over cores) via '-s stop-by-icount:N'. "
                              "0 disables the cap (full ROI). Bounds simulation time on large graphs regardless of size, matching the "
-                             "DROPLET paper (600000000) and P-OPT's iteration-sampling; the fast cache_sim runs the full ROI as the authority.")
+                             "the reference 600000000-instruction cap and P-OPT iteration sampling; cache_sim runs the full ROI.")
     parser.add_argument(
         "--sniper-semantic-edge-limit", default="0",
         help="Policy-independent cap on static graph edge visits in sg_kernel "
@@ -4516,13 +4516,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="Address domain for Sniper cache-side GraphBrew sidebands. 'virtual' disables Sniper translation so exported virtual regions match cache callbacks; 'translated' keeps the baseline MMU path and requires translated/physical sidebands.")
     parser.add_argument(
         "--require-sniper-aslr-disable", action="store_true",
-        help="Fail Sniper paper cells unless setarch -R is available and used.")
+        help="Fail controlled Sniper cells unless setarch -R is available and used.")
     parser.add_argument(
         "--sniper-require-fused-receipts", action="store_true",
         help="Require live fused-K2 receipts and disable cache warming for this mechanism-proof cell.")
     parser.add_argument(
         "--require-cache-sim-aslr-disable", action="store_true",
-        help="Fail cache_sim paper cells unless setarch -R is available and used.")
+        help="Fail controlled cache_sim cells unless setarch -R is available and used.")
     parser.add_argument("--no-build", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args(argv)
@@ -4620,7 +4620,7 @@ def main(argv: list[str]) -> int:
     # K2's per-edge records are simulated accesses that can. Combining the
     # analytic charge with an active prefetcher therefore prices the two
     # metadata streams differently and produces an invalid comparison; the
-    # frozen metrics in research/ecg-hpca/PAPER.md (Section 5) forbid it.
+    # The reporting rules in wiki/Evaluation-Methodology.md forbid it.
     prefetch_active = (
         args.prefetcher != "none" or
         int(getattr(args, "cache_stream_prefetch_degree", 0) or 0) > 0)

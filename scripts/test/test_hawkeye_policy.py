@@ -194,7 +194,7 @@ def test_gem5_hawkeye_real_pc_surface():
 
     import json
     manifest = json.loads(
-        (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+        (ROOT / "scripts/experiments/ecg/experiment_manifest.json").read_text())
     stage = next(
         stage for stage in manifest["stages"]
         if "ecg_gem5_hawkeye_gate" in stage.get("profiles", []))

@@ -4,12 +4,13 @@
 The gem5 timing matrix costs days, but the question "is K2 ahead or behind?"
 is answered by cache_sim traffic in minutes. This runs the full
 graph x kernel x policy matrix directly against the cache_sim kernels and
-applies the frozen decision rule from research/ecg-hpca/PAPER.md (Section 5):
+applies the reporting method from wiki/Evaluation-Methodology.md:
 geometric mean of per-cell ratios, a +/-2% tie band, win/tie/loss counts, and
 the worst cell always reported.
 
 It deliberately reuses roi_matrix's own environment construction, so the signal
-cannot drift from the paper runner. What it skips is orchestration: locking,
+cannot drift from the experiment runner. What it skips is orchestration:
+locking,
 evidence archiving, provenance capture, gem5/Sniper. It is a fast direction
 check, NOT a source of publishable numbers.
 
@@ -99,10 +100,10 @@ def size_bytes(text: str) -> str:
 
 
 def build_env(rm, policy_text: str, kernel: str, l3: str, args) -> dict:
-    """Reuse the paper runner's env construction so the signal cannot drift.
+    """Reuse the experiment runner's environment construction.
 
     The namespace comes from roi_matrix's own parser, so every default matches
-    the paper runner and a new runner option cannot silently diverge here.
+    the experiment runner and a new option cannot silently diverge here.
     """
     spec = rm.parse_policy_spec(policy_text)
     # The private-cache sizes MUST be set explicitly. roi_matrix's bare defaults
@@ -239,7 +240,7 @@ def main(argv):
             (args.prefetcher != "none" or args.prefetch_degree)):
         raise SystemExit(
             "demand misses may not carry a comparison while a prefetcher is "
-            "active (research/ecg-hpca/PAPER.md, Section 5 frozen metrics)")
+            "active (see wiki/Evaluation-Methodology.md)")
 
     rm = load_roi_matrix()
     kernels = [k.strip() for k in args.kernels.split(",") if k.strip()]

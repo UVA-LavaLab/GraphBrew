@@ -20,5 +20,5 @@ make gem5-m5ops-pr
 make gem5-riscv-m5ops-pr
 ```
 
-Run paper cells through `scripts/experiments/ecg/roi_matrix.py` or the
-manifest-driven `scripts/experiments/ecg/flows/paper_run.py`.
+Run experiment cells through `scripts/experiments/ecg/roi_matrix.py` or the
+manifest-driven `scripts/experiments/ecg/flows/experiment_run.py`.

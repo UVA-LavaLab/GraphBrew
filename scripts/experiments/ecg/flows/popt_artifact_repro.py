@@ -5,7 +5,7 @@ The claimable gate is deliberately narrow:
 
   LRU, DRRIP, P-OPT; 24 MiB/16-way LLC; no prefetch; one PR sweep.
 
-It does not reproduce the paper's 8-core Sniper speedups or Figure 12(a)'s
+It does not reproduce the original 8-core Sniper speedups or Figure 12(a)'s
 P-OPT-vs-GRASP result. The optional direct-DBG mode is a non-claimable
 diagnostic using official GRASP RRIP rules on the P-OPT workload's registered
 regions, not official GRASP's PageRank property/frontier mapping.

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import paper_run  # noqa: E402
+import experiment_run  # noqa: E402
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -34,7 +34,7 @@ class Shard:
     @property
     def key(self) -> str:
         return "_".join(
-            paper_run.sanitize(value)
+            experiment_run.sanitize(value)
             for value in (
                 self.profile, self.stage, self.graph,
                 self.benchmark, self.policy)
@@ -70,7 +70,7 @@ def read_shards(path: Path, suites: dict[str, str]) -> list[Shard]:
             seen.add(identity)
             rows.append(Shard(
                 profile, stage, graph, benchmark, policy,
-                paper_run.sanitize(run_tag), suites[stage]))
+                experiment_run.sanitize(run_tag), suites[stage]))
     if not rows:
         raise SystemExit("shard file contains no rows")
     run_keys = [(row.run_tag, row.key) for row in rows]
@@ -85,7 +85,7 @@ def shard_command(
     run_dir = run_root / shard.run_tag / shard.key
     command = [
         sys.executable,
-        str(paper_run.__file__),
+        str(experiment_run.__file__),
         "--manifest", str(manifest_path),
         "--graph-dir", str(args.graph_dir),
         "--profile", shard.profile,
@@ -95,7 +95,7 @@ def shard_command(
         "--benchmark", shard.benchmark,
         "--policy", shard.policy,
         "--no-build",
-        "--lock-path", str(run_dir / ".paper_run.lock"),
+        "--lock-path", str(run_dir / ".experiment_run.lock"),
     ]
     if args.force:
         command.append("--force")
@@ -110,7 +110,7 @@ def run_shard(
         semaphore: threading.BoundedSemaphore) -> tuple[Shard, int, Path]:
     command, run_dir = shard_command(shard, run_root, manifest_path, args)
     if args.dry_run:
-        print("[dry-run] " + paper_run.command_text(command))
+        print("[dry-run] " + experiment_run.command_text(command))
         return shard, 0, run_dir
     run_dir.mkdir(parents=True, exist_ok=True)
     log_path = run_dir / "local_launcher.log"
@@ -132,16 +132,16 @@ def run_shard(
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run GraphBrew final-paper shards concurrently.")
+        description="Run GraphBrew experiment shards concurrently.")
     parser.add_argument("--shards", required=True)
     parser.add_argument(
-        "--manifest", default=str(paper_run.DEFAULT_MANIFEST))
+        "--manifest", default=str(experiment_run.DEFAULT_MANIFEST))
     parser.add_argument(
         "--graph-dir",
         default=str(PROJECT_ROOT / "results" / "graphs"))
     parser.add_argument(
         "--run-root",
-        default="results/ecg_experiments/final_paper_runs/local")
+        default="results/ecg_experiments/runs/local")
     parser.add_argument("--jobs", type=int, default=1)
     parser.add_argument(
         "--cache-sim-jobs", type=int, default=0,
@@ -162,12 +162,12 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(args, name) < 0:
             raise SystemExit(f"--{name.replace('_', '-')} must be >= 0")
 
-    manifest_path = paper_run.resolve_path(args.manifest)
-    args.graph_dir = paper_run.resolve_path(args.graph_dir)
-    manifest = paper_run.load_manifest(manifest_path)
+    manifest_path = experiment_run.resolve_path(args.manifest)
+    args.graph_dir = experiment_run.resolve_path(args.graph_dir)
+    manifest = experiment_run.load_manifest(manifest_path)
     shards = read_shards(
-        paper_run.resolve_path(args.shards), stage_suites(manifest))
-    run_root = paper_run.resolve_path(args.run_root)
+        experiment_run.resolve_path(args.shards), stage_suites(manifest))
+    run_root = experiment_run.resolve_path(args.run_root)
     limits = {
         "cache-sim": args.cache_sim_jobs or args.jobs,
         "gem5": args.gem5_jobs or args.jobs,

@@ -6,9 +6,9 @@ Locks the invariant that each simulator (``cache_sim``, ``gem5``-native,
 ``email-Eu-core`` and that *both* of those regions are classified as
 GRASP regions at the GRASP-faithful array-relative ``hot_pct=15`` band.
 
-The handoff (``research/ecg-hpca/PAPER.md``) calls for "exactly 2
-regions with ``grasp_region=1`` and the expected ``hot_pct`` (15 for
-PR/BC/Radii, 100 for BellmanFord)".  Two contexts apply:
+The shared simulator contract requires exactly two regions with
+``grasp_region=1`` and the expected ``hot_pct`` (15 for PR/BC/Radii,
+100 for BellmanFord). Two contexts apply:
 
 * **Upstream GRASP trace replay**: header carries both ``propertyA`` and
   ``propertyB`` ranges, both flagged as GRASP regions (``grasp_region=1``).
@@ -17,8 +17,7 @@ PR/BC/Radii, 100 for BellmanFord)".  Two contexts apply:
   (``grasp_region=1``).  Marking only one of multiple vertex-indexed
   property arrays as a GRASP region caused the catastrophic BC bug
   where the unmarked arrays thrashed under SRRIP while the single hot
-  array hogged the LLC — see
-  ``research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md`` and
+  array hogged the LLC. The invariant is enforced directly by
   ``scripts/test/test_grasp_multi_property_invariant.py``.
 
 Only PR is exercised end-to-end today because (a) it's the canonical
@@ -180,10 +179,8 @@ def _assert_grasp_invariant(regions: list[dict], app: AppSpec) -> None:
     )
     grasp_flags = [r["grasp_region"] for r in regions]
     # Post-fix invariant: *both* property arrays must be classified as
-    # GRASP regions (the multi-property bug surfaced in BC was that only
-    # the trailing array was a GRASP region — see
-    # research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md and
-    # scripts/test/test_grasp_multi_property_invariant.py).
+    # GRASP regions; the multi-property bug surfaced when only the trailing
+    # array was marked.
     assert sum(grasp_flags) == 2, (
         f"{app.name}: expected both regions with grasp_region=1, "
         f"got grasp_region flags={grasp_flags}: {regions}"

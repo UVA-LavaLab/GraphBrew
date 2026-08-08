@@ -53,6 +53,6 @@ def test_roi_rows_record_droplet_knobs():
 def test_prefetcher_readme_records_old_artifact_caveats():
     text = read("bench/include/sniper_sim/overlays/common/core/memory_subsystem/prefetcher/README.md")
 
-    assert "DROPLET-master" in text
+    assert "old public DROPLET Sniper-6.1 repo" in text
     assert "trainPrefetcherForProperty()" in text
     assert "DROPLET-style port" in text

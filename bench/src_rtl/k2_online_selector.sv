@@ -16,9 +16,12 @@ module k2_online_selector #(
     localparam logic [2:0] ARM_EPOCH = 3'd2;
     localparam logic [2:0] ARM_DEGREE = 3'd3;
     localparam logic [2:0] ARM_LRU = 3'd4;
+    localparam int SAMPLE_BITS = $clog2(WINDOW_MISSES);
+    localparam logic [SAMPLE_BITS-1:0] WINDOW_LAST =
+        SAMPLE_BITS'(WINDOW_MISSES - 1);
 
     logic [COUNTER_BITS-1:0] misses_q [0:4];
-    logic [$clog2(WINDOW_MISSES)-1:0] sampled_misses_q;
+    logic [SAMPLE_BITS-1:0] sampled_misses_q;
     logic [2:0] winner_q;
     logic leader_valid;
     logic [2:0] leader_arm;
@@ -67,7 +70,7 @@ module k2_online_selector #(
             sampled_misses_q <= '0;
             winner_q <= ARM_RRIP;
         end else if (enable_i && record_miss_i && leader_valid) begin
-            if (sampled_misses_q == WINDOW_MISSES - 1) begin
+            if (sampled_misses_q == WINDOW_LAST) begin
                 for (seq_arm = 0; seq_arm < 5; seq_arm = seq_arm + 1)
                     misses_q[seq_arm] <= '0;
                 sampled_misses_q <= '0;

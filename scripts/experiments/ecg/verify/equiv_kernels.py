@@ -244,7 +244,7 @@ def evidence_inputs(
         "equiv_verifier": Path(__file__).resolve(),
         "trace_oracle": Path(ecg.__file__).resolve(),
         "roi_matrix": ecg.ROI_MATRIX,
-        "policy_ssot": ecg.ROOT / "bench/include/ecg_victim_policy.h",
+        "policy_source": ecg.ROOT / "bench/include/ecg_victim_policy.h",
         "epoch_builder": ecg.ROOT / "bench/include/ecg_epoch_builder.h",
     }
     for kernel in kernels:
@@ -259,7 +259,7 @@ def evidence_inputs(
             ecg.ROOT /
             "bench/include/gem5_sim/overlays/mem/cache/"
             "replacement_policies/ecg_rp.cc")
-        paths["gem5_policy_ssot_copy"] = (
+        paths["gem5_policy_copy"] = (
             ecg.ROOT /
             "bench/include/gem5_sim/overlays/mem/cache/"
             "replacement_policies/ecg_victim_policy.hh")
@@ -284,7 +284,7 @@ def evidence_inputs(
             ecg.ROOT /
             "bench/include/sniper_sim/overlays/common/core/"
             "memory_subsystem/cache/cache_set_ecg.cc")
-        paths["sniper_policy_ssot_copy"] = (
+        paths["sniper_policy_copy"] = (
             ecg.ROOT /
             "bench/include/sniper_sim/overlays/common/core/"
             "memory_subsystem/cache/ecg_victim_policy.h")
@@ -659,7 +659,7 @@ def main(argv=None):
              "computed-address K2-M.")
     ap.add_argument(
         "--evidence-dir", type=Path,
-        help="Archive a paper-ready manifest, raw traces, ROI rows, and "
+        help="Archive a complete manifest, raw traces, ROI rows, and "
              "structured per-cell coverage.")
     ap.add_argument(
         "--overwrite-evidence", action="store_true",
@@ -709,7 +709,7 @@ def main(argv=None):
         print("FAIL: missing equivalence inputs:")
         for path in missing_inputs:
             print(f"  - {path}")
-        print("See research/ecg-hpca/ARTIFACT.md for graph staging and build commands.")
+        print("See wiki/Reproduction.md for graph staging and build commands.")
         return 2
 
     evidence_dir = args.evidence_dir

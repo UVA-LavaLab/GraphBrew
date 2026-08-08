@@ -20,7 +20,7 @@ same helper surface that the first GRASP/POPT/ECG cache-set ports will need.
 victim aging, adds GRASP high/moderate/low insertion and hot-hit promotion, and
 exposes `prepareInsertion(addr)`. Sniper's current `CacheSet::insert()` does not
 pass the fill address, so the factory/insertion wiring must call that hook from
-`Cache::insertSingleLine()` before this policy is paper-faithful.
+`Cache::insertSingleLine()` before this policy matches the reference behavior.
 
 Integration target discovered in Sniper main:
 

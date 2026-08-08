@@ -1,1 +1,1 @@
-"""ECG artifact tests for cache policies, simulator ports, and paper workflows."""
+"""GraphBrew tests for cache policies, simulator ports, and experiment workflows."""

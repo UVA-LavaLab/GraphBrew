@@ -309,8 +309,8 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             // parent's P-OPT management more correct (the dual matters for the ECG edge
             // masks, which target BU's IRREGULAR frontier probe, not for the P-OPT reref
             // which manages the sequential parent). The mechanism is here for a future
-            // direction-optimizing kernel with irregular property access in BOTH
-            // directions. See research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md S9.
+            // direction-optimizing kernel with irregular property access in
+            // both directions.
             if (popt_dual_reref) {
                 reref_bu = buildRerefMatrix(g, /*natural_csr=*/!bfs_natural_csr,
                               "BFS(BU/in->out-transpose)", numVtxPerLine, numEpochs, popt_matrix_bu);

@@ -35,7 +35,7 @@ class GraphHawkeyeRP(BaseReplacementPolicy):
 
 class GraphGraspRP(BaseReplacementPolicy):
     """GRASP: Graph-aware cache Replacement with Software Prefetching
-    (Faldu et al., HPCA 2020)
+    (Faldu et al., 2020)
 
     Extends SRRIP with degree-based 3-tier insertion and hit promotion.
     Property regions loaded from sideband JSON written by benchmark at runtime.
@@ -59,7 +59,7 @@ class GraphGraspRP(BaseReplacementPolicy):
 
 class GraphPoptRP(BaseReplacementPolicy):
     """P-OPT: Practical Optimal cache replacement for Graph Analytics
-    (Balaji et al., HPCA 2021)
+    (Balaji et al., 2021)
 
     Oracle baseline using pre-computed rereference distances from the graph
     transpose. 3-phase eviction: non-graph first, then max rereference

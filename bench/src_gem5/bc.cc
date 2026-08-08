@@ -41,13 +41,12 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     gem5_report_region("path_counts", path_counts.data(), g.num_nodes(), sizeof(int64_t));
         gem5_report_region("deltas", deltas.data(), g.num_nodes(), sizeof(ScoreT));
 
-        // GRASP HPCA20 protects vertex-indexed property arrays. BC has four
+        // GRASP protects vertex-indexed property arrays. BC has four
         // such arrays (all indexed by vertex id), so we mark all of them as
         // grasp_region=true. classifyGRASP() applies the same hot/moderate
         // boundary per region; marking only one of four arrays (the original
-        // behaviour) caused the other three to thrash under SRRIP. Mirror of
-        // the cache_sim fix in bench/src_sim/bc.cc — see
-        // research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md "BC multi-property fix".
+        // behaviour) caused the other three to thrash under SRRIP. Keep this
+        // registration identical to bench/src_sim/bc.cc.
         Gem5PropertyRegion regions[4] = {
         {"scores", reinterpret_cast<uint64_t>(scores.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),

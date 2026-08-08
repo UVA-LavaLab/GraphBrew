@@ -12,9 +12,8 @@
 // at 15 bits (<=32767). On a graph with a target vertex id > 32767 the target is
 // silently truncated to a WRONG vertex, so the gem5 PR kernel guards against it
 // (counts targets > 0x7FFF, warns, and aborts under ECG_PFX_STRICT_TARGET=1) and
-// cache_sim remains the authoritative large-graph prefetch model. Sniper is
-// unaffected (it uses the 31-bit packMask field). See
-// research/ecg-hpca/evidence/property_prefetch_tlb_paging.md and the gem5 audit.
+// cache_sim remains the large-graph prefetch model. Sniper is unaffected
+// because it uses the 31-bit packMask field.
 //
 // This test pins those field widths so the limit cannot regress unnoticed.
 #include "ecg_mode6_builder.h"

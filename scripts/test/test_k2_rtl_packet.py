@@ -30,7 +30,7 @@ def test_rtl_packet_hashes_synthesis_inputs(tmp_path: Path):
     }
     for entry in (
             replacement["source"],
-            replacement["policy_ssot"],
+            replacement["policy_source"],
             *payload["replacement_path"]["sources"],
             *payload["request_path_units"]["sources"],
             payload["ecc"]["source"],

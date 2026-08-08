@@ -9,7 +9,7 @@ graph copy without terminating the application before its correctness receipt.
 The optional GRASP-derived arm is deliberately named a rules proxy. It applies
 the official 3-bit GRASP RRIP rules to the P-OPT application's registered
 IRREGDATA/REGDATA regions; it is not the official GRASP PageRank workload
-mapping and cannot reproduce the paper's P-OPT-vs-GRASP result.
+mapping and cannot reproduce the original P-OPT-vs-GRASP result.
 """
 
 from __future__ import annotations

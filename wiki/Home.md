@@ -1,12 +1,15 @@
-# ECG Cache Architecture Artifact
+# GraphBrew K2 Documentation
 
-ECG carries future-reuse information in streamed graph edge records to guide
-both LLC replacement and record placement without reserving LLC ways.
+Start with the
+[illustrated K2 and StreamShield design guide](K2-StreamShield.md).
 
-This wiki intentionally contains one paper-facing entry point:
+Additional pages:
 
-- [ECG-HPCA-Paper](ECG-HPCA-Paper) — architecture, evidence, claim boundary,
-  canonical commands, and current submission status.
+- [Evaluation methodology](Evaluation-Methodology.md)
+- [Build and reproduction](Reproduction.md)
+- [Repository hygiene](Repository-Hygiene.md)
 
-The tracked paper SSOT is
-[`research/ecg-hpca/`](https://github.com/UVA-LavaLab/GraphBrew/tree/graphbrew_ecg/research/ecg-hpca).
+The guide explains the architecture with worked examples and links to the
+methodology and reproduction pages.
+
+Performance tables will be added after the final evaluation.

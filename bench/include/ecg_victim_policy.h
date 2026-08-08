@@ -10,7 +10,7 @@
 // bench/src_sim/test_ecg_victim.cc.
 //
 // The seven variants (selected by ECG_VARIANT) and the invariants are documented
-// in wiki/ECG-HPCA-Paper.md. Summary:
+// in wiki/K2-StreamShield.md. Summary:
 //   - epoch is PROPERTY-ONLY; record (non-property) lines never carry a usable
 //     epoch and are ranked by recency / set order.
 //   - "recency" is normalised so SMALLER == older == evict-first. cache_sim and
@@ -404,7 +404,7 @@ inline size_t selectVictim(WayState* ways, size_t n, int variant, uint8_t rrpvMa
 
 // ---------------------------------------------------------------------------
 // GRASP insertion classification — the OTHER half of the ECG policy SSOT.
-// Insertion RRPV is GRASP's whole mechanism (Faldu HPCA'20): high-degree
+// Insertion RRPV follows GRASP (Faldu et al., 2020): high-degree
 // property lines are protected, low-degree lines are evicted first. A single
 // implementation here guarantees cache_sim / gem5 / Sniper classify and insert
 // identically (the eviction DECISION above and the INSERTION tier below are now

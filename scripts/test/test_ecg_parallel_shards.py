@@ -167,9 +167,9 @@ def test_sniper_600m_expands_to_120_shards(tmp_path):
 
 def test_slurm_shards_use_per_run_lock():
     source = (
-        ROOT / "scripts/experiments/ecg/slurm/slurm_final_shard.sbatch"
+        ROOT / "scripts/experiments/ecg/slurm/slurm_experiment_shard.sbatch"
     ).read_text()
-    assert '--lock-path "$run_dir/.paper_run.lock"' in source
+    assert '--lock-path "$run_dir/.experiment_run.lock"' in source
     assert '--graph-dir "${GRAPHBREW_GRAPH_DIR:-results/graphs}"' in source
     local = (
         ROOT / "scripts/experiments/ecg/flows/run_local_shards.py"

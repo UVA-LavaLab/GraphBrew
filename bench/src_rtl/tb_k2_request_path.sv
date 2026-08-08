@@ -16,9 +16,9 @@ module tb_k2_request_path;
     logic [31:0] dest;
     logic [94:0] payload;
 
-    logic [15:0] rank_i;
-    logic [15:0] rank_o;
-    logic [15:0] stored_rank;
+    logic [7:0] rank_i;
+    logic [7:0] rank_o;
+    logic [7:0] stored_rank;
     logic rank_access;
 
     logic write_epoch;
@@ -37,7 +37,7 @@ module tb_k2_request_path;
     logic [8*32-1:0] allocated_sequences;
     logic [31:0] sequence_base;
 
-    always #1 clk = ~clk;
+    always #1 clk <= ~clk;
 
     k2_request_state_slot #(
         .REQUESTOR_BITS(8)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Tier B: GraphBrew P-OPT rereference matrix matches the upstream algorithm.
 
-The upstream P-OPT artifact (Balaji et al., HPCA'21,
-``CMUAbstract/POPT-CacheSim-HPCA21``) compresses each (cache_line, epoch) pair
+The upstream P-OPT artifact from Balaji et al. compresses each
+(cache_line, epoch) pair
 into a single byte whose MSB selects between two encodings:
 
 * MSB=0: cache line IS referenced in this epoch; the lower 7 bits hold the
@@ -23,8 +23,7 @@ locks in the runtime equivalence by:
 3. Diffing the two compressed matrices for **bit-exact** equality across two
    tiny synthetic graphs.
 
-The handoff (``research/ecg-hpca/PAPER.md`` Section 11, claim/scope ledger)
-calls for
+The evaluation methodology calls for
 diffing against an upstream reference run on ``web-Google.el``.  The upstream
 artifact source is not vendored in this repository (network clone required),
 so this test uses an in-repo Python clone of the published algorithm as the

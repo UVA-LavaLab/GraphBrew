@@ -17,4 +17,5 @@ python3 scripts/setup_sniper.py --apply-overlays
 make sniper-sg_kernel
 ```
 
-Run paper matrices through `scripts/experiments/ecg/flows/paper_run.py`.
+Run experiment matrices through
+`scripts/experiments/ecg/flows/experiment_run.py`.

@@ -1,41 +1,43 @@
-# GraphBrew ECG Research Artifact
+# GraphBrew K2 Cache Architecture
 
-This repository contains the implementation and reproducibility artifact for
-the successor to *ECG: Expressing Locality and Prefetching for Optimal Caching
-in Graph Structures* (IEEE IPDPSW 2024). Implementation identifiers retain the
-`ECG_*` names while the public paper name remains open.
+GraphBrew explores graph-aware cache management for irregular graph analytics.
+The design carries compact reuse information with each streamed edge, attaches
+that information to the corresponding property request, and uses it to guide
+last-level-cache replacement and placement.
 
-## Canonical paper documents
+The current architecture combines three mechanisms:
 
-| Document | Ownership |
-|---|---|
-| [`research/ecg-hpca/PAPER.md`](research/ecg-hpca/PAPER.md) | Sole normative scientific SSOT: mechanism, simulator roles, metrics, current interpretation, limitations, and claim boundaries |
-| [`research/ecg-hpca/RESULTS.md`](research/ecg-hpca/RESULTS.md) | Current measured tables; interpretation remains in `PAPER.md` |
-| [`research/ecg-hpca/ARTIFACT.md`](research/ecg-hpca/ARTIFACT.md) | Dataset staging, build, test, execution, and analysis commands |
-| [`research/ecg-hpca/README.md`](research/ecg-hpca/README.md) | Paper-directory navigation |
-| [`research/ecg-hpca/preregistration/pr_screen.json`](research/ecg-hpca/preregistration/pr_screen.json) | Active PageRank screen configuration |
+- **K2 records** carry a reuse tier and the next two property-reuse epochs.
+- **K2-M** binds that metadata to the exact property load.
+- **StreamShield** keeps one-touch edge records from occupying the shared LLC
+  after a miss while preserving private-cache fills and LLC hits.
 
-This root README is navigation only. It does not independently define the
-architecture, active policy, result interpretation, or reproduction procedure.
+## Documentation
 
-## Repository map
+- [Illustrated design guide](wiki/K2-StreamShield.md) — start here for the
+  mechanism, worked examples, and simulator mapping.
+- [Evaluation methodology](wiki/Evaluation-Methodology.md) — workloads,
+  baselines, metrics, and reporting rules.
+- [Build and reproduction guide](wiki/Reproduction.md) — datasets, builds,
+  tests, and experiment commands.
+- [Repository hygiene](wiki/Repository-Hygiene.md) — what belongs in a push
+  and what must stay local.
+
+Performance tables are intentionally omitted until the final evaluation is
+complete.
+
+## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `bench/include/` | Shared cache, metadata, simulator-overlay, and policy support |
-| `bench/src_sim/` | cache_sim-instrumented graph kernels |
+| `bench/include/` | Shared cache policy, metadata, and simulator integration |
+| `bench/src_sim/` | Functional cache-simulator graph kernels |
 | `bench/src_gem5/` | gem5 graph kernels |
 | `bench/src_sniper/` | Sniper graph workload |
-| `scripts/experiments/ecg/` | Experiment runner, manifest, analyzers, and verification tools |
-| `scripts/test/` | Focused artifact and scientific-contract tests |
-| `research/ecg-hpca/evidence/` | Current compact evidence plus historical audit material |
-| `wiki/ECG-HPCA-Paper.md` | Public landing page pointing back to the canonical documents |
+| `bench/src_rtl/` | Synthesizable K2 physical-cost models and testbenches |
+| `scripts/experiments/ecg/` | Experiment runners and analysis tools |
+| `scripts/test/` | Unit, integration, and documentation checks |
+| `wiki/` | Illustrated design, methodology, and reproduction documentation |
 
-Start with [`research/ecg-hpca/ARTIFACT.md`](research/ecg-hpca/ARTIFACT.md)
-for all build and reproduction commands. Generated graphs, simulator outputs,
-binaries, traces, and `results/` content are gitignored and must not be
-committed.
-
-The IPDPSW 2024 paper is archival. Submission-eligibility and contribution-
-delta guidance for a successor paper is maintained only in
-[`research/ecg-hpca/PAPER.md`](research/ecg-hpca/PAPER.md).
+Generated graphs, binaries, traces, and experiment output under `results/` are
+not tracked.

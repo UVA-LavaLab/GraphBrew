@@ -18,7 +18,7 @@ def test_k2_physical_rtl_matches_policy_and_ecc(tmp_path: Path):
     assert result["status"] == "passed"
 
 
-def test_rtl_variant_numbers_match_cpp_ssot():
+def test_rtl_variant_numbers_match_cpp_policy():
     cpp = (ROOT / "bench/include/ecg_victim_policy.h").read_text()
     rtl = (RTL / "k2_victim_select.sv").read_text()
     variants = {

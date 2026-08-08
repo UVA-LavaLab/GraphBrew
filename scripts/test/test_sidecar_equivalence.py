@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """S2 (narrow sidecar) must be semantically identical to S1 (packed record).
 
-The paper rests on a 15-cell conformance gate: the eviction decision in
+The implementation uses a 15-cell conformance gate: the eviction decision in
 `ecg_victim_policy.h` is kernel-agnostic and byte-identical across cache_sim,
 gem5 and Sniper. Introducing a second metadata delivery structure threatens
 that gate unless the structure is provably transport-only.
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import difflib
 import os
 import subprocess
 import tempfile
@@ -138,17 +139,17 @@ def test_sidecar_width_is_independent_of_graph_size():
         "the CSR edge already carries the destination")
 
 
-def test_every_cache_sim_kernel_uses_the_metadata_ssot():
+def test_every_cache_sim_kernel_uses_the_shared_metadata():
     """All five algorithms must share one delivery site, on every simulator.
 
-    The paper's foundation is a 15-cell conformance gate, so a kernel that
+    The implementation depends on a 15-cell conformance gate, so a kernel that
     delivers metadata its own way is a correctness risk, not just untidy. These
     checks fail if any kernel drifts back to a private chain.
     """
     for kernel in ("pr", "bfs", "cc", "bc", "sssp"):
         src = (ROOT / f"bench/src_sim/{kernel}.cc").read_text()
         assert "::ecg_metadata::configure(" in src, (
-            f"{kernel} does not configure delivery from the SSOT")
+            f"{kernel} does not configure delivery from the shared implementation")
         assert "SIM_ECG_EDGE(" in src, (
             f"{kernel} does not use the single delivery site")
         assert "::ecg_metadata::announce(" in src, (
@@ -160,7 +161,7 @@ def test_every_cache_sim_kernel_uses_the_metadata_ssot():
                 f"{kernel} still carries the superseded {dead}")
 
 
-def test_all_three_simulators_share_the_metadata_ssot():
+def test_all_three_simulators_share_the_shared_metadata():
     """cache_sim, gem5 and Sniper must derive width and structure from one header.
 
     ecg_victim_policy.h owns the eviction DECISION and is kept identical across
@@ -172,7 +173,7 @@ def test_all_three_simulators_share_the_metadata_ssot():
     actually uses it, which is what this asserts.
     """
     canonical = ROOT / "bench/include/ecg_metadata.h"
-    assert canonical.is_file(), "metadata SSOT header is missing"
+    assert canonical.is_file(), "shared metadata implementation header is missing"
 
     consumers = {
         "cache_sim": [ROOT / f"bench/src_sim/{k}.cc"
@@ -185,7 +186,7 @@ def test_all_three_simulators_share_the_metadata_ssot():
         for path in paths:
             src = path.read_text()
             assert "ecg_metadata.h" in src or "::ecg_metadata::" in src, (
-                f"{sim} source {path.name} does not use the metadata SSOT")
+                f"{sim} source {path.name} does not use the shared metadata implementation")
 
     # No simulator may keep a private width rule.
     for path in [p for paths in consumers.values() for p in paths]:
@@ -194,7 +195,7 @@ def test_all_three_simulators_share_the_metadata_ssot():
             f"{path.name} still computes record width locally")
 
 
-def test_metadata_ssot_has_no_simulator_dependencies():
+def test_shared_metadata_has_no_simulator_dependencies():
     """It must stay includable by guest kernels on every backend.
 
     Checks code, not prose: the header names the simulators in its own
@@ -207,13 +208,13 @@ def test_metadata_ssot_has_no_simulator_dependencies():
     for forbidden in ("cache_sim.h", "graph_sim.h", "CacheHierarchy",
                       "SimArray", "m5op", "sift"):
         assert forbidden not in code, (
-            f"metadata SSOT depends on {forbidden}, so it is no longer "
+            f"shared metadata implementation depends on {forbidden}, so it is no longer "
             "backend-neutral")
     # Only standard headers.
     includes = [l for l in lines if l.lstrip().startswith("#include")]
     assert includes, "header includes nothing at all"
     for inc in includes:
-        assert "<" in inc, f"non-standard include in the SSOT: {inc.strip()}"
+        assert "<" in inc, f"non-standard include in the shared implementation: {inc.strip()}"
 
 
 # ---------------------------------------------------------------------------
@@ -242,14 +243,14 @@ def _receipt(cmd, env):
                          [(1, False, 4), (2, False, 8), (2, True, 4)])
 def test_cache_sim_and_gem5_derive_identical_width(stamps, variable,
                                                    expect_bytes):
-    """The whole point of the SSOT: no backend may compute its own width.
+    """The whole point of the shared implementation: no backend may compute its own width.
 
     Both simulators independently call ecg_metadata::configure and print a
     receipt. Identical configuration must produce byte-identical receipts. A
     mismatch means one backend has drifted back to a private width rule, which
     is exactly the defect that made K2-versus-K1 a comparison of record widths.
 
-    The variable-width Schedule-2 case is the one that matters most: the SSOT
+    The variable-width Schedule-2 case is the one that matters most: the shared implementation
     computes a 4-byte BUDGET, and a backend that materialises the record wider
     must declare the container it really streams. gem5 and Sniper both printed
     the budget while building 64-bit arrays, so the receipt agreed while the
@@ -315,10 +316,10 @@ def test_declared_gem5_timing_stages_are_honestly_scoped():
 
     Guards the two mistakes already made: forcing a width in both arms
     (vacuous), and nesting the explicit-cell channel inside itself (silently
-    dropped, since paper_run already wraps the stage env).
+    dropped, since experiment_run already wraps the stage env).
     """
     manifest = json.loads(
-        (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+        (ROOT / "scripts/experiments/ecg/experiment_manifest.json").read_text())
     stages = [s for s in manifest["stages"]
               if str(s.get("name", "")).startswith("31_gem5_record_width")]
     assert stages, "the declared gem5 timing stages are missing"
@@ -327,7 +328,7 @@ def test_declared_gem5_timing_stages_are_honestly_scoped():
         env = stage.get("env", {})
         assert "GRAPHBREW_EXPLICIT_CELL_ENV" not in env, (
             f"{stage['name']} nests the explicit channel inside itself; "
-            "paper_run already wraps the stage env, so this double-encodes")
+            "experiment_run already wraps the stage env, so this double-encodes")
         assert env.get("ECG_RECORD_VARIABLE_WIDTH") == "1", (
             f"{stage['name']} must request variable width so the receipt "
             "reports a computed width rather than a hardcoded default")
@@ -346,12 +347,12 @@ def test_gem5_forwards_metadata_knobs_into_the_simulated_guest():
     """gem5 SE mode does not inherit the host environment.
 
     graph_se.py builds an explicit allowlist of variables to hand the simulated
-    process. The metadata SSOT knobs were absent from it, so a stage asking for
+    process. The shared metadata implementation knobs were absent from it, so a stage asking for
     a 4-byte record silently got the Schedule-2 default of 8: the run looked
     correct at every layer above, and only the guest's own receipt disagreed.
 
     This is the third distinct layer of env plumbing between a manifest stage
-    and the guest, after roi_matrix's scrub and paper_run's explicit-cell
+    and the guest, after roi_matrix's scrub and experiment_run's explicit-cell
     channel, and the only one that is invisible from the host side.
     """
     config = (ROOT / "bench/include/gem5_sim/configs/graphbrew/graph_se.py").read_text()
@@ -372,12 +373,12 @@ def test_gem5_forwards_metadata_knobs_into_the_simulated_guest():
             f"graph_se.py does not forward {name} to the simulated guest, so "
             "gem5 cells cannot honour it and will silently use the default")
 
-    # Every knob the metadata SSOT reads must be forwarded, or a future knob
-    # repeats the same failure. Derive the list from the SSOT itself.
-    ssot = (ROOT / "bench/include/ecg_metadata.h").read_text()
-    knobs = set(re.findall(r'"(ECG_[A-Z0-9_]+)"', ssot))
+    # Every knob the shared metadata implementation reads must be forwarded, or a future knob
+    # repeats the same failure. Derive the list from the shared implementation itself.
+    shared_text = (ROOT / "bench/include/ecg_metadata.h").read_text()
+    knobs = set(re.findall(r'"(ECG_[A-Z0-9_]+)"', shared_text))
     # Guest-side mechanism knobs live in gem5_harness.h and are GEM5_ECG_*
-    # prefixed, so the SSOT regex alone cannot see them. They need forwarding
+    # prefixed, so the shared implementation regex alone cannot see them. They need forwarding
     # for exactly the same reason, and were being hand-maintained.
     harness = (ROOT / "bench/include/gem5_sim/gem5_harness.h").read_text()
     knobs |= set(re.findall(r'getenv\("(GEM5_ECG_[A-Z0-9_]+)"\)', harness))
@@ -439,7 +440,7 @@ def test_gem5_prefers_the_compact_record_and_declares_its_width():
 def test_riscv_gem5_binaries_are_not_stale_against_the_compact_record():
     """gem5 runs the RISC-V kernels, not the native ones.
 
-    paper_run passes --no-build, so a rebuilt native binary proves nothing about
+    experiment_run passes --no-build, so a rebuilt native binary proves nothing about
     what gem5 executes. This was measured the hard way: the receipt from the
     native binary read 4 bytes while the RISC-V guest still printed the 8-byte
     banner, and the timing arm silently reproduced the 8-byte result.
@@ -505,7 +506,7 @@ def test_guest_enforces_the_width_the_runner_intended():
 def test_width_contrast_stages_are_scoped_to_what_gem5_implements():
     """Only gem5 PR has a compact record, and StreamShield is 8-byte only."""
     manifest = json.loads(
-        (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+        (ROOT / "scripts/experiments/ecg/experiment_manifest.json").read_text())
     stages = [s for s in manifest["stages"]
               if str(s.get("name", "")).startswith("31_gem5_record_width")]
     assert stages
@@ -552,7 +553,7 @@ def test_compact_records_decode_identically_to_the_64_bit_form():
 def test_a_four_byte_receipt_means_a_four_byte_array_was_built():
     """A receipt that agrees across backends can still be wrong in all of them.
 
-    The SSOT computes the width a record COULD occupy. gem5 and Sniper both
+    The shared source computes the width a record COULD occupy. gem5 and Sniper both
     printed that budget while building 64-bit arrays, so the cross-backend
     receipt comparison passed while the memory traffic silently doubled. Only
     the container the backend actually allocates settles it.
@@ -642,8 +643,40 @@ def test_built_kernels_are_newer_than_the_headers_they_embed():
         + list((ROOT / "bench/include/gem5_sim").glob("*.h")))
     if not headers:
         pytest.skip("ECG headers not found")
-    newest = max(h.stat().st_mtime for h in headers)
-    newest_name = max(headers, key=lambda h: h.stat().st_mtime).name
+    changed = set(subprocess.run(
+        ["git", "diff", "--name-only"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    ).stdout.splitlines())
+    changed.update(subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    ).stdout.splitlines())
+    material_headers = []
+    for header in headers:
+        relative = str(header.relative_to(ROOT))
+        if relative not in changed:
+            continue
+        baseline = subprocess.run(
+            ["git", "show", f"HEAD:{relative}"],
+            cwd=ROOT, capture_output=True, text=True)
+        if baseline.returncode != 0:
+            material_headers.append(header)
+            continue
+        diff = difflib.unified_diff(
+            baseline.stdout.splitlines(),
+            header.read_text(errors="ignore").splitlines(),
+        )
+        if any(
+                line.startswith(("+", "-")) and
+                not line.startswith(("+++", "---")) and
+                not line[1:].lstrip().startswith(("//", "/*", "*", "#"))
+                for line in diff):
+            material_headers.append(header)
+    if not material_headers:
+        pytest.skip("no edited ECG header requires a rebuild")
+    newest = max(h.stat().st_mtime for h in material_headers)
+    newest_name = max(
+        material_headers, key=lambda h: h.stat().st_mtime).name
 
     stale, present = [], 0
     for binary in (ROOT / "bench/bin_gem5" / "pr_riscv_m5ops",

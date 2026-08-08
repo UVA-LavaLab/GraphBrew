@@ -187,7 +187,9 @@ $(GEM5_RISCV_BUILD_CONFIG): FORCE_GEM5_RISCV_CONFIG | $(BIN_GEM5_DIR)
 		mv $@.tmp $@; \
 	fi
 
+ifeq ($(filter clean clean-all clean-sim clean-gem5-bin clean-sniper-bin,$(MAKECMDGOALS)),)
 -include $(wildcard $(BIN_GEM5_DIR)/*_riscv_m5ops.d)
+endif
 
 $(BIN_GEM5_DIR)/%: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
 	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_ECG) | $(BIN_GEM5_DIR)
@@ -280,4 +282,11 @@ clean-gem5-bin:
 clean-sniper-bin:
 	rm -rf $(BIN_SNIPER_DIR)
 
+.PHONY: clean clean-all clean-sim clean-gem5-bin clean-sniper-bin
+
 clean: clean-sim clean-gem5-bin clean-sniper-bin
+
+# Local research notes are intentionally outside build cleanup.
+clean-all: clean
+	rm -rf build m5out sim.out sniper.out .pytest_cache
+	@echo "Generated build/simulator outputs removed; research/ and results/ preserved."

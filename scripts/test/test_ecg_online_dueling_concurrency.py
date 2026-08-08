@@ -5,7 +5,7 @@ Sniper simulates each core as a real OS thread sharing one LLC set/selector
 (unlike gem5's single-threaded discrete-event model), so
 ``ecg_policy::OnlineDuelingSelector`` (bench/include/ecg_victim_policy.h --
 byte-identical across cache_sim/gem5/Sniper, see
-test_ecg_victim_policy_ssot.py) used to be driven by Sniper's
+test_shared_ecg_policy.py) used to be driven by Sniper's
 cache_set_ecg.cc overlay via separate before/after reads of its counters
 bracketing a ``recordMiss()`` call. That before/after diff races against
 every OTHER core thread's concurrent ``recordMiss()`` call on the SAME

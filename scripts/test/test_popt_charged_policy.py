@@ -32,7 +32,7 @@ def _charge_args(reserve_model: str = "fixed_one") -> Namespace:
 
 def test_popt_charged_label_and_default_fixed_one_reserves_single_way():
     spec = roi_matrix.parse_policy_spec("POPT_CHARGED")
-    # Plain/charged POPT keeps the label "POPT" (it is the paper's policy); the
+    # Plain/charged POPT keeps the label "POPT"; the
     # charge is carried by charge_popt_overhead, not a label suffix.
     assert spec.policy == "POPT"
     assert spec.label == "POPT"
@@ -54,7 +54,7 @@ def test_popt_charged_label_and_default_fixed_one_reserves_single_way():
 def test_popt_charged_size_correct_reserves_resident_matrix_columns():
     spec = roi_matrix.parse_policy_spec("POPT_CHARGED")
     charge = roi_matrix.popt_charge_metadata(_charge_args("size_correct"), spec, "4kB")
-    # size_correct (paper-faithful, Balaji & Lucia HPCA'21 Sec V.D): reserve
+    # size_correct (reference-compatible): reserve
     # ceil(matrix_bytes / bytes_per_way) ways for the resident rereference-matrix
     # columns. matrix=512B at 256B/way -> 2 reserved ways, 14 data ways = 3584B.
     assert charge["popt_reserve_model"] == "size_correct"
@@ -147,7 +147,7 @@ def test_gem5_analytic_popt_timing_is_labeled_optimistic():
 
 
 def test_popt_charged_size_correct_marks_infeasible_when_matrix_exceeds_llc():
-    # A graph whose two resident matrix columns exceed the whole LLC: the paper's
+    # A graph whose two resident matrix columns exceed the whole LLC: the
     # design point cannot fit while leaving data ways -> mark the cell infeasible
     # (still emit a clamped min-data-way number as a labeled sensitivity).
     args = _charge_args("size_correct")
@@ -161,7 +161,7 @@ def test_popt_charged_size_correct_marks_infeasible_when_matrix_exceeds_llc():
 
 
 def test_popt_uncharged_default_is_charged_but_explicit_uncharged_is_not():
-    # Plain "POPT" is charged-by-default (the paper's practical policy); the
+    # Plain "POPT" is charged by default; the
     # ":UNCHARGED" diagnostic disables the capacity tax (full-cache oracle).
     assert roi_matrix.parse_policy_spec("POPT").charge_popt_overhead
     assert not roi_matrix.parse_policy_spec("POPT:UNCHARGED").charge_popt_overhead

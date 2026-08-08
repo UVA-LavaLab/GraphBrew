@@ -3,7 +3,7 @@
 // ============================================================================
 //
 // Data-awaRe decOuPLed prEfeTcher for Graphs
-// Basak et al., HPCA 2019
+// Basak et al. (2019)
 //
 // Key insight: Graph workloads have two distinct data types:
 //   1. Edge lists (CSR adjacency): Short reuse, streaming, fits in L1/L2
@@ -27,7 +27,7 @@
 //   (replacement). Combined system benefits from both. ECG's prefetch hints
 //   in fat-ID approximate DROPLET's hardware benefit at zero metadata cost.
 //
-// Reference: research/caching/droplet.md
+// Detailed derivation remains in local research notes.
 // ============================================================================
 
 #ifndef __MEM_CACHE_PREFETCH_DROPLET_HH__

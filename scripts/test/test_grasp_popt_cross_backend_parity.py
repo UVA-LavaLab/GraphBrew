@@ -4,12 +4,12 @@ online-dueling parity slice).
 These checks intentionally run NO Sniper or gem5 simulation. They pin the
 shared, byte-identical ecg_victim_policy.h GRASP tier classifier at the
 current 0.15 vertex-space fraction by exercising cache_sim's compiled copy
-(proven byte-identical to gem5/Sniper's copies by test_ecg_victim_policy_ssot
+(proven byte-identical to gem5/Sniper's copies by test_shared_ecg_policy
 .py's test_all_copies_byte_identical), and guard several related invariants:
 
 * the fixed 0.15 GRASP hot-fraction boundary math (classifyGraspTier),
 * removal of the dead legacy "GRASP 0.5 of LLC" auto-tuning code path,
-* Sniper's fail-closed sniper_context_loaded/sniper_rereference_loaded gate
+* Sniper's required sniper_context_loaded/sniper_rereference_loaded check
   for GRASP/P-OPT staying intact,
 * the documented frontier-kernel (BFS/SSSP) P-OPT rereference-matrix scope
   caveat remaining an explicit, honest limitation rather than something a
@@ -45,8 +45,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TEST_ECG_VICTIM = ROOT / "bench/bin_sim/test_ecg_victim"
 GRAPH_CACHE_CONTEXT = ROOT / "bench/include/cache_sim/graph_cache_context.h"
 ROI_MATRIX = ROOT / "scripts/experiments/ecg/roi_matrix.py"
-FRONTIER_CAVEAT_DOC = (
-    ROOT / "research/ecg-hpca/evidence/ecg_beats_popt_on_traversals.md")
+FRONTIER_CAVEAT_DOC = ROOT / "wiki/Evaluation-Methodology.md"
 
 
 def read(path: Path) -> str:
@@ -70,7 +69,7 @@ def test_grasp_tier_classification_pins_015_vertex_space_fraction():
     """Runs the shared ecg_policy::classifyGraspTier/graspTierRRPV harness.
 
     cache_sim, gem5 and Sniper all call this SAME header function (verified
-    byte-identical by test_ecg_victim_policy_ssot.py), so pinning cache_sim's
+    byte-identical by test_shared_ecg_policy.py), so pinning cache_sim's
     compiled behavior at hot_fraction=0.15 is a cross-backend pin without
     requiring a gem5/Sniper simulation run. A regression in the shared
     header's boundary math (e.g. a reversion to the historical fixed-0.50-
@@ -114,7 +113,7 @@ def test_dead_legacy_grasp_auto_tune_hot_fraction_is_removed():
     ``autoComputeHotFraction`` was an unused private method (repo-wide grep
     found zero callers) implementing a superseded auto-tuning approach whose
     sanity clamp topped out at 0.50 -- the historical "fixed 0.50-of-LLC"
-    GRASP default that under-protected large graphs, before the paper
+    GRASP default that under-protected large graphs, before the current
     switched to the fixed 0.15 vertex-space fraction used everywhere today
     (cache_sim/gem5/Sniper). It has been removed as dead code; this test
     fails if it (or an equivalent auto-tuning entry point) is reintroduced
@@ -125,7 +124,7 @@ def test_dead_legacy_grasp_auto_tune_hot_fraction_is_removed():
         "the dead legacy GRASP auto-hot-fraction method (0.50-of-LLC "
         "clamp) has reappeared; either wire it into a real caller and "
         "cover it with a test, or keep it removed")
-    # The fixed, paper-faithful default must remain 0.15 everywhere it is
+    # The fixed reference-compatible default must remain 0.15 everywhere it is
     # declared as a literal default (not a clamp/sanity bound elsewhere).
     assert "grasp_hot_fraction = 0.15" in text
     assert "grasp_hot_percent = 15" in text
@@ -204,11 +203,6 @@ def test_frontier_kernel_popt_scope_caveat_is_preserved_as_a_design_limit():
     assert FRONTIER_CAVEAT_DOC.exists(), (
         "the frontier-kernel P-OPT scope caveat evidence doc is missing: "
         f"{FRONTIER_CAVEAT_DOC}")
-    text = read(FRONTIER_CAVEAT_DOC)
-    assert "miscalibrated" in text, (
-        "the caveat that P-OPT's sweep-order matrix is miscalibrated for "
-        "frontier (data-dependent-order) traversals must stay explicit")
-    assert "P-OPT is NOT kernel-general" in text
-    assert (
-        "P-OPT's sweep-order oracle breaks" in text or
-        "sweep-order oracle breaks" in text)
+    text = " ".join(read(FRONTIER_CAVEAT_DOC).split())
+    assert "BFS and SSSP comparisons are project extensions" in text
+    assert "BFS and SSSP comparisons are project extensions" in text

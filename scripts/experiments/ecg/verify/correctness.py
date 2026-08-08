@@ -40,7 +40,7 @@ GRAPH = ecg.GRAPH
 GEM5_OPT = ecg.GEM5_OPT
 GEM5_CONFIG = ROOT / "bench" / "include" / "gem5_sim" / "configs" / "graphbrew" / "graph_se.py"
 
-# --- SSOT: per-kernel GAPBS verify options ('-v' triggers the verifier) --------
+# Per-kernel GAPBS verify options ('-v' triggers the verifier).
 # PR uses -i 20 so the PageRank residual converges below the verifier's 1e-4
 # tolerance (-i 5 FAILs = under-convergence, NOT a correctness bug). bfs/sssp pin
 # -r 0 so the kernel and its verifier draw the identical source.
@@ -52,7 +52,7 @@ KERNEL_OPTS = {
     "cc":   "-n 1",
 }
 
-# --- SSOT: host lanes = a binary directory under bench/ ------------------------
+# Host lanes use a binary directory under bench/.
 HOST_LANES = {
     "cache_sim":   "bin_sim",
     "gem5_host":   "bin_gem5",

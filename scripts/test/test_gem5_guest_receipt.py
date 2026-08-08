@@ -1,5 +1,4 @@
 import json
-import math
 import os
 import ast
 from pathlib import Path
@@ -12,7 +11,7 @@ import sys
 
 import pytest
 
-from scripts.experiments.ecg.flows import paper_run
+from scripts.experiments.ecg.flows import experiment_run
 from scripts.experiments.ecg import gem5_guest_receipt as receipt_module
 from scripts.experiments.ecg import roi_matrix
 from scripts.experiments.ecg.gem5_guest_receipt import (
@@ -398,19 +397,19 @@ def test_wrapper_compiler_and_config_drift_are_rejected(tmp_path):
             "-O0 -static", "", source, [], build_config, str(binary))
 
 
-def test_paper_run_fingerprints_both_backends_and_resolves_gem5(
+def test_experiment_run_fingerprints_both_backends_and_resolves_gem5(
         monkeypatch):
     monkeypatch.setattr(
-        paper_run, "path_fingerprint", lambda path: path)
+        experiment_run, "path_fingerprint", lambda path: path)
     monkeypatch.setattr(
-        paper_run, "git_state_fingerprint", lambda: "git")
+        experiment_run, "git_state_fingerprint", lambda: "git")
     relative_gem5 = (
         "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt")
-    inputs = paper_run.roi_input_fingerprints(
+    inputs = experiment_run.roi_input_fingerprints(
         SimpleNamespace(
             manifest=str(
                 PROJECT_ROOT /
-                "scripts/experiments/ecg/final_paper_manifest.json")),
+                "scripts/experiments/ecg/experiment_manifest.json")),
         {"suite": "both"}, None, "pr", {
             "GEM5_OPT": relative_gem5,
             "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
@@ -422,7 +421,7 @@ def test_paper_run_fingerprints_both_backends_and_resolves_gem5(
         (PROJECT_ROOT / relative_gem5).resolve())
 
 
-def test_paper_run_requires_one_guest_hash_across_jobs(tmp_path):
+def test_experiment_run_requires_one_guest_hash_across_jobs(tmp_path):
     jobs = []
     for index in range(2):
         out_dir = tmp_path / f"job-{index}"
@@ -431,24 +430,24 @@ def test_paper_run_requires_one_guest_hash_across_jobs(tmp_path):
             "status,simulator,gem5_guest_expected_sha256,"
             "gem5_guest_staged_sha256\n"
             "ok,gem5,abc,abc\n")
-        jobs.append(paper_run.Job(
+        jobs.append(experiment_run.Job(
             job_id=f"job-{index}", stage=f"stage-{index}",
             kind="roi_matrix", command=[], out_dir=out_dir,
             log_path=tmp_path / f"job-{index}.log",
             metadata={"expected_gem5_guest_sha256": "abc"}))
-    assert paper_run.validate_cross_job_guest_hashes(jobs) == (
+    assert experiment_run.validate_cross_job_guest_hashes(jobs) == (
         True, "abc")
     (jobs[1].output_csv).write_text(
         "status,simulator,gem5_guest_expected_sha256,"
         "gem5_guest_staged_sha256\n"
         "ok,gem5,abc,changed\n")
-    ok, detail = paper_run.validate_cross_job_guest_hashes(jobs)
+    ok, detail = experiment_run.validate_cross_job_guest_hashes(jobs)
     assert not ok
     assert "guest hash mismatch" in detail
 
 
-def test_paper_and_roi_environments_strip_code_injection():
-    clean = paper_run.clean_job_environment({
+def test_experiment_and_roi_environments_strip_code_injection():
+    clean = experiment_run.clean_job_environment({
         "LD_PRELOAD": "/bad.so",
         "PROOT_LOADER": "/bin/false",
         "PYTHONPATH": "/bad",
@@ -645,50 +644,3 @@ def test_current_riscv_pr_receipt_when_binary_is_present():
     assert any(
         name.endswith("graphbrew/reorder/reorder_hub.h")
         for name in payload["dependencies"])
-
-
-def test_frozen_fused_compact_receipt_scope_and_math():
-    path = (
-        PROJECT_ROOT / "research/ecg-hpca/evidence/"
-        "fused_compact_matrix_20260729.json")
-    data = json.loads(path.read_text())
-    compact = data["compact_over_wide_implementation"]
-    assert data["status"] == "passed"
-    assert data["completion"]["rows_ok"] == 27
-    assert data["completion"]["semantic_gate"] == "matched"
-    for metric in ("instructions", "traffic", "l3_misses", "modeled_time"):
-        geomean = math.prod(
-            row[metric] for row in compact["graphs"].values()) ** (1 / 3)
-        assert geomean == pytest.approx(
-            compact["geomean"][metric], abs=5e-4)
-    assert all(
-        row["traffic"] < 0.98 and row["modeled_time"] < 0.98
-        for row in compact["graphs"].values())
-    assert "Hardware-calibrated compact K2-I speedup" in (
-        data["prohibited_claims"])
-    assert "All-algorithm or three-simulator compact result" in (
-        data["prohibited_claims"])
-    for section in ("replacement_k2_over_k2_lru", "wide_k2_over_lru"):
-        rows = data[section]["graphs"]
-        metrics = ["traffic", "l3_misses", "modeled_time"]
-        if section == "wide_k2_over_lru":
-            metrics.append("instructions")
-        for metric in metrics:
-            geomean = math.prod(
-                row[metric] for row in rows.values()) ** (1 / 3)
-            assert geomean == pytest.approx(
-                data[section]["geomean"][metric], abs=5e-6)
-    for section in (
-            "fused_decode_software_over_compact",
-            "compact_k2_over_lru"):
-        rows = data[section]["graphs"]
-        for metric in (
-                "instructions", "traffic", "modeled_time",
-                *(("l3_misses",) if section == "compact_k2_over_lru" else ())):
-            geomean = math.prod(
-                row[metric] for row in rows.values()) ** (1 / 3)
-            assert geomean == pytest.approx(
-                data[section]["geomean"][metric], abs=5e-4)
-    assert "tar --sort=name" in data["trust"]["run_archive_recipe"]
-    assert "pr_riscv_m5ops.build.json" in (
-        data["trust"]["guest_archive_recipe"])

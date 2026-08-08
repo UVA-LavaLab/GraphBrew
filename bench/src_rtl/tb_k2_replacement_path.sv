@@ -40,7 +40,7 @@ module tb_k2_replacement_path;
     logic [WAYS-1:0] stamped;
     logic [WAYS*EPOCH_BITS-1:0] distance;
 
-    always #1 clk = ~clk;
+    always #1 clk <= ~clk;
 
     k2_online_selector #(
         .SET_INDEX_BITS(6)
@@ -139,7 +139,8 @@ module tb_k2_replacement_path;
         rrpv = '0;
         recency = '0;
         for (way = 0; way < WAYS; way = way + 1) begin
-            line_addr[way*ADDR_BITS +: ADDR_BITS] = 16'd110 + way;
+            line_addr[way*ADDR_BITS +: ADDR_BITS] =
+                ADDR_BITS'(110 + way);
             metadata_context[way*CONTEXT_BITS +: CONTEXT_BITS] = 4'd7;
         end
         metadata_epoch1[0 +: 4] = 4'd15;

@@ -3,7 +3,7 @@
 // ============================================================================
 //
 // Practical Optimal cache replacement for Graph Analytics (P-OPT)
-// Balaji et al., HPCA 2021
+// Balaji et al. (2021)
 //
 // Uses pre-computed rereference matrix (from graph transpose) to predict
 // when each cache line will next be accessed. 3-phase eviction:

@@ -1,7 +1,7 @@
 // ============================================================================
 // DROPLET Indirect Graph Prefetcher for gem5 — Implementation
 // ============================================================================
-// Reference: Basak et al., HPCA 2019 + research/caching/droplet.md
+// Reference: Basak et al. (2019).
 // ============================================================================
 
 #include "mem/cache/prefetch/droplet.hh"

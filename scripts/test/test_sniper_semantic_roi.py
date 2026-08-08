@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from scripts.experiments.ecg import roi_matrix  # noqa: E402
-from scripts.experiments.ecg.flows import paper_pipeline  # noqa: E402
+from scripts.experiments.ecg.flows import aggregate_results  # noqa: E402
 
 
 def test_sg_kernel_counts_static_edge_visits_in_all_kernels():
@@ -31,15 +31,15 @@ def test_sg_kernel_counts_static_edge_visits_in_all_kernels():
 
 def test_runner_exposes_semantic_edge_limit_and_marker_gate():
     runner = (ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
-    paper_run = (
-        ROOT / "scripts/experiments/ecg/flows/paper_run.py").read_text()
+    experiment_run = (
+        ROOT / "scripts/experiments/ecg/flows/experiment_run.py").read_text()
     assert "--sniper-semantic-edge-limit" in runner
     assert 'env["SNIPER_SEMANTIC_EDGE_LIMIT"]' in runner
     assert "Sniper semantic edge-limit marker missing" in runner
     assert "semantic_work_matched" in runner
     assert "sniper_k2_exact_bind_validated" in runner
     assert "sniper_transport_receipts_validated" in runner
-    assert "--sniper-semantic-edge-limit" in paper_run
+    assert "--sniper-semantic-edge-limit" in experiment_run
 
 
 def test_exact_bind_trace_matches_receipt_line(tmp_path: Path):
@@ -201,7 +201,7 @@ def test_single_policy_shard_waits_for_aggregate_certification(monkeypatch):
             "policy_label": "ECG_K2",
         },
     ]
-    assert paper_pipeline.semantic_work_group_matches(merged)
+    assert aggregate_results.semantic_work_group_matches(merged)
     assert all(row["semantic_work_matched"] == "1" for row in merged)
 
 

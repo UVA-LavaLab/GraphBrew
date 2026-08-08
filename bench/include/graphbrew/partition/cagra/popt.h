@@ -398,8 +398,8 @@ quantizeGraph(const CSRGraph<NodeID_, DestID_, invert> &g, NodeID_ numTiles)
 // push/out-traversal (SSSP, BC) -> CSC/in_neigh. `natural_csr` is the kernel's
 // transpose-correct default. ECG_REREF_TRANSPOSE=AUTO|OUT|IN overrides it (for
 // direction-transfer experiments); undirected graphs always use CSR (in==out).
-// Validates the inverse (CSC) is materialized before selecting in_neigh so we never
-// build a silently-empty matrix. See research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md.
+// Validates the inverse (CSC) is materialized before selecting in_neigh so we
+// never build a silently-empty matrix.
 template <typename NodeID_, typename DestID_, bool invert>
 inline bool ecgRerefTraverseCSR(bool natural_csr,
                                 const CSRGraph<NodeID_, DestID_, invert> &g,

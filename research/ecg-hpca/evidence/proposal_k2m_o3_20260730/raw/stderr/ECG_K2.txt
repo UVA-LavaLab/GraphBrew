@@ -1,4 +1,0 @@
-[ECG-METADATA kernel=gem5-pr delivery=packed stamps=2 epoch_bits=5 tier_bits=2 id_bits=12 record_bytes=8 payload_bits=12 bytes_per_edge=8.000 charged=1 bypass=0 packed_fits=1]
-[ECG-STREAM-REGION sim=gem5 base=0x400000000005b000 size=229744]
-[ECG_K2_MLOAD] PR computed-address masked load ACTIVE
-[ECG-PR-RESULT iterations=1 semantic_edges=28718 score_checksum=38e72dd1fb6fd9d9]

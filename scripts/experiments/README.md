@@ -3,5 +3,5 @@
 The only maintained experiment package on this branch is
 [`ecg/`](ecg/README.md).
 
-Paper runs are manifest-driven; ad-hoc experiment suites are intentionally not
-part of the ECG artifact.
+Experiment runs are manifest-driven; ad-hoc suites are intentionally not
+part of the maintained K2 experiment package.

@@ -2,11 +2,11 @@
 // P-OPT Replacement Policy for gem5 — Implementation
 // ============================================================================
 // Faithful P-OPT adapted for gem5's full-system address space. The victim
-// algorithm mirrors upstream POPT-CacheSim-HPCA21 and GraphBrew cache_sim:
+// algorithm mirrors the upstream P-OPT cache simulator and GraphBrew cache_sim:
 // evict non-property data first, then use rereference distance, then RRIP
 // tiebreaks among equal-distance lines.
 //
-// Reference: Balaji et al., HPCA 2021
+// Reference: Balaji et al. (2021)
 // ============================================================================
 
 #include "mem/cache/replacement_policies/popt_rp.hh"

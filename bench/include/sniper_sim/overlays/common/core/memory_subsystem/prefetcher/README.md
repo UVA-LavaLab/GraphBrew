@@ -20,11 +20,11 @@ The Sniper DROPLET path must match the active gem5 DROPLET semantics:
 - expose issued/useful/late/unused counters when possible.
 
 Reference audit against the old public DROPLET Sniper-6.1 repo
-(`/home/ab/Documents/00_github_repos/DROPLET-master`, Basak et al., HPCA 2019):
+(Basak et al., 2019):
 
 - the repo is a partial Sniper tree (`common/` and `config/` only), not a clean
 	runnable baseline by itself;
-- `README.md` identifies the paper as "Analysis and Optimization of the Memory
+- `README.md` identifies the source work as "Analysis and Optimization of the Memory
 	Hierarchy for Graph Processing Workloads" and says the workloads were GAPBS;
 - `dropletL1.{h,cc}` documents the intended split between structure-demand
 	streaming and property-address training, but `trainPrefetcherForProperty()` is
@@ -48,7 +48,7 @@ that design into the modern overlay style: sideband metadata replaces the old
 text files, edge shadow data replaces direct simulator dereferences of guest
 addresses, and the active prefetcher emits both edge-stream and indirect
 property prefetches through Sniper's normal prefetcher API. Treat this as a
-DROPLET-style port until the old paper parameters and memory-side queue behavior
+DROPLET-style port until the original parameters and memory-side queue behavior
 are fully matched or explicitly documented as modeling differences.
 
 Artifact-informed defaults used by `roi_matrix.py`, gem5, and Sniper overlays:
@@ -112,7 +112,7 @@ Timing caveat: current Sniper ECG_PFX uses explicit benchmark-emitted
 precision and cache behavior; it is not the final instruction-carried metadata
 model. `roi_matrix.py` marks these rows as
 `timing_model=prototype_explicit_hint_delivery` and
-`timing_valid_for_speedup=0`, and `paper_pipeline.py` suppresses speedup metrics
+`timing_valid_for_speedup=0`, and `aggregate_results.py` suppresses speedup metrics
 for them while preserving cache/prefetch metrics.
 
 To reduce prototype overcharge, the Sniper harness filters recent duplicate PFX

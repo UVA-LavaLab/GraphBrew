@@ -1,1 +1,1 @@
-"""Slurm helpers for ECG paper runs."""
+"""Slurm helpers for K2 experiment runs."""

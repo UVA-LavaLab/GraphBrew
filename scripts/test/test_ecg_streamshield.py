@@ -17,7 +17,7 @@ def read(path: str) -> str:
 
 
 def test_streamshield_is_explicit_and_default_off():
-    # StreamShield is now read once by the metadata SSOT rather than by each
+    # StreamShield is now read once by the shared metadata helper rather than by each
     # kernel, so the invariant is checked there: explicit env, default off.
     meta = read("bench/include/ecg_metadata.h")
     assert 'envInt("ECG_STREAM_BYPASS", 0, 0, 1)' in meta
@@ -382,7 +382,7 @@ def test_streamshield_is_generic_across_k2_kernels():
     for kernel in ("bfs", "sssp", "bc", "cc"):
         cache_sim = read(f"bench/src_sim/{kernel}.cc")
         gem5 = read(f"bench/src_gem5/{kernel}.cc")
-        # StreamShield is now applied by the single SSOT delivery site, which
+        # StreamShield is now applied by the shared delivery site, which
         # reads ECG_STREAM_BYPASS once, instead of each kernel spelling out a
         # bypass branch of its own.
         assert "SIM_ECG_EDGE" in cache_sim, kernel
@@ -519,7 +519,7 @@ def test_sniper_cache_only_shmem_timing_patch_is_idempotent(tmp_path):
 def test_schedule_bits_are_charged_in_record_width():
     pr = read("bench/src_sim/pr.cc")
     graph_sim = read("bench/include/cache_sim/graph_sim.h")
-    # Record width now lives in the metadata SSOT, shared byte-identically with
+    # Record width now lives in the shared metadata implementation used by
     # gem5 and Sniper, rather than in a cache_sim-only helper.
     meta = read("bench/include/ecg_metadata.h")
     assert 'envInt("ECG_EDGE_MASK_SCHED", 0, 0, 4)' in meta
