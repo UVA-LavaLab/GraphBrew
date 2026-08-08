@@ -93,10 +93,11 @@ def shard_command(
         "--only", shard.stage,
         "--graph", shard.graph,
         "--benchmark", shard.benchmark,
-        "--policy", shard.policy,
         "--no-build",
         "--lock-path", str(run_dir / ".experiment_run.lock"),
     ]
+    if shard.policy != "__whole__":
+        command.extend(["--policy", shard.policy])
     if args.force:
         command.append("--force")
     if args.allow_missing_graphs:

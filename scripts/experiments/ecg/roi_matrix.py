@@ -442,7 +442,7 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
     iteration_value = (
         row.get("pr_iterations") or
         estimate_num_iterations(str(row.get("options", ""))))
-    if charged and iteration_value in (None, ""):
+    if charged and iteration_value in (None, "") and simulated <= 0:
         mark_row_error(
             row,
             "charged P-OPT row has no PageRank iteration count")

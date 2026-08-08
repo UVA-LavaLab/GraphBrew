@@ -56,7 +56,8 @@
     "ecg_isa_decode_matrix": "Decode-cost matrix. Separates record WIDTH from the cost of DECODING it, with a per-stage LRU denominator so no comparison crosses runs.",
     "ecg_fused_compact_matrix": "Fused compact K2 TimingSimple matrix: hardware-decoded 4B, software-widened 4B, and wide 8B controls in one build with per-stage LRU and K2-LRU; O3 request binding is a separate mechanism gate.",
     "ecg_proposal_k2m_o3_gate": "Exact O3 request-bound correctness gate for the proposal's compact StreamShield record load plus one-for-one computed-address K2-M property load.",
-    "k2_pagerank_study": "Deterministic sampled PageRank study with static rrip_first+StreamShield as the primary design."
+    "k2_pagerank_study": "Deterministic sampled PageRank study with static rrip_first+StreamShield as the primary design.",
+    "k2_final_campaign": "Role-separated final evaluation: mechanism preflight, gem5 O3 PageRank timing, full-graph cache_sim traffic, and full-graph Sniper semantic-work corroboration."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -265,6 +266,10 @@
         "name": "web-Google",
         "path": "results/graphs/web-Google/web-Google.sg",
         "options_key": "file_all_kernels_dbg",
+        "compact_id_bits": 20,
+        "compact_epoch_bits": 4,
+        "compact_total_bits": 30,
+        "sniper_semantic_edge_limit": 8644102,
         "l3_sizes": [
           "8MB"
         ],
@@ -274,6 +279,10 @@
         "name": "soc-pokec",
         "path": "results/graphs/soc-pokec/soc-pokec.sg",
         "options_key": "file_all_kernels_dbg",
+        "compact_id_bits": 21,
+        "compact_epoch_bits": 4,
+        "compact_total_bits": 31,
+        "sniper_semantic_edge_limit": 44603928,
         "l3_sizes": [
           "8MB"
         ],
@@ -283,6 +292,10 @@
         "name": "cit-Patents",
         "path": "results/graphs/cit-Patents/cit-Patents.sg",
         "options_key": "file_all_kernels_dbg",
+        "compact_id_bits": 22,
+        "compact_epoch_bits": 4,
+        "compact_total_bits": 32,
+        "sniper_semantic_edge_limit": 33037894,
         "l3_sizes": [
           "8MB"
         ],
@@ -1032,6 +1045,7 @@
       "prefetcher": "none",
       "ecg_charged": 1,
       "ecg_epochs": 65535,
+      "blocked_reason": "Legacy non-O3 indexed-delivery configuration; not valid for final architectural timing. Use k2_final_campaign.",
       "out_subdir": "23_gem5_3sim_realgraph_allalg",
       "timeout_gem5": 172800,
       "env": {
@@ -1226,6 +1240,7 @@
       "prefetcher": "none",
       "ecg_charged": 1,
       "ecg_epochs": 65535,
+      "blocked_reason": "Legacy non-O3 indexed-delivery configuration; not valid for final architectural timing. Use k2_final_campaign.",
       "out_subdir": "28_gem5_3sim_sampled_allalg",
       "timeout_gem5": 21600,
       "env": {
@@ -1828,7 +1843,8 @@
       "name": "60_gem5_proposal_k2m_o3",
       "kind": "roi_matrix",
       "profiles": [
-        "ecg_proposal_k2m_o3_gate"
+        "ecg_proposal_k2m_o3_gate",
+        "k2_final_campaign"
       ],
       "suite": "gem5",
       "graph_set": "synthetic_kron12_all",
@@ -1847,6 +1863,7 @@
       "ecg_isa_variant": "mask",
       "gem5_cpu_type": "O3",
       "gem5_compact_k2m_streamshield": true,
+      "policy_sharding_allowed": false,
       "out_subdir": "60_gem5_proposal_k2m_o3",
       "timeout_gem5": 21600,
       "env": {
@@ -1859,7 +1876,7 @@
       "name": "70_gem5_pagerank_i1",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study"],
+      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 1,
       "out_subdir": "70_gem5_pagerank_i1",
@@ -1872,7 +1889,7 @@
       "name": "71_gem5_pagerank_i2",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study"],
+      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 2,
       "out_subdir": "71_gem5_pagerank_i2",
@@ -1885,7 +1902,7 @@
       "name": "72_gem5_pagerank_i4",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study"],
+      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 4,
       "out_subdir": "72_gem5_pagerank_i4",
@@ -1898,13 +1915,229 @@
       "name": "73_gem5_pagerank_i8",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study"],
+      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 8,
       "out_subdir": "73_gem5_pagerank_i8",
       "env": {
         "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
         "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
+    },
+    {
+      "name": "80_cache_sim_final_fullgraph",
+      "kind": "roi_matrix",
+      "profiles": [
+        "k2_final_campaign"
+      ],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "GRASP",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 16,
+      "ecg_isa_variant": "mask",
+      "policy_sharding_allowed": false,
+      "out_subdir": "80_cache_sim_final_fullgraph",
+      "timeout_cache": 86400,
+      "env": {
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4"
+      }
+    },
+    {
+      "name": "81_sniper_final_semantic",
+      "kind": "roi_matrix",
+      "profiles": [
+        "k2_final_campaign"
+      ],
+      "suite": "sniper",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "GRASP",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 16,
+      "ecg_isa_variant": "mask",
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_require_fused_receipts": true,
+      "sniper_cores": 1,
+      "policy_sharding_allowed": false,
+      "out_subdir": "81_sniper_final_semantic",
+      "timeout_sniper": 86400,
+      "env": {
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4"
+      }
+    },
+    {
+      "name": "82_cache_sim_final_wide16",
+      "kind": "roi_matrix",
+      "profiles": [
+        "k2_final_campaign"
+      ],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD"
+      ],
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 16,
+      "ecg_isa_variant": "mask",
+      "policy_sharding_allowed": false,
+      "out_subdir": "82_cache_sim_final_wide16",
+      "timeout_cache": 86400,
+      "env": {
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8"
+      }
+    },
+    {
+      "name": "83_cache_sim_final_wide256",
+      "kind": "roi_matrix",
+      "profiles": [
+        "k2_final_campaign"
+      ],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD"
+      ],
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 256,
+      "ecg_isa_variant": "mask",
+      "policy_sharding_allowed": false,
+      "out_subdir": "83_cache_sim_final_wide256",
+      "timeout_cache": 86400,
+      "env": {
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8"
+      }
+    },
+    {
+      "name": "84_cache_sim_final_popt",
+      "kind": "roi_matrix",
+      "profiles": [
+        "k2_final_campaign"
+      ],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "pr",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "GRASP",
+        "POPT",
+        "POPT:UNCHARGED",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "popt_property_bytes": 4,
+      "popt_active_columns": 2,
+      "popt_num_epochs": 256,
+      "popt_min_data_ways": 1,
+      "popt_matrix_stream": "simulated",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 16,
+      "ecg_isa_variant": "mask",
+      "policy_sharding_allowed": false,
+      "out_subdir": "84_cache_sim_final_popt",
+      "timeout_cache": 86400,
+      "env": {
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4"
+      }
+    },
+    {
+      "name": "85_sniper_final_sssp_wide",
+      "kind": "roi_matrix",
+      "profiles": [
+        "k2_final_campaign"
+      ],
+      "suite": "sniper",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "sssp"
+      ],
+      "policies": [
+        "LRU",
+        "GRASP",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 16,
+      "ecg_isa_variant": "mask",
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_require_fused_receipts": true,
+      "sniper_cores": 1,
+      "policy_sharding_allowed": false,
+      "out_subdir": "85_sniper_final_sssp_wide",
+      "timeout_sniper": 86400,
+      "env": {
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8"
       }
     }
   ]

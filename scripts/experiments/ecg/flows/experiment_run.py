@@ -431,15 +431,17 @@ def expand_jobs(args: argparse.Namespace, manifest: dict[str, Any], run_dir: Pat
             continue
         settings = merged_defaults(manifest, stage)
         settings, screen_graphs = apply_screen_config(settings)
-        if (
-                screen_graphs is not None and args.policy and
-                not settings["_screen_config_data"].get(
-                        "execution", {}).get(
-                            "policy_sharding_allowed", True)):
+        policy_sharding_allowed = bool(
+            settings.get(
+                "policy_sharding_allowed",
+                settings.get("_screen_config_data", {}).get(
+                    "execution", {}).get(
+                        "policy_sharding_allowed", True)))
+        if args.policy and not policy_sharding_allowed:
             raise SystemExit(
                 f"stage {stage['name']} requires the complete policy roster")
         blocked_reason = str(settings.get("blocked_reason", ""))
-        if (blocked_reason and
+        if (blocked_reason and not args.allow_blocked and
                 not (getattr(args, "list", False) or
                      getattr(args, "dry_run", False) or
                      getattr(args, "check_graphs", False))):
@@ -708,10 +710,13 @@ def make_roi_job(
         command.extend(["--sniper-omp-wait-policy", str(settings.get("sniper_omp_wait_policy", "passive"))])
         if settings.get("sniper_roi_icount"):
             command.extend(["--sniper-roi-icount", str(settings.get("sniper_roi_icount"))])
-        if settings.get("sniper_semantic_edge_limit"):
+        semantic_edge_limit = graph.get(
+            "sniper_semantic_edge_limit",
+            settings.get("sniper_semantic_edge_limit"))
+        if semantic_edge_limit:
             command.extend([
                 "--sniper-semantic-edge-limit",
-                str(settings.get("sniper_semantic_edge_limit")),
+                str(semantic_edge_limit),
             ])
         command.extend(["--sniper-base-config", str(settings.get("sniper_base_config", "graphbrew/graph_sniper"))])
         command.extend(["--sniper-address-domain", str(settings.get("sniper_address_domain", "virtual"))])
@@ -1632,6 +1637,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help=(
             "Require the repository's reference /usr/bin/python3.12 build. "
             "By default, use the current Python interpreter."))
+    parser.add_argument(
+        "--allow-blocked", action="store_true",
+        help="Allow explicitly selected diagnostic stages with blocked_reason.")
     parser.add_argument("--profile", nargs="+", default=["ecg_smoke"], help="Manifest profile(s) to run.")
     parser.add_argument("--run-dir", default="", help="Run directory. Defaults to results/ecg_experiments/runs/<profile>_<timestamp>.")
     parser.add_argument("--graph-dir", default=str(PROJECT_ROOT / "results" / "graphs"), help="Graph root for manifest graph names without explicit paths.")

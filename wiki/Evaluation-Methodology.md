@@ -85,6 +85,33 @@ The implemented P-OPT baseline covers PageRank, Connected Components,
 PageRank-Delta, Radii, and MIS. BFS and SSSP comparisons are project
 extensions.
 
+## Final campaign roles
+
+The final campaign separates simulator responsibilities:
+
+- **gem5 O3:** compact 4-byte, 32-epoch PageRank timing only;
+- **cache_sim:** full-graph all-kernel replacement and traffic;
+- **Sniper:** full-graph equal-semantic-work cache/traffic corroboration.
+
+The full-graph cache_sim primary uses a 4-byte record with 16 epochs, which
+fits all three graphs for PR, BFS, BC, and CC. Weighted SSSP uses its
+implemented 8-byte replacement record. Two wide-record controls isolate the
+cost of record width and the effect of increasing K2 resolution from 16 to
+256 epochs.
+
+P-OPT reference rows are limited to PageRank and Connected Components. They
+compare directly with the compact 4-byte/16-epoch K2 primary in the same cell
+and pin property width, resident columns, P-OPT's 256 epochs, minimum data
+ways, and simulated matrix streaming. A separate wide K2/256-epoch control
+shows the sensitivity to epoch resolution. gem5 P-OPT time still omits
+matrix-stream latency and therefore remains an optimistic bound.
+
+Sniper runs are bounded by one full serialized edge sweep per graph, use equal
+semantic edge visits across policies, and are excluded from speedup reporting.
+
+The compact cit-Patents encoding uses all 32 available bits. Any wider
+identifier or additional record field requires the 8-byte fallback.
+
 ## Publication policy
 
 Preliminary numbers and intermediate experiment decisions are not published

@@ -346,6 +346,22 @@ def test_simulated_stream_is_not_double_charged():
     assert row["total_memory_traffic_with_overhead"] == 1000000
 
 
+def test_simulated_stream_supports_single_pass_kernels_without_i_option():
+    row = {
+        "options": "-f graph.sg -o 5 -n 1",
+        "popt_overhead_charged": 1,
+        "popt_matrix_stream_cache_lines": 10,
+        "popt_matrix_stream_lines_simulated": 10,
+        "l3_misses": 100,
+        "total_memory_traffic": 100,
+    }
+    roi_matrix.apply_overhead_metrics(row)
+    assert row.get("status", "ok") == "ok"
+    assert row["popt_matrix_stream_mode"] == "simulated"
+    assert row["popt_matrix_stream_iterations"] == 1
+    assert row["popt_target_time_charged"] == 0
+
+
 def test_analytic_stream_is_still_charged():
     row = {
         "options": "-i 1",

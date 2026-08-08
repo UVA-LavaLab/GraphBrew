@@ -115,7 +115,88 @@ python3 scripts/experiments/ecg/analysis/pagerank_gate.py \
   --output results/ecg_experiments/runs/pagerank_final/decision.json
 ```
 
-## 6. Cross-simulator consistency
+## 6. Final role-separated campaign
+
+Inspect the complete campaign before launching:
+
+```bash
+python3 -I scripts/experiments/ecg/flows/experiment_run.py \
+  --profile k2_final_campaign \
+  --run-dir results/ecg_experiments/runs/k2_final_dryrun \
+  --list --dry-run --no-build --no-resume
+```
+
+The campaign contains 76 jobs:
+
+- one synthetic K2-M mechanism preflight;
+- 12 gem5 O3 PageRank timing cells;
+- 12 full-graph cache_sim compact-record primary cells;
+- 15 matched wide-record cache_sim controls;
+- 15 matched 256-epoch cache_sim controls;
+- six PR/CC P-OPT reference cells with simulated matrix traffic; and
+- 12 full-graph Sniper compact-record corroboration cells; and
+- three wide-record Sniper SSSP cells.
+
+The full-graph compact primary and the P-OPT comparison use a 4-byte K2 record
+with 16 epochs for PR, BFS, BC, and CC. Weighted SSSP uses its implemented
+8-byte replacement record and is evaluated only in the wide-record stages.
+Wide controls isolate record width and raise K2 to 256 epochs for an
+epoch-resolution sensitivity. Sniper runs one full serialized edge sweep per
+graph so the working set turns over an 8 MiB LLC. Sniper rows support
+cache/traffic direction only, never architectural speedup.
+
+Launch the three roles into separate resumable directories:
+
+```bash
+python3 -I scripts/experiments/ecg/flows/experiment_run.py \
+  --profile k2_final_campaign \
+  --run-dir results/ecg_experiments/runs/k2_final_timing \
+  --only 60 70 71 72 73 \
+  --no-build
+
+python3 -I scripts/experiments/ecg/flows/experiment_run.py \
+  --profile k2_final_campaign \
+  --run-dir results/ecg_experiments/runs/k2_final_popt \
+  --only 84 \
+  --no-build
+
+python3 -I scripts/experiments/ecg/flows/experiment_run.py \
+  --profile k2_final_campaign \
+  --run-dir results/ecg_experiments/runs/k2_final_cache \
+  --only 80 82 83 \
+  --no-build
+
+python3 -I scripts/experiments/ecg/flows/experiment_run.py \
+  --profile k2_final_campaign \
+  --run-dir results/ecg_experiments/runs/k2_final_sniper \
+  --only 81 85 \
+  --no-build
+```
+
+The first cache command is the P-OPT validation. It is the first end-to-end use
+of simulated matrix streaming and must report non-zero simulated stream lines
+for every charged P-OPT row before the remaining cache_sim stages begin.
+
+For parallel execution, generate whole-cell shards so every shard retains its
+complete policy roster:
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile k2_final_campaign \
+  --run-tag k2_final \
+  --whole-cell \
+  --out results/ecg_experiments/slurm/k2_final.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/k2_final.tsv \
+  --run-root results/ecg_experiments/runs/local \
+  --jobs 8 --cache-sim-jobs 4 --gem5-jobs 1 --sniper-jobs 2
+```
+
+Use `--only 84` when generating the first validation shard set. Generate the
+remaining stages only after the P-OPT rows pass.
+
+## 7. Cross-simulator consistency
 
 ```bash
 python3 -m pytest -q \
@@ -126,12 +207,15 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr bfs sssp bc cc --schedule-k 2
 ```
 
-## 7. Aggregate local output
+## 8. Aggregate local output
 
 ```bash
 python3 scripts/experiments/ecg/flows/aggregate_results.py \
   --skip-run \
   --input-run-dirs \
-    results/ecg_experiments/runs/pagerank_final \
-  --run-root results/ecg_experiments/aggregates/pagerank_final
+    results/ecg_experiments/runs/k2_final_timing \
+    results/ecg_experiments/runs/k2_final_popt \
+    results/ecg_experiments/runs/k2_final_cache \
+    results/ecg_experiments/runs/k2_final_sniper \
+  --run-root results/ecg_experiments/aggregates/k2_final
 ```

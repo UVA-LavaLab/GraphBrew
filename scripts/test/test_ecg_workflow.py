@@ -751,7 +751,9 @@ def test_final_design_docs_and_run_flow_are_consistent():
     assert "python3 -I" in reproduction
     assert "--require-pinned-python" in reproduction
     assert "--no-build --no-resume" in reproduction
-    assert "## 6. Cross-simulator consistency" in reproduction
+    assert "## 6. Final role-separated campaign" in reproduction
+    assert "k2_final_campaign" in reproduction
+    assert "## 7. Cross-simulator consistency" in reproduction
     assert "--input-run-dirs" in reproduction
 
     headline = next(

@@ -58,6 +58,11 @@ safe_policy=${policy//:/_}
 safe_stage=${stage//:/_}
 run_dir="results/ecg_experiments/runs/slurm/${run_tag}/${profile}_${safe_stage}_${graph}_${benchmark}_${safe_policy}"
 
+policy_args=()
+if [[ "$policy" != "__whole__" ]]; then
+  policy_args=(--policy "$policy")
+fi
+
 GRAPHBREW_SHARD_GROUP="$run_tag" \
 python3 scripts/experiments/ecg/flows/experiment_run.py \
   --profile "$profile" \
@@ -66,6 +71,6 @@ python3 scripts/experiments/ecg/flows/experiment_run.py \
   --only "$stage" \
   --graph "$graph" \
   --benchmark "$benchmark" \
-  --policy "$policy" \
+  "${policy_args[@]}" \
   --lock-path "$run_dir/.experiment_run.lock" \
   --no-build

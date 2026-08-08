@@ -32,31 +32,45 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
                     token in str(stage["name"]) for token in args.only):
                 continue
             settings = experiment_run.merged_defaults(manifest, stage)
-            screen_path = str(settings.get("screen_config", ""))
-            if screen_path:
-                screen = experiment_run.load_manifest(
-                    experiment_run.resolve_path(screen_path))
-                if not screen.get(
-                        "execution", {}).get(
-                            "policy_sharding_allowed", True):
+            settings, screen_graphs = experiment_run.apply_screen_config(
+                settings)
+            policy_sharding_allowed = bool(
+                settings.get("policy_sharding_allowed", True))
+            if screen_graphs is not None:
+                screen = settings["_screen_config_data"]
+                policy_sharding_allowed = bool(
+                    screen.get("execution", {}).get(
+                        "policy_sharding_allowed",
+                        policy_sharding_allowed))
+                if not policy_sharding_allowed and not args.whole_cell:
                     raise SystemExit(
                         f"stage {stage['name']} requires whole-cell jobs; "
-                        "one-policy Slurm shards are not allowed")
+                        "use --whole-cell")
+            if not policy_sharding_allowed and not args.whole_cell:
+                raise SystemExit(
+                    f"stage {stage['name']} requires whole-cell jobs; "
+                    "use --whole-cell")
             blocked_reason = str(settings.get("blocked_reason", ""))
             if blocked_reason and not args.allow_blocked:
                 raise SystemExit(
                     f"stage {stage['name']} is blocked: {blocked_reason}")
 
-            graph_set_name = str(stage["graph_set"])
-            if graph_set_name not in graph_sets:
-                raise SystemExit(
-                    f"unknown graph_set={graph_set_name!r} "
-                    f"in stage {stage['name']}")
-            policies = experiment_run.filter_policy_specs(
-                [str(policy) for policy in stage.get("policies", [])],
-                args.policy,
-            )
-            for graph in graph_sets[graph_set_name]:
+            if screen_graphs is not None:
+                graphs = screen_graphs
+            else:
+                graph_set_name = str(stage["graph_set"])
+                if graph_set_name not in graph_sets:
+                    raise SystemExit(
+                        f"unknown graph_set={graph_set_name!r} "
+                        f"in stage {stage['name']}")
+                graphs = graph_sets[graph_set_name]
+            policies = (
+                ["__whole__"] if args.whole_cell else
+                experiment_run.filter_policy_specs(
+                    [str(policy) for policy in settings.get("policies", [])],
+                    args.policy,
+                ))
+            for graph in graphs:
                 graph_name = str(graph["name"])
                 if not experiment_run.token_matches(graph_name, args.graph):
                     continue
@@ -64,7 +78,7 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
                     experiment_run.find_graph_path(
                         graph, Path(args.graph_dir),
                         args.allow_missing_graphs)
-                for benchmark in stage.get("benchmarks", []):
+                for benchmark in settings.get("benchmarks", []):
                     if not experiment_run.token_matches(
                             str(benchmark), args.benchmark):
                         continue
@@ -103,6 +117,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--allow-blocked", action="store_true",
         help="Generate inspection-only rows for a manifest-blocked stage.")
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument(
+        "--whole-cell", action="store_true",
+        help="Emit one shard per graph/benchmark with the complete policy roster.")
     return parser.parse_args(argv)
 
 

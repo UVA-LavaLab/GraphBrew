@@ -66,6 +66,51 @@ def test_parallel_shard_reader_rejects_duplicates(tmp_path):
         raise AssertionError("duplicate shards were accepted")
 
 
+def test_final_campaign_expands_to_whole_cell_shards(tmp_path):
+    shards = tmp_path / "final_whole_cells.tsv"
+    generated = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/slurm/make_slurm_shards.py",
+            "--profile", "k2_final_campaign",
+            "--run-tag", "final-whole",
+            "--out", str(shards),
+            "--whole-cell",
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, check=False)
+    assert generated.returncode == 0, generated.stdout + generated.stderr
+    rows = [line.split("\t") for line in shards.read_text().splitlines()]
+    assert len(rows) == 76
+    assert {row[4] for row in rows} == {"__whole__"}
+
+    run_root = tmp_path / "runs"
+    launched = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/flows/run_local_shards.py",
+            "--shards", str(shards),
+            "--run-root", str(run_root),
+            "--jobs", "8",
+            "--cache-sim-jobs", "4",
+            "--gem5-jobs", "1",
+            "--sniper-jobs", "2",
+            "--dry-run",
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, check=False)
+    assert launched.returncode == 0, launched.stdout + launched.stderr
+    assert launched.stdout.count("[dry-run]") == 76
+    assert "--policy __whole__" not in launched.stdout
+
+    sbatch = (
+        ROOT /
+        "scripts/experiments/ecg/slurm/slurm_experiment_shard.sbatch"
+    ).read_text()
+    assert 'if [[ "$policy" != "__whole__" ]]' in sbatch
+    assert '"${policy_args[@]}"' in sbatch
+
+
 def test_full_3sim_smoke_expands_to_120_shards(tmp_path):
     shards = tmp_path / "three_sim.tsv"
     generated = subprocess.run(
@@ -94,6 +139,7 @@ def test_full_3sim_realgraph_expands_to_360_shards(tmp_path):
             "--run-tag", "three_sim_realgraph",
             "--out", str(shards),
             "--allow-missing-graphs",
+            "--allow-blocked",
         ],
         cwd=ROOT, capture_output=True, text=True, check=False)
     assert generated.returncode == 0, generated.stdout + generated.stderr
@@ -115,6 +161,7 @@ def test_capped_3sim_realgraph_expands_to_360_shards(tmp_path):
             "--run-tag", "three_sim_realgraph_1b",
             "--out", str(shards),
             "--allow-missing-graphs",
+            "--allow-blocked",
         ],
         cwd=ROOT, capture_output=True, text=True, check=False)
     assert generated.returncode == 0, generated.stdout + generated.stderr
@@ -133,6 +180,7 @@ def test_sampled_3sim_realgraph_expands_to_360_shards(tmp_path):
             "--run-tag", "three_sim_sampled",
             "--out", str(shards),
             "--allow-missing-graphs",
+            "--allow-blocked",
         ],
         cwd=ROOT, capture_output=True, text=True, check=False)
     assert generated.returncode == 0, generated.stdout + generated.stderr

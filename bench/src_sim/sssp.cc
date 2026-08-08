@@ -228,6 +228,8 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     // it cannot, the SSOT downgrades delivery to a sidecar rather than dropping
     // the metadata.
     ::ecg_metadata::requirePackedFeasible(ecg_meta, compact_weighted);
+    if (compact_weighted)
+        ::ecg_metadata::declareContainerBytes(ecg_meta, 8);
     ::ecg_metadata::announce(ecg_meta, "sssp");
     ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "sssp");
     const int record_bytes = ecg_meta.record_bytes;

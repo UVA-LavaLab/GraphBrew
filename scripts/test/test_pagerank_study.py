@@ -2,6 +2,7 @@ import csv
 import importlib.util
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -325,6 +326,242 @@ def test_only_one_pagerank_configuration_is_published():
     result = gate().evaluate(synthetic_rows(cfg=cfg), cfg)
     assert result["primary_candidate"] == "ECG_K2_RRIP_STREAMSHIELD"
     assert result["screen_passes"] is True
+
+
+def test_final_campaign_is_role_separated():
+    manifest = json.loads(MANIFEST_PATH.read_text())
+    assert "k2_final_campaign" in manifest["profiles"]
+    stages = [
+        stage for stage in manifest["stages"]
+        if "k2_final_campaign" in stage.get("profiles", [])
+    ]
+    assert len(stages) == 11
+    by_name = {stage["name"]: stage for stage in stages}
+
+    mechanism = by_name["60_gem5_proposal_k2m_o3"]
+    assert mechanism["gem5_cpu_type"] == "O3"
+    assert mechanism["ecg_isa_variant"] == "mask"
+
+    timing = [
+        by_name[f"{number}_gem5_pagerank_i{iteration}"]
+        for number, iteration in ((70, 1), (71, 2), (72, 4), (73, 8))
+    ]
+    assert all(
+        stage["screen_config"] ==
+        "scripts/experiments/ecg/configs/pagerank_study.json"
+        for stage in timing)
+
+    functional = by_name["80_cache_sim_final_fullgraph"]
+    assert functional["suite"] == "cache-sim"
+    assert functional["graph_set"] == "factorial_graphs_uniform_8mb"
+    assert functional["benchmarks"] == ["pr", "bfs", "bc", "cc"]
+    assert functional["ecg_epochs"] == 16
+    assert functional["ecg_isa_variant"] == "mask"
+    assert functional["policy_sharding_allowed"] is False
+    assert functional["env"] == {
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4",
+    }
+    assert functional["policies"] == [
+        "LRU", "GRASP",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD",
+    ]
+
+    scale = by_name["81_sniper_final_semantic"]
+    assert scale["suite"] == "sniper"
+    assert scale["graph_set"] == "factorial_graphs_uniform_8mb"
+    assert scale["benchmarks"] == ["pr", "bfs", "bc", "cc"]
+    assert scale["ecg_isa_variant"] == "mask"
+    assert scale["ecg_epochs"] == 16
+    assert scale["policy_sharding_allowed"] is False
+    assert scale["env"] == {
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4",
+    }
+    assert "POPT" not in scale["policies"]
+    assert scale["policies"] == [
+        "LRU", "GRASP",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD",
+    ]
+    final_graphs = manifest["graph_sets"][
+        "factorial_graphs_uniform_8mb"]
+    assert {
+        graph["name"]: (
+            graph["compact_id_bits"],
+            graph["compact_epoch_bits"],
+            graph["compact_total_bits"],
+            graph["sniper_semantic_edge_limit"],
+        )
+        for graph in final_graphs
+    } == {
+        "web-Google": (20, 4, 30, 8644102),
+        "soc-pokec": (21, 4, 31, 44603928),
+        "cit-Patents": (22, 4, 32, 33037894),
+    }
+    assert all(
+        graph["compact_total_bits"] ==
+        graph["compact_id_bits"] +
+        2 * graph["compact_epoch_bits"] + 2
+        for graph in final_graphs)
+    assert all(
+        graph["compact_total_bits"] <= 32
+        for graph in final_graphs)
+
+    wide16 = by_name["82_cache_sim_final_wide16"]
+    assert wide16["ecg_epochs"] == 16
+    assert wide16["env"] == {
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8",
+    }
+    assert wide16["policies"] == [
+        "LRU",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD",
+    ]
+
+    wide256 = by_name["83_cache_sim_final_wide256"]
+    assert wide256["ecg_epochs"] == 256
+    assert wide256["env"] == wide16["env"]
+    assert wide256["policies"] == wide16["policies"]
+
+    popt = by_name["84_cache_sim_final_popt"]
+    assert popt["benchmarks"] == ["pr", "cc"]
+    assert popt["popt_matrix_stream"] == "simulated"
+    assert popt["popt_property_bytes"] == 4
+    assert popt["popt_active_columns"] == 2
+    assert popt["popt_num_epochs"] == 256
+    assert popt["popt_min_data_ways"] == 1
+    assert popt["ecg_epochs"] == 16
+    assert popt["env"] == functional["env"]
+
+    sniper_sssp = by_name["85_sniper_final_sssp_wide"]
+    assert sniper_sssp["benchmarks"] == ["sssp"]
+    assert sniper_sssp["ecg_epochs"] == 16
+    assert sniper_sssp["env"] == wide16["env"]
+    assert sniper_sssp["policies"] == scale["policies"]
+
+    assert all(
+        stage.get("policy_sharding_allowed", False) is False
+        for stage in (
+            mechanism, functional, scale, wide16, wide256, popt,
+            sniper_sssp))
+
+    for name in (
+            "23_gem5_3sim_realgraph_allalg",
+            "28_gem5_3sim_sampled_allalg"):
+        assert "Legacy non-O3" in next(
+            stage for stage in manifest["stages"]
+            if stage["name"] == name)["blocked_reason"]
+
+
+def test_weighted_sssp_is_excluded_from_compact_four_byte_stages():
+    manifest = json.loads(MANIFEST_PATH.read_text())
+    by_name = {stage["name"]: stage for stage in manifest["stages"]}
+    for name in (
+            "80_cache_sim_final_fullgraph",
+            "81_sniper_final_semantic"):
+        assert "sssp" not in by_name[name]["benchmarks"]
+        assert by_name[name]["env"]["ECG_EXPECT_BYTES_PER_EDGE"] == "4"
+    assert by_name["85_sniper_final_sssp_wide"]["benchmarks"] == ["sssp"]
+    assert (
+        by_name["85_sniper_final_sssp_wide"]["env"]
+        ["ECG_EXPECT_BYTES_PER_EDGE"] == "8")
+
+    source = (ROOT / "bench/src_sim/sssp.cc").read_text()
+    declare = source.index(
+        "::ecg_metadata::declareContainerBytes(ecg_meta, 8)")
+    enforce = source.index(
+        "::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, \"sssp\")")
+    assert declare < enforce
+
+
+def test_final_campaign_expands_to_76_jobs(tmp_path):
+    listed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/flows/experiment_run.py",
+            "--profile", "k2_final_campaign",
+            "--run-dir", str(tmp_path / "final-campaign"),
+            "--list", "--dry-run", "--no-build", "--no-resume",
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, timeout=120)
+    assert listed.returncode == 0, listed.stdout + listed.stderr
+    jobs = [
+        line for line in listed.stdout.splitlines()
+        if re.match(r"^\d{3} ", line)
+    ]
+    assert len(jobs) == 76
+    assert sum("80_cache_sim_final_fullgraph" in line for line in jobs) == 12
+    assert sum("81_sniper_final_semantic" in line for line in jobs) == 12
+    assert sum("82_cache_sim_final_wide16" in line for line in jobs) == 15
+    assert sum("83_cache_sim_final_wide256" in line for line in jobs) == 15
+    assert sum("84_cache_sim_final_popt" in line for line in jobs) == 6
+    assert sum("85_sniper_final_sssp_wide" in line for line in jobs) == 3
+    assert listed.stdout.count("--gem5-compact-k2m-performance") == 12
+    assert listed.stdout.count("--popt-matrix-stream simulated") == 6
+    assert listed.stdout.count(
+        "--sniper-semantic-edge-limit 8644102") == 5
+    assert listed.stdout.count(
+        "--sniper-semantic-edge-limit 44603928") == 5
+    assert listed.stdout.count(
+        "--sniper-semantic-edge-limit 33037894") == 5
+    assert listed.stdout.count("--ecg-epochs 16") == 48
+    assert listed.stdout.count("--ecg-epochs 256") == 15
+
+
+def test_final_campaign_rejects_policy_sharding(tmp_path):
+    filtered = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/flows/experiment_run.py",
+            "--profile", "k2_final_campaign",
+            "--run-dir", str(tmp_path / "filtered"),
+            "--only", "80_cache_sim_final_fullgraph",
+            "--policy", "LRU",
+            "--dry-run", "--no-build", "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, timeout=60)
+    assert filtered.returncode != 0
+    assert "complete policy roster" in (
+        filtered.stdout + filtered.stderr)
+
+    shards = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/slurm/make_slurm_shards.py",
+            "--profile", "k2_final_campaign",
+            "--run-tag", "final-test",
+            "--out", str(tmp_path / "shards.tsv"),
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, timeout=60)
+    assert shards.returncode != 0
+    assert "whole-cell jobs" in (shards.stdout + shards.stderr)
+
+
+def test_legacy_diagnostic_requires_explicit_allow_blocked(tmp_path):
+    base = [
+        sys.executable,
+        "scripts/experiments/ecg/flows/experiment_run.py",
+        "--profile", "ecg_3sim_sampled_allalg",
+        "--run-dir", str(tmp_path / "legacy"),
+        "--only", "28_gem5_3sim_sampled_allalg",
+        "--no-build", "--allow-missing-graphs",
+    ]
+    blocked = subprocess.run(
+        base, cwd=ROOT, capture_output=True, text=True, timeout=60)
+    assert blocked.returncode != 0
+    assert "Legacy non-O3" in (blocked.stdout + blocked.stderr)
+
+    allowed = subprocess.run(
+        [*base, "--allow-blocked", "--dry-run"],
+        cwd=ROOT, capture_output=True, text=True, timeout=60)
+    assert allowed.returncode == 0, allowed.stdout + allowed.stderr
 
 
 def test_profile_expands_to_twelve_whole_cells(tmp_path):
