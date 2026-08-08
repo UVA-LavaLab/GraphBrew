@@ -1,17 +1,21 @@
 {
   "version": 2,
-  "id": "proposal_k2m_sota_pr_screen_v2",
+  "id": "pr_screen",
   "scope": "Sampled PageRank screen for deciding whether static RRIP K2-M merits full-graph and all-kernel evaluation.",
-  "lineage": {
-    "prior_screen": "proposal_k2m_sota_pr_screen_v1",
-    "prior_outcome": "Stopped after web-Google-n16 i=1 because the epoch_first primary failed the frozen GRASP and P-OPT per-cell guards.",
-    "change": "Replace only the static primary with rrip_first plus StreamShield; retain the cells, baselines, thresholds, controls, and accounting rules.",
-    "rationale": "A post-v1 diagnostic showed static rrip_first matched online K2 within 0.5% time and 1.2% misses, so the v1 gap came from its benchmark-name PR-to-epoch_first mapping rather than online adaptation.",
-    "evidence": {
-      "v1_calibration_run": "results/ecg_experiments/proposal_sota_calibration_web_google_i1_60247723",
-      "static_rrip_diagnostic_run": "results/ecg_experiments/k2_rrip_static_web_google_i1_659501d2"
+  "superseded_screens": [
+    {
+      "id": "proposal_k2m_sota_pr_screen_v1",
+      "static_primary": "epoch_first",
+      "outcome": "Stopped after web-Google-n16 i=1 because the epoch_first primary failed the frozen GRASP and P-OPT per-cell guards.",
+      "change_applied": "Replace only the static primary with rrip_first plus StreamShield; retain the cells, baselines, thresholds, controls, and accounting rules.",
+      "rationale": "A post-v1 diagnostic showed static rrip_first matched online K2 within 0.5% time and 1.2% misses, so the v1 gap came from its benchmark-name PR-to-epoch_first mapping rather than online adaptation.",
+      "evidence": {
+        "v1_calibration_run": "results/ecg_experiments/proposal_sota_calibration_web_google_i1_60247723",
+        "static_rrip_diagnostic_run": "results/ecg_experiments/k2_rrip_static_web_google_i1_659501d2"
+      },
+      "status": "superseded_in_evidence_and_git_history_only"
     }
-  },
+  ],
   "simulator": "gem5",
   "cpu_type": "O3",
   "isa_variant": "mask",
@@ -20,7 +24,12 @@
   "compact_tier_bits": 2,
   "benchmark": "pr",
   "prefetcher": "none",
-  "iterations": [1, 2, 4, 8],
+  "iterations": [
+    1,
+    2,
+    4,
+    8
+  ],
   "options_template": "-f {graph_path} -o 5 -n 1 -i {iterations} -t 0",
   "graphs": [
     {
@@ -38,10 +47,22 @@
       "compact_id_bits": 16,
       "compact_epoch_bits": 5,
       "semantic_receipts": {
-        "1": {"edges": 502529, "checksum": "13f2efd3598bba0e"},
-        "2": {"edges": 1005058, "checksum": "d0f56ddda978cfac"},
-        "4": {"edges": 2010116, "checksum": "c197d206cb5a7e2e"},
-        "8": {"edges": 4020232, "checksum": "ae4d057dd8acac05"}
+        "1": {
+          "edges": 502529,
+          "checksum": "13f2efd3598bba0e"
+        },
+        "2": {
+          "edges": 1005058,
+          "checksum": "d0f56ddda978cfac"
+        },
+        "4": {
+          "edges": 2010116,
+          "checksum": "c197d206cb5a7e2e"
+        },
+        "8": {
+          "edges": 4020232,
+          "checksum": "ae4d057dd8acac05"
+        }
       }
     },
     {
@@ -59,10 +80,22 @@
       "compact_id_bits": 16,
       "compact_epoch_bits": 5,
       "semantic_receipts": {
-        "1": {"edges": 1089520, "checksum": "1a3cd9e836da1c30"},
-        "2": {"edges": 2179040, "checksum": "fe8ff034562730d4"},
-        "4": {"edges": 4358080, "checksum": "55be5805d0c0903c"},
-        "8": {"edges": 8716160, "checksum": "4e31bae2feac6fa0"}
+        "1": {
+          "edges": 1089520,
+          "checksum": "1a3cd9e836da1c30"
+        },
+        "2": {
+          "edges": 2179040,
+          "checksum": "fe8ff034562730d4"
+        },
+        "4": {
+          "edges": 4358080,
+          "checksum": "55be5805d0c0903c"
+        },
+        "8": {
+          "edges": 8716160,
+          "checksum": "4e31bae2feac6fa0"
+        }
       }
     },
     {
@@ -80,10 +113,22 @@
       "compact_id_bits": 18,
       "compact_epoch_bits": 5,
       "semantic_receipts": {
-        "1": {"edges": 680108, "checksum": "d1d54daa18c33f3f"},
-        "2": {"edges": 1360216, "checksum": "e685182553701308"},
-        "4": {"edges": 2720432, "checksum": "b8965e770464ff9e"},
-        "8": {"edges": 5440864, "checksum": "8f4adefe50c0faae"}
+        "1": {
+          "edges": 680108,
+          "checksum": "d1d54daa18c33f3f"
+        },
+        "2": {
+          "edges": 1360216,
+          "checksum": "e685182553701308"
+        },
+        "4": {
+          "edges": 2720432,
+          "checksum": "b8965e770464ff9e"
+        },
+        "8": {
+          "edges": 5440864,
+          "checksum": "8f4adefe50c0faae"
+        }
       }
     }
   ],
@@ -103,12 +148,17 @@
       "ECG:K2_ONLINE_STREAMSHIELD"
     ],
     "sanity_baseline": "LRU",
-    "serious_baselines": ["GRASP", "POPT"],
+    "serious_baselines": [
+      "GRASP",
+      "POPT"
+    ],
     "charged_popt_baseline": "POPT",
     "oracle_control": "POPT:UNCHARGED",
     "transport_control": "ECG:K2_LRU_STREAMSHIELD",
     "primary_candidate": "ECG:K2_RRIP_STREAMSHIELD",
-    "characterization_only": ["ECG:K2_ONLINE_STREAMSHIELD"]
+    "characterization_only": [
+      "ECG:K2_ONLINE_STREAMSHIELD"
+    ]
   },
   "popt_model": {
     "epochs": 256,
@@ -124,8 +174,16 @@
     "note": "The screen simulates P-OPT replacement with the computed reserved LLC capacity and charges every matrix byte for every PageRank iteration as off-chip traffic. Matrix-stream latency is omitted, which favors P-OPT. Triple buffering costs one additional LLC way versus a two-slot design; target-time and two-slot serialized sensitivities remain mandatory before a P-OPT performance claim."
   },
   "metrics": {
-    "primary": ["sim_ticks", "dram_offchip_bytes"],
-    "secondary": ["l3_misses", "roi_insts", "ipc", "dram_bus_util_pct"],
+    "primary": [
+      "sim_ticks",
+      "dram_offchip_bytes"
+    ],
+    "secondary": [
+      "l3_misses",
+      "roi_insts",
+      "ipc",
+      "dram_bus_util_pct"
+    ],
     "aggregation": "geometric_mean_of_per_cell_ratios",
     "tie_band": 0.02
   },
@@ -142,11 +200,21 @@
     "max_traffic_ratio_leave_one_graph_out": 1.02,
     "max_time_ratio_vs_transport_control_for_policy_claim": 0.98,
     "max_time_ratio_vs_transport_control_leave_one_graph_out": 0.98,
+    "replacement_claim_requires_exact_roi_instruction_parity": true,
     "max_ratio_vs_oracle_for_robustness": 1.02,
     "max_oracle_ratio_vs_charged": 1.02,
-    "baseline_sanity_time_range": [0.5, 1.5],
-    "charged_popt_sanity_time_range": [0.5, 4.0],
-    "baseline_sanity_traffic_range": [0.1, 4.0],
+    "baseline_sanity_time_range": [
+      0.5,
+      1.5
+    ],
+    "charged_popt_sanity_time_range": [
+      0.5,
+      4.0
+    ],
+    "baseline_sanity_traffic_range": [
+      0.1,
+      4.0
+    ],
     "stop_if_primary_fails": true
   },
   "variant_receipts": {
@@ -169,6 +237,7 @@
   "blockers": [],
   "execution": {
     "ready": true,
+    "outcome": "completed; STOP (see research/ecg-hpca/RESULTS.md Section 1)",
     "policy_sharding_allowed": false,
     "maximum_policy_runtime_seconds": 86400,
     "note": "Execution budget approved after the named v1 calibration. Run the 12 whole cells without policy sharding. The 24-hour per-policy ceiling covers the edge-count and iteration-scaled soc-pokec i=8 K2 estimate; the local sequential run is resumable."

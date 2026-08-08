@@ -3308,11 +3308,13 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
                     "this row for instruction-parity validation.")
             else:
                 row["timing_model"] = "fused_record_load_sideband_model"
-                row["timing_valid_for_speedup"] = "1"
+                row["timing_valid_for_speedup"] = "0"
                 row["timing_caveat"] = (
                     "The packed record load is the Sniper fused-delivery event; "
-                    "non-tracing runs execute no per-edge SimMagic or software-only "
-                    "delivery call.")
+                    "non-tracing runs execute no per-edge SimMagic or "
+                    "software-only delivery call. Sniper remains "
+                    "scale/direction corroboration, not an architectural "
+                    "K2-M speedup authority.")
         elif schedule_k == 2:
             row["timing_model"] = "prototype_explicit_magic_delivery"
             row["timing_valid_for_speedup"] = "0"
@@ -3821,10 +3823,36 @@ def certify_sniper_semantic_work(
 def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size: str,
              charge: dict[str, Any] | None = None) -> dict[str, Any]:
     transport = ecg_transport_for(spec, args.benchmark)
-    timing_model = "simulated_target_time"
-    timing_valid_for_speedup = "1"
-    timing_caveat = ""
-    timing_comparison_bound = "measured"
+    if simulator == "gem5" and args.gem5_cpu_type == "O3":
+        timing_model = "simulated_target_time"
+        timing_valid_for_speedup = "1"
+        timing_caveat = ""
+    elif simulator == "gem5":
+        timing_model = "gem5_non_o3_diagnostic"
+        timing_valid_for_speedup = "0"
+        timing_caveat = (
+            "Only gem5 O3 rows are architectural timing evidence; this "
+            f"{args.gem5_cpu_type} row is diagnostic only.")
+    elif simulator == "sniper":
+        timing_model = "sniper_scale_direction_model"
+        timing_valid_for_speedup = "0"
+        timing_caveat = (
+            "Sniper provides scale/direction corroboration only, not an "
+            "architectural K2-M speedup result.")
+    elif simulator == "cache_sim":
+        timing_model = "cache_mechanism_model"
+        timing_valid_for_speedup = "0"
+        timing_caveat = (
+            "cache_sim reports functional, replacement, and traffic evidence "
+            "without architectural timing.")
+    else:
+        timing_model = "unknown_timing_diagnostic"
+        timing_valid_for_speedup = "0"
+        timing_caveat = "Unknown simulator timing is not speedup evidence."
+    timing_comparison_bound = (
+        "measured"
+        if timing_valid_for_speedup == "1"
+        else "not_speedup_evidence")
     offchip_comparison_bound = "measured"
     l3_miss_comparison_valid = 1
     if args.prefetcher == "ECG_PFX" and simulator in ("gem5", "sniper"):
@@ -3834,20 +3862,25 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             else "prototype_explicit_hint_delivery"
         )
         timing_valid_for_speedup = "0"
-        timing_caveat = (
-            "ECG_PFX timing includes prototype benchmark-emitted hint delivery; "
-            "use cache and prefetch metrics for mechanism evidence until PFX is validated as instruction-carried metadata."
-        )
-    elif simulator == "cache-sim":
-        timing_model = "cache_mechanism_model"
+        timing_caveat = " ".join(
+            part for part in (
+                timing_caveat,
+                "ECG_PFX timing includes prototype benchmark-emitted hint "
+                "delivery; use cache and prefetch metrics for mechanism "
+                "evidence until PFX is validated as instruction-carried "
+                "metadata.")
+            if part)
 
     if not getattr(args, "has_lru_baseline", False):
         timing_model = "mechanism_probe_no_baseline"
         timing_valid_for_speedup = "0"
-        timing_caveat = (
-            "This invocation has no within-run LRU cell. Under the frozen "
-            "comparison rules it is mechanism/correctness evidence only and "
-            "cannot support a speedup claim.")
+        timing_caveat = " ".join(
+            part for part in (
+                timing_caveat,
+                "This invocation has no within-run LRU cell. Under the frozen "
+                "comparison rules it is mechanism/correctness evidence only "
+                "and cannot support a speedup claim.")
+            if part)
 
     if (
             spec.policy == "POPT" and charge and
@@ -3861,7 +3894,8 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
                 if args.popt_matrix_stream ==
                 "analytic_prefetch_upper_bound"
                 else "optimistic_popt_analytic_stream")
-        timing_comparison_bound = "popt_favorable_lower_bound"
+        if timing_valid_for_speedup == "1":
+            timing_comparison_bound = "popt_favorable_lower_bound"
         if args.popt_matrix_stream == "analytic_prefetch_upper_bound":
             offchip_comparison_bound = "popt_favorable_lower_bound"
             l3_miss_comparison_valid = 0
@@ -3893,10 +3927,13 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             not trace_free_gem5_k2m):
         timing_model = "prototype_mask_only_load"
         timing_valid_for_speedup = "0"
-        timing_caveat = (
-            "K2-M timing is diagnostic unless gem5 executes the architectural "
-            "compact StreamShield record load and request-bound property load "
-            "with per-event tracing disabled.")
+        timing_caveat = " ".join(
+            part for part in (
+                timing_caveat,
+                "K2-M timing is diagnostic unless gem5 executes the "
+                "architectural compact StreamShield record load and "
+                "request-bound property load with per-event tracing disabled.")
+            if part)
 
     effective_ecg_epochs = effective_ecg_epoch_count(
         args.ecg_epochs, transport.schedule_k)
@@ -4583,7 +4620,7 @@ def main(argv: list[str]) -> int:
     # K2's per-edge records are simulated accesses that can. Combining the
     # analytic charge with an active prefetcher therefore prices the two
     # metadata streams differently and produces an invalid comparison; the
-    # frozen metrics in research/ecg-hpca/METHODOLOGY.md forbid it.
+    # frozen metrics in research/ecg-hpca/PAPER.md (Section 5) forbid it.
     prefetch_active = (
         args.prefetcher != "none" or
         int(getattr(args, "cache_stream_prefetch_degree", 0) or 0) > 0)

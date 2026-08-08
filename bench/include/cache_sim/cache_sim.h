@@ -2365,7 +2365,7 @@ public:
         //   distinction that matters, and it issues unconditionally with no
         //   MSHR, queue, lateness or bandwidth backpressure. A mechanism built
         //   so that it cannot be wrong cannot confirm a hypothesis; the frozen
-        //   metrics in research/ecg-hpca/METHODOLOGY.md make results that
+        // metrics in research/ecg-hpca/PAPER.md Section 5 make results that
         //   depend on it ineligible for performance claims.
         //
         // Both are applied identically to every policy.

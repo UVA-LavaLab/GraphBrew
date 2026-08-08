@@ -446,9 +446,9 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
     assert "SNIPER_K2_TRANSPORT_MATCHED" in runner
     assert "matched-k2m-sideband-model" in runner
     assert '"prototype_mask_only_load"' in runner
-    assert (
-        "compact StreamShield record load and request-bound property load"
-        in runner)
+    assert "architectural compact StreamShield record load" in runner
+    assert "request-bound property load with per-event tracing disabled" in (
+        runner)
     assert '"architectural_compact_k2m_streamshield"' in runner
     assert 'row["gem5_ecg_epoch_channel"]' not in runner
     assert 'base["gem5_ecg_epoch_channel"]' in runner

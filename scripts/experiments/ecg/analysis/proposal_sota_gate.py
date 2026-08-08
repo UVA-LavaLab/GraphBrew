@@ -26,7 +26,7 @@ from policy_specs import (  # noqa: E402
 
 DEFAULT_CONFIG = (
     ROOT / "research" / "ecg-hpca" / "preregistration" /
-    "proposal_k2m_sota_pr_screen_v1.json")
+    "pr_screen.json")
 
 
 def number(value: Any, field: str) -> float:
@@ -674,10 +674,36 @@ def within(value: float, limits: list[float]) -> bool:
     return float(limits[0]) <= value <= float(limits[1])
 
 
+def instruction_parity(
+        cells: dict[tuple[str, int], dict[str, dict[str, str]]],
+        policy: str, baseline: str) -> dict[str, Any]:
+    entries = []
+    for (graph, iteration), per_policy in sorted(cells.items()):
+        policy_insts = integer(
+            per_policy[policy]["roi_insts"], "roi_insts")
+        baseline_insts = integer(
+            per_policy[baseline]["roi_insts"], "roi_insts")
+        entries.append({
+            "graph": graph,
+            "iterations": iteration,
+            "policy_roi_insts": policy_insts,
+            "baseline_roi_insts": baseline_insts,
+            "matched": policy_insts == baseline_insts,
+        })
+    return {
+        "passes": all(entry["matched"] for entry in entries),
+        "cells": entries,
+    }
+
+
 def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, Any]:
     cells = build_cells(rows, config)
     roles = policy_roles(config)
     decision = config["decision"]
+    if decision.get(
+            "replacement_claim_requires_exact_roi_instruction_parity") is not True:
+        raise ValueError(
+            "replacement claims require exact ROI instruction parity")
 
     baseline_sanity = {}
     sanity_passes = True
@@ -718,6 +744,7 @@ def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, An
                 cell["traffic_ratio"] > oracle_limit
                 for cell in oracle_sanity["cells"]))
     oracle_sanity["passes"] = oracle_sanity_passes
+    screen_valid = sanity_passes and oracle_sanity_passes
 
     popt_stream_accounting = []
     for (graph, iteration), per_policy in sorted(cells.items()):
@@ -786,7 +813,10 @@ def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, An
                     for logo in result["leave_one_graph_out"].values()))
 
         transport_comparison = comparisons[roles["transport"]]
+        transport_instruction_parity = instruction_parity(
+            cells, candidate, roles["transport"])
         transport_pass = (
+            transport_instruction_parity["passes"] and
             transport_comparison["aggregate_time_ratio"] <= float(
                 decision[
                     "max_time_ratio_vs_transport_control_for_policy_claim"]) and
@@ -797,7 +827,7 @@ def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, An
                         "leave_one_graph_out"])
                 for result in
                 transport_comparison["leave_one_graph_out"].values()))
-        passes = sanity_passes and performance_guards_pass
+        passes = screen_valid and performance_guards_pass
         candidates[candidate] = {
             "decision_role": (
                 "primary" if candidate == roles["primary"]
@@ -805,12 +835,18 @@ def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, An
             "passes": passes,
             "performance_guards_pass": performance_guards_pass,
             "comparisons": comparisons,
+            "replacement_instruction_parity":
+                transport_instruction_parity,
             "replacement_policy_contribution": transport_pass,
             "claim_classification": (
                 "characterization_only"
                 if candidate != roles["primary"] else
                 "inconclusive_invalid_baselines"
                 if not sanity_passes else
+                "inconclusive_invalid_oracle"
+                if not oracle_sanity_passes else
+                "replacement_policy_supported_complete_design_failed"
+                if not performance_guards_pass and transport_pass else
                 "no_claim_screen_failed"
                 if not performance_guards_pass else
                 "complete_design_and_replacement_policy"
@@ -826,6 +862,8 @@ def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, An
     screen_result = (
         "inconclusive_invalid_baselines"
         if not sanity_passes else
+        "inconclusive_invalid_oracle"
+        if not oracle_sanity_passes else
         "go"
         if primary_performance_passes else
         "stop")
@@ -833,7 +871,7 @@ def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, An
         "screen_id": config["id"],
         "cell_count": len(cells),
         "row_count": sum(len(value) for value in cells.values()),
-        "screen_valid": sanity_passes,
+        "screen_valid": screen_valid,
         "screen_result": screen_result,
         "baseline_sanity_passes": sanity_passes,
         "baseline_sanity": baseline_sanity,
@@ -845,9 +883,9 @@ def evaluate(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[str, An
         "screen_passes": primary_passes,
         "stop_broad_campaign": bool(
             decision["stop_if_primary_fails"] and
-            sanity_passes and not primary_performance_passes),
+            screen_valid and not primary_performance_passes),
         "replacement_policy_claim_allowed": bool(
-            primary_passes and
+            screen_valid and
             candidates[roles["primary"]][
                 "replacement_policy_contribution"]),
         "primary_vs_oracle_time_ratio":

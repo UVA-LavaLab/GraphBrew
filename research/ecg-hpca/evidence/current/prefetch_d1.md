@@ -12,7 +12,7 @@ The incomplete pre-reboot soc-pokec directory and the two-policy resume director
 must not be combined with these cells. Their LRU target times differ by 4.8%.
 
 Every policy received the same finite-resource gem5 L2 stride prefetcher with
-degree 1. Charged P-OPT used the explicit
+degree 1. The optimistic charged P-OPT bound used the explicit
 `analytic_prefetch_upper_bound` mode:
 
 - reserved LLC capacity and all matrix bytes were charged;

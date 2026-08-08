@@ -188,8 +188,8 @@ TABLE_HEADER_LABELS = {
 
 ROI_COMPARE_KEYS = (
     "final_shard_group", "final_matrix_id", "final_matrix_config_hash",
-    "simulator", "final_graph", "benchmark", "prefetcher", "l3_size",
-    "threads", "section",
+    "simulator", "gem5_cpu_type", "final_graph", "benchmark", "prefetcher",
+    "l3_size", "threads", "section",
 )
 
 PAPER_FIGURE_WIDTH = 3.35
@@ -198,6 +198,18 @@ LEGACY_FIGURES = (
     "avg_ticks_by_policy.png",
     "avg_l3_misses_by_policy.png",
     "charged_tick_overhead.png",
+)
+STALE_SPEEDUP_FIGURES = (
+    "replacement_speedup_by_benchmark.svg",
+    "replacement_speedup_by_benchmark.png",
+    "replacement_speedup_vs_lru.svg",
+    "replacement_speedup_vs_lru.png",
+    "sniper_replacement_speedup_by_benchmark.svg",
+    "sniper_replacement_speedup_by_benchmark.png",
+)
+STALE_SNIPER_TIMING_OUTPUTS = (
+    ("aggregate", "sniper_relative_metrics.csv"),
+    ("aggregate", "sniper_relative_policy_summary.csv"),
 )
 
 try:
@@ -423,19 +435,18 @@ def effective_l3_misses(row: dict[str, Any]) -> float | None:
 
 
 def timing_valid_for_speedup(row: dict[str, Any]) -> bool:
+    if (
+            str(row.get("simulator", "")).strip().lower() != "gem5" or
+            str(row.get("gem5_cpu_type", "")).strip() != "O3"):
+        return False
     raw_value = row.get("timing_valid_for_speedup")
     if raw_value in (None, ""):
-        if row.get("prefetcher") == "ECG_PFX" and row.get("simulator") in ("gem5", "sniper"):
-            return False
-        return True
+        return False
     value = str(raw_value).strip().lower()
     return value not in {"0", "false", "no", "invalid"}
 
 
 def timing_valid_label(row: dict[str, Any]) -> str:
-    value = row.get("timing_valid_for_speedup")
-    if value not in (None, ""):
-        return str(value)
     return "1" if timing_valid_for_speedup(row) else "0"
 
 
@@ -933,7 +944,10 @@ def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "popt_charged_l3_misses_plus_matrix_stream", ""
                 ),
             })
-            if ticks is not None and lru_ticks and timing_valid_for_speedup(row):
+            if (
+                    ticks is not None and lru_ticks and
+                    timing_valid_for_speedup(row) and
+                    timing_valid_for_speedup(lru)):
                 record["speedup_vs_lru"] = lru_ticks / ticks
                 record["normalized_ticks_vs_lru"] = ticks / lru_ticks
             if misses is not None and lru_misses:
@@ -2211,6 +2225,22 @@ def generate_outputs(
         if legacy_path.exists():
             legacy_path.unlink()
             print(f"[remove] {legacy_path}")
+    for name in STALE_SPEEDUP_FIGURES:
+        stale_path = figures_dir / name
+        if stale_path.exists():
+            stale_path.unlink()
+            print(f"[remove] {stale_path}")
+    for directory, name in STALE_SNIPER_TIMING_OUTPUTS:
+        stale_path = out_dir / directory / name
+        if stale_path.exists():
+            stale_path.unlink()
+            print(f"[remove] {stale_path}")
+    if copy_to_paper:
+        for name in STALE_SPEEDUP_FIGURES:
+            stale_path = PAPER_CHARTS_DIR / name
+            if stale_path.exists():
+                stale_path.unlink()
+                print(f"[remove] {stale_path}")
 
     policy_map = policy_label_rows(row.get("policy_label", "") for row in roi_rows + proof_rows)
     if policy_map:
@@ -2388,7 +2418,11 @@ def generate_outputs(
                 )
                 sniper_single_thread_relative = [
                     row for row in replacement_relative
-                    if row.get("simulator") == "sniper" and str(row.get("threads", "1")) in ("", "1", "1.0")
+                    if (
+                        row.get("simulator") == "sniper" and
+                        str(row.get("threads", "1")) in ("", "1", "1.0") and
+                        as_float(row.get("speedup_vs_lru")) is not None
+                    )
                 ]
                 if sniper_single_thread_relative:
                     plot_grouped_metric_by_benchmark(

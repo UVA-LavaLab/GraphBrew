@@ -6,7 +6,7 @@ Locks the invariant that each simulator (``cache_sim``, ``gem5``-native,
 ``email-Eu-core`` and that *both* of those regions are classified as
 GRASP regions at the GRASP-faithful array-relative ``hot_pct=15`` band.
 
-The handoff (``research/ecg-hpca/CLAIMS.md``) calls for "exactly 2
+The handoff (``research/ecg-hpca/PAPER.md``) calls for "exactly 2
 regions with ``grasp_region=1`` and the expected ``hot_pct`` (15 for
 PR/BC/Radii, 100 for BellmanFord)".  Two contexts apply:
 

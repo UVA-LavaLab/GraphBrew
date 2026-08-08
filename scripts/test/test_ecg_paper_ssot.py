@@ -456,51 +456,84 @@ def test_sniper_sg_kernel_supports_synthetic_profiles():
     assert "-g" in options
 
 
-def test_canonical_isa_story_separates_mask_and_indexed_loads():
-    architecture = (
-        ROOT / "research/ecg-hpca/ARCHITECTURE.md").read_text()
-    methodology = (
-        ROOT / "research/ecg-hpca/METHODOLOGY.md").read_text()
-    claims = (ROOT / "research/ecg-hpca/CLAIMS.md").read_text()
-    results = (ROOT / "research/ecg-hpca/RESULTS.md").read_text()
-    runbook = (ROOT / "research/ecg-hpca/RUNBOOK.md").read_text()
+def test_paper_ssot_is_sole_normative_doc_with_correct_simulator_roles_and_scope():
+    """PAPER.md is the sole normative SSOT; retired docs/ceremony are gone."""
+    ecg_dir = ROOT / "research/ecg-hpca"
+    paper = (ecg_dir / "PAPER.md").read_text()
+    results = (ecg_dir / "RESULTS.md").read_text()
+    artifact = (ecg_dir / "ARTIFACT.md").read_text()
+    readme = (ecg_dir / "README.md").read_text()
+    root_readme = (ROOT / "README.md").read_text()
+    stop_evidence = (
+        ecg_dir / "evidence/current/pr_screen_stop.md"
+    ).read_text()
 
-    assert "ecg.k2.mload.u32" in architecture
-    assert "ecg.k2.mload.f32" in architecture
-    assert "ecg.k2.iload.u32" in architecture
-    assert "`EA = rs1`" in architecture
-    assert "per-hart `ecg.cur_epoch` CSR" in architecture
-    assert "33 bits/line" in architecture
-    assert "49 bits/line before ECC" in architecture
-    assert "1.531 baseline-way equivalents" in architecture
-    assert "14.602 fractional ways" in architecture
-    assert "bit-packed metadata payload lower bound" in architecture
-    assert "95 bits" in architecture
-    assert "idealized packed-record K2-I-like model" in methodology
-    assert "Presenting the 1.329x packed K2-I-like model result" in claims
-    assert "Presenting the 1.171x model TPI as a K2-M estimate." in claims
-    assert "No K2-M timing claim is frozen yet." in " ".join(results.split())
-    assert "not measured K2-I ISA timing" in " ".join(results.split())
-    assert "zero K2 hardware overhead" not in architecture
-    assert "K2-M exact Request proven for PR and compact SSSP O3" in architecture
-    assert "{ASID/VMID, graph_generation}" in architecture
-    assert "16-bit context ID" in architecture
-    assert "program-order K2 sequence number" in architecture
-    assert "irrevocable conflict" in architecture
-    assert "no later target may restore metadata" in architecture
-    assert "Weighted SSSP: one replacing 8-byte compact record" in methodology
-    assert "equal-silicon-area results" in runbook
-    assert "15-way K2 LLC versus a 16-way baseline" in runbook
-    assert "SRAM area and access energy" in runbook
-    assert "does not extend the cache critical path" in runbook
-    assert "lower hardware overhead than P-OPT" in runbook
-    assert "Renaming the current packed model is insufficient." in runbook
-    assert "exactly 1.000x instruction ratio" in methodology
-    assert "transport-matched Sniper K2-M model" in claims
-    assert "matched_k2m.py" in runbook
-    assert "exact per-Request O3 binding is proven only" in claims
-    assert "request-bound fused indexed K2-I property load" not in claims
-    assert "Canonical Sniper K2-I timing" not in runbook
+    # Only PAPER.md may claim normative status; the retired ceremony/lab
+    # notebook documents must be gone from the active tree.
+    assert "normative" in paper.lower()
+    for retired in (
+            "ARCHITECTURE.md", "METHODOLOGY.md", "CLAIMS.md",
+            "RUNBOOK.md", "CHAIR_QUERY.md", "claim_gate.json"):
+        assert not (ecg_dir / retired).exists(), retired
+    assert not (
+        ROOT / "scripts/experiments/ecg/analysis/claim_gate.py").exists()
+    assert not (ROOT / "scripts/test/test_claim_gate.py").exists()
+
+    # Simulator roles: gem5 sole architectural timing authority; cache_sim
+    # functional/traffic authority with no timing; Sniper corroboration only.
+    assert "gem5" in paper and "Sole architectural timing authority" in paper
+    assert "cache_sim" in paper and "reports no cycles" in paper
+    assert "Sniper" in paper and (
+        "never supports a K2-M architectural speedup claim" in paper)
+    assert "49 logical bits" in paper
+    assert "1.531" in paper
+    assert "14.602" in paper
+
+    # P-OPT timing is an optimistic charged bound: capacity and bytes are
+    # charged, but target-time stream latency is not. The STOP remains the
+    # preregistered decision, not a realistic P-OPT ranking.
+    for doc in (paper, results, stop_evidence):
+        assert "optimistic charged P-OPT bound" in doc
+        assert "popt_target_time_charged=0" in doc
+        assert "realistic" in doc and "P-OPT" in doc
+
+    # Root navigation must not reproduce mechanism/result/reproduction
+    # ownership that belongs to the paper SSOT and artifact guide.
+    assert "This root README is navigation only" in root_readme
+    assert "Architecture at a glance" not in root_readme
+    assert "ECG:K2_RRIP_STREAMSHIELD" not in root_readme
+    assert "--profile" not in root_readme
+    assert "83.94%" not in root_readme
+    assert "4.28%" not in root_readme
+    assert "authoritative current bibliography" not in paper
+
+    # Explicit instruction-count disclosure/claim-classification rule
+    # (not a strict parity guard).
+    assert "disclosure and\n**claim-classification rule" in paper or (
+        "disclosure and" in paper and "claim-classification rule" in paper)
+    assert "not a requirement that instruction counts must" in paper
+
+    # The retired epoch_first/adaptive-primary wording must not be restated
+    # as the current design anywhere in the normative docs.
+    for doc in (paper, results, readme):
+        assert "PR uses `epoch_first`" not in doc
+        assert "PR uses epoch-first eviction" not in doc
+
+    # No active claim_gate ownership/ceremony references remain.
+    for doc in (paper, results, artifact, readme):
+        assert "claim_gate" not in doc
+
+    assert "lower hardware overhead than P-OPT" in paper
+
+    # RESULTS.md is explicitly non-normative and links back to PAPER.md.
+    assert "Non-normative" in results
+    assert "PAPER.md" in results
+
+    # v1/v2-suffixed screen names must not appear as active identifiers.
+    for doc in (paper, results, artifact, readme):
+        assert "pr_screen_v1" not in doc and "pr_screen_v2" not in doc
+        assert "proposal_k2m_sota_pr_screen_v1" not in doc
+        assert "proposal_k2m_sota_pr_screen_v2" not in doc
 
 
 def test_k2_cache_sim_paths_do_not_build_popt_matrix():
@@ -665,49 +698,62 @@ def test_paper_pipeline_uses_canonical_runner():
         ).exists()
 
 
+def test_pipeline_removes_stale_sniper_timing_outputs(
+        tmp_path, monkeypatch):
+    module = load_module(
+        "paper_pipeline_stale_sniper_figure",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    paper_charts = tmp_path / "paper-charts"
+    monkeypatch.setattr(module, "PAPER_CHARTS_DIR", paper_charts)
+    stale_paths = [
+        tmp_path / "aggregate" / "sniper_relative_metrics.csv",
+        tmp_path / "aggregate" / "sniper_relative_policy_summary.csv",
+    ]
+    for name in module.STALE_SPEEDUP_FIGURES:
+        stale_paths.extend([
+            tmp_path / "figures" / name,
+            paper_charts / name,
+        ])
+    for stale in stale_paths:
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text("stale prohibited timing artifact")
+    module.generate_outputs(tmp_path, [], [], True)
+    assert all(not stale.exists() for stale in stale_paths)
+
+
 def test_final_design_docs_and_run_flow_are_consistent():
     readme = (ROOT / "README.md").read_text()
     wiki = (ROOT / "wiki/ECG-HPCA-Paper.md").read_text()
-    runbook = (ROOT / "research/ecg-hpca/RUNBOOK.md").read_text()
+    artifact = (ROOT / "research/ecg-hpca/ARTIFACT.md").read_text()
     manifest = json.loads(
         (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
 
-    assert "ECG:K2_ONLINE_STREAMSHIELD" in readme
-    assert "Static StreamShield beats normal LLC allocation on all 15" in readme
-    for profile in (
-            "ecg_3sim_allalg_smoke",
-            "ecg_3sim_realgraph_allalg",
-            "ecg_3sim_realgraph_allalg_1b",
-            "ecg_3sim_sampled_allalg",
-            "ecg_sniper_sampled_pr_streamengine",
-            "ecg_sniper_realgraph_warm_probe",
-            "ecg_sniper_realgraph_600m",
-            "ecg_replacement_baseline",
-            "ecg_cache_sim_factorial",
-            "ecg_streamshield_generality"):
-        assert f"--profile {profile}" in readme
-    assert "--input-run-dirs" in readme
-    assert "--list --dry-run --no-build" in readme
+    assert "research/ecg-hpca/PAPER.md" in readme
+    assert "research/ecg-hpca/RESULTS.md" in readme
+    assert "research/ecg-hpca/ARTIFACT.md" in readme
+    assert "This root README is navigation only" in readme
+    assert "ECG:K2_RRIP_STREAMSHIELD" not in readme
+    assert "--profile" not in readme
 
-    assert "## Method guide" in wiki
-    assert "### Full 3-simulator smoke" in wiki
-    assert "### Three-real-graph cross-simulator matrix" in wiki
-    assert "3 simulators x 5 algorithms x 8 policies = 120 rows" in wiki
-    assert "smoke_coverage.py" in wiki
-    for method in (
-            "LRU", "SRRIP", "GRASP", "P-OPT", "K1",
-            "K2 static", "K2 online", "K2 online+SS", "Adaptive SS"):
-        assert method in wiki
-    assert "**final design**" in wiki
+    # The wiki is a redirect to the consolidated paper SSOT, not a duplicate
+    # narrative that could drift out of sync with it.
+    assert "research/ecg-hpca/PAPER.md" in wiki
+    assert "research/ecg-hpca/RESULTS.md" in wiki
+    assert "research/ecg-hpca/ARTIFACT.md" in wiki
+    assert "epoch_first" not in wiki
 
-    assert "## Final run order" in runbook
-    assert "## Full 3-simulator/all-algorithm smoke" in runbook
-    assert "## Three-real-graph cross-simulator matrix" in runbook
-    assert "Acceptance is exactly 360 valid rows" in runbook
-    assert "Acceptance is exactly 120 valid rows" in runbook
-    assert "## Full-iteration headline matrix (blocked)" in runbook
-    assert "Do not launch this profile" in runbook
-    assert "--input-run-dirs" in runbook
+    assert "## 4. Canonical PageRank screen" in artifact
+    assert "ecg_pr_screen" in artifact
+    assert "cit-Patents/cit-Patents.el" in artifact
+    assert "cit-Patents/cit-Patents.mtx" not in artifact
+    assert "/usr/bin/python3.12 -I" in artifact
+    assert "--no-build --no-resume" in artifact
+    assert "## 6. Other reproduction profiles" in artifact
+    assert "Acceptance is exactly 360 valid rows" in artifact
+    assert "Acceptance is exactly 120 valid rows" in artifact
+    assert "streamshield_sniper_realgraph" in artifact
+    assert "--input-run-dirs" in artifact
 
     headline = next(
         stage for stage in manifest["stages"]
@@ -810,18 +856,6 @@ def test_policy_labels_share_one_parser():
     assert module.policy_output_label("ECG:K2") == "ECG_K2"
 
 
-def test_request_bound_claim_is_sampling_scoped():
-    gate = json.loads(
-        (ROOT / "research/ecg-hpca/claim_gate.json").read_text())
-    claim = next(
-        item for item in gate["claims"]
-        if item["id"] == "request_bound_mechanism")
-    assert "accepted LLC deliveries" in claim["text"]
-    assert "first 2048 traced PR requests" in claim["text"]
-    assert "no zero-misbinding" in claim["scope"]
-    assert "request-count, timing, or SOTA coverage" in claim["scope"]
-
-
 def test_sharded_policies_share_comparison_scope():
     module = load_module(
         "paper_pipeline_shard_scope",
@@ -832,7 +866,8 @@ def test_sharded_policies_share_comparison_scope():
         "final_shard_group": "run_tag",
         "final_matrix_id": "web_pr",
         "final_matrix_config_hash": "same-config",
-        "simulator": "sniper",
+        "simulator": "gem5",
+        "gem5_cpu_type": "O3",
         "benchmark": "pr",
         "prefetcher": "STRIDE",
         "l3_size": "2MB",
@@ -854,6 +889,86 @@ def test_sharded_policies_share_comparison_scope():
     assert len(relative) == 2
     k2 = next(row for row in relative if row["policy_label"] == "ECG_K2")
     assert k2["speedup_vs_lru"] == 1.25
+
+
+def test_pipeline_rejects_non_o3_speedup_flags():
+    module = load_module(
+        "paper_pipeline_timing_authority",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    for simulator, cpu_type in (
+            ("cache_sim", ""),
+            ("sniper", ""),
+            ("gem5", "timing")):
+        common = {
+            "status": "ok",
+            "final_output_status": "ok",
+            "final_shard_group": "run_tag",
+            "final_matrix_id": f"{simulator}-{cpu_type}",
+            "final_matrix_config_hash": "same-config",
+            "simulator": simulator,
+            "gem5_cpu_type": cpu_type,
+            "benchmark": "pr",
+            "prefetcher": "none",
+            "l3_size": "2MB",
+            "threads": "1",
+            "section": "1",
+            "timing_valid_for_speedup": "1",
+            "final_expected_policy_labels": json.dumps(
+                ["LRU", "ECG_K2"]),
+        }
+        rows = [
+            {
+                **common,
+                "pipeline_run_name": "lru",
+                "final_job_id": "same-job",
+                "policy_label": "LRU",
+                "sim_ticks": "100",
+                "l3_misses": "50",
+            },
+            {
+                **common,
+                "pipeline_run_name": "k2",
+                "final_job_id": "same-job",
+                "policy_label": "ECG_K2",
+                "sim_ticks": "80",
+                "l3_misses": "40",
+            },
+        ]
+        relative = module.roi_relative_metrics(rows)
+        assert len(relative) == 2
+        assert all(
+            row["timing_valid_for_speedup"] == "0"
+            for row in relative)
+        assert all("speedup_vs_lru" not in row for row in relative)
+
+
+def test_roi_matrix_only_marks_gem5_o3_timing_speedup_valid():
+    module = load_module(
+        "roi_matrix_timing_authority",
+        ROOT / "scripts/experiments/ecg/roi_matrix.py",
+    )
+    args = module.parse_args([
+        "--suite", "gem5",
+        "--policies", "LRU",
+        "--gem5-cpu-type", "O3",
+    ])
+    args.has_lru_baseline = True
+    spec = module.parse_policy_spec("LRU")
+
+    o3 = module.base_row("gem5", args, spec, "2MB")
+    assert o3["timing_valid_for_speedup"] == "1"
+
+    args.gem5_cpu_type = "timing"
+    timing_cpu = module.base_row("gem5", args, spec, "2MB")
+    cache_sim = module.base_row("cache_sim", args, spec, "2MB")
+    sniper = module.base_row("sniper", args, spec, "2MB")
+    for row in (timing_cpu, cache_sim, sniper):
+        assert row["timing_valid_for_speedup"] == "0"
+        assert row["timing_comparison_bound"] == "not_speedup_evidence"
+    assert timing_cpu["timing_model"] == "gem5_non_o3_diagnostic"
+    assert cache_sim["timing_model"] == "cache_mechanism_model"
+    assert sniper["timing_model"] == "sniper_scale_direction_model"
 
 
 def test_mechanism_only_roi_summary_suppresses_timing():
@@ -1046,7 +1161,7 @@ def test_proposal_freeze_validates_exact_rows(tmp_path):
     assert not module.is_inadmissible_column("ecg_record_bytes")
 
 
-def test_frozen_proposal_bundle_is_hash_bound_and_claim_cited():
+def test_frozen_proposal_bundle_is_hash_bound():
     module = load_module(
         "freeze_proposal_k2m_verify_test",
         ROOT / "scripts/experiments/ecg/flows/freeze_proposal_k2m.py",
@@ -1055,17 +1170,6 @@ def test_frozen_proposal_bundle_is_hash_bound_and_claim_cited():
         ROOT / "research/ecg-hpca/evidence/"
         "proposal_k2m_o3_20260730")
     module.verify_bundle(bundle)
-    gate = json.loads(
-        (ROOT / "research/ecg-hpca/claim_gate.json").read_text())
-    mechanism_gate = next(
-        item for item in gate["gates"]
-        if item["id"] == "k2m_request_correctness")
-    claim = next(
-        item for item in gate["claims"]
-        if item["id"] == "request_bound_mechanism")
-    expected = "research/ecg-hpca/evidence/proposal_k2m_o3_20260730"
-    assert expected in mechanism_gate["evidence"]
-    assert expected in claim["evidence"]
 
 
 def test_online_dueling_regret_uses_best_static_k2_arm():

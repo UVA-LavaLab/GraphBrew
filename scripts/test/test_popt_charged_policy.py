@@ -132,6 +132,7 @@ def test_gem5_analytic_popt_timing_is_labeled_optimistic():
     args = roi_matrix.parse_args([
         "--suite", "gem5",
         "--policies", "LRU", "POPT",
+        "--gem5-cpu-type", "O3",
         "--popt-matrix-stream", "analytic",
     ])
     args.has_lru_baseline = True
@@ -443,6 +444,7 @@ def test_analytic_prefetch_upper_bound_is_disclosed():
     args = roi_matrix.parse_args([
         "--suite", "gem5",
         "--policies", "LRU", "POPT",
+        "--gem5-cpu-type", "O3",
         "--prefetcher", "STRIDE",
         "--popt-matrix-stream", "analytic_prefetch_upper_bound",
     ])

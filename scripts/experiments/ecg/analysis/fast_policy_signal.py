@@ -4,7 +4,7 @@
 The gem5 timing matrix costs days, but the question "is K2 ahead or behind?"
 is answered by cache_sim traffic in minutes. This runs the full
 graph x kernel x policy matrix directly against the cache_sim kernels and
-applies the frozen decision rule from research/ecg-hpca/METHODOLOGY.md:
+applies the frozen decision rule from research/ecg-hpca/PAPER.md (Section 5):
 geometric mean of per-cell ratios, a +/-2% tie band, win/tie/loss counts, and
 the worst cell always reported.
 
@@ -239,7 +239,7 @@ def main(argv):
             (args.prefetcher != "none" or args.prefetch_degree)):
         raise SystemExit(
             "demand misses may not carry a comparison while a prefetcher is "
-            "active (research/ecg-hpca/METHODOLOGY.md, frozen metrics)")
+            "active (research/ecg-hpca/PAPER.md, Section 5 frozen metrics)")
 
     rm = load_roi_matrix()
     kernels = [k.strip() for k in args.kernels.split(",") if k.strip()]

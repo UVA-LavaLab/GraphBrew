@@ -709,7 +709,7 @@ def main(argv=None):
         print("FAIL: missing equivalence inputs:")
         for path in missing_inputs:
             print(f"  - {path}")
-        print("See research/ecg-hpca/RUNBOOK.md for graph staging and build commands.")
+        print("See research/ecg-hpca/ARTIFACT.md for graph staging and build commands.")
         return 2
 
     evidence_dir = args.evidence_dir

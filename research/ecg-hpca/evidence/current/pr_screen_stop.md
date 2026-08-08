@@ -10,7 +10,7 @@ The run contains 12 complete cells and 84 `ok` rows:
 - graphs: `web-Google-n16`, `soc-pokec-n16`,
   `cit-Patents-n18-sym`;
 - PageRank iterations: 1, 2, 4, 8;
-- policies: LRU, GRASP, charged and uncharged P-OPT,
+- policies: LRU, GRASP, optimistic charged and uncharged P-OPT,
   K2-LRU+StreamShield, static RRIP K2+StreamShield, and online
   K2+StreamShield.
 
@@ -21,18 +21,24 @@ reported:
 |---|---:|---:|
 | LRU | 0.9061 | 0.7227 |
 | GRASP | 0.9835 | 0.9455 |
-| charged P-OPT | 1.0235 | 0.9351 |
+| optimistic charged P-OPT bound | 1.0235 | 0.9351 |
 | uncharged P-OPT | 1.0503 | 1.1776 |
 | K2-LRU+StreamShield | 0.9330 | 0.7855 |
 
+The P-OPT row charges reserved capacity and cumulative matrix bytes, but
+`popt_target_time_charged=0` omits matrix-stream latency. Its time is an
+optimistic bound; realistic target-time P-OPT performance remains unresolved.
+
 The screen is valid and the result is **STOP**. Static K2 misses the frozen
-aggregate time threshold versus GRASP and charged P-OPT. The decisive negative
-graph is `cit-Patents-n18-sym`; at iteration 8:
+aggregate time threshold versus GRASP and the optimistic charged P-OPT bound.
+Because matrix-stream target-time latency is omitted, this STOP does not
+establish that a realistic P-OPT engine is faster. The decisive negative graph
+is `cit-Patents-n18-sym`; at iteration 8:
 
 | Baseline | Time ratio | Off-chip ratio |
 |---|---:|---:|
 | GRASP | 1.0613 | 1.1141 |
-| charged P-OPT | 1.1373 | 1.0322 |
+| optimistic charged P-OPT bound | 1.1373 | 1.0322 |
 
 V1 used `epoch_first` as the static primary and was stopped after the first
 cell. It remains a failed historical experiment and is not an active paper

@@ -12,16 +12,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = (
     ROOT / "research/ecg-hpca/preregistration/"
-    "proposal_k2m_sota_pr_screen_v1.json")
-V2_CONFIG_PATH = (
-    ROOT / "research/ecg-hpca/preregistration/"
-    "proposal_k2m_sota_pr_screen_v2.json")
+    "pr_screen.json")
 GATE_PATH = (
     ROOT / "scripts/experiments/ecg/analysis/proposal_sota_gate.py")
 PAPER_RUN_PATH = (
     ROOT / "scripts/experiments/ecg/flows/paper_run.py")
 MANIFEST_PATH = (
     ROOT / "scripts/experiments/ecg/final_paper_manifest.json")
+RESULTS_PATH = ROOT / "research/ecg-hpca/RESULTS.md"
 
 
 def load_module(name: str, path: Path):
@@ -291,52 +289,48 @@ def test_ssot_is_compact_and_has_no_hash_qualification():
     assert cfg["iterations"] == [1, 2, 4, 8]
     assert len(cfg["policies"]["all"]) == 7
     assert cfg["policies"]["primary_candidate"] == (
-        "ECG:K2_STREAMSHIELD")
-    assert cfg["compact_tier_bits"] == 2
-
-
-def test_v2_preserves_failed_v1_and_preregisters_static_rrip():
-    v1 = config()
-    v2 = config(V2_CONFIG_PATH)
-    assert len(V2_CONFIG_PATH.read_text().splitlines()) < 300
-    assert "sha256" not in V2_CONFIG_PATH.read_text().lower()
-    assert v2["lineage"]["prior_screen"] == v1["id"]
-    assert v2["blockers"] == []
-    assert v2["execution"]["ready"] is True
-    assert v2["execution"]["maximum_policy_runtime_seconds"] == 86400
-    assert v1["policies"]["primary_candidate"] == (
-        "ECG:K2_STREAMSHIELD")
-    assert v2["policies"]["primary_candidate"] == (
         "ECG:K2_RRIP_STREAMSHIELD")
-    assert v2["policies"]["all"] == [
-        "LRU", "GRASP", "POPT", "POPT:UNCHARGED",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD",
-    ]
-    changed = {
-        key for key in set(v1) | set(v2)
-        if v1.get(key) != v2.get(key)
-    }
-    assert changed == {
-        "version", "id", "scope", "lineage",
-        "policies", "variant_receipts", "blockers", "execution",
-    }
-    assert {
-        key: value for key, value in v2["policies"].items()
-        if key not in ("all", "primary_candidate")
-    } == {
-        key: value for key, value in v1["policies"].items()
-        if key not in ("all", "primary_candidate")
-    }
-    assert {
-        key: value for key, value in v2["variant_receipts"].items()
-        if key != "ECG_K2_RRIP_STREAMSHIELD"
-    } == {
-        key: value for key, value in v1["variant_receipts"].items()
-        if key != "ECG_K2_STREAMSHIELD"
-    }
-    result = gate().evaluate(synthetic_rows(cfg=v2), v2)
+    assert cfg["compact_tier_bits"] == 2
+    assert cfg["execution"]["outcome"].startswith("completed; STOP")
+    # No v1/v2-suffixed id: this is the single active preregistration.
+    assert cfg["id"] == "pr_screen"
+    assert "_v1" not in cfg["id"] and "_v2" not in cfg["id"]
+
+
+def test_results_configuration_matches_canonical_preregistration():
+    cfg = config()
+    text = RESULTS_PATH.read_text()
+    by_name = {graph["name"]: graph for graph in cfg["graphs"]}
+    assert "| Epochs | 32 for all three samples" in text
+    assert "| PageRank iterations | 1, 2, 4, 8 |" in text
+    assert "| Config | `preregistration/pr_screen.json` |" in text
+    assert "| Manifest profile | `ecg_pr_screen` |" in text
+    for name, vertices in (
+            ("web-Google-n16", 65536),
+            ("soc-pokec-n16", 65536),
+            ("cit-Patents-n18-sym", 262144)):
+        assert by_name[name]["vertices"] == vertices
+        assert name in text
+    assert "262,144 vertices" in text
+
+
+def test_canonical_screen_discloses_superseded_lineage_without_a_v1_file():
+    cfg = config()
+    assert "superseded_screens" in cfg
+    superseded = cfg["superseded_screens"]
+    assert len(superseded) == 1
+    assert superseded[0]["static_primary"] == "epoch_first"
+    assert "status" in superseded[0]
+    assert superseded[0]["id"] not in (
+        cfg["id"],)
+    # The failed v1 generation is not a live preregistration file: only one
+    # preregistration JSON is checked in.
+    prereg_dir = ROOT / "research/ecg-hpca/preregistration"
+    files = sorted(p.name for p in prereg_dir.glob("*.json"))
+    assert files == ["pr_screen.json"]
+    for name in files:
+        assert "_v1" not in name and "_v2" not in name
+    result = gate().evaluate(synthetic_rows(cfg=cfg), cfg)
     assert result["primary_candidate"] == "ECG_K2_RRIP_STREAMSHIELD"
     assert result["screen_passes"] is True
 
@@ -346,7 +340,7 @@ def test_profile_expands_to_twelve_whole_cells(tmp_path):
         [
             sys.executable,
             "scripts/experiments/ecg/flows/paper_run.py",
-            "--profile", "ecg_proposal_k2m_sota_pr_screen",
+            "--profile", "ecg_pr_screen",
             "--run-dir", str(tmp_path / "run"),
             "--list", "--dry-run", "--no-build",
             "--allow-missing-graphs",
@@ -359,31 +353,18 @@ def test_profile_expands_to_twelve_whole_cells(tmp_path):
         assert text.count(f"-i {iterations} -t 0'") == 3
     assert text.count(
         "--policies LRU GRASP POPT POPT:UNCHARGED "
-        "ECG:K2_LRU_STREAMSHIELD ECG:K2_STREAMSHIELD "
+        "ECG:K2_LRU_STREAMSHIELD ECG:K2_RRIP_STREAMSHIELD "
         "ECG:K2_ONLINE_STREAMSHIELD") == 12
     assert text.count("--popt-active-columns 3") == 12
     assert text.count("--popt-matrix-stream analytic") == 12
-    assert text.count("--timeout-gem5 43200") == 12
+    assert text.count("--timeout-gem5 86400") == 12
     assert text.count("--gem5-compact-k2m-performance") == 12
-
-    blocked = subprocess.run(
-        [
-            sys.executable,
-            "scripts/experiments/ecg/flows/paper_run.py",
-            "--profile", "ecg_proposal_k2m_sota_pr_screen",
-            "--run-dir", str(tmp_path / "blocked"),
-            "--limit", "1", "--no-build", "--allow-missing-graphs",
-        ],
-        cwd=ROOT, capture_output=True, text=True, timeout=60)
-    assert blocked.returncode != 0
-    assert "blocked by screen config" in (
-        blocked.stdout + blocked.stderr)
 
     paper = load_module("proposal_sota_paper_run_test", PAPER_RUN_PATH)
     manifest = json.loads(MANIFEST_PATH.read_text())
     stage = next(
         value for value in manifest["stages"]
-        if value["name"] == "70_gem5_proposal_sota_pr_i1")
+        if value["name"] == "70_gem5_pr_screen_i1")
     settings, _ = paper.apply_screen_config(
         paper.merged_defaults(manifest, stage))
     assert settings["env"]["ECG_RECORD_VARIABLE_WIDTH"] == "1"
@@ -391,26 +372,27 @@ def test_profile_expands_to_twelve_whole_cells(tmp_path):
         config()["compact_tier_bits"])
 
 
-def test_v2_profile_expands_with_static_rrip_primary(tmp_path):
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/experiments/ecg/flows/paper_run.py",
-            "--profile", "ecg_proposal_k2m_sota_pr_screen_v2",
-            "--run-dir", str(tmp_path / "run-v2"),
-            "--list", "--dry-run", "--no-build",
-            "--allow-missing-graphs",
-        ],
-        cwd=ROOT, capture_output=True, text=True, timeout=120)
-    text = result.stdout + result.stderr
-    assert result.returncode == 0, text
-    assert "jobs=12" in text
-    assert text.count(
-        "--policies LRU GRASP POPT POPT:UNCHARGED "
-        "ECG:K2_LRU_STREAMSHIELD ECG:K2_RRIP_STREAMSHIELD "
-        "ECG:K2_ONLINE_STREAMSHIELD") == 12
-    assert "proposal_k2m_sota_pr_screen_v2.json" in (
-        MANIFEST_PATH.read_text())
+def test_no_v1_v2_screen_profile_or_stage_is_active():
+    manifest = json.loads(MANIFEST_PATH.read_text())
+    profile_names = set(manifest["profiles"])
+    stage_names = {stage["name"] for stage in manifest["stages"]}
+    assert "ecg_pr_screen" in profile_names
+    for name in profile_names | stage_names:
+        assert "proposal_k2m_sota_pr_screen" not in name
+        assert not name.endswith("_v1") and not name.endswith("_v2")
+    screen_stages = [
+        stage for stage in manifest["stages"]
+        if "ecg_pr_screen" in stage.get("profiles", [])
+    ]
+    assert len(screen_stages) == 4
+    for stage in screen_stages:
+        assert stage["screen_config"] == (
+            "research/ecg-hpca/preregistration/pr_screen.json")
+    # Exactly one active proposal-screen profile.
+    screen_profiles = [
+        name for name in profile_names if "pr_screen" in name
+    ]
+    assert screen_profiles == ["ecg_pr_screen"]
 
 
 def test_popt_model_matches_roi_matrix_producer():
@@ -450,7 +432,7 @@ def test_policy_sharding_is_rejected(tmp_path):
         [
             sys.executable,
             "scripts/experiments/ecg/slurm/make_slurm_shards.py",
-            "--profile", "ecg_proposal_k2m_sota_pr_screen",
+            "--profile", "ecg_pr_screen",
             "--run-tag", "screen",
             "--out", str(tmp_path / "shards.tsv"),
             "--allow-blocked",
@@ -463,7 +445,7 @@ def test_policy_sharding_is_rejected(tmp_path):
         [
             sys.executable,
             "scripts/experiments/ecg/flows/paper_run.py",
-            "--profile", "ecg_proposal_k2m_sota_pr_screen",
+            "--profile", "ecg_pr_screen",
             "--policy", "LRU",
             "--run-dir", str(tmp_path / "policy-filter"),
             "--dry-run", "--no-build", "--allow-missing-graphs",
@@ -475,7 +457,7 @@ def test_policy_sharding_is_rejected(tmp_path):
 
 def test_valid_screen_passes_and_reports_attribution():
     result = gate().evaluate(synthetic_rows(), config())
-    primary = result["candidates"]["ECG_K2_STREAMSHIELD"]
+    primary = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
     online = result["candidates"]["ECG_K2_ONLINE_STREAMSHIELD"]
     assert result["cell_count"] == 12
     assert result["row_count"] == 84
@@ -495,10 +477,10 @@ def test_valid_screen_passes_and_reports_attribution():
 def test_online_characterization_cannot_pass_screen_alone():
     rows = synthetic_rows()
     for row in rows:
-        if row["policy_label"] == "ECG_K2_STREAMSHIELD":
+        if row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD":
             row["sim_ticks"] = "100"
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_STREAMSHIELD"]["passes"] is False
+    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
     assert result["candidates"]["ECG_K2_ONLINE_STREAMSHIELD"]["passes"] is True
     assert result["screen_passes"] is False
 
@@ -548,7 +530,7 @@ def test_k2_performance_mode_and_online_dueling_fail_closed():
     rows = synthetic_rows()
     primary = next(
         row for row in rows
-        if row["policy_label"] == "ECG_K2_STREAMSHIELD")
+        if row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD")
     primary["proposal_performance_mode_active"] = "0"
     with pytest.raises(ValueError, match="proposal_performance_mode_active"):
         gate().evaluate(rows, config())
@@ -598,12 +580,12 @@ def test_per_cell_guard_prevents_masking():
     rows = synthetic_rows(primary_ratio=0.80)
     for row in rows:
         if (
-                row["policy_label"] == "ECG_K2_STREAMSHIELD" and
+                row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD" and
                 row["final_graph"] == "web-Google-n16" and
                 "-i 1" in row["options"]):
             row["sim_ticks"] = str(90.0 * 1.021)
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_STREAMSHIELD"]["passes"] is False
+    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
     assert result["screen_passes"] is False
 
 
@@ -611,23 +593,23 @@ def test_i8_guard_prevents_short_run_masking():
     rows = synthetic_rows(primary_ratio=0.80)
     for row in rows:
         if (
-                row["policy_label"] == "ECG_K2_STREAMSHIELD" and
+                row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD" and
                 "-i 8" in row["options"]):
             row["sim_ticks"] = str(90.0 * 0.98)
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_STREAMSHIELD"]["passes"] is False
+    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
 
 
 def test_leave_one_graph_out_guard_prevents_one_graph_masking():
     rows = synthetic_rows()
     for row in rows:
-        if row["policy_label"] == "ECG_K2_STREAMSHIELD":
+        if row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD":
             ratio = (
                 0.70 if row["final_graph"] == "web-Google-n16"
                 else 0.99)
             row["sim_ticks"] = str(90.0 * ratio)
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_STREAMSHIELD"]["passes"] is False
+    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
 
 
 def test_oracle_sanity_is_checked_per_cell():
@@ -642,7 +624,9 @@ def test_oracle_sanity_is_checked_per_cell():
     oracle["sim_ticks"] = "1000"
     result = gate().evaluate(rows, config())
     assert result["oracle_sanity_passes"] is False
-    assert result["screen_passes"] is True
+    assert result["screen_valid"] is False
+    assert result["screen_result"] == "inconclusive_invalid_oracle"
+    assert result["screen_passes"] is False
     assert result["stop_broad_campaign"] is False
 
 
@@ -657,7 +641,7 @@ def test_invalid_baseline_is_inconclusive_not_stop():
     assert result["screen_result"] == "inconclusive_invalid_baselines"
     assert result["screen_passes"] is False
     assert result["stop_broad_campaign"] is False
-    assert result["candidates"]["ECG_K2_STREAMSHIELD"][
+    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"][
         "performance_guards_pass"] is True
 
 
@@ -684,7 +668,7 @@ def test_transport_claim_has_leave_one_graph_out_guard():
             row["sim_ticks"] = str(
                 candidate_ticks / ratios[row["final_graph"]])
     result = gate().evaluate(rows, config())
-    primary = result["candidates"]["ECG_K2_STREAMSHIELD"]
+    primary = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
     assert primary["passes"] is True
     assert primary["comparisons"]["ECG_K2_LRU_STREAMSHIELD"][
         "aggregate_time_ratio"] <= 0.98
@@ -698,11 +682,52 @@ def test_transport_only_win_does_not_authorize_policy_claim():
         if row["policy_label"] == "ECG_K2_LRU_STREAMSHIELD":
             row["sim_ticks"] = str(90.0 * 0.94)
     result = gate().evaluate(rows, config())
-    primary = result["candidates"]["ECG_K2_STREAMSHIELD"]
+    primary = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
     assert result["screen_passes"] is True
     assert primary["claim_classification"] == (
         "complete_design_transport_or_layout_only")
     assert result["replacement_policy_claim_allowed"] is False
+
+
+def test_replacement_claim_requires_per_cell_instruction_parity():
+    rows = synthetic_rows()
+    primary = next(
+        row for row in rows
+        if (
+            row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD" and
+            row["final_graph"] == "web-Google-n16" and
+            "-i 1" in row["options"]))
+    primary["roi_insts"] = "1001"
+    result = gate().evaluate(rows, config())
+    candidate = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
+    assert result["screen_passes"] is True
+    assert candidate["replacement_instruction_parity"]["passes"] is False
+    assert candidate["replacement_policy_contribution"] is False
+    assert candidate["claim_classification"] == (
+        "complete_design_transport_or_layout_only")
+    assert result["replacement_policy_claim_allowed"] is False
+
+
+def test_replacement_instruction_parity_rule_is_mandatory():
+    cfg = config()
+    cfg["decision"][
+        "replacement_claim_requires_exact_roi_instruction_parity"] = False
+    with pytest.raises(
+            ValueError, match="exact ROI instruction parity"):
+        gate().evaluate(synthetic_rows(cfg=cfg), cfg)
+
+
+def test_stop_does_not_suppress_valid_replacement_attribution():
+    result = gate().evaluate(
+        synthetic_rows(primary_ratio=1.01), config())
+    candidate = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
+    assert result["screen_valid"] is True
+    assert result["screen_result"] == "stop"
+    assert result["screen_passes"] is False
+    assert candidate["replacement_policy_contribution"] is True
+    assert candidate["claim_classification"] == (
+        "replacement_policy_supported_complete_design_failed")
+    assert result["replacement_policy_claim_allowed"] is True
 
 
 def test_wrong_semantics_or_geometry_is_rejected():
