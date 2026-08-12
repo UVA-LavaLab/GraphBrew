@@ -67,6 +67,84 @@ GoGraph, and recent learned/partitioner-selection work. The matrix records:
 If the core mechanism reduces to an existing method under renamed stages, the
 proposal is rejected before performance work.
 
+## Novelty Landscape Gate
+
+The first primary-source review rejects the Phase-2 proposal **as originally
+worded**. "Sample topology, form cache-sized blocks, and minimize cross-block
+traffic/property dispersion" is not a defensible novelty statement by itself.
+
+Highest-risk prior art:
+
+| Method | Verified mechanism | Collision with the original proposal |
+|---|---|---|
+| [FrontOrder](https://github.com/RecoderChris/FrontOrder) | Random BFS-frontier sampling, learned vertex features, K-means locality clusters, cache-sized partitions | Directly anticipates sampled topology signals followed by cache-sized vertex blocks |
+| [Rebo](https://www.cs.nthu.edu.tw/~ychung/Conference/2026-IPDPS.pdf) | In-degree/structure hot-cold-frozen reordering, dense/sparse matrix extraction, cache-resident 2-D blocking, sparse cache-line arrays | Directly anticipates the combined "reordering and blocking" framing |
+| [Gorder](https://github.com/datourat/Gorder) | Greedy maximization of a sibling/neighbor locality score inside a sliding window | Any pairwise or windowed neighbor-co-location objective is derivative |
+| [DON-RL](https://arxiv.org/abs/2001.06631) | Learns a policy that maximizes the Gorder locality objective | Learning or approximating the same score does not escape the Gorder boundary |
+| [Recursive Graph Bisection](https://arxiv.org/abs/1602.08820) | Recursive balanced bisection for minimum-logarithmic-arrangement-style compression/locality | A recursive cross-block or log-gap objective is already occupied |
+| [Corder](https://github.com/yuang-chen/Corder-TPDS-21) | Degree hot/cold classification and workload-balanced cache-sized segments | Hot/cold cache-segment block packing is already occupied |
+| [Lightweight reordering](https://github.com/CMUAbstract/Graph-Reordering-IISWC18) and [DBG](https://github.com/faldupriyank/dbg) | Packing-factor analysis, HubSort/HubCluster, stable degree grouping | Degree placement and packing-factor rationale are components, not novelty |
+| [RabbitOrder](https://github.com/araij/rabbit_order) / [Leiden](https://doi.org/10.1038/s41598-019-41695-z) | Modularity communities, aggregation, and hierarchy/refinement | Community-derived blocks remain forbidden |
+| [GoGraph](https://arxiv.org/abs/2407.14544) | Maximizes forward edges to reduce asynchronous convergence rounds | Must remain a convergence baseline, not a cache-locality building block |
+
+The remaining possible white space is narrower: a deterministic, analytic,
+strictly budgeted optimizer for a cache-line **set-cardinality** objective that
+does not reduce to Gorder's pairwise window score, modularity, edge cut, or
+minimum logarithmic arrangement.
+
+Candidate objective for proof review:
+
+```text
+J_line(sigma) =
+  sum_v w_v * |{ floor(sigma(u) / L) : u in S(v) }|
+  + lambda * sum_b overfill(b)
+```
+
+`S(v)` is a deterministic capped sample of `v`'s adjacency, `L` is the number
+of property elements per cache line, and the first term counts distinct
+property lines touched by a sampled neighborhood. It is a set-cardinality
+cost, not a pairwise reward over a fixed ID window. The capacity penalty is a
+budget constraint, not an edge-cut objective.
+
+This objective is only a **research hypothesis** until all of the following
+hold:
+
+1. provide a counterexample/proof that `J_line` is not a monotone transform of
+   Gorder's score, edge cut, or minimum log-gap;
+2. show that optimizing `J_line` produces different mappings from those three
+   substitute objectives on controlled graph families;
+3. exclude BFS-frontier traces, learned embeddings/K-means, modularity
+   communities, recursive bisection, and hot/cold dense-sparse splitting;
+4. keep sampled work `O(n + |S|)`, sampled edges at most `c*n`, auxiliary
+   memory `O(n)`, and passes at a frozen constant;
+5. use fixed deterministic sampling and original-ID final tie breaks;
+6. treat cache blocks as an implementation/budget device, not the claimed
+   novelty.
+
+Minimum independence ablations:
+
+- `J_line` versus Gorder score, edge cut, and minimum log-gap on identical
+  candidate sets;
+- sampled versus exact neighborhoods;
+- fixed cache geometry versus per-graph tuned capacity;
+- bit-identical mappings across thread counts and repeated runs;
+- head-to-head comparison with FrontOrder, Rebo, canonical Corder, Recursive
+  Graph Bisection, Rabbit CSR, Gorder, Leiden, DBG, GoGraph, and RCM whenever
+  runnable source/artifacts are available.
+
+Baseline hygiene blockers discovered by the same review:
+
+- Algorithm 10 is a historical 1K-vertex Corder-style approximation, not the
+  canonical 1 MiB/L2-sized Corder configuration;
+- the GoGraph header cites TPDS 2024, while the verified paper is ICDE 2024;
+- DON-Lite cites ICDE 2024, while the identifiable DON-RL paper is WISE 2021,
+  and the fixed-weight heuristic is not a faithful DON-RL implementation.
+
+These identities must be corrected and canonical Corder exposed as an explicit
+future baseline before the Phase-1 pilot. Rebo and FrontOrder require a final
+full-paper/source review by a domain expert before any novelty claim. This is
+technical prior-art analysis, not legal advice.
+
 ## Phase 0: Data-Integrity and SSOT Cleanup
 
 These items must complete before another broad campaign:
@@ -119,26 +197,26 @@ Initial success targets:
 ## Phase 2: Fast Reordering Research
 
 Design one independent algorithm family rather than another composition matrix.
-The initial proposal is a bounded-cost topology-sketch and block-packing
-framework:
+The former generic sketch-and-block proposal is rejected by the novelty gate.
+The revised candidate must center on the `J_line` cache-line set-cardinality
+objective:
 
-1. **Topology sketch:** deterministic sampled edge-span, degree-distribution,
-   hub concentration, and local neighbor-overlap summaries.
-2. **Native block formation:** create bounded-size blocks directly from the
-   sketch and CSR neighborhoods, without community labels from Rabbit or
-   Leiden.
-3. **Placement objective:** explicitly minimize a GraphBrew-defined estimate
-   of property-line dispersion and cross-block traffic under a fixed
-   preprocessing budget.
-4. **Stable vertex placement:** order vertices inside blocks with an
-   independently specified degree/locality rule; retain stable original-ID
-   tie breaks for determinism.
-5. **Budget enforcement:** cap sampled edges, block-growth work, passes, and
-   auxiliary memory before running the algorithm.
-6. **Reusable primitives:** share degree buckets, sketch storage, prefix sums,
-   and CSR relocation buffers without importing baseline algorithm state.
-7. **Memory discipline:** release sketch/block state before CSR relocation and
-   preserve one-base-plus-one-derived-arm residency.
+1. **Deterministic bounded sample:** fixed-stride/hash adjacency samples only;
+   no BFS-frontier traces, stochastic draws, or learned embeddings.
+2. **Line-set sketch:** for each sampled neighborhood, maintain the distinct
+   candidate property-line set needed to evaluate `J_line`.
+3. **Independent optimizer:** use a frozen constant-pass placement rule that
+   reduces `J_line`; no Gorder window score, recursive bisection, modularity,
+   hot/cold dense-sparse split, or K-means.
+4. **Capacity as a constraint:** bounded line groups may limit search and
+   working memory, but cross-block edge cut is reported only as a diagnostic
+   and is not the optimized contribution.
+5. **Stable placement:** every tie ends in original source ID; mapping output
+   must be bit-identical across supported thread counts.
+6. **Budget enforcement:** sampled edges, candidate moves, passes, and
+   auxiliary memory are hard-capped before execution.
+7. **Memory discipline:** release sketch/search state before CSR relocation
+   and preserve one-base-plus-one-derived-arm residency.
 
 Rabbit-derived and Gorder-derived experiments may diagnose why the independent
 candidate wins or loses, but they cannot become the claimed method.
