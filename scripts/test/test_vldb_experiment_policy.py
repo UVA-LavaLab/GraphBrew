@@ -1493,10 +1493,17 @@ def test_graph_provenance_uses_semantic_conversion_policy(tmp_path):
         "output_path": str(graph.resolve()),
         "output_bytes": graph.stat().st_size,
         "output_crc32": runner._file_crc32(graph),
+        "converter_sha256": runner.file_sha256(
+            runner.BIN_DIR / "converter"),
+        "conversion_repository_state":
+            runner._conversion_repository_state(),
         "directed": False,
         "symmetrized": True,
         "nodes": 10,
         "directed_edges": 20,
+        "undirected_edges": 10,
+        "expected_nodes": 10,
+        "expected_undirected_edges": 10,
         "random_order_algorithm": "1",
         "random_seed": 0,
         "converter_args": [
@@ -1537,10 +1544,17 @@ def test_candidate_graph_validates_against_canonical_destination(tmp_path):
         "output_path": str(canonical.resolve()),
         "output_bytes": candidate.stat().st_size,
         "output_crc32": runner._file_crc32(candidate),
+        "converter_sha256": runner.file_sha256(
+            runner.BIN_DIR / "converter"),
+        "conversion_repository_state":
+            runner._conversion_repository_state(),
         "directed": False,
         "symmetrized": True,
         "nodes": 2,
         "directed_edges": 2,
+        "undirected_edges": 1,
+        "expected_nodes": 2,
+        "expected_undirected_edges": 1,
         "random_order_algorithm": "1",
         "random_seed": runner.RANDOM_BASELINE_SEED,
         "converter_args": [

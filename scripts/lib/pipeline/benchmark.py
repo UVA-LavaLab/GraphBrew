@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 import uuid
+import zlib
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
@@ -84,7 +85,8 @@ def compute_adaptive_timeout(edges: int, base_timeout: int = 600) -> int:
 # Default directory for mappings (relative to results dir)
 _DEFAULT_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))), "results", "mappings")
-_MAPPING_IDENTITY_CACHE: Dict[Tuple[str, int, int, int], str] = {}
+_FILE_SHA256_CACHE: Dict[Tuple[str, int, int, int], str] = {}
+_FILE_CRC32_CACHE: Dict[Tuple[str, int, int, int], str] = {}
 _MAPPING_PERMUTATION_CACHE: Dict[Tuple[str, int, int, int], str] = {}
 _REQUEST_ENV_KEYS = (
     "GORDER_FAST_BATCH",
@@ -93,18 +95,13 @@ _REQUEST_ENV_KEYS = (
 )
 
 
-def mapping_artifact_identity(
-    mapping_path: str | os.PathLike,
+def file_sha256(
+    file_path: str | os.PathLike,
     *,
     use_cache: bool = True,
 ) -> str:
-    """Return a cached content identity for a pre-generated mapping.
-
-    Mapping filenames identify the algorithm, but not a regenerated artifact.
-    The SHA-256 digest makes resume exact while the stat-keyed cache ensures
-    each mapping is read at most once per harness process.
-    """
-    path = Path(mapping_path).resolve()
+    """Return a stat-keyed SHA-256 digest and reject concurrent changes."""
+    path = Path(file_path).resolve()
     before = path.stat()
     cache_key = (
         str(path),
@@ -112,7 +109,7 @@ def mapping_artifact_identity(
         before.st_mtime_ns,
         before.st_ctime_ns,
     )
-    cached = _MAPPING_IDENTITY_CACHE.get(cache_key) if use_cache else None
+    cached = _FILE_SHA256_CACHE.get(cache_key) if use_cache else None
     if cached is not None:
         return cached
 
@@ -129,10 +126,106 @@ def mapping_artifact_identity(
     ):
         raise RuntimeError(f"Mapping changed while hashing: {path}")
 
-    identity = f"map:{path.name}:sha256:{digest.hexdigest()}"
+    identity = digest.hexdigest()
     if use_cache:
-        _MAPPING_IDENTITY_CACHE[cache_key] = identity
+        _FILE_SHA256_CACHE[cache_key] = identity
     return identity
+
+
+def file_crc32(
+    file_path: str | os.PathLike,
+    *,
+    use_cache: bool = True,
+) -> str:
+    """Return a stat-keyed CRC32 fingerprint and reject concurrent changes."""
+    path = Path(file_path).resolve()
+    before = path.stat()
+    cache_key = (
+        str(path),
+        before.st_size,
+        before.st_mtime_ns,
+        before.st_ctime_ns,
+    )
+    cached = _FILE_CRC32_CACHE.get(cache_key) if use_cache else None
+    if cached is not None:
+        return cached
+
+    checksum = 0
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            checksum = zlib.crc32(block, checksum)
+
+    after = path.stat()
+    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+        after.st_size,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    ):
+        raise RuntimeError(f"File changed while checksumming: {path}")
+
+    identity = f"{checksum & 0xffffffff:08x}"
+    if use_cache:
+        _FILE_CRC32_CACHE[cache_key] = identity
+    return identity
+
+
+def repository_scope_state(
+    project_root: str | os.PathLike,
+    paths: Sequence[str],
+) -> dict[str, object]:
+    """Fingerprint one tracked/untracked repository scope at a revision."""
+    root = Path(project_root).resolve()
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    tracked_diff = subprocess.run(
+        ["git", "diff", "--binary", "HEAD", "--", *paths],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    ).stdout
+    untracked_output = subprocess.run(
+        [
+            "git", "ls-files", "--others", "--exclude-standard",
+            "--", *paths,
+        ],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    digest = hashlib.sha256(tracked_diff)
+    untracked = []
+    for relative in sorted(
+        line for line in untracked_output.splitlines() if line
+    ):
+        path = root / relative
+        untracked.append(relative)
+        digest.update(relative.encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+    return {
+        "revision": revision,
+        "relevant_diff_sha256": digest.hexdigest(),
+        "relevant_untracked": untracked,
+    }
+
+
+def mapping_artifact_identity(
+    mapping_path: str | os.PathLike,
+    *,
+    use_cache: bool = True,
+) -> str:
+    """Return a cached content identity for a pre-generated mapping."""
+    path = Path(mapping_path).resolve()
+    return (
+        f"map:{path.name}:sha256:"
+        f"{file_sha256(path, use_cache=use_cache)}"
+    )
 
 
 def mapping_permutation_fingerprint(

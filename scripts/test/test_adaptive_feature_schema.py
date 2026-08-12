@@ -21,6 +21,8 @@ from scripts.lib.ml.feature_schema import (
 from scripts.lib.ml.portfolio import (
     DEPLOYABLE_ARM_CANONICAL_NAMES,
     DEPLOYABLE_ARM_SPECS,
+    CHARACTERIZATION_BASELINE_ARM_SPECS,
+    CHARACTERIZATION_DENDROGRAM_ANCHOR,
     apply_portfolio_guard,
     normalize_deployable_arm,
     normalize_deployable_portfolio,
@@ -86,6 +88,14 @@ def test_deployable_portfolio_is_frozen_and_exact():
         "12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort",
     )
     assert normalize_deployable_arm("RABBITORDER_csr") == "8:csr"
+    assert DEPLOYABLE_ARM_CANONICAL_NAMES[3:] == (
+        "RabbitCommunities_HubSort_GraphBrewImpl",
+        "RabbitCommunities_SuperRabbit_HubSort_GraphBrewImpl",
+    )
+    assert all(
+        not name.startswith("GraphBrewOrder_")
+        for name in DEPLOYABLE_ARM_CANONICAL_NAMES
+    )
     assert normalize_deployable_arm(DEPLOYABLE_ARM_SPECS[3]) == (
         DEPLOYABLE_ARM_SPECS[3]
     )
@@ -101,6 +111,46 @@ def test_deployable_portfolio_rejects_conflicting_aliases():
     payload[DEPLOYABLE_ARM_CANONICAL_NAMES[0]] = {"bias": 1.0}
     with pytest.raises(ValueError, match="conflicting aliases"):
         normalize_deployable_portfolio(payload)
+
+
+def test_deployable_portfolio_accepts_legacy_pipeline_alias():
+    payload = {
+        spec: {"bias": float(index)}
+        for index, spec in enumerate(DEPLOYABLE_ARM_SPECS)
+    }
+    spec = DEPLOYABLE_ARM_SPECS[3]
+    expected = payload.pop(spec)
+    payload[
+        "GraphBrewOrder_rabbit_compose_sg_none_comm_identity_intra_hubsort"
+    ] = expected
+    assert normalize_deployable_portfolio(payload)[spec] == expected
+
+
+def test_nonportfolio_rabbit_anchor_is_ignored():
+    payload = {
+        spec: {"bias": float(index)}
+        for index, spec in enumerate(DEPLOYABLE_ARM_SPECS)
+    }
+    payload[CHARACTERIZATION_DENDROGRAM_ANCHOR] = {"bias": 99.0}
+    normalized = normalize_deployable_portfolio(payload)
+    assert tuple(normalized) == DEPLOYABLE_ARM_SPECS
+
+
+def test_characterization_baseline_superset_is_frozen():
+    assert CHARACTERIZATION_BASELINE_ARM_SPECS[:8] == (
+        "0",
+        "5",
+        "8:csr",
+        "8:boost",
+        "9:csr",
+        "10:canonical",
+        "11:mind",
+        "11:bnf",
+    )
+    assert CHARACTERIZATION_DENDROGRAM_ANCHOR in (
+        CHARACTERIZATION_BASELINE_ARM_SPECS
+    )
+    assert len(CHARACTERIZATION_BASELINE_ARM_SPECS) == 14
 
 
 def test_tier0_feature_values_match_cpp_contract():

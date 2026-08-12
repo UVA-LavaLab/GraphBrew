@@ -29,8 +29,9 @@ os.environ.setdefault('CACHE_ULTRAFAST', '1')
 from ..core.utils import (
     BIN_SIM_DIR, SIZE_MEDIUM,
     TIMEOUT_SIM, TIMEOUT_SIM_HEAVY, TIMEOUT_BENCHMARK,
-    ALGORITHMS, Logger, run_command,
+    Logger, run_command,
     canonical_algo_key, algo_converter_opt,
+    algorithm_id_from_canonical_name,
     GRAPHS_DIR, GRAPHBREW_LAYERS,
 )
 from ..core.graph_types import GraphInfo
@@ -468,6 +469,31 @@ def run_cache_simulations_with_variants(
                 
                 # Check for pre-generated label map
                 label_map_path = graph_label_maps.get(algo_name)
+                requires_mapping = (
+                    algo_id != 0
+                    and algo_name != canonical_algo_key(algo_id)
+                )
+                if (
+                    requires_mapping
+                    and (
+                        not label_map_path
+                        or not os.path.exists(label_map_path)
+                    )
+                ):
+                    error = (
+                        "Missing pre-generated mapping for exact "
+                        f"ordering {algo_name}"
+                    )
+                    log.error(f"    [{current}/{total}] {error}")
+                    results.append(CacheResult(
+                        graph=graph.name,
+                        algorithm_id=algo_id,
+                        algorithm_name=algo_name,
+                        benchmark=bench,
+                        success=False,
+                        error=error,
+                    ))
+                    continue
                 
                 result = run_cache_simulation(
                     benchmark=bench,
@@ -498,23 +524,10 @@ def run_cache_simulations_with_variants(
 
 def _get_algo_id_from_name(algo_name: str) -> int:
     """Map algorithm name (including variants) back to base algorithm ID."""
-    # Check for exact match first
-    for algo_id, name in ALGORITHMS.items():
-        if algo_name == name:
-            return algo_id
-    
-    # Check for variant prefix (e.g., GraphBrewOrder_leiden -> GraphBrewOrder -> 12)
-    for algo_id, name in ALGORITHMS.items():
-        if algo_name.startswith(name + "_"):
-            return algo_id
-        if algo_name.startswith(name.upper() + "_"):
-            return algo_id
-    
-    # Handle RABBITORDER_csr -> 8
-    if algo_name.startswith("RABBITORDER"):
-        return 8
-    
-    return 0  # Default to ORIGINAL
+    algo_id = algorithm_id_from_canonical_name(algo_name)
+    if algo_id == 0 and algo_name not in {"ORIGINAL", "Original"}:
+        raise ValueError(f"Unknown canonical ordering name: {algo_name}")
+    return algo_id
 
 
 def get_cache_stats_summary(results: List[CacheResult]) -> Dict:

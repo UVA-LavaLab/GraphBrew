@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import json
 import os
 import shutil
@@ -10,10 +11,13 @@ from pathlib import Path
 
 import pytest
 
+from scripts.experiments.adaptive import runner as adaptive_runner
 from scripts.experiments.adaptive.runner import (
     ALL_TIMING_ARMS,
     CACHE_KERNELS,
     H4_DENDROGRAM_ANCHOR,
+    _kernel_evidence_arm,
+    _mapping_evidence_arm,
     _validate_source_manifest,
     _forbidden_ambient_timing_environment,
     _validate_pilot_realized_order,
@@ -29,6 +33,7 @@ from scripts.experiments.adaptive.runner import (
     select_medium_pilot_graph,
     write_sprint1_budget_projection,
 )
+from scripts.lib.core.experiment_policy import REORDER_SEMANTICS_VERSION
 from scripts.experiments.vldb import runner as vldb_runner
 from scripts.lib.ml.source_policy import (
     ADAPTIVE_SOURCE_COUNT,
@@ -36,9 +41,12 @@ from scripts.lib.ml.source_policy import (
     ADAPTIVE_SOURCE_POLICY_ID,
     ADAPTIVE_SOURCE_SEED,
 )
-from scripts.lib.pipeline.benchmark import SourceContractError
+from scripts.lib.pipeline.benchmark import (
+    SourceContractError,
+    file_crc32,
+    file_sha256,
+)
 from scripts.experiments.vldb.config import BENCHMARKS, EVAL_GRAPHS
-from scripts.lib.ml.portfolio import DEPLOYABLE_ARM_SPECS
 
 
 def test_medium_pilot_graph_is_frozen_median():
@@ -217,10 +225,12 @@ def test_literal_pilot_consumer_honors_command_and_paths(
         "graph_path": str(graph_path),
         "graph_output_bytes": graph_path.stat().st_size,
         "graph_mtime_ns": graph_path.stat().st_mtime_ns,
+        "graph_crc32": file_crc32(graph_path),
         "binary_provenance": [{
             "path": str(python),
             "bytes": python.stat().st_size,
             "mtime_ns": python.stat().st_mtime_ns,
+            "sha256": file_sha256(python),
         }],
         "labeling": "randomized",
         "kernel": "pr",
@@ -249,6 +259,8 @@ def test_literal_pilot_consumer_honors_command_and_paths(
         "stderr_path": str(tmp_path / "stderr.log"),
         "result_path": str(tmp_path / "result.json"),
     }
+    command = adaptive_runner._bind_authorized_command(
+        command, "test-authorization", "test-manifest", {})
     result = _run_literal_pilot_command(
         command,
         {"cpu_governors": ["performance"]},
@@ -260,6 +272,23 @@ def test_literal_pilot_consumer_honors_command_and_paths(
         command,
         {"cpu_governors": ["performance"]},
     ) == result
+    unbound = {
+        key: value
+        for key, value in command.items()
+        if key not in {
+            "authorization_reference",
+            "execution_manifest_sha256",
+            "input_artifacts",
+            "command_contract_sha256",
+        }
+    }
+    rebound = adaptive_runner._bind_authorized_command(
+        unbound, "different-authorization", "test-manifest", {})
+    with pytest.raises(RuntimeError, match="command contract changed"):
+        _run_literal_pilot_command(
+            rebound,
+            {"cpu_governors": ["performance"]},
+        )
 
 
 def test_literal_pilot_consumer_accepts_priming_shape(
@@ -278,10 +307,12 @@ def test_literal_pilot_consumer_accepts_priming_shape(
         "graph_path": str(graph_path),
         "graph_output_bytes": graph_path.stat().st_size,
         "graph_mtime_ns": graph_path.stat().st_mtime_ns,
+        "graph_crc32": file_crc32(graph_path),
         "binary_provenance": [{
             "path": str(python),
             "bytes": python.stat().st_size,
             "mtime_ns": python.stat().st_mtime_ns,
+            "sha256": file_sha256(python),
         }],
         "labeling": "randomized",
         "command": ["python3", "-c", "print('primed')"],
@@ -293,6 +324,8 @@ def test_literal_pilot_consumer_accepts_priming_shape(
         "stderr_path": str(tmp_path / "prime.stderr"),
         "result_path": str(tmp_path / "prime.result.json"),
     }
+    command = adaptive_runner._bind_authorized_command(
+        command, "test-authorization", "test-manifest", {})
     result = _run_literal_pilot_command(
         command,
         {"cpu_governors": ["performance"]},
@@ -336,6 +369,8 @@ def test_pilot_retry_paths_and_serial_lock(tmp_path):
         command,
         {},
         "approved",
+        "manifest-sha",
+        {},
         runner=fake_runner,
     )
     assert result["error_kind"] == ""
@@ -347,6 +382,84 @@ def test_pilot_retry_paths_and_serial_lock(tmp_path):
                 pass
 
 
+def test_execution_authorization_binds_full_manifest(
+    tmp_path, monkeypatch,
+):
+    artifact_root = tmp_path / "artifacts"
+    sprint_root = artifact_root / "adaptive_selector" / "sprint1"
+    sprint_root.mkdir(parents=True)
+    manifest_path = sprint_root / "pilot_execution_manifest.json"
+    manifest = {
+        "schema": "adaptive-pilot-execution/v2",
+        "dry_run_only": True,
+        "command_count": 1,
+        "priming_command_count": 0,
+        "execution_order": ["priming_commands", "commands"],
+        "concurrency": "serial-exclusive",
+        "execution_authorization_required": True,
+        "priming_commands": [],
+        "commands": [{"command_id": "one", "value": 1}],
+    }
+    manifest_path.write_text(json.dumps(manifest))
+    monkeypatch.setattr(
+        adaptive_runner,
+        "_validate_execution_manifest",
+        lambda payload: {},
+    )
+
+    authorization_path = (
+        adaptive_runner.create_sprint1_execution_authorization(
+            artifact_root,
+            authorization_reference="reviewed-characterization-v1",
+        )
+    )
+    authorization = json.loads(authorization_path.read_text())
+    assert authorization["schema"] == (
+        "adaptive-pilot-execution-authorization/v2"
+    )
+    assert authorization["execution_manifest_sha256"] == (
+        adaptive_runner._canonical_json_sha256(manifest)
+    )
+    assert authorization["authorized_manifest_contract"] == (
+        adaptive_runner._authorization_manifest_contract(manifest)
+    )
+
+    manifest["commands"][0]["value"] = 2
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(RuntimeError, match="authorization changed"):
+        adaptive_runner.create_sprint1_execution_authorization(
+            artifact_root,
+            authorization_reference="reviewed-characterization-v1",
+        )
+
+
+def test_execution_input_artifacts_are_built_in_prepare_scope(tmp_path):
+    paths = []
+    for name in ("budget", "source", "natural", "weights"):
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps({"name": name}))
+        paths.append(path)
+    bindings = adaptive_runner._execution_input_artifacts(*paths)
+    assert set(bindings) == {
+        "budget_projection",
+        "source_manifest",
+        "natural_manifest",
+        "contract_weights",
+    }
+    for binding in bindings.values():
+        adaptive_runner._validate_artifact_binding(binding)
+    prepare_source = inspect.getsource(
+        adaptive_runner.prepare_sprint1_pilot_execution)
+    assert "_execution_input_artifacts(" in prepare_source
+
+
+def test_source_bundle_cannot_retrofit_missing_graph_provenance():
+    with pytest.raises(ValueError, match="provenance binding"):
+        adaptive_runner._validate_source_bundle_graph_provenance({
+            "graphs": {},
+        })
+
+
 def test_budget_projection_covers_frozen_matrix(tmp_path):
     graph_root = tmp_path / "graphs"
     artifact_root = tmp_path / "artifacts"
@@ -354,14 +467,38 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
     for graph in EVAL_GRAPHS:
         graph_dir = graph_root / graph["name"]
         graph_dir.mkdir(parents=True)
-        (graph_dir / f"{graph['name']}.sg").write_bytes(b"fixture")
+        graph_path = graph_dir / f"{graph['name']}.sg"
+        graph_path.write_bytes(b"fixture")
         (graph_dir / f"{graph['name']}.sg.meta.json").write_text(
-            json.dumps({"output_bytes": 1_000_000})
+            json.dumps({
+                "schema": "graph_source/v2",
+                "reorder_semantics_version":
+                    REORDER_SEMANTICS_VERSION,
+                "graph": graph["name"],
+                "output_path": str(graph_path.resolve()),
+                "output_bytes": graph_path.stat().st_size,
+                "output_crc32": file_crc32(graph_path),
+                "converter_sha256": file_sha256(
+                    adaptive_runner.PROJECT_ROOT
+                    / "bench" / "bin" / "converter"
+                ),
+                "conversion_repository_state":
+                    adaptive_runner._conversion_repository_state(),
+                "expected_nodes": graph["nodes"],
+                "expected_undirected_edges":
+                    graph["undirected_edges"],
+                "nodes": graph["nodes"],
+                "undirected_edges": graph["undirected_edges"],
+            })
         )
 
     exp2 = []
+    kernel_evidence_arms = sorted({
+        _kernel_evidence_arm(arm)
+        for arm in ALL_TIMING_ARMS
+    })
     for graph in EVAL_GRAPHS:
-        for arm in DEPLOYABLE_ARM_SPECS:
+        for arm in kernel_evidence_arms:
             for benchmark in BENCHMARKS:
                 exp2.append({
                     "graph": graph["name"],
@@ -371,13 +508,25 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
                     "trial_times": [1.0, 1.1],
                 })
     exp3 = []
+    mapping_evidence_arms = sorted({
+        _mapping_evidence_arm(arm)
+        for arm in ALL_TIMING_ARMS
+        if arm != "0"
+    })
     for graph in EVAL_GRAPHS:
-        for arm in (*DEPLOYABLE_ARM_SPECS[1:], ALL_TIMING_ARMS[-1]):
+        for arm in mapping_evidence_arms:
             exp3.append({
                 "graph": graph["name"],
                 "algo_id": arm,
                 "reorder_time": 2.0,
             })
+    exp3 = [
+        row for row in exp3
+        if not (
+            row["graph"] == EVAL_GRAPHS[0]["name"]
+            and row["algo_id"] == "5"
+        )
+    ]
     exp3.extend([
         {
             "graph": EVAL_GRAPHS[0]["name"],
@@ -392,14 +541,6 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
             "timing_source": "live-final",
         },
     ])
-    exp3 = [
-        row for index, row in enumerate(exp3)
-        if not (
-            row["graph"] == EVAL_GRAPHS[0]["name"]
-            and row["algo_id"] == "5"
-            and index < len(DEPLOYABLE_ARM_SPECS) - 1
-        )
-    ]
     cache = [
         {
             "graph": EVAL_GRAPHS[0]["name"],
@@ -428,7 +569,7 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
     )
     assert 0 < len(projection["cache_rows"]) <= (
         len(EVAL_GRAPHS)
-        * len(DEPLOYABLE_ARM_SPECS)
+        * len(ALL_TIMING_ARMS)
         * len(CACHE_KERNELS)
     )
     assert projection["pilot_graphs"] == [
@@ -459,6 +600,13 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
         len(ALL_TIMING_ARMS) * len(BENCHMARKS)
     )
     assert len(projection["materialization_rows"]) == 1
+    assert len(projection["rss_rows"]) == 2 * len(ALL_TIMING_ARMS)
+    for graph_name in ("twitter7", "webbase-2001"):
+        assert {
+            row["arm"]
+            for row in projection["rss_rows"]
+            if row["graph"] == graph_name
+        } == set(ALL_TIMING_ARMS)
     assert projection["policy"]["natural_pilot_graphs"] == [
         "hollywood-2009"
     ]
@@ -516,8 +664,32 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
         )
         for row in rows
     ]
+    expected_command_ids, expected_priming_ids = (
+        adaptive_runner._expected_pilot_command_ids(projection)
+    )
+    assert len(expected_priming_ids) == 4
+    assert len(expected_command_ids) == (
+        4 * len(ALL_TIMING_ARMS) * len(BENCHMARKS)
+        * adaptive_runner.PILOT_PROCESS_BLOCKS
+        + 2 * len(ALL_TIMING_ARMS)
+        + 9
+        + 4
+    )
     assert all(not row["claim_eligible"] for row in authorized_rows)
     assert all(row["pilot_only"] for row in authorized_rows)
+    expected_defined_caps = sum(
+        float(row["wall_clock_cap_seconds"])
+        * (
+            1
+            if row["phase"] == "natural-label-materialization"
+            else len(adaptive_runner.PILOT_RETRY_ATTEMPTS)
+        )
+        / 3600.0
+        for row in authorized_rows
+    )
+    assert projection[
+        "pilot_projection_if_all_defined_caps_bind"
+    ] == pytest.approx(expected_defined_caps)
     for row in (
         projection["randomized_pilot_rows"]
         + projection["natural_pilot_rows"]

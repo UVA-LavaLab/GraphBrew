@@ -778,7 +778,20 @@ def export_unified_models(
         DEPLOYABLE_ARM_SPECS,
         normalize_deployable_portfolio,
     )
-    from scripts.lib.ml.feature_schema import validate_tier0_weight_entry
+    from scripts.lib.ml.feature_schema import (
+        TIER0_WEIGHT_NAMES,
+        validate_tier0_weight_entry,
+    )
+
+    if type(tier0_trained) is not bool:
+        raise ValueError("tier0_trained must be a literal boolean")
+
+    def is_untrained_default(entry: Dict) -> bool:
+        return all(
+            float(entry[name]) == 0.0
+            for name in TIER0_WEIGHT_NAMES
+            if name != "bias"
+        )
 
     def normalize_portfolio(payload: Dict) -> Dict:
         normalized = normalize_deployable_portfolio(payload)
@@ -787,6 +800,11 @@ def export_unified_models(
                 raise ValueError(
                     f"Offline adaptive arm {spec} must be an object")
             validate_tier0_weight_entry(entry, spec)
+            if tier0_trained and is_untrained_default(entry):
+                raise ValueError(
+                    "Claim-eligible Tier-0 export contains an untrained "
+                    f"default arm: {spec}"
+                )
         return {
             spec: normalized[spec]
             for spec in DEPLOYABLE_ARM_SPECS

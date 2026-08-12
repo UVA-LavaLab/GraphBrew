@@ -2305,6 +2305,11 @@ def main():
         help="Run the untimed VLDB semantic verification gate",
     )
     g_paper.add_argument(
+        "--paper-refresh-corpus",
+        action="store_true",
+        help="Transactionally refresh frozen graph_source/v2 artifacts",
+    )
+    g_paper.add_argument(
         "--paper-graph-dir",
         default=os.environ.get(
             "GRAPHBREW_PAPER_GRAPH_ROOT",
@@ -2367,6 +2372,20 @@ def main():
         help="Validate the adaptive pilot executor without running timing",
     )
     g_paper.add_argument(
+        "--adaptive-sprint1-authorize",
+        action="store_true",
+        help="Bind explicit authorization to the reviewed adaptive pilot",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-execute",
+        action="store_true",
+        help="Execute the separately authorized adaptive pilot",
+    )
+    g_paper.add_argument(
+        "--adaptive-authorization-reference",
+        help="Reviewed authorization reference for adaptive pilot execution",
+    )
+    g_paper.add_argument(
         "--adaptive-force-sources",
         action="store_true",
         help="Regenerate existing adaptive Sprint-1 source manifests",
@@ -2385,6 +2404,11 @@ def main():
         "--adaptive-refreeze-pilot-manifest",
         action="store_true",
         help="Replace a reviewed adaptive pilot command manifest",
+    )
+    g_paper.add_argument(
+        "--adaptive-refreeze-authorization",
+        action="store_true",
+        help="Replace adaptive pilot authorization after re-review",
     )
     g_paper.add_argument(
         "--adaptive-budget-hours",
@@ -2732,14 +2756,59 @@ def main():
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)
 
+    if args.adaptive_sprint1_authorize:
+        import subprocess as _sp
+        if not args.adaptive_authorization_reference:
+            parser.error(
+                "--adaptive-sprint1-authorize requires "
+                "--adaptive-authorization-reference"
+            )
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--authorize-sprint1-pilot",
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--authorization-reference",
+            args.adaptive_authorization_reference,
+        ]
+        if args.adaptive_refreeze_authorization:
+            cmd += ["--refreeze-authorization"]
+        log_section(f"ADAPTIVE SPRINT 1 AUTHORIZE: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_execute:
+        import subprocess as _sp
+        if not args.adaptive_authorization_reference:
+            parser.error(
+                "--adaptive-sprint1-execute requires "
+                "--adaptive-authorization-reference"
+            )
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--execute-sprint1-pilot",
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--authorization-reference",
+            args.adaptive_authorization_reference,
+        ]
+        log_section(f"ADAPTIVE SPRINT 1 EXECUTE: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
     if (
         args.vldb is not None
         or args.paper_tune_sssp_delta
         or args.paper_verify_gate
+        or args.paper_refresh_corpus
     ):
         import subprocess as _sp
         cmd = ["python3", "scripts/experiments/vldb/runner.py"]
-        if args.paper_tune_sssp_delta:
+        if args.paper_refresh_corpus:
+            cmd += ["--refresh-corpus"]
+        elif args.paper_tune_sssp_delta:
             cmd += ["--tune-sssp-delta"]
         elif args.paper_verify_gate:
             cmd += ["--verify-gate"]

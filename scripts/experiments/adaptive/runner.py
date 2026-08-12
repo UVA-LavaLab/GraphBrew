@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import fcntl
+import hashlib
 import json
 import math
 import os
@@ -35,6 +36,7 @@ from scripts.lib.core.experiment_policy import (
     CACHE_CAPACITY_CANDIDATES_MIB,
     CACHE_PR_ITERATIONS,
     PAPER_BENCHMARK_ORDER,
+    REORDER_SEMANTICS_VERSION,
 )
 from scripts.lib.pipeline.reorder_config import (
     parse_graphbrew_effective_configs,
@@ -43,7 +45,11 @@ from scripts.lib.pipeline.reorder_config import (
     validate_graphbrew_realized_configs,
 )
 from scripts.lib.ml.feature_schema import TIER0_FEATURE_NAMES
-from scripts.lib.ml.portfolio import DEPLOYABLE_ARM_SPECS
+from scripts.lib.ml.portfolio import (
+    DEPLOYABLE_ARM_SPECS,
+    CHARACTERIZATION_BASELINE_ARM_SPECS,
+    CHARACTERIZATION_DENDROGRAM_ANCHOR,
+)
 from scripts.lib.ml.source_policy import (
     ADAPTIVE_SOURCE_COUNT,
     ADAPTIVE_SOURCE_MIN_REACHABILITY,
@@ -55,7 +61,10 @@ from scripts.lib.ml.working_set import modeled_property_bytes
 from scripts.lib.pipeline.benchmark import (
     SourceContractError,
     attach_source_trial_metadata,
+    file_crc32,
+    file_sha256,
     parse_benchmark_output,
+    repository_scope_state,
 )
 
 SPRINT1_BUDGET_SCHEMA = "adaptive-sprint1-budget/v1"
@@ -63,6 +72,7 @@ SPRINT1_BUDGET_HOURS = 168.0
 PROJECTION_SAFETY_FACTOR = 1.25
 PROCESS_REPETITIONS = 10
 PILOT_PROCESS_BLOCKS = 3
+PILOT_RETRY_ATTEMPTS = (0, 1)
 WARM_PROCESS_BLOCKS = 5
 LARGE_GRAPH_EDGE_THRESHOLD = 100_000_000
 BENCHMARKS = list(PAPER_BENCHMARK_ORDER)
@@ -115,17 +125,33 @@ PILOT_CONSUMER_REQUIRED_KEYS = frozenset({
     "retry_attempts",
     "graph_output_bytes",
     "graph_mtime_ns",
+    "graph_crc32",
     "binary_provenance",
 })
-H4_DENDROGRAM_ANCHOR = (
-    "12:rabbit:compose:sg_none:"
-    "comm_identity:intra_dendrogram"
-)
+H4_DENDROGRAM_ANCHOR = CHARACTERIZATION_DENDROGRAM_ANCHOR
 H4_KERNEL_PROXY = (
     "12:rabbit:compose:sg_none:"
     "comm_identity:intra_hubsort"
 )
-ALL_TIMING_ARMS = (*DEPLOYABLE_ARM_SPECS, H4_DENDROGRAM_ANCHOR)
+ALL_TIMING_ARMS = CHARACTERIZATION_BASELINE_ARM_SPECS
+_KERNEL_EVIDENCE_PROXIES = {
+    "10:canonical": "9:csr",
+    "11:mind": "11",
+    "11:bnf": "11",
+    "15:1.0:10:10:hierarchy-degree": "12:leiden",
+    "15:1.0:10:10:final-stable": "12:leiden",
+    "15:1.0:10:10:final-degree": "12:leiden",
+    H4_DENDROGRAM_ANCHOR: H4_KERNEL_PROXY,
+}
+_MAPPING_EVIDENCE_PROXIES = {
+    "10:canonical": "9:csr",
+    "11:mind": "11",
+    "11:bnf": "11",
+    "15:1.0:10:10:hierarchy-degree": "12:leiden",
+    "15:1.0:10:10:final-stable": "12:leiden",
+    "15:1.0:10:10:final-degree": "12:leiden",
+}
+_PROXY_HIGH_MULTIPLIER = 2.0
 NATURAL_PILOT_GRAPHS = ("hollywood-2009",)
 NATURAL_PILOT_EXCLUSIONS = {
     "twitter7": "available upstream .sg is already randomly labeled",
@@ -149,6 +175,7 @@ NATURAL_PILOT_EXCLUSION_EVIDENCE = {
         "randomized_window_neighbor_overlap": 0.0,
     },
 }
+_CONVERSION_REPOSITORY_STATE_CACHE: dict[str, object] | None = None
 
 
 def _load_json(path: Path) -> Any:
@@ -156,6 +183,113 @@ def _load_json(path: Path) -> Any:
         raise FileNotFoundError(f"Required timing artifact not found: {path}")
     with open(path) as stream:
         return json.load(stream)
+
+
+def _canonical_json_sha256(payload: Any) -> str:
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _artifact_binding(path: Path) -> dict[str, Any]:
+    path = path.resolve()
+    return {
+        "path": str(path),
+        "bytes": path.stat().st_size,
+        "sha256": file_sha256(path, use_cache=False),
+    }
+
+
+def _validate_artifact_binding(binding: dict[str, Any]) -> None:
+    path = Path(str(binding.get("path", "")))
+    if (
+        not path.is_file()
+        or path.stat().st_size != int(binding.get("bytes", -1))
+        or file_sha256(path, use_cache=False)
+            != binding.get("sha256")
+    ):
+        raise RuntimeError(
+            f"Pilot input artifact changed after freeze: {path}")
+
+
+def _execution_input_artifacts(
+    budget_path: Path,
+    source_path: Path,
+    natural_path: Path,
+    contract_path: Path,
+) -> dict[str, dict[str, Any]]:
+    return {
+        "budget_projection": _artifact_binding(budget_path),
+        "source_manifest": _artifact_binding(source_path),
+        "natural_manifest": _artifact_binding(natural_path),
+        "contract_weights": _artifact_binding(contract_path),
+    }
+
+
+def _conversion_repository_state() -> dict[str, object]:
+    global _CONVERSION_REPOSITORY_STATE_CACHE
+    if _CONVERSION_REPOSITORY_STATE_CACHE is None:
+        _CONVERSION_REPOSITORY_STATE_CACHE = repository_scope_state(
+            PROJECT_ROOT,
+            (
+                "Makefile",
+                "bench/src/converter.cc",
+                "bench/include",
+            ),
+        )
+    return dict(_CONVERSION_REPOSITORY_STATE_CACHE)
+
+
+def _current_graph_metadata(
+    graph_path: Path,
+    *,
+    graph_name: str,
+    natural: bool,
+    verify_content: bool,
+    expected_nodes: int,
+    expected_undirected_edges: int,
+) -> dict[str, Any]:
+    metadata_path = graph_path.with_suffix(
+        graph_path.suffix + ".meta.json")
+    metadata = _load_json(metadata_path)
+    expected_schema = (
+        "adaptive-natural-graph/v2"
+        if natural else "graph_source/v2"
+    )
+    required = {
+        "schema": expected_schema,
+        "reorder_semantics_version": REORDER_SEMANTICS_VERSION,
+        "graph": graph_name,
+        "output_path": str(graph_path.resolve()),
+        "output_bytes": graph_path.stat().st_size,
+        "converter_sha256": file_sha256(
+            PROJECT_ROOT / "bench" / "bin" / "converter"
+        ),
+        "conversion_repository_state":
+            _conversion_repository_state(),
+        "expected_nodes": expected_nodes,
+        "expected_undirected_edges": expected_undirected_edges,
+        "nodes": expected_nodes,
+        "undirected_edges": expected_undirected_edges,
+    }
+    for key, value in required.items():
+        if metadata.get(key) != value:
+            raise ValueError(
+                "Current graph metadata mismatch: "
+                f"{graph_name}/{key}")
+    expected_crc = metadata.get("output_crc32")
+    if not isinstance(expected_crc, str) or not re.fullmatch(
+        r"[0-9a-f]{8}", expected_crc
+    ):
+        raise ValueError(
+            f"Current graph CRC is missing: {graph_name}")
+    if verify_content and file_crc32(graph_path) != expected_crc:
+        raise ValueError(
+            f"Current graph content changed: {graph_name}")
+    return metadata
 
 
 def _atomic_json(payload: Any, path: Path) -> None:
@@ -246,8 +380,9 @@ def _index_required_overhead(
     rows: list[dict[str, Any]],
 ) -> dict[tuple[str, str], dict[str, Any]]:
     required = {
-        *DEPLOYABLE_ARM_SPECS[1:],
-        H4_DENDROGRAM_ANCHOR,
+        _MAPPING_EVIDENCE_PROXIES.get(arm, arm)
+        for arm in ALL_TIMING_ARMS
+        if arm != "0"
     }
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for row in rows:
@@ -399,10 +534,20 @@ def _has_fit_boundary(
     )
 
 
-def _proxy_arm(arm: str) -> str:
-    if arm == H4_DENDROGRAM_ANCHOR:
-        return H4_KERNEL_PROXY
-    return arm
+def _kernel_evidence_arm(arm: str) -> str:
+    return _KERNEL_EVIDENCE_PROXIES.get(arm, arm)
+
+
+def _mapping_evidence_arm(arm: str) -> str:
+    return _MAPPING_EVIDENCE_PROXIES.get(arm, arm)
+
+
+def _characterization_arm_role(arm: str) -> str:
+    return (
+        "diagnostic-anchor"
+        if arm == H4_DENDROGRAM_ANCHOR
+        else "attributed-candidate"
+    )
 
 
 def _cache_proxy_arm(arm: str) -> str:
@@ -468,13 +613,23 @@ def build_sprint1_budget_projection(
     )
     overhead = _index_required_overhead(exp3)
     cache_rates = _cache_rate_by_graph_proxy(cache)
-    graph_output_bytes = {
-        str(graph["name"]): int(_load_json(
+    graph_metadata = {
+        str(graph["name"]): _current_graph_metadata(
             graph_root
-            / graph["name"]
-            / f"{graph['name']}.sg.meta.json"
-        )["output_bytes"])
+            / str(graph["name"])
+            / f"{graph['name']}.sg",
+            graph_name=str(graph["name"]),
+            natural=False,
+            verify_content=True,
+            expected_nodes=int(graph["nodes"]),
+            expected_undirected_edges=
+                int(graph["undirected_edges"]),
+        )
         for graph in EVAL_GRAPHS
+    }
+    graph_output_bytes = {
+        graph_name: int(metadata["output_bytes"])
+        for graph_name, metadata in graph_metadata.items()
     }
     max_read_by_graph = {}
     for graph in EVAL_GRAPHS:
@@ -488,7 +643,7 @@ def build_sprint1_budget_projection(
             raise ValueError(
                 f"Read timing evidence is missing for {graph_name}")
         for arm in ALL_TIMING_ARMS:
-            evidence_arm = _proxy_arm(arm)
+            evidence_arm = _kernel_evidence_arm(arm)
             if not all(
                 (graph_name, evidence_arm, benchmark) in speed
                 for benchmark in BENCHMARKS
@@ -503,16 +658,27 @@ def build_sprint1_budget_projection(
         graph_name = str(graph["name"])
         undirected_edges = int(graph["undirected_edges"])
         for arm in ALL_TIMING_ARMS:
-            evidence_arm = _proxy_arm(arm)
+            evidence_arm = _kernel_evidence_arm(arm)
             map_seconds = 0.0
+            map_seconds_high = 0.0
+            mapping_evidence_arm = None
             if arm != "0":
+                mapping_evidence_arm = _mapping_evidence_arm(arm)
                 try:
                     map_seconds = float(
-                        overhead[(graph_name, arm)]["reorder_time"])
+                        overhead[
+                            (graph_name, mapping_evidence_arm)
+                        ]["reorder_time"])
                 except KeyError as error:
                     raise ValueError(
-                        f"Missing reorder evidence for {graph_name}/{arm}"
+                        "Missing reorder evidence for "
+                        f"{graph_name}/{mapping_evidence_arm} "
+                        f"(characterization arm {arm})"
                     ) from error
+                map_seconds_high = map_seconds * (
+                    _PROXY_HIGH_MULTIPLIER
+                    if mapping_evidence_arm != arm else 1.0
+                )
             for benchmark in BENCHMARKS:
                 try:
                     evidence = speed[
@@ -526,8 +692,13 @@ def build_sprint1_budget_projection(
                 kernel_seconds, kernel_seconds_high = (
                     _trial_seconds_bounds(evidence)
                 )
+                if evidence_arm != arm:
+                    kernel_seconds_high *= _PROXY_HIGH_MULTIPLIER
                 if arm == H4_DENDROGRAM_ANCHOR:
-                    kernel_seconds_high *= H4_KERNEL_HIGH_MULTIPLIER
+                    kernel_seconds_high = max(
+                        kernel_seconds_high,
+                        kernel_seconds * H4_KERNEL_HIGH_MULTIPLIER,
+                    )
                 mode, process_blocks, timed_trials = _measurement_shape(
                     benchmark,
                     undirected_edges,
@@ -537,7 +708,8 @@ def build_sprint1_budget_projection(
                     + timed_trials * kernel_seconds
                 )
                 raw_seconds_high = (
-                    process_blocks * (read_seconds + map_seconds)
+                    process_blocks
+                    * (read_seconds + map_seconds_high)
                     + timed_trials * kernel_seconds_high
                 )
                 cap_read_seconds = max_read_by_graph[graph_name]
@@ -545,6 +717,7 @@ def build_sprint1_budget_projection(
                     process_blocks
                     * (
                         cap_read_seconds
+                        + map_seconds_high
                         + PROCESS_STARTUP_ALLOWANCE_SECONDS
                     )
                     + timed_trials * kernel_seconds_high
@@ -554,11 +727,7 @@ def build_sprint1_budget_projection(
                     "graph": graph_name,
                     "kernel": benchmark,
                     "arm": arm,
-                    "arm_role": (
-                        "h4-anchor"
-                        if arm == H4_DENDROGRAM_ANCHOR
-                        else "deployable"
-                    ),
+                    "arm_role": _characterization_arm_role(arm),
                     "measurement_mode": mode,
                     "page_cache_regime": "retained-page-cache",
                     "labeling": "randomized",
@@ -570,6 +739,7 @@ def build_sprint1_budget_projection(
                     "timed_trials": timed_trials,
                     "read_seconds_per_block": read_seconds,
                     "map_seconds_per_block": map_seconds,
+                    "map_seconds_per_block_high": map_seconds_high,
                     "kernel_seconds_per_trial": kernel_seconds,
                     "kernel_seconds_per_trial_high":
                         kernel_seconds_high,
@@ -589,8 +759,15 @@ def build_sprint1_budget_projection(
                     "buffered_node_hours_high":
                         raw_seconds_high * safety_factor / 3600.0,
                     "kernel_evidence_arm": evidence_arm,
+                    "mapping_evidence_arm": mapping_evidence_arm,
                     "mapping_evidence": (
-                        "none" if arm == "0" else "exp3-live-final"
+                        "none"
+                        if arm == "0"
+                        else (
+                            "historical-proxy"
+                            if mapping_evidence_arm != arm
+                            else "exp3-live-final"
+                        )
                     ),
                 }
                 kernel_rows.append(row)
@@ -602,7 +779,7 @@ def build_sprint1_budget_projection(
         graph_name = str(graph["name"])
         nodes = int(graph["nodes"])
         directed_edges = 2 * int(graph["undirected_edges"])
-        for arm in DEPLOYABLE_ARM_SPECS:
+        for arm in ALL_TIMING_ARMS:
             proxy = _cache_proxy_arm(arm)
             pr_seconds = kernel_lookup[
                 (graph_name, arm, "pr")
@@ -666,14 +843,14 @@ def build_sprint1_budget_projection(
                 )
                 raw_seconds_high = len(capacities) * (
                     evidence["read_seconds_per_block"]
-                    + evidence["map_seconds_per_block"]
+                    + evidence["map_seconds_per_block_high"]
                     + source_multiplier * simulated_seconds_high
                 )
                 cap_floor_raw_seconds = (
                     CACHE_SETUP_SINGLE_THREAD_FACTOR
                     * (
                         evidence["cap_read_seconds_per_block"]
-                        + evidence["map_seconds_per_block"]
+                        + evidence["map_seconds_per_block_high"]
                     )
                     + simulated_seconds_high
                     + PROCESS_STARTUP_ALLOWANCE_SECONDS
@@ -683,7 +860,7 @@ def build_sprint1_budget_projection(
                     "graph": graph_name,
                     "kernel": benchmark,
                     "arm": arm,
-                    "arm_role": "deployable",
+                    "arm_role": _characterization_arm_role(arm),
                     "measurement_mode": "cache-simulator",
                     "capacities_mib": ",".join(map(str, capacities)),
                     "capacity_count": len(capacities),
@@ -734,7 +911,7 @@ def build_sprint1_budget_projection(
                     PILOT_PROCESS_BLOCKS
                     * (
                         evidence["read_seconds_per_block"]
-                        + evidence["map_seconds_per_block"]
+                        + evidence["map_seconds_per_block_high"]
                     )
                     + timed_trials
                     * evidence["kernel_seconds_per_trial_high"]
@@ -758,6 +935,7 @@ def build_sprint1_budget_projection(
                         PILOT_PROCESS_BLOCKS
                         * (
                             evidence["cap_read_seconds_per_block"]
+                            + evidence["map_seconds_per_block_high"]
                             + PROCESS_STARTUP_ALLOWANCE_SECONDS
                         )
                         + timed_trials
@@ -792,7 +970,7 @@ def build_sprint1_budget_projection(
                     PILOT_PROCESS_BLOCKS
                     * (
                         evidence["read_seconds_per_block"]
-                        + evidence["map_seconds_per_block"]
+                        + evidence["map_seconds_per_block_high"]
                     )
                     + timed_trials
                     * evidence["kernel_seconds_per_trial_high"]
@@ -812,6 +990,7 @@ def build_sprint1_budget_projection(
                         PILOT_PROCESS_BLOCKS
                         * (
                             evidence["cap_read_seconds_per_block"]
+                            + evidence["map_seconds_per_block_high"]
                             + PROCESS_STARTUP_ALLOWANCE_SECONDS
                         )
                         + timed_trials
@@ -860,32 +1039,36 @@ def build_sprint1_budget_projection(
 
     rss_rows = []
     for graph_name in ("twitter7", "webbase-2001"):
-        for arm in DEPLOYABLE_ARM_SPECS:
+        for arm in ALL_TIMING_ARMS:
             evidence = kernel_lookup[(graph_name, arm, "pr")]
-            raw_seconds = (
+            raw_seconds_low = (
                 evidence["read_seconds_per_block"]
                 + evidence["map_seconds_per_block"]
+            )
+            raw_seconds_high = (
+                evidence["read_seconds_per_block"]
+                + evidence["map_seconds_per_block_high"]
             )
             rss_rows.append({
                 "phase": "rss-pilot",
                 "graph": graph_name,
                 "kernel": "none",
                 "arm": arm,
-                "arm_role": "deployable",
+                "arm_role": _characterization_arm_role(arm),
                 "measurement_mode": "peak-rss",
-                "raw_seconds_low": raw_seconds,
-                "raw_seconds_high": raw_seconds,
+                "raw_seconds_low": raw_seconds_low,
+                "raw_seconds_high": raw_seconds_high,
                 "cap_floor_raw_seconds": (
                     evidence["cap_read_seconds_per_block"]
-                    + evidence["map_seconds_per_block"]
+                    + evidence["map_seconds_per_block_high"]
                     + evidence["kernel_seconds_per_trial_high"]
                     / PR_FIXED_ITERATIONS
                     + PROCESS_STARTUP_ALLOWANCE_SECONDS
                 ),
                 "buffered_node_hours_low":
-                    raw_seconds * safety_factor / 3600.0,
+                    raw_seconds_low * safety_factor / 3600.0,
                 "buffered_node_hours_high":
-                    raw_seconds * safety_factor / 3600.0,
+                    raw_seconds_high * safety_factor / 3600.0,
             })
 
     representative_costs = [
@@ -893,7 +1076,7 @@ def build_sprint1_budget_projection(
         + row["map_seconds_per_block"]
         + row["kernel_seconds_per_trial"]
         for row in kernel_rows
-        if row["arm_role"] == "deployable"
+        if row["arm_role"] == "attributed-candidate"
     ]
     hardware_seconds_low = 30 * statistics.median(representative_costs)
     hardware_seconds_high = (
@@ -1064,7 +1247,7 @@ def build_sprint1_budget_projection(
             extra_blocks
             * (
                 float(row["read_seconds_per_block"])
-                + float(row["map_seconds_per_block"])
+                + float(row["map_seconds_per_block_high"])
             )
             + extra_trials
             * float(row["kernel_seconds_per_trial_high"])
@@ -1226,7 +1409,15 @@ def build_sprint1_budget_projection(
             for row in capped_rows
         )
         + sum(
-            float(row["wall_clock_cap_seconds"]) / 3600.0
+            (
+                float(row["wall_clock_cap_seconds"])
+                * (
+                    1
+                    if row["phase"] == "natural-label-materialization"
+                    else len(PILOT_RETRY_ATTEMPTS)
+                )
+                / 3600.0
+            )
             for row in capped_rows
         )
     )
@@ -1250,36 +1441,67 @@ def build_sprint1_budget_projection(
     precondition_artifacts = {}
     if source_manifest_path.is_file():
         source_manifest = _load_json(source_manifest_path)
-        for row in cache_micro_pilot_rows:
-            if row.get("source_index") is None:
-                continue
-            source = source_manifest["graphs"][row["graph"]]["sources"][
-                int(row["source_index"])
-            ]
-            row["source_vertex_id"] = int(source["source_id"])
-            row["expected_source_internal"] = int(
-                source["source_internal"])
-            row["expected_source_out_degree"] = int(
-                source["source_out_degree"])
-        precondition_artifacts["source_manifest"] = {
-            "path": str(source_manifest_path),
-            "schema": source_manifest.get("schema"),
-            "policy_id": source_manifest.get("policy_id"),
-            "seed": source_manifest.get("seed"),
-            "source_lists": source_manifest.get("source_lists"),
-        }
+        try:
+            _validate_source_bundle_graph_provenance(
+                source_manifest)
+        except (FileNotFoundError, RuntimeError, ValueError):
+            precondition_artifacts["source_manifest"] = {
+                "path": str(source_manifest_path),
+                "status": "stale",
+            }
+        else:
+            for row in cache_micro_pilot_rows:
+                if row.get("source_index") is None:
+                    continue
+                source = source_manifest["graphs"][
+                    row["graph"]]["sources"][int(row["source_index"])]
+                row["source_vertex_id"] = int(source["source_id"])
+                row["expected_source_internal"] = int(
+                    source["source_internal"])
+                row["expected_source_out_degree"] = int(
+                    source["source_out_degree"])
+            precondition_artifacts["source_manifest"] = {
+                "path": str(source_manifest_path),
+                "sha256": file_sha256(
+                    source_manifest_path, use_cache=False),
+                "schema": source_manifest.get("schema"),
+                "policy_id": source_manifest.get("policy_id"),
+                "seed": source_manifest.get("seed"),
+                "source_lists": source_manifest.get("source_lists"),
+                "graph_provenance":
+                    source_manifest.get("graph_provenance"),
+                "graph_provenance_sha256":
+                    source_manifest.get(
+                        "graph_provenance_sha256"),
+            }
     if natural_manifest_path.is_file():
         natural_manifest = _load_json(natural_manifest_path)
-        precondition_artifacts["natural_manifest"] = {
-            "path": str(natural_manifest_path),
-            "schema": natural_manifest.get("schema"),
-            "policy_id": natural_manifest.get("policy_id"),
-            "source_invariance":
-                natural_manifest.get("source_invariance"),
-            "graphs": sorted(natural_manifest.get("graphs", {})),
-            "excluded_graphs":
-                natural_manifest.get("excluded_graphs", {}),
-        }
+        try:
+            _validate_natural_manifest_graph_provenance(
+                natural_manifest)
+        except (FileNotFoundError, RuntimeError, ValueError):
+            precondition_artifacts["natural_manifest"] = {
+                "path": str(natural_manifest_path),
+                "status": "stale",
+            }
+        else:
+            precondition_artifacts["natural_manifest"] = {
+                "path": str(natural_manifest_path),
+                "sha256": file_sha256(
+                    natural_manifest_path, use_cache=False),
+                "schema": natural_manifest.get("schema"),
+                "policy_id": natural_manifest.get("policy_id"),
+                "source_invariance":
+                    natural_manifest.get("source_invariance"),
+                "graphs": sorted(natural_manifest.get("graphs", {})),
+                "excluded_graphs":
+                    natural_manifest.get("excluded_graphs", {}),
+                "graph_provenance":
+                    natural_manifest.get("graph_provenance"),
+                "graph_provenance_sha256":
+                    natural_manifest.get(
+                        "graph_provenance_sha256"),
+            }
     return {
         "schema": SPRINT1_BUDGET_SCHEMA,
         "source_artifacts": {
@@ -1312,6 +1534,10 @@ def build_sprint1_budget_projection(
             "cache_graphs": [graph["name"] for graph in EVAL_GRAPHS],
             "cache_kernels": list(CACHE_KERNELS),
             "pilot_process_blocks": PILOT_PROCESS_BLOCKS,
+            "pilot_retry_attempts":
+                list(PILOT_RETRY_ATTEMPTS),
+            "characterization_baseline_arms":
+                list(ALL_TIMING_ARMS),
             "natural_pilot_graphs": list(NATURAL_PILOT_GRAPHS),
             "natural_pilot_exclusions": NATURAL_PILOT_EXCLUSIONS,
             "native_ratio_low_floor": 0.25,
@@ -1718,10 +1944,19 @@ def _source_graph_provenance(
     metadata = _load_json(
         graph_path.with_suffix(graph_path.suffix + ".meta.json"))
     required = (
+        "schema",
+        "reorder_semantics_version",
         "conversion_policy_id",
+        "source_crc32",
         "source_mtime_ns",
         "source_bytes",
+        "output_path",
         "output_bytes",
+        "output_crc32",
+        "converter_sha256",
+        "conversion_repository_state",
+        "expected_nodes",
+        "expected_undirected_edges",
         "nodes",
         "directed_edges",
     )
@@ -1732,6 +1967,58 @@ def _source_graph_provenance(
             + " ".join(missing)
         )
     return {key: metadata[key] for key in required}
+
+
+def _validate_source_bundle_graph_provenance(
+    bundle: dict[str, Any],
+) -> None:
+    graph_provenance = bundle.get("graph_provenance")
+    if (
+        not isinstance(graph_provenance, dict)
+        or bundle.get("graph_provenance_sha256")
+        != _canonical_json_sha256(graph_provenance)
+    ):
+        raise ValueError(
+            "Adaptive source bundle lacks graph provenance binding")
+    graphs = bundle.get("graphs", {})
+    if set(graph_provenance) != set(graphs):
+        raise ValueError(
+            "Adaptive source bundle graph provenance coverage changed")
+    for graph_name, payload in graphs.items():
+        graph_path = Path(str(payload.get("graph_path", "")))
+        current = _source_graph_provenance(graph_path)
+        if (
+            graph_provenance.get(graph_name) != current
+            or payload.get("graph_provenance") != current
+        ):
+            raise ValueError(
+                f"Adaptive source bundle is stale: {graph_name}")
+
+
+def _validate_natural_manifest_graph_provenance(
+    manifest: dict[str, Any],
+) -> None:
+    graph_provenance = manifest.get("graph_provenance")
+    if (
+        not isinstance(graph_provenance, dict)
+        or manifest.get("graph_provenance_sha256")
+        != _canonical_json_sha256(graph_provenance)
+    ):
+        raise ValueError(
+            "Natural manifest lacks graph provenance binding")
+    graphs = manifest.get("graphs", {})
+    if set(graph_provenance) != set(graphs):
+        raise ValueError(
+            "Natural manifest graph provenance coverage changed")
+    for graph_name, record in graphs.items():
+        graph_path = Path(str(record.get("natural_graph", "")))
+        current = _source_graph_provenance(graph_path)
+        if (
+            graph_provenance.get(graph_name) != current
+            or record.get("graph_provenance") != current
+        ):
+            raise ValueError(
+                f"Natural manifest is stale: {graph_name}")
 
 
 def generate_sprint1_source_manifests(
@@ -1801,11 +2088,17 @@ def generate_sprint1_source_manifests(
         )
         if output_path.is_file() and not force:
             payload = _load_json(output_path)
-            payload.setdefault("graph_provenance", graph_provenance)
-            payload.setdefault("generator_command", command)
-            payload.setdefault("omp_num_threads", threads)
-            payload.setdefault("cpu_list", cpu_list)
-            _atomic_json(payload, output_path)
+            if (
+                payload.get("graph_provenance") != graph_provenance
+                or payload.get("generator_command") != command
+                or payload.get("omp_num_threads") != threads
+                or payload.get("cpu_list") != cpu_list
+            ):
+                raise RuntimeError(
+                    "Existing adaptive source manifest is stale; "
+                    "regenerate with --force-sources and "
+                    "--refreeze-sources"
+                )
             _validate_source_manifest(
                 payload,
                 graph,
@@ -1864,6 +2157,10 @@ def generate_sprint1_source_manifests(
         "cpu_list": cpu_list,
         "commands": commands,
         "graphs": graph_manifests,
+        "graph_provenance": {
+            graph_name: payload["graph_provenance"]
+            for graph_name, payload in graph_manifests.items()
+        },
         "source_lists": {
             graph_name: [
                 int(source["source_id"])
@@ -1872,6 +2169,9 @@ def generate_sprint1_source_manifests(
             for graph_name, payload in graph_manifests.items()
         },
     }
+    bundle["graph_provenance_sha256"] = _canonical_json_sha256(
+        bundle["graph_provenance"]
+    )
     bundle_path = (
         artifact_root
         / "adaptive_selector"
@@ -1880,7 +2180,13 @@ def generate_sprint1_source_manifests(
     )
     if bundle_path.is_file():
         existing = _load_json(bundle_path)
-        frozen_fields = ("policy_id", "seed", "source_lists")
+        frozen_fields = (
+            "policy_id",
+            "seed",
+            "source_lists",
+            "graph_provenance",
+            "graph_provenance_sha256",
+        )
         changed = any(
             existing.get(field) != bundle.get(field)
             for field in frozen_fields
@@ -1947,9 +2253,17 @@ def materialize_sprint1_natural_graphs(
     records = {}
     for graph_name in NATURAL_PILOT_GRAPHS:
         graph = graph_by_name[graph_name]
-        canonical_meta_path = (
-            graph_root / graph_name / f"{graph_name}.sg.meta.json")
-        canonical_meta = _load_json(canonical_meta_path)
+        canonical_graph_path = (
+            graph_root / graph_name / f"{graph_name}.sg")
+        canonical_meta = _current_graph_metadata(
+            canonical_graph_path,
+            graph_name=graph_name,
+            natural=False,
+            verify_content=True,
+            expected_nodes=int(graph["nodes"]),
+            expected_undirected_edges=
+                int(graph["undirected_edges"]),
+        )
         source_path = Path(str(canonical_meta["source_path"]))
         if not source_path.is_file():
             raise FileNotFoundError(
@@ -1997,38 +2311,58 @@ def materialize_sprint1_natural_graphs(
                     f"see {converter_log}"
                 )
             natural_metadata = {
-                "schema": "adaptive-natural-graph/v1",
+                "schema": "adaptive-natural-graph/v2",
+                "reorder_semantics_version":
+                    REORDER_SEMANTICS_VERSION,
                 "conversion_policy_id": "adaptive-natural-original/v1",
                 "graph": graph_name,
-                "source_path": str(source_path),
+                "source_path": str(source_path.resolve()),
                 "source_bytes": source_path.stat().st_size,
                 "source_mtime_ns": source_path.stat().st_mtime_ns,
-                "output_path": str(natural_path),
+                "source_crc32": canonical_meta["source_crc32"],
+                "output_path": str(natural_path.resolve()),
                 "output_bytes": natural_path.stat().st_size,
+                "output_crc32": file_crc32(
+                    natural_path, use_cache=False),
                 "nodes": graph["nodes"],
                 "directed_edges": 2 * graph["undirected_edges"],
                 "undirected_edges": graph["undirected_edges"],
+                "expected_nodes": graph["nodes"],
+                "expected_undirected_edges":
+                    graph["undirected_edges"],
                 "symmetrized": True,
                 "ordering": "0",
                 "omp_num_threads": threads,
                 "cpu_list": cpu_list,
                 "converter_args": converter_command,
+                "converter_sha256": file_sha256(converter),
+                "conversion_repository_state":
+                    _conversion_repository_state(),
             }
             _atomic_json(natural_metadata, natural_meta_path)
         else:
             natural_metadata = _load_json(natural_meta_path)
             required = {
-                "schema": "adaptive-natural-graph/v1",
+                "schema": "adaptive-natural-graph/v2",
+                "reorder_semantics_version":
+                    REORDER_SEMANTICS_VERSION,
                 "conversion_policy_id":
                     "adaptive-natural-original/v1",
                 "graph": graph_name,
-                "source_path": str(source_path),
+                "source_path": str(source_path.resolve()),
                 "source_bytes": source_path.stat().st_size,
                 "source_mtime_ns": source_path.stat().st_mtime_ns,
-                "output_path": str(natural_path),
+                "source_crc32": canonical_meta["source_crc32"],
+                "output_path": str(natural_path.resolve()),
                 "nodes": graph["nodes"],
                 "undirected_edges": graph["undirected_edges"],
+                "expected_nodes": graph["nodes"],
+                "expected_undirected_edges":
+                    graph["undirected_edges"],
                 "ordering": "0",
+                "converter_sha256": file_sha256(converter),
+                "conversion_repository_state":
+                    _conversion_repository_state(),
             }
             for key, value in required.items():
                 if natural_metadata.get(key) != value:
@@ -2037,6 +2371,12 @@ def materialize_sprint1_natural_graphs(
             if natural_metadata.get("output_bytes") != natural_path.stat().st_size:
                 raise ValueError(
                     f"Natural graph size changed: {graph_name}")
+            if (
+                natural_metadata.get("output_crc32")
+                != file_crc32(natural_path)
+            ):
+                raise ValueError(
+                    f"Natural graph content changed: {graph_name}")
 
         source_command = [
             str(cc_binary),
@@ -2047,7 +2387,10 @@ def materialize_sprint1_natural_graphs(
         ]
         if cpu_list:
             source_command = ["taskset", "-c", cpu_list, *source_command]
-        if force or not natural_source_path.is_file():
+        generated_natural_sources = (
+            force or not natural_source_path.is_file()
+        )
+        if generated_natural_sources:
             environment = {
                 **os.environ,
                 "OMP_NUM_THREADS": str(threads),
@@ -2069,26 +2412,30 @@ def materialize_sprint1_natural_graphs(
                     f"see {source_log}"
                 )
         natural_sources = _load_json(natural_source_path)
-        natural_sources["generator_command"] = source_command
-        natural_sources["omp_num_threads"] = threads
-        natural_sources["cpu_list"] = cpu_list
-        natural_sources["graph_provenance"] = {
-            key: natural_metadata[key]
-            for key in (
-                "conversion_policy_id",
-                "source_mtime_ns",
-                "source_bytes",
-                "output_bytes",
-                "nodes",
-                "directed_edges",
-            )
+        natural_graph_provenance = _source_graph_provenance(
+            natural_path)
+        expected_source_contract = {
+            "generator_command": source_command,
+            "omp_num_threads": threads,
+            "cpu_list": cpu_list,
+            "graph_provenance": natural_graph_provenance,
         }
-        _atomic_json(natural_sources, natural_source_path)
+        if generated_natural_sources:
+            natural_sources.update(expected_source_contract)
+            _atomic_json(natural_sources, natural_source_path)
+        elif any(
+            natural_sources.get(key) != value
+            for key, value in expected_source_contract.items()
+        ):
+            raise RuntimeError(
+                "Existing natural source manifest is stale; "
+                "regenerate with --force-sources"
+            )
         _validate_source_manifest(
             natural_sources,
             graph,
             expected_graph_path=natural_path,
-            graph_provenance=natural_sources["graph_provenance"],
+            graph_provenance=natural_graph_provenance,
         )
 
         frozen_sources = source_bundle["graphs"][graph_name]["sources"]
@@ -2137,6 +2484,7 @@ def materialize_sprint1_natural_graphs(
             "natural_graph": str(natural_path),
             "natural_metadata": str(natural_meta_path),
             "natural_source_manifest": str(natural_source_path),
+            "graph_provenance": natural_graph_provenance,
             "source_ids": [
                 int(source["source_id"])
                 for source in natural_sources["sources"]
@@ -2160,10 +2508,17 @@ def materialize_sprint1_natural_graphs(
         "threads": threads,
         "cpu_list": cpu_list,
         "graphs": records,
+        "graph_provenance": {
+            graph_name: record["graph_provenance"]
+            for graph_name, record in records.items()
+        },
         "excluded_graphs": NATURAL_PILOT_EXCLUSIONS,
         "exclusion_evidence": NATURAL_PILOT_EXCLUSION_EVIDENCE,
         "source_invariance": "pass",
     }
+    manifest["graph_provenance_sha256"] = _canonical_json_sha256(
+        manifest["graph_provenance"]
+    )
     manifest_path = (
         artifact_root
         / "adaptive_selector"
@@ -2216,6 +2571,7 @@ def _command_binary_provenance(
                 "path": str(candidate),
                 "bytes": stat.st_size,
                 "mtime_ns": stat.st_mtime_ns,
+                "sha256": file_sha256(candidate),
             })
     if not binaries:
         raise ValueError("Pilot command has no executable binary")
@@ -2265,6 +2621,7 @@ def _validate_binary_provenance(command: dict[str, Any]) -> None:
             not path.is_file()
             or path.stat().st_size != int(binary["bytes"])
             or path.stat().st_mtime_ns != int(binary["mtime_ns"])
+            or file_sha256(path) != binary.get("sha256")
         ):
             raise RuntimeError(
                 f"Pilot binary changed after freeze: {path}")
@@ -2310,6 +2667,69 @@ def _contract_weight_payload() -> dict[str, Any]:
     }
 
 
+def _authorized_pilot_budget_rows(
+    budget: dict[str, Any],
+) -> list[dict[str, Any]]:
+    return (
+        budget["randomized_pilot_rows"]
+        + budget["natural_pilot_rows"]
+        + budget["materialization_rows"]
+        + budget["rss_rows"]
+        + budget["cache_micro_pilot_rows"]
+        + budget["feature_pilot_rows"]
+    )
+
+
+def _expected_pilot_command_ids(
+    budget: dict[str, Any],
+) -> tuple[dict[str, int], set[str]]:
+    expected: dict[str, int] = {}
+    rows = _authorized_pilot_budget_rows(budget)
+    for row_index, row in enumerate(rows):
+        phase = str(row["phase"])
+        graph = str(row["graph"])
+        if phase == "natural-label-materialization":
+            continue
+        if phase in {"randomized-pilot", "natural-label-pilot"}:
+            for process_id in range(int(row["process_blocks"])):
+                command_id = (
+                    f"{phase}|{graph}|{row['kernel']}|"
+                    f"{row['arm']}|p{process_id}"
+                )
+                if command_id in expected:
+                    raise ValueError(
+                        f"Duplicate expected pilot command: {command_id}")
+                expected[command_id] = row_index
+            continue
+        if phase == "cache-micro-pilot":
+            command_id = (
+                f"{phase}|{graph}|{row['kernel']}|{row['arm']}|"
+                f"{row['capacities_mib']}MiB|"
+                f"s{row.get('source_index')}"
+            )
+        elif phase == "feature-cost-pilot":
+            command_id = (
+                f"{phase}|{graph}|{row.get('labeling')}"
+            )
+        elif phase == "rss-pilot":
+            command_id = f"{phase}|{graph}|{row['arm']}"
+        else:
+            raise ValueError(
+                f"Unsupported authorized pilot phase: {phase}")
+        if command_id in expected:
+            raise ValueError(
+                f"Duplicate expected pilot command: {command_id}")
+        expected[command_id] = row_index
+    priming = {
+        f"page-cache-prime|{graph_name}|randomized"
+        for graph_name in budget["pilot_graphs"]
+    } | {
+        f"page-cache-prime|{graph_name}|natural"
+        for graph_name in NATURAL_PILOT_GRAPHS
+    }
+    return expected, priming
+
+
 def _verify_budget_preconditions(
     budget: dict[str, Any],
     source_bundle: dict[str, Any],
@@ -2317,6 +2737,15 @@ def _verify_budget_preconditions(
 ) -> None:
     if budget.get("schema") != SPRINT1_BUDGET_SCHEMA:
         raise ValueError("Pilot launcher requires budget schema v1")
+    if budget.get("policy", {}).get(
+        "characterization_baseline_arms"
+    ) != list(ALL_TIMING_ARMS):
+        raise ValueError(
+            "Pilot characterization arm contract changed")
+    if budget.get("policy", {}).get(
+        "pilot_retry_attempts"
+    ) != list(PILOT_RETRY_ATTEMPTS):
+        raise ValueError("Pilot retry budget contract changed")
     if not budget.get("pilot_evidence_required_for_full_collection"):
         raise ValueError("Pilot launcher lost full-collection gate")
     allowed = budget.get("collection_allowed", {})
@@ -2335,18 +2764,35 @@ def _verify_budget_preconditions(
         raise ValueError("Pilot budget unexpectedly authorizes corpus work")
 
     bindings = budget.get("precondition_artifacts", {})
+    _validate_source_bundle_graph_provenance(source_bundle)
+    _validate_natural_manifest_graph_provenance(natural_manifest)
     source_binding = bindings.get("source_manifest", {})
     if (
-        source_binding.get("schema") != source_bundle.get("schema")
+        source_binding.get("sha256")
+            != file_sha256(
+                Path(source_binding.get("path", "")),
+                use_cache=False,
+            )
+        or source_binding.get("schema") != source_bundle.get("schema")
         or source_binding.get("policy_id") != source_bundle.get("policy_id")
         or source_binding.get("seed") != source_bundle.get("seed")
         or source_binding.get("source_lists")
             != source_bundle.get("source_lists")
+        or source_binding.get("graph_provenance")
+            != source_bundle.get("graph_provenance")
+        or source_binding.get("graph_provenance_sha256")
+            != source_bundle.get("graph_provenance_sha256")
     ):
         raise ValueError("Budget/source manifest binding mismatch")
     natural_binding = bindings.get("natural_manifest", {})
     if (
-        natural_binding.get("schema") != natural_manifest.get("schema")
+        natural_binding.get("sha256")
+            != file_sha256(
+                Path(natural_binding.get("path", "")),
+                use_cache=False,
+            )
+        or natural_binding.get("schema")
+            != natural_manifest.get("schema")
         or natural_binding.get("policy_id")
             != natural_manifest.get("policy_id")
         or natural_binding.get("source_invariance")
@@ -2355,6 +2801,10 @@ def _verify_budget_preconditions(
             != sorted(natural_manifest.get("graphs", {}))
         or natural_binding.get("excluded_graphs")
             != natural_manifest.get("excluded_graphs")
+        or natural_binding.get("graph_provenance")
+            != natural_manifest.get("graph_provenance")
+        or natural_binding.get("graph_provenance_sha256")
+            != natural_manifest.get("graph_provenance_sha256")
     ):
         raise ValueError("Budget/natural manifest binding mismatch")
 
@@ -2390,16 +2840,28 @@ def prepare_sprint1_pilot_execution(
     output_root.mkdir(parents=True, exist_ok=True)
 
     authorized_phases = set(budget["authorized_phases"])
-    all_budget_rows = (
-        budget["randomized_pilot_rows"]
-        + budget["natural_pilot_rows"]
-        + budget["materialization_rows"]
-        + budget["rss_rows"]
-        + budget["cache_micro_pilot_rows"]
-        + budget["feature_pilot_rows"]
-    )
-    if len(all_budget_rows) != 192:
-        raise ValueError("Pilot authorization row count changed")
+    all_budget_rows = _authorized_pilot_budget_rows(budget)
+    expected_group_sizes = {
+        "randomized_pilot_rows":
+            len(budget["pilot_graphs"])
+            * len(ALL_TIMING_ARMS)
+            * len(BENCHMARKS),
+        "natural_pilot_rows":
+            len(NATURAL_PILOT_GRAPHS)
+            * len(ALL_TIMING_ARMS)
+            * len(BENCHMARKS),
+        "materialization_rows": len(NATURAL_PILOT_GRAPHS),
+        "rss_rows": 2 * len(ALL_TIMING_ARMS),
+        "cache_micro_pilot_rows": 9,
+        "feature_pilot_rows":
+            len(budget["pilot_graphs"]) + len(NATURAL_PILOT_GRAPHS),
+    }
+    for key, expected in expected_group_sizes.items():
+        if len(budget[key]) != expected:
+            raise ValueError(
+                f"Pilot authorization {key} changed: "
+                f"expected {expected}, got {len(budget[key])}"
+            )
     if any(
         not row.get("authorized_for_collection")
         or row.get("phase") not in authorized_phases
@@ -2474,6 +2936,25 @@ def prepare_sprint1_pilot_execution(
                 f"Budget graph path changed: {phase}/{graph_name}")
         if not graph_path.is_file():
             raise FileNotFoundError(f"Pilot graph is missing: {graph_path}")
+        graph_metadata = _current_graph_metadata(
+            graph_path,
+            graph_name=graph_name,
+            natural=labeling == "natural",
+            verify_content=True,
+            expected_nodes=int(
+                next(
+                    graph["nodes"] for graph in EVAL_GRAPHS
+                    if graph["name"] == graph_name
+                )
+            ),
+            expected_undirected_edges=int(
+                next(
+                    graph["undirected_edges"]
+                    for graph in EVAL_GRAPHS
+                    if graph["name"] == graph_name
+                )
+            ),
+        )
 
         common = {
             "budget_row_index": row_index,
@@ -2482,6 +2963,7 @@ def prepare_sprint1_pilot_execution(
             "graph_path": str(graph_path),
             "graph_output_bytes": graph_path.stat().st_size,
             "graph_mtime_ns": graph_path.stat().st_mtime_ns,
+            "graph_crc32": graph_metadata["output_crc32"],
             "labeling": labeling,
             "arm": row.get("arm"),
             "kernel": row.get("kernel"),
@@ -2724,9 +3206,23 @@ def prepare_sprint1_pilot_execution(
 
         raise ValueError(f"Unsupported authorized pilot phase: {phase}")
 
-    if len(commands) != 527:
+    expected_command_count = sum(
+        (
+            int(row["process_blocks"])
+            if row["phase"] in {
+                "randomized-pilot",
+                "natural-label-pilot",
+            }
+            else 0
+            if row["phase"] == "natural-label-materialization"
+            else 1
+        )
+        for row in all_budget_rows
+    )
+    if len(commands) != expected_command_count:
         raise ValueError(
-            f"Pilot command count changed: expected 527, got {len(commands)}")
+            "Pilot command count changed: "
+            f"expected {expected_command_count}, got {len(commands)}")
     for command in commands:
         if (
             command["phase"] == "cache-micro-pilot"
@@ -2755,7 +3251,7 @@ def prepare_sprint1_pilot_execution(
         )
         command_dir = output_root / safe_id
         command["attempt"] = 0
-        command["retry_attempts"] = [0, 1]
+        command["retry_attempts"] = list(PILOT_RETRY_ATTEMPTS)
         command["idempotency_key"] = (
             f"{command['command_id']}|a{command['attempt']}"
         )
@@ -2796,6 +3292,25 @@ def prepare_sprint1_pilot_execution(
         for graph_name in NATURAL_PILOT_GRAPHS
     ]
     for graph_name, labeling, graph_path in priming_specs:
+        graph_metadata = _current_graph_metadata(
+            graph_path,
+            graph_name=graph_name,
+            natural=labeling == "natural",
+            verify_content=True,
+            expected_nodes=int(
+                next(
+                    graph["nodes"] for graph in EVAL_GRAPHS
+                    if graph["name"] == graph_name
+                )
+            ),
+            expected_undirected_edges=int(
+                next(
+                    graph["undirected_edges"]
+                    for graph in EVAL_GRAPHS
+                    if graph["name"] == graph_name
+                )
+            ),
+        )
         read_evidence = max(
             float(row.get("cap_read_seconds_per_block", 0.0))
             for row in (
@@ -2810,12 +3325,13 @@ def prepare_sprint1_pilot_execution(
             "graph_path": str(graph_path),
             "timeout_interpretation": "hard-preparation-cap",
             "attempt": 0,
-            "retry_attempts": [0, 1],
+            "retry_attempts": list(PILOT_RETRY_ATTEMPTS),
             "depends_on": [],
             "graph": graph_name,
             "labeling": labeling,
             "graph_output_bytes": graph_path.stat().st_size,
             "graph_mtime_ns": graph_path.stat().st_mtime_ns,
+            "graph_crc32": graph_metadata["output_crc32"],
             "command": _taskset_command([
                 "dd",
                 f"if={graph_path}",
@@ -2862,13 +3378,20 @@ def prepare_sprint1_pilot_execution(
                 priming_commands[-1]["command"])
         )
 
+    input_artifacts = _execution_input_artifacts(
+        budget_path,
+        source_path,
+        natural_path,
+        contract_path,
+    )
     manifest = {
-        "schema": "adaptive-pilot-execution/v1",
+        "schema": "adaptive-pilot-execution/v2",
         "dry_run_only": True,
         "budget_projection": str(budget_path),
         "source_manifest": str(source_path),
         "natural_manifest": str(natural_path),
         "contract_weights": str(contract_path),
+        "input_artifacts": input_artifacts,
         "threads": threads,
         "cpu_list": cpu_list,
         "authorized_budget_rows": len(all_budget_rows),
@@ -2896,10 +3419,20 @@ def prepare_sprint1_pilot_execution(
         comparable = (
             "schema",
             "dry_run_only",
+            "budget_projection",
+            "source_manifest",
+            "natural_manifest",
+            "contract_weights",
+            "input_artifacts",
+            "input_artifacts",
             "threads",
             "cpu_list",
+            "authorized_budget_rows",
+            "command_count",
+            "priming_command_count",
             "execution_order",
             "concurrency",
+            "completed_preparation",
             "host_state_requirements",
             "priming_commands",
             "commands",
@@ -3046,7 +3579,7 @@ def _validate_runtime_environment_surface() -> None:
 def _validate_execution_manifest(
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    if manifest.get("schema") != "adaptive-pilot-execution/v1":
+    if manifest.get("schema") != "adaptive-pilot-execution/v2":
         raise ValueError("Unsupported pilot execution manifest")
     if manifest.get("execution_order") != [
         "priming_commands", "commands"
@@ -3054,6 +3587,37 @@ def _validate_execution_manifest(
         raise ValueError("Pilot execution order changed")
     if manifest.get("concurrency") != "serial-exclusive":
         raise ValueError("Pilot execution must be serial-exclusive")
+    input_artifacts = manifest.get("input_artifacts")
+    expected_inputs = {
+        "budget_projection",
+        "source_manifest",
+        "natural_manifest",
+        "contract_weights",
+    }
+    if (
+        not isinstance(input_artifacts, dict)
+        or set(input_artifacts) != expected_inputs
+    ):
+        raise ValueError("Pilot input artifact coverage changed")
+    for name, binding in input_artifacts.items():
+        if binding.get("path") != str(
+            Path(manifest[name]).resolve()
+        ):
+            raise ValueError(
+                f"Pilot input artifact path changed: {name}")
+        _validate_artifact_binding(binding)
+    budget = _load_json(Path(manifest["budget_projection"]))
+    source_bundle = _load_json(Path(manifest["source_manifest"]))
+    natural_manifest = _load_json(Path(manifest["natural_manifest"]))
+    _verify_budget_preconditions(
+        budget, source_bundle, natural_manifest)
+    if _load_json(Path(manifest["contract_weights"])) != (
+        _contract_weight_payload()
+    ):
+        raise ValueError("Pilot contract weights changed")
+    expected_command_ids, expected_priming_ids = (
+        _expected_pilot_command_ids(budget)
+    )
     _validate_runtime_environment_surface()
     priming = manifest.get("priming_commands", [])
     priming_ids = {
@@ -3062,9 +3626,15 @@ def _validate_execution_manifest(
     }
     if len(priming_ids) != manifest.get("priming_command_count"):
         raise ValueError("Pilot priming command count changed")
+    if priming_ids != expected_priming_ids:
+        raise ValueError("Pilot priming coverage changed")
     commands = manifest.get("commands", [])
     if len(commands) != manifest.get("command_count"):
         raise ValueError("Pilot timing command count changed")
+    if {
+        command.get("command_id") for command in commands
+    } != set(expected_command_ids):
+        raise ValueError("Pilot timing command coverage changed")
     command_ids = set()
     result_paths = set()
     for command in [*priming, *commands]:
@@ -3089,6 +3659,11 @@ def _validate_execution_manifest(
         if command["attempt"] not in command["retry_attempts"]:
             raise ValueError("Pilot attempt is outside retry policy")
         if command["phase"] != "page-cache-prime":
+            if command.get("budget_row_index") != (
+                expected_command_ids[command["command_id"]]
+            ):
+                raise ValueError(
+                    "Pilot command budget-row binding changed")
             dependencies = command.get("depends_on")
             if not dependencies:
                 raise ValueError("Pilot timing command lost priming dependency")
@@ -3105,6 +3680,7 @@ def _validate_execution_manifest(
                 != int(command["graph_output_bytes"])
             or graph_path.stat().st_mtime_ns
                 != int(command["graph_mtime_ns"])
+            or file_crc32(graph_path) != command["graph_crc32"]
         ):
             raise RuntimeError("Pilot graph file changed after freeze")
         _validate_binary_provenance(command)
@@ -3218,19 +3794,41 @@ def _run_literal_pilot_command(
     host_state: dict[str, Any],
 ) -> dict[str, Any]:
     """Execute one literal manifest command; intentionally not CLI-exposed."""
+    required_authorization = (
+        "authorization_reference",
+        "execution_manifest_sha256",
+        "command_contract_sha256",
+        "input_artifacts",
+    )
+    if any(
+        field not in command
+        or (
+            field != "input_artifacts"
+            and not command.get(field)
+        )
+        for field in required_authorization
+    ):
+        raise RuntimeError("Pilot command lacks execution authorization")
+    contract_payload = dict(command)
+    recorded_contract = contract_payload.pop(
+        "command_contract_sha256")
+    if _canonical_json_sha256(contract_payload) != recorded_contract:
+        raise RuntimeError("Pilot command authorization digest changed")
+    if not isinstance(command["input_artifacts"], dict):
+        raise RuntimeError("Pilot command input artifact binding is missing")
+    for binding in command["input_artifacts"].values():
+        _validate_artifact_binding(binding)
     result_path = Path(command["result_path"])
     if result_path.is_file():
         existing = _load_json(result_path)
-        comparable = (
-            "idempotency_key",
-            "command",
-            "environment",
-            "timeout_seconds",
-            "graph_path",
-        )
-        if any(
-            existing.get(field) != command.get(field)
-            for field in comparable
+        if (
+            existing.get("schema") != "adaptive-pilot-result/v2"
+            or existing.get("command_contract_sha256")
+                != command["command_contract_sha256"]
+            or existing.get("authorization_reference")
+                != command["authorization_reference"]
+            or existing.get("execution_manifest_sha256")
+                != command["execution_manifest_sha256"]
         ):
             raise RuntimeError("Pilot result command contract changed")
         if existing.get("error_kind") in {"", "timeout"}:
@@ -3249,6 +3847,7 @@ def _run_literal_pilot_command(
         not graph_path.is_file()
         or graph_path.stat().st_size != int(command["graph_output_bytes"])
         or graph_path.stat().st_mtime_ns != int(command["graph_mtime_ns"])
+        or file_crc32(graph_path) != command["graph_crc32"]
     ):
         raise RuntimeError("Pilot graph file changed before execution")
     _validate_binary_provenance(command)
@@ -3387,7 +3986,7 @@ def _run_literal_pilot_command(
         contract_violation = str(error)
 
     payload = {
-        "schema": "adaptive-pilot-result/v1",
+        "schema": "adaptive-pilot-result/v2",
         "idempotency_key": command["idempotency_key"],
         "command_id": command["command_id"],
         "phase": command["phase"],
@@ -3420,6 +4019,10 @@ def _run_literal_pilot_command(
         "host_state": current_host_state,
         "authorization_reference":
             command.get("authorization_reference"),
+        "execution_manifest_sha256":
+            command.get("execution_manifest_sha256"),
+        "command_contract_sha256":
+            command.get("command_contract_sha256"),
     }
     _atomic_json(payload, result_path)
     if contract_violation is not None:
@@ -3559,15 +4162,32 @@ def _run_pilot_command_with_retries(
     base_command: dict[str, Any],
     host_state: dict[str, Any],
     authorization_reference: str,
+    execution_manifest_sha256: str,
+    input_artifacts: dict[str, Any],
     *,
     runner=_run_literal_pilot_command,
 ) -> dict[str, Any]:
     for attempt in base_command["retry_attempts"]:
-        command = _pilot_command_for_attempt(base_command, attempt)
-        command["authorization_reference"] = authorization_reference
+        command = _bind_authorized_command(
+            _pilot_command_for_attempt(base_command, attempt),
+            authorization_reference,
+            execution_manifest_sha256,
+            input_artifacts,
+        )
         result_path = Path(command["result_path"])
         if result_path.is_file():
             existing = _load_json(result_path)
+            if (
+                existing.get("schema") != "adaptive-pilot-result/v2"
+                or existing.get("command_contract_sha256")
+                    != command["command_contract_sha256"]
+                or existing.get("authorization_reference")
+                    != command["authorization_reference"]
+                or existing.get("execution_manifest_sha256")
+                    != command["execution_manifest_sha256"]
+            ):
+                raise RuntimeError(
+                    "Pilot retry result contract changed")
             if existing.get("error_kind") == "process-failure":
                 continue
         result = runner(command, host_state)
@@ -3579,12 +4199,51 @@ def _run_pilot_command_with_retries(
     )
 
 
+def _bind_authorized_command(
+    command: dict[str, Any],
+    authorization_reference: str,
+    execution_manifest_sha256: str,
+    input_artifacts: dict[str, Any],
+) -> dict[str, Any]:
+    bound = dict(command)
+    bound["authorization_reference"] = authorization_reference
+    bound["execution_manifest_sha256"] = execution_manifest_sha256
+    bound["input_artifacts"] = input_artifacts
+    bound["command_contract_sha256"] = _canonical_json_sha256(bound)
+    return bound
+
+
+def _authorization_manifest_contract(
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Return the reviewer-visible manifest summary bound by authorization."""
+    fields = (
+        "schema",
+        "dry_run_only",
+        "budget_projection",
+        "source_manifest",
+        "natural_manifest",
+        "contract_weights",
+        "threads",
+        "cpu_list",
+        "authorized_budget_rows",
+        "command_count",
+        "priming_command_count",
+        "execution_order",
+        "concurrency",
+        "execution_lock_path",
+        "execution_authorization_required",
+        "host_state_requirements",
+    )
+    return {field: manifest.get(field) for field in fields}
+
+
 def execute_sprint1_pilot(
     artifact_root: Path,
     *,
     authorization_reference: str,
 ) -> Path:
-    """Execute a reviewed manifest; intentionally not exposed by the CLI."""
+    """Execute a separately authorized, content-bound pilot manifest."""
     if not authorization_reference:
         raise ValueError("Pilot execution requires authorization reference")
     sprint_root = artifact_root / "adaptive_selector" / "sprint1"
@@ -3595,21 +4254,21 @@ def execute_sprint1_pilot(
     authorization_path = (
         sprint_root / "pilot_execution_authorization.json")
     authorization = _load_json(authorization_path)
+    manifest_sha256 = _canonical_json_sha256(manifest)
+    manifest_contract = _authorization_manifest_contract(manifest)
     if (
         authorization.get("schema")
-            != "adaptive-pilot-execution-authorization/v1"
+            != "adaptive-pilot-execution-authorization/v2"
         or not authorization.get("execution_enabled")
         or authorization.get("authorization_reference")
             != authorization_reference
         or authorization.get("execution_manifest") != str(manifest_path)
         or authorization.get("command_count")
             != manifest.get("command_count")
-        or authorization.get("authorized_manifest_contract") != {
-            "execution_order": manifest.get("execution_order"),
-            "concurrency": manifest.get("concurrency"),
-            "priming_commands": manifest.get("priming_commands"),
-            "commands": manifest.get("commands"),
-        }
+        or authorization.get("execution_manifest_sha256")
+            != manifest_sha256
+        or authorization.get("authorized_manifest_contract")
+            != manifest_contract
     ):
         raise RuntimeError("Pilot execution authorization is invalid")
     host_state = _validate_execution_manifest(manifest)
@@ -3619,8 +4278,12 @@ def execute_sprint1_pilot(
     execution_results = []
     with _PilotExecutionLock(lock_path):
         for command in manifest["priming_commands"]:
-            priming = _priming_command_for_session(command, session_id)
-            priming["authorization_reference"] = authorization_reference
+            priming = _bind_authorized_command(
+                _priming_command_for_session(command, session_id),
+                authorization_reference,
+                manifest_sha256,
+                manifest["input_artifacts"],
+            )
             result = _run_literal_pilot_command(priming, host_state)
             execution_results.append(result)
             if result["error_kind"]:
@@ -3632,24 +4295,22 @@ def execute_sprint1_pilot(
                 command,
                 host_state,
                 authorization_reference,
+                manifest_sha256,
+                manifest["input_artifacts"],
             ))
     error_counts = {}
     for result in execution_results:
         kind = result.get("error_kind") or "success"
         error_counts[kind] = error_counts.get(kind, 0) + 1
     completion = {
-        "schema": "adaptive-pilot-execution-complete/v1",
+        "schema": "adaptive-pilot-execution-complete/v2",
         "execution_manifest": str(manifest_path),
         "authorization_reference": authorization_reference,
         "execution_session_id": session_id,
         "command_count": manifest["command_count"],
         "priming_command_count": manifest["priming_command_count"],
-        "authorized_manifest_contract": {
-            "execution_order": manifest["execution_order"],
-            "concurrency": manifest["concurrency"],
-            "priming_commands": manifest["priming_commands"],
-            "commands": manifest["commands"],
-        },
+        "execution_manifest_sha256": manifest_sha256,
+        "authorized_manifest_contract": manifest_contract,
         "result_count": len(execution_results),
         "result_states": error_counts,
         "retried_result_count": sum(
@@ -3667,25 +4328,37 @@ def create_sprint1_execution_authorization(
     artifact_root: Path,
     *,
     authorization_reference: str,
+    refreeze: bool = False,
 ) -> Path:
-    """Create a separate authorization artifact; intentionally not CLI-exposed."""
+    """Create a separate authorization bound to the full reviewed manifest."""
     if not authorization_reference:
         raise ValueError("Authorization reference is required")
     sprint_root = artifact_root / "adaptive_selector" / "sprint1"
     manifest_path = sprint_root / "pilot_execution_manifest.json"
     manifest = _load_json(manifest_path)
     _validate_execution_manifest(manifest)
+    manifest_contract = _authorization_manifest_contract(manifest)
     payload = {
-        "schema": "adaptive-pilot-execution-authorization/v1",
+        "schema": "adaptive-pilot-execution-authorization/v2",
         "execution_enabled": True,
         "authorization_reference": authorization_reference,
         "execution_manifest": str(manifest_path),
         "command_count": manifest["command_count"],
         "priming_command_count": manifest["priming_command_count"],
+        "execution_manifest_sha256":
+            _canonical_json_sha256(manifest),
+        "authorized_manifest_contract": manifest_contract,
     }
     path = sprint_root / "pilot_execution_authorization.json"
-    if path.is_file() and _load_json(path) != payload:
-        raise RuntimeError("Pilot execution authorization changed")
+    if (
+        path.is_file()
+        and _load_json(path) != payload
+        and not refreeze
+    ):
+        raise RuntimeError(
+            "Pilot execution authorization changed; "
+            "use --refreeze-authorization after review"
+        )
     _atomic_json(payload, path)
     return path
 
@@ -3699,13 +4372,17 @@ def validate_sprint1_pilot_executor(
     manifest = _load_json(manifest_path)
     host_state = _validate_execution_manifest(manifest)
     validation = {
-        "schema": "adaptive-pilot-executor-validation/v1",
+        "schema": "adaptive-pilot-executor-validation/v2",
         "execution_manifest": str(manifest_path),
         "dry_run_only": bool(manifest.get("dry_run_only")),
         "command_count": manifest["command_count"],
         "priming_command_count": manifest["priming_command_count"],
         "execution_order": manifest["execution_order"],
         "concurrency": manifest["concurrency"],
+        "execution_manifest_sha256":
+            _canonical_json_sha256(manifest),
+        "authorization_manifest_contract":
+            _authorization_manifest_contract(manifest),
         "host_state": host_state,
         "literal_consumer": "_run_literal_pilot_command",
         "status": "pass",
@@ -3782,6 +4459,16 @@ def main() -> int:
         help="Validate the literal pilot consumer without executing it",
     )
     parser.add_argument(
+        "--authorize-sprint1-pilot",
+        action="store_true",
+        help="Bind explicit authorization to the reviewed pilot manifest",
+    )
+    parser.add_argument(
+        "--execute-sprint1-pilot",
+        action="store_true",
+        help="Execute the separately authorized pilot manifest",
+    )
+    parser.add_argument(
         "--force-sources",
         action="store_true",
         help="Regenerate existing Sprint-1 source manifests",
@@ -3801,6 +4488,12 @@ def main() -> int:
         action="store_true",
         help="Replace a reviewed dry-run pilot manifest",
     )
+    parser.add_argument(
+        "--refreeze-authorization",
+        action="store_true",
+        help="Replace pilot authorization after manifest re-review",
+    )
+    parser.add_argument("--authorization-reference")
     parser.add_argument("--threads", type=int, default=16)
     parser.add_argument("--cpu-list")
     parser.add_argument(
@@ -3831,6 +4524,8 @@ def main() -> int:
         bool(args.materialize_sprint1_natural),
         bool(args.prepare_sprint1_pilot),
         bool(args.validate_sprint1_executor),
+        bool(args.authorize_sprint1_pilot),
+        bool(args.execute_sprint1_pilot),
     ))
     if selected_stages != 1:
         parser.error("No adaptive stage selected")
@@ -3899,9 +4594,32 @@ def main() -> int:
                 f"{max(bandwidths):.2f} MiB/s"
             )
         print(f"Wrote: {path}")
-    else:
+    elif args.validate_sprint1_executor:
         path = validate_sprint1_pilot_executor(
             args.artifact_root.resolve())
+        print(f"Wrote: {path}")
+    elif args.authorize_sprint1_pilot:
+        if not args.authorization_reference:
+            parser.error(
+                "--authorize-sprint1-pilot requires "
+                "--authorization-reference"
+            )
+        path = create_sprint1_execution_authorization(
+            args.artifact_root.resolve(),
+            authorization_reference=args.authorization_reference,
+            refreeze=args.refreeze_authorization,
+        )
+        print(f"Wrote: {path}")
+    else:
+        if not args.authorization_reference:
+            parser.error(
+                "--execute-sprint1-pilot requires "
+                "--authorization-reference"
+            )
+        path = execute_sprint1_pilot(
+            args.artifact_root.resolve(),
+            authorization_reference=args.authorization_reference,
+        )
         print(f"Wrote: {path}")
     return 0
 

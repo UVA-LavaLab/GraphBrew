@@ -1314,8 +1314,10 @@ KERNEL_RUNS_DIR = VLDB_ROOT / "vldb_runs"
 # vectors, MTEPS, iteration counts, topology features, and chained-reorder
 # summing. Delegated to here so the rich data flows through to sidecars.
 from scripts.lib.pipeline.benchmark import (  # noqa: E402
+    file_sha256,
     mapping_permutation_fingerprint,
     parse_benchmark_output as _lib_parse_bench,
+    repository_scope_state,
 )
 from scripts.lib.core.utils import get_graph_dimensions  # noqa: E402
 from scripts.lib.ml.working_set import modeled_property_bytes  # noqa: E402
@@ -1364,8 +1366,26 @@ def _graph_conversion_policy_id(provenance: dict) -> str:
             provenance.get("reorder_semantics_version"),
         "source_crc32": provenance.get("source_crc32"),
         "output_crc32": provenance.get("output_crc32"),
+        "converter_sha256": provenance.get("converter_sha256"),
+        "conversion_repository_state":
+            provenance.get("conversion_repository_state"),
+        "expected_nodes": provenance.get("expected_nodes"),
+        "expected_undirected_edges":
+            provenance.get("expected_undirected_edges"),
     }
     return _short_id(payload)
+
+
+def _conversion_repository_state() -> dict[str, Any]:
+    """Fingerprint tracked and untracked converter-relevant repository state."""
+    return repository_scope_state(
+        PROJECT_ROOT,
+        (
+            "Makefile",
+            "bench/src/converter.cc",
+            "bench/include",
+        ),
+    )
 
 
 def _serialized_graph_info(graph_path: str | Path) -> dict[str, int | bool]:
@@ -1382,6 +1402,8 @@ def _graph_provenance_valid(
     *,
     graph_name: Optional[str] = None,
     canonical_output_path: Optional[str | Path] = None,
+    expected_nodes: Optional[int] = None,
+    expected_undirected_edges: Optional[int] = None,
 ) -> bool:
     graph_path = Path(graph_path)
     provenance_path = _graph_provenance_path(graph_path)
@@ -1411,6 +1433,10 @@ def _graph_provenance_valid(
             )
             and provenance.get("random_order_algorithm") == "1"
             and provenance.get("random_seed") == RANDOM_BASELINE_SEED
+            and provenance.get("converter_sha256")
+            == file_sha256(BIN_DIR / "converter")
+            and provenance.get("conversion_repository_state")
+            == _conversion_repository_state()
             and (
                 not source_path.is_file()
                 or (
@@ -1431,6 +1457,22 @@ def _graph_provenance_valid(
             and provenance.get("symmetrized") is True
             and provenance.get("nodes") == graph_info["nodes"]
             and provenance.get("directed_edges") == graph_info["edges"]
+            and provenance.get("expected_nodes")
+            == (
+                expected_nodes
+                if expected_nodes is not None
+                else provenance.get("nodes")
+            )
+            and provenance.get("expected_undirected_edges")
+            == (
+                expected_undirected_edges
+                if expected_undirected_edges is not None
+                else provenance.get("undirected_edges")
+            )
+            and provenance.get("nodes")
+            == provenance.get("expected_nodes")
+            and provenance.get("undirected_edges")
+            == provenance.get("expected_undirected_edges")
             and provenance.get("output_bytes") == graph_path.stat().st_size
             and provenance.get("output_crc32")
             == _file_crc32(graph_path)
@@ -6051,6 +6093,38 @@ def _setup_environment(
     return graph_dir_resolved
 
 
+def _refresh_graph_corpus(
+    graph_dir: str,
+    graphs: list[dict],
+    *,
+    dry_run: bool = False,
+    skip_download: bool = False,
+    timeout: int = 7200,
+) -> str:
+    """Transactionally refresh graph_source/v2 corpus artifacts only."""
+    graphs_path = (
+        Path(graph_dir)
+        if graph_dir != "."
+        else PROJECT_ROOT / "results" / "graphs"
+    )
+    if dry_run:
+        log.info(
+            f"[dry-run] Would refresh {len(graphs)} graphs in {graphs_path}")
+        return str(graphs_path)
+
+    graphs_path.mkdir(parents=True, exist_ok=True)
+    _setup_build_binaries(
+        benchmarks=[],
+        include_standard=False,
+        include_sim=False,
+        include_converter=True,
+    )
+    if not skip_download:
+        _setup_download_graphs(graphs, graphs_path)
+    _setup_convert_graphs(graphs, graphs_path, timeout=timeout)
+    return str(graphs_path)
+
+
 def _setup_build_binaries(
     benchmarks: Optional[list[str]] = None,
     *,
@@ -6375,9 +6449,14 @@ def _setup_convert_graphs(
     converted = 0
     skipped = 0
     failed = 0
+    converter_sha256 = file_sha256(converter)
+    repository_state = _conversion_repository_state()
 
     for g in graphs:
         name = g["name"]
+        frozen_nodes = int(g.get("nodes", 0) or 0)
+        frozen_undirected_edges = int(
+            g.get("undirected_edges", 0) or 0)
         graph_subdir = graphs_dir / name
         nested_sg = graph_subdir / f"{name}.sg"
         flat_sg = graphs_dir / f"{name}.sg"
@@ -6427,7 +6506,13 @@ def _setup_convert_graphs(
                     except (OSError, ValueError):
                         provenance = {}
                 verified = _graph_provenance_valid(
-                    sg_path, graph_name=name,
+                    sg_path,
+                    graph_name=name,
+                    expected_nodes=(
+                        frozen_nodes if frozen_nodes > 0 else None),
+                    expected_undirected_edges=(
+                        frozen_undirected_edges
+                        if frozen_undirected_edges > 0 else None),
                 )
                 if verified and input_file:
                     verified = (
@@ -6508,6 +6593,33 @@ def _setup_convert_graphs(
                 raise RuntimeError(
                     f"{name}: converter did not produce a symmetrized graph"
                 )
+            if (
+                frozen_nodes > 0
+                and graph_info["nodes"] != frozen_nodes
+            ):
+                raise RuntimeError(
+                    f"{name}: converter node count changed: "
+                    f"{graph_info['nodes']} != {frozen_nodes}"
+                )
+            if (
+                frozen_undirected_edges > 0
+                and graph_info["edges"] // 2
+                != frozen_undirected_edges
+            ):
+                raise RuntimeError(
+                    f"{name}: converter edge count changed: "
+                    f"{graph_info['edges'] // 2} != "
+                    f"{frozen_undirected_edges}"
+                )
+            expected_nodes = (
+                frozen_nodes
+                if frozen_nodes > 0 else int(graph_info["nodes"])
+            )
+            expected_undirected_edges = (
+                frozen_undirected_edges
+                if frozen_undirected_edges > 0
+                else int(graph_info["edges"]) // 2
+            )
             provenance = {
                 "schema": "graph_source/v2",
                 "reorder_semantics_version":
@@ -6520,12 +6632,17 @@ def _setup_convert_graphs(
                 "output_path": str(sg_path.resolve()),
                 "output_bytes": candidate_path.stat().st_size,
                 "output_crc32": _file_crc32(candidate_path),
+                "converter_sha256": converter_sha256,
+                "conversion_repository_state": repository_state,
                 "converter_args": logical_cmd,
                 "directed": graph_info["directed"],
                 "symmetrized": not graph_info["directed"],
                 "nodes": graph_info["nodes"],
                 "directed_edges": graph_info["edges"],
                 "undirected_edges": graph_info["edges"] // 2,
+                "expected_nodes": expected_nodes,
+                "expected_undirected_edges":
+                    expected_undirected_edges,
                 "random_order_algorithm": "1",
                 "random_seed": RANDOM_BASELINE_SEED,
                 "omp_num_threads":
@@ -6544,6 +6661,9 @@ def _setup_convert_graphs(
                 candidate_path,
                 graph_name=name,
                 canonical_output_path=sg_path,
+                expected_nodes=expected_nodes,
+                expected_undirected_edges=
+                    expected_undirected_edges,
             ):
                 candidate_path.unlink(missing_ok=True)
                 candidate_provenance.unlink(missing_ok=True)
@@ -6570,7 +6690,11 @@ def _setup_convert_graphs(
                 candidate_path.replace(sg_path)
                 candidate_provenance.replace(provenance_path)
                 if not _graph_provenance_valid(
-                    sg_path, graph_name=name,
+                    sg_path,
+                    graph_name=name,
+                    expected_nodes=expected_nodes,
+                    expected_undirected_edges=
+                        expected_undirected_edges,
                 ):
                     raise RuntimeError(
                         f"{name}: installed graph failed provenance validation"
@@ -6665,6 +6789,11 @@ def main() -> None:
     )
     parser.add_argument("--verify-gate", action="store_true",
                         help="Run the untimed semantic verification gate and exit")
+    parser.add_argument(
+        "--refresh-corpus",
+        action="store_true",
+        help="Refresh graph_source/v2 corpus artifacts and exit",
+    )
     args = parser.parse_args()
     if args.freeze_sssp_policy and not args.tune_sssp_delta:
         parser.error("--freeze-sssp-policy requires --tune-sssp-delta")
@@ -6674,6 +6803,7 @@ def main() -> None:
     if (
         not args.all and not args.exp and not args.figures_only
         and not args.tune_sssp_delta and not args.verify_gate
+        and not args.refresh_corpus
     ):
         parser.print_help()
         sys.exit(1)
@@ -6765,6 +6895,20 @@ def main() -> None:
             dry_run=args.dry_run,
             trials=1 if args.preview else SSSP_TUNING_TRIALS,
             freeze_policy=args.freeze_sssp_policy,
+        )
+        return
+
+    if args.refresh_corpus:
+        graph_dir_resolved = _refresh_graph_corpus(
+            args.graph_dir,
+            graphs,
+            dry_run=args.dry_run,
+            skip_download=args.skip_download,
+            timeout=timeout,
+        )
+        log.info(
+            "Refreshed current-semantics graph corpus at "
+            f"{graph_dir_resolved}"
         )
         return
 

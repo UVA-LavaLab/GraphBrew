@@ -1,10 +1,15 @@
-"""Frozen deployable adaptive-arm registry shared with C++."""
+"""Legacy Sprint-0 adaptive-arm registry shared with C++.
+
+This executable compatibility contract is not the headline portfolio.
+"""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 from typing import Any, Mapping
+
+from scripts.lib.core.utils import canonical_name_from_converter_opt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PORTFOLIO_PATH = (
@@ -20,7 +25,7 @@ def _load_portfolio() -> tuple[tuple[str, str, str], ...]:
     arms = []
     for line in PORTFOLIO_PATH.read_text().splitlines():
         line = line.strip()
-        if not line:
+        if not line or line.startswith("//"):
             continue
         match = _ARM_PATTERN.fullmatch(line)
         if match is None:
@@ -38,11 +43,48 @@ def _load_portfolio() -> tuple[tuple[str, str, str], ...]:
 DEPLOYABLE_ARMS = _load_portfolio()
 DEPLOYABLE_ARM_SPECS = tuple(arm[1] for arm in DEPLOYABLE_ARMS)
 DEPLOYABLE_ARM_CANONICAL_NAMES = tuple(arm[2] for arm in DEPLOYABLE_ARMS)
-_LABEL_TO_SPEC = {
-    label: spec
-    for _symbol, spec, canonical in DEPLOYABLE_ARMS
-    for label in (spec, canonical)
+CHARACTERIZATION_DENDROGRAM_ANCHOR = (
+    "12:rabbit:compose:sg_none:"
+    "comm_identity:intra_dendrogram"
+)
+CHARACTERIZATION_BASELINE_ARM_SPECS = (
+    "0",
+    "5",
+    "8:csr",
+    "8:boost",
+    "9:csr",
+    "10:canonical",
+    "11:mind",
+    "11:bnf",
+    "15:1.0:10:10:hierarchy-degree",
+    "15:1.0:10:10:final-stable",
+    "15:1.0:10:10:final-degree",
+    "12:rabbit:compose:sg_none:comm_identity:intra_hubsort",
+    "12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort",
+    CHARACTERIZATION_DENDROGRAM_ANCHOR,
+)
+_LEGACY_PIPELINE_ALIASES = {
+    "12:rabbit:compose:sg_none:comm_identity:intra_hubsort":
+        "GraphBrewOrder_rabbit_compose_sg_none_comm_identity_intra_hubsort",
+    "12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort":
+        "GraphBrewOrder_rabbit_compose_sg_super_rabbit_comm_identity_intra_hubsort",
 }
+_LABEL_TO_SPEC = {}
+for _symbol, spec, canonical in DEPLOYABLE_ARMS:
+    labels = {
+        spec,
+        canonical,
+        canonical_name_from_converter_opt(spec),
+    }
+    legacy_alias = _LEGACY_PIPELINE_ALIASES.get(spec)
+    if legacy_alias:
+        labels.add(legacy_alias)
+    for label in labels:
+        previous = _LABEL_TO_SPEC.setdefault(label, spec)
+        if previous != spec:
+            raise RuntimeError(
+                f"Adaptive portfolio alias collision: {label}"
+            )
 _SPEC_TO_CANONICAL = {
     spec: canonical
     for _symbol, spec, canonical in DEPLOYABLE_ARMS
@@ -76,6 +118,27 @@ def normalize_deployable_portfolio(
         try:
             spec = normalize_deployable_arm(label)
         except ValueError:
+            if (
+                isinstance(label, str)
+                and (
+                    label.startswith("RabbitCommunities_")
+                    or (
+                        "intra_hubsort" in label
+                        and (
+                            label.startswith(
+                                "GraphBrewOrder_rabbit_compose_"
+                            )
+                            or label.startswith(
+                                "12:rabbit:compose:"
+                            )
+                        )
+                    )
+                )
+            ):
+                raise ValueError(
+                    "Adaptive model contains an unrecognized Rabbit "
+                    f"portfolio alias: {label}"
+                )
             continue
         if spec in normalized and normalized[spec] != entry:
             raise ValueError(

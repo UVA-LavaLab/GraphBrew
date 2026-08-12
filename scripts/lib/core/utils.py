@@ -221,6 +221,13 @@ _CHAINED_ORDERING_OPTS: list[str] = [
 # Populated at module load by _build_chained_orderings() below all function defs.
 CHAINED_ORDERINGS: list[tuple[str, str]] = []
 
+ATTRIBUTED_ORDERING_NAMES = {
+    "12:rabbit:compose:sg_none:comm_identity:intra_hubsort":
+        "RabbitCommunities_HubSort_GraphBrewImpl",
+    "12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort":
+        "RabbitCommunities_SuperRabbit_HubSort_GraphBrewImpl",
+}
+
 
 def is_chained_ordering_name(name: str) -> bool:
     """Return True if *name* is a chained ordering (contains ``CHAIN_SEPARATOR``)."""
@@ -531,6 +538,8 @@ def algorithm_id_from_canonical_name(name: str) -> int:
     """Resolve a canonical result name to its numeric algorithm ID."""
     if is_chained_ordering_name(name):
         return -1
+    if name in ATTRIBUTED_ORDERING_NAMES.values():
+        return 12
     for algo_id, algo_name in ALGORITHMS.items():
         if name == algo_name:
             return algo_id
@@ -1270,6 +1279,11 @@ def canonical_algo_key(algo_id: int, variant: str | None = None) -> str:
         ``algo_converter_opt`` — the paired function that builds the
         ``-o`` flag for the C++ converter/benchmark binaries.
     """
+    attributed_opt = (
+        f"{algo_id}:{variant}" if variant else str(algo_id)
+    )
+    if attributed_opt in ATTRIBUTED_ORDERING_NAMES:
+        return ATTRIBUTED_ORDERING_NAMES[attributed_opt]
     if algo_id == 10 and variant:
         normalized = variant.replace(':', '_')
         if normalized in {"legacy", "default"}:
@@ -1351,6 +1365,9 @@ def canonical_name_from_converter_opt(opt: str) -> str:
             → "GraphBrewOrder_leiden_hrab_gvecsr_merge"
         canonical_name_from_converter_opt("9")           → "GORDER"
     """
+    opt = opt.strip()
+    if opt in ATTRIBUTED_ORDERING_NAMES:
+        return ATTRIBUTED_ORDERING_NAMES[opt]
     algo_id, params = parse_algorithm_option(opt)
     # Strip runtime-only depth-control tokens that don't change identity
     _RUNTIME_ONLY_TOKENS = {"flat", "norecurse", "recursive", "recurse"}

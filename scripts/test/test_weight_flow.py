@@ -516,6 +516,15 @@ class TestCanonicalNameFromOpt:
             "GraphBrewOrder_leiden_hrab_gvecsr_merge_hubx"
         )
 
+    def test_rabbit_composites_use_attributed_names(self):
+        assert canonical_name_from_converter_opt(
+            "12:rabbit:compose:sg_none:comm_identity:intra_hubsort"
+        ) == "RabbitCommunities_HubSort_GraphBrewImpl"
+        assert canonical_name_from_converter_opt(
+            "12:rabbit:compose:sg_super_rabbit:"
+            "comm_identity:intra_hubsort"
+        ) == "RabbitCommunities_SuperRabbit_HubSort_GraphBrewImpl"
+
     def test_flat_token_stripped_from_canonical_name(self):
         """Runtime-only tokens (flat, norecurse, recursive) are stripped."""
         assert canonical_name_from_converter_opt("12:leiden:flat") == "GraphBrewOrder_leiden"
@@ -1343,6 +1352,38 @@ class TestDBTraining:
             "bias"
         ] == 2.0
         assert "decision_tree" in payload
+
+    def test_claim_eligible_export_rejects_default_arm(
+        self, tmp_path, monkeypatch,
+    ):
+        from scripts.lib.core import datastore
+        from scripts.lib.ml.portfolio import DEPLOYABLE_ARM_SPECS
+        from scripts.lib.ml.feature_schema import TIER0_FEATURE_NAMES
+
+        weights_dir = tmp_path / "models" / "perceptron"
+        active = weights_dir / "type_0"
+        active.mkdir(parents=True, exist_ok=True)
+        default_entry = {
+            "bias": 0.61,
+            **{
+                f"w_t0_{name}": 0.0
+                for name in TIER0_FEATURE_NAMES
+            },
+        }
+        (active / "weights.json").write_text(json.dumps({
+            spec: default_entry
+            for spec in DEPLOYABLE_ARM_SPECS
+        }))
+        monkeypatch.setattr(datastore, "WEIGHTS_DIR", weights_dir)
+
+        with pytest.raises(
+            ValueError,
+            match="untrained default arm",
+        ):
+            datastore.export_unified_models(
+                tmp_path / "adaptive_models.json",
+                tier0_trained=True,
+            )
 
 
 def main():
