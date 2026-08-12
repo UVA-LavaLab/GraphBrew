@@ -249,6 +249,72 @@ def algo_color(name: str) -> str:
     return ALGO_COLORS.get(name, PAPER_PALETTE["grey"])
 
 
+KERNEL_SPEEDUP_LABELS = {
+    "DBG": "DBG",
+    "RabbitOrder (CSR)": "Rabbit-CSR",
+    "RabbitOrder (Boost)": "Rabbit-Boost",
+    "GORDER": "Gorder",
+    ALL_ALGORITHMS["12:leiden"]: "GB-Leiden",
+    ALL_ALGORITHMS["12:hrab:bfs_intra"]: "HRAB-BFS",
+    ALL_ALGORITHMS["12:hrab"]: "HRAB-RCM",
+    ALL_ALGORITHMS["12:rabbit"]: "GB-Rabbit",
+    ALL_ALGORITHMS["12:hubcluster"]: "GB-HubSplit",
+    "GoGraphOrder": "GoGraph",
+    "RCM": "RCM",
+}
+KERNEL_SPEEDUP_COLORS = (
+    "#4E79A7",
+    "#F28E2B",
+    "#E15759",
+    "#76B7B2",
+    "#59A14F",
+    "#EDC948",
+    "#B07AA1",
+    "#FF9DA7",
+    "#9C755F",
+    "#7F7F7F",
+    "#17BECF",
+)
+KERNEL_SPEEDUP_HATCHES = (
+    "",
+    "//",
+    "\\\\",
+    "xx",
+    "..",
+    "++",
+    "oo",
+    "--",
+    "**",
+    "||",
+    "OO",
+)
+
+
+def kernel_speedup_label(algorithm: str) -> str:
+    """Return the concise label used by the dense speedup figures."""
+    return KERNEL_SPEEDUP_LABELS.get(algorithm, algorithm)
+
+
+def kernel_speedup_styles(
+    algorithms: list[str],
+) -> dict[str, tuple[str, str]]:
+    """Assign redundant high-contrast color+hatch styles."""
+    return {
+        algorithm: (
+            KERNEL_SPEEDUP_COLORS[index % len(KERNEL_SPEEDUP_COLORS)],
+            KERNEL_SPEEDUP_HATCHES[index % len(KERNEL_SPEEDUP_HATCHES)],
+        )
+        for index, algorithm in enumerate(algorithms)
+    }
+
+
+def append_graph_geomean(values: list[float]) -> list[float]:
+    """Append the all-graph geometric mean to a complete speedup vector."""
+    if not values or any(value <= 0 for value in values):
+        raise ValueError("Graph speedups must be complete and positive")
+    return [*values, _geo_mean(values)]
+
+
 CACHE_ALGO_STYLES = {
     "0": ("SHUFFLED", "#222222", "x", "--"),
     "5": ("DBG", "#4C78A8", "o", "-"),
@@ -800,7 +866,7 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
     if not key_algos:
         key_algos = sorted(all_algos)[:10]
 
-    algo_colors = {a: algo_color(a) for a in key_algos}
+    algo_styles = kernel_speedup_styles(key_algos)
 
     # Compact layout for paper inclusion: per-benchmark stacked vertically,
     # full text width.  One axes per benchmark + one aggregate.
@@ -820,14 +886,20 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
         for algo in key_algos:
             vals = bench_algo_speedups[bench].get(algo, [])
             means.append(_geo_mean(vals) if vals else 1.0)
-        colors = [algo_colors[a] for a in key_algos]
+        colors = [algo_styles[a][0] for a in key_algos]
         x = np.arange(len(key_algos))
-        ax.bar(x, means, 0.78, color=colors,
-               edgecolor="black", linewidth=0.5)
+        bars = ax.bar(
+            x, means, 0.78, color=colors,
+            edgecolor="black", linewidth=0.5,
+        )
+        for bar, algorithm in zip(bars, key_algos):
+            bar.set_hatch(algo_styles[algorithm][1])
         ax.axhline(y=1.0, color="#666666", linestyle="--", linewidth=0.5)
         ax.set_xticks(x)
-        ax.set_xticklabels([a.replace("GB-", "") for a in key_algos],
-                           rotation=40, ha="right", fontsize=6)
+        ax.set_xticklabels(
+            [kernel_speedup_label(a) for a in key_algos],
+            rotation=45, ha="right", fontsize=6,
+        )
         if idx % ncols == 0:
             ax.set_ylabel("Speedup", fontsize=8)
         ax.set_title(bench.upper(), fontsize=8, pad=2)
@@ -845,15 +917,21 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
                 if vals:
                     all_speedups.append(_geo_mean(vals))
             gm_vals.append(_geo_mean(all_speedups) if all_speedups else 1.0)
-        colors = [algo_colors[a] for a in key_algos]
+        colors = [algo_styles[a][0] for a in key_algos]
         x = np.arange(len(key_algos))
-        ax.bar(x, gm_vals, 0.78, color=colors,
-               edgecolor="black", linewidth=0.5)
+        bars = ax.bar(
+            x, gm_vals, 0.78, color=colors,
+            edgecolor="black", linewidth=0.5,
+        )
+        for bar, algorithm in zip(bars, key_algos):
+            bar.set_hatch(algo_styles[algorithm][1])
         ax.axhline(y=1.0, color="#666666", linestyle="--", linewidth=0.5)
         ax.set_xticks(x)
-        ax.set_xticklabels([a.replace("GB-", "") for a in key_algos],
-                           rotation=40, ha="right", fontsize=6)
-        ax.set_title("GM", fontsize=8, pad=2)
+        ax.set_xticklabels(
+            [kernel_speedup_label(a) for a in key_algos],
+            rotation=45, ha="right", fontsize=6,
+        )
+        ax.set_title("All-kernel GM", fontsize=8, pad=2)
         ax.tick_params(axis="y", pad=1)
         ax.margins(x=0.02)
 
@@ -870,31 +948,60 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
     for bench in benchmarks_plot:
         fig, ax = plt.subplots(figsize=(TWOCOL_WIDTH_IN, 2.2))
         graphs_in_bench = sorted(set(r["graph"] for r in data if r["benchmark"] == bench))
-        x = np.arange(len(graphs_in_bench))
+        x = np.arange(len(graphs_in_bench) + 1)
         n_algos = len(key_algos)
         width = 0.84 / max(n_algos, 1)
         for i, algo in enumerate(key_algos):
-            vals = []
+            graph_speedups = []
             for g in graphs_in_bench:
                 bl = baseline.get((g, bench), 1.0)
                 rec = [r for r in data if r["graph"] == g and r["benchmark"] == bench
                        and r["algorithm"] == algo]
                 metric = run_metric(rec[0]) if rec else None
                 if metric and bl > 0:
-                    vals.append(bl / metric)
+                    graph_speedups.append(bl / metric)
                 else:
-                    vals.append(0)
-            ax.bar(x + i * width - 0.42 + width/2, vals, width,
-                   label=algo.replace("GB-", ""),
-                   color=algo_colors[algo], edgecolor="black", linewidth=0.4)
+                    raise RuntimeError(
+                        f"Incomplete graph speedup for {bench}/{g}/{algo}"
+                    )
+            vals = append_graph_geomean(graph_speedups)
+            bars = ax.bar(
+                x + i * width - 0.42 + width / 2,
+                vals,
+                width,
+                label=kernel_speedup_label(algo),
+                color=algo_styles[algo][0],
+                edgecolor="black",
+                linewidth=0.4,
+            )
+            for bar in bars:
+                bar.set_hatch(algo_styles[algo][1])
         ax.set_xticks(x)
         short_names = {g["name"]: g["short"] for gl in [EVAL_GRAPHS] for g in gl}
-        ax.set_xticklabels([short_names.get(g, g[:12]) for g in graphs_in_bench],
-                           rotation=30, ha="right", fontsize=7)
+        ax.set_xticklabels(
+            [
+                *[short_names.get(g, g[:12]) for g in graphs_in_bench],
+                "GM",
+            ],
+            rotation=30,
+            ha="right",
+            fontsize=7,
+        )
+        ax.get_xticklabels()[-1].set_fontweight("bold")
+        ax.axvline(
+            len(graphs_in_bench) - 0.5,
+            color="#444444",
+            linestyle=":",
+            linewidth=0.8,
+        )
         ax.set_ylabel("Speedup", fontsize=8)
-        ax.set_title(f"{bench.upper()} — per-graph", fontsize=8, pad=2)
+        ax.set_title(
+            f"{bench.upper()} — per-graph + GM",
+            fontsize=8,
+            pad=2,
+        )
         ax.axhline(y=1.0, color="#666666", linestyle="--", linewidth=0.5)
-        ax.legend(fontsize=6, ncol=min(len(key_algos), 5),
+        ax.legend(fontsize=6, ncol=min(len(key_algos), 4),
                   loc="upper center", bbox_to_anchor=(0.5, 1.22),
                   frameon=True)
         plt.tight_layout(pad=0.3)

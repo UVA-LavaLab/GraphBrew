@@ -21,6 +21,7 @@ from scripts.experiments.vldb import figures, runner
 from scripts.experiments.vldb.config import (
     ABLATION_CONTRASTS,
     ABLATION_CONFIGS,
+    ALL_ALGORITHMS,
     ALGORITHM_GRAPH_EXCLUSION_EVIDENCE,
     ALGORITHM_GRAPH_EXCLUSIONS,
     CACHE_GRAPH_NAMES,
@@ -326,6 +327,34 @@ def test_structured_graphbrew_realization_is_validated():
         runner.validate_graphbrew_realized_configs(
             ["-o", spec], [effective], parsed,
         )
+
+
+def test_kernel_speedup_figure_uses_distinct_compact_styles_and_gm():
+    algorithms = [
+        "DBG",
+        "RabbitOrder (CSR)",
+        "RabbitOrder (Boost)",
+        "GORDER",
+        ALL_ALGORITHMS["12:leiden"],
+        ALL_ALGORITHMS["12:hrab:bfs_intra"],
+        ALL_ALGORITHMS["12:hrab"],
+        ALL_ALGORITHMS["12:rabbit"],
+        ALL_ALGORITHMS["12:hubcluster"],
+        "GoGraphOrder",
+        "RCM",
+    ]
+    labels = [
+        figures.kernel_speedup_label(algorithm)
+        for algorithm in algorithms
+    ]
+    styles = figures.kernel_speedup_styles(algorithms)
+    assert len(labels) == len(set(labels))
+    assert max(map(len, labels)) <= 12
+    assert len({style[0] for style in styles.values()}) == len(algorithms)
+    assert len({style[1] for style in styles.values()}) == len(algorithms)
+    assert figures.append_graph_geomean([1.0, 4.0]) == pytest.approx(
+        [1.0, 4.0, 2.0]
+    )
 
 
 def test_compose_supergraph_requires_explicit_community_order():

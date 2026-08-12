@@ -51,6 +51,13 @@ research/dataCharts/cache/*
 research/dataCharts/speedup/*
 !research/dataCharts/speedup/aggregateSpeedups.png
 !research/dataCharts/speedup/overheadReorder.png
+!research/dataCharts/speedup/BFS.png
+!research/dataCharts/speedup/PR.png
+!research/dataCharts/speedup/SpMV.png
+!research/dataCharts/speedup/SSSP.png
+!research/dataCharts/speedup/CC.png
+!research/dataCharts/speedup/CC_SV.png
+!research/dataCharts/speedup/BC.png
 !research/dataCharts/tables/
 research/dataCharts/tables/*
 !research/dataCharts/tables/table_kernel_speedup.tex
