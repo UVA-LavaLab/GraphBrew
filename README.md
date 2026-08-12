@@ -112,7 +112,7 @@ Use `-o <id[:options]>` to select an ordering.
 | 13 | MAP | Load a pre-generated `.lo` mapping |
 | 14 | AdaptiveOrder | Load-only offline selector |
 | 15 | LeidenOrder | GVE-Leiden baseline |
-| 16 | GoGraphOrder | GoGraph reference ordering |
+| 16 | GoGraphOrder | M-maximizing core diagnostic; published Rabbit clustering omitted |
 
 Algorithm IDs, option parsing, C++ dispatch, Python canonical names, and
 experiment matrices must remain synchronized.

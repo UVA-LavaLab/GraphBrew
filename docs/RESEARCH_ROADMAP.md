@@ -149,12 +149,16 @@ Baseline hygiene findings discovered by the same review:
 - the GoGraph header cites TPDS 2024, while the verified paper is ICDE 2024;
 - DON-Lite cites ICDE 2024, while the identifiable DON-RL paper is WISE 2021,
   and the fixed-weight heuristic is not a faithful DON-RL implementation.
+- Algorithm 16 omits the published GoGraph Rabbit-clustering/supernode stage;
+  on symmetric graphs its M objective is constant, so it is a core diagnostic
+  rather than a faithful standalone baseline.
 
 The source identities are now corrected, Algorithm 10 is deterministic, and
 `10:canonical` exposes the upstream-sized baseline without changing frozen
-bare-`10` evidence. Rebo and FrontOrder still require a final domain-expert
-review before any novelty claim. This is technical prior-art analysis, not
-legal advice.
+bare-`10` evidence. A faithful GoGraph baseline remains blocked on the
+published Rabbit-cluster stage and directed/asymmetric evaluation. Rebo and
+FrontOrder still require a final domain-expert review before any novelty
+claim. This is technical prior-art analysis, not legal advice.
 
 ## Phase 0: Data-Integrity and SSOT Cleanup
 

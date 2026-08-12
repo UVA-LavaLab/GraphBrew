@@ -264,9 +264,9 @@ CORDER_VARIANTS = ("legacy", "canonical")
 CORDER_DEFAULT_VARIANT = "legacy"
 
 # GoGraph variants: -o 16:variant
-# "default" = faithful GetOptVal greedy M-maximizing insertion (paper algorithm)
+# "default" = optimized GetOptVal M-maximizing core (paper clustering omitted)
 # "fast"  = iterative flow-score sorting (heuristic, O(n log n + m) per iter)
-# "naive" = original faithful (per-call unordered_map, for validation)
+# "naive" = unoptimized core (per-call unordered_map, for validation)
 # Each variant produces a *different* ordering, so they get separate weights.
 GOGRAPH_VARIANTS = ("default", "fast", "naive")
 GOGRAPH_DEFAULT_VARIANT = "default"
@@ -463,7 +463,7 @@ DISPLAY_TO_CANONICAL: dict[str, str] = {
     # LeidenOrder is its own algorithm (C++ enum 15)
     "LeidenOrder": "LeidenOrder",
     # GoGraph FEF-maximizing reordering (P3 3.4)
-    "GoGraphOrder": "GoGraphOrder",
+    "GoGraphOrder": "GOGRAPHORDER_default",
 }
 
 

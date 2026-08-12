@@ -1,9 +1,15 @@
 // ===========================================================================
-// reorder_gograph.h — GoGraph M(σ)-maximizing vertex reordering (P3 3.4)
+// reorder_gograph.h — GoGraph M(σ)-maximizing core diagnostic
 //
-// Faithful implementation of the GoGraph algorithm from:
+// Implements the vertex-level M(σ)-maximizing core from:
 //   Zhou et al., "Fast Iterative Graph Computing with Updated Neighbor
 //   States", IEEE ICDE 2024, pp. 2449-2462.
+//
+// IMPORTANT BASELINE BOUNDARY:
+// The published pipeline clusters the regular graph with RabbitOrder, orders
+// the cluster graph, then orders vertices within clusters before reinserting
+// hubs and isolated vertices. This file omits that Rabbit clustering stage and
+// therefore is NOT a faithful standalone GoGraph baseline.
 //
 // Core idea: Maximize M(σ) = count of "positive edges" (u,v) where
 // σ(u) < σ(v), i.e., source vertex precedes destination in the processing
@@ -16,8 +22,7 @@
 //      - Extract hub vertices (top 0.2% by degree)
 //      - Identify newly-isolated vertices (non-hubs with all neighbors
 //        being hubs)
-//      NOTE: Community partitioning (paper's Louvain/Metis) is omitted
-//      because when used from AdaptiveOrder, Leiden is already applied.
+//      NOTE: The paper's RabbitOrder clustering/supernode stage is omitted.
 //
 //   2. CONQUER PHASE:
 //      - BFS vertex selection order (starting from highest-degree vertex)
@@ -42,10 +47,10 @@
 // Complexity: O(m · log d_max) for GetOptVal + O(n log n) for final sort
 //
 // Variants:
-//   default — Optimized faithful implementation: flat delta array instead
+//   default — Optimized core implementation: flat delta array instead
 //             of per-call unordered_map, merged pev computation (one fewer
 //             neighbor scan), degree-1 short-circuit, wider renumber interval.
-//   :naive  — Original faithful implementation: per-call unordered_map,
+//   :naive  — Unoptimized core implementation: per-call unordered_map,
 //             separate pev scan, renumber every 10K vertices. Useful for
 //             validation and comparison with the optimized variant.
 //   :fast   — Iterative flow-score sorting (O(n log n + m) per iter).
@@ -55,7 +60,9 @@
 //
 // NOTE: For symmetric/undirected graphs, M(σ) is constant for any ordering
 // (each undirected edge contributes exactly 1 regardless of vertex order).
-// GoGraph benefits primarily directed graphs or asymmetric CSR storage.
+// GoGraph's M objective benefits directed/asymmetric storage. On a symmetric
+// graph M is constant, so any observed effect is layout noise/side effect, not
+// evidence for the published convergence objective.
 // Source: https://github.com/iDC-NEU/GoGraph
 // ===========================================================================
 
@@ -278,6 +285,11 @@ void GenerateGoGraphMappingImpl(const CSRGraph<NodeID_, DestID_, invert>& g,
                                 bool /*useOutdeg*/ = true) {
     const int64_t n = g.num_nodes();
     if (n <= 0) return;
+    if (!g.directed()) {
+        PrintLabel(
+            "GoGraph Objective",
+            "constant-on-symmetric-graph");
+    }
 
     using namespace gograph_impl;
 
@@ -538,7 +550,7 @@ void GenerateGoGraphMappingImpl(const CSRGraph<NodeID_, DestID_, invert>& g,
 // =============================================================================
 
 /**
- * @brief GoGraph M(σ)-maximizing reordering — optimized (default variant).
+ * @brief GoGraph M(σ)-maximizing core — optimized default variant.
  *
  * Uses flat delta array, merged pev computation, degree-1 short-circuit,
  * and wider renumber interval for better performance. Produces identical
@@ -554,7 +566,7 @@ void GenerateGoGraphMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 /**
  * @brief GoGraph M(σ)-maximizing reordering — naive variant (:naive).
  *
- * Original faithful implementation with per-call unordered_map and
+ * Unoptimized core implementation with per-call unordered_map and
  * separate pev scan. Useful for validation and comparison against
  * the optimized default variant.
  */

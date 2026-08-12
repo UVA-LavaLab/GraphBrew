@@ -66,7 +66,7 @@ BASELINE_ALGORITHMS = {
     8: "RABBITORDER",
     9: "GORDER",
     11: "RCM",
-    16: "GoGraphOrder",
+    16: "GoGraph-Core",
 }
 
 # GraphBrew variants (all use algorithm ID 12)

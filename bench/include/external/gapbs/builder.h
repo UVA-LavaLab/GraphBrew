@@ -1459,8 +1459,22 @@ public:
             GenerateAdaptiveMapping(g, new_ids, useOutdeg, reordering_options);
             break;
         case GoGraphOrder:
-            GenerateGoGraphMapping(g, new_ids, useOutdeg);
-            break;
+        {
+            std::string gograph_variant =
+                resolveVariant(reordering_options, "default");
+            if (gograph_variant == "fast") {
+                GenerateGoGraphFastMapping(g, new_ids, useOutdeg);
+            } else if (gograph_variant == "naive") {
+                GenerateGoGraphNaiveMapping(g, new_ids, useOutdeg);
+            } else {
+                warnUnknownVariant(
+                    gograph_variant,
+                    "GoGraphOrder",
+                    {"default", "fast", "naive"});
+                GenerateGoGraphMapping(g, new_ids, useOutdeg);
+            }
+        }
+        break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
             break;
@@ -1510,6 +1524,10 @@ public:
                 && resolveVariant(
                     reordering_options, "legacy") == "canonical") {
                 algo_name = "CORDER_canonical";
+            }
+            if (reordering_algo == GoGraphOrder) {
+                algo_name = "GOGRAPHORDER_"
+                    + resolveVariant(reordering_options, "default");
             }
 
             // ── MAP mode: derive real algorithm identity from .lo filename ──
@@ -1757,8 +1775,22 @@ public:
             GenerateAdaptiveMapping(g, new_ids, useOutdeg, reordering_options);
             break;
         case GoGraphOrder:
-            GenerateGoGraphMapping(g, new_ids, useOutdeg);
-            break;
+        {
+            std::string gograph_variant =
+                resolveVariant(reordering_options, "default");
+            if (gograph_variant == "fast") {
+                GenerateGoGraphFastMapping(g, new_ids, useOutdeg);
+            } else if (gograph_variant == "naive") {
+                GenerateGoGraphNaiveMapping(g, new_ids, useOutdeg);
+            } else {
+                warnUnknownVariant(
+                    gograph_variant,
+                    "GoGraphOrder",
+                    {"default", "fast", "naive"});
+                GenerateGoGraphMapping(g, new_ids, useOutdeg);
+            }
+        }
+        break;
         case MAP:
             LoadMappingFromFile(g, new_ids, reordering_options);
             break;

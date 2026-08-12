@@ -44,7 +44,7 @@ the other IDs are individual primitives or baselines.
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
 | 14 | `-o 14` | AdaptiveOrder | varies | ML selector; research-only, see [AdaptiveOrder-ML](AdaptiveOrder-ML) |
 | 15 | `-o 15` | LeidenOrder | O(n log n + m) | native GVE-Leiden, no post-ordering layer |
-| 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | maximises forward-edge fraction |
+| 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; published Rabbit clustering omitted |
 
 ## When to use what
 
@@ -184,11 +184,13 @@ baseline distinct from RabbitOrder's single-pass Louvain.
 
 ### Forward-edge maximisation (16)
 
-**GoGraphOrder** (`-o 16`) — Zhou et al. (2024). Hub-aware BFS
-followed by greedy vertex insertion that maximises the fraction of
-edges where `src < dst` in the ordering. Specifically helps
-Gauss-Seidel iterations (standard PR formulation). Has no effect
-on double-buffered Jacobi algorithms like PR-SpMV.
+**GoGraphOrder** (`-o 16`) — core of Zhou et al. (ICDE 2024).
+Hub-aware BFS is followed by greedy insertion that maximizes edges where
+`src < dst`. The published pipeline first applies RabbitOrder clustering and
+orders the cluster graph; GraphBrew currently omits that stage, so Algorithm
+16 is a diagnostic rather than a faithful standalone baseline. On symmetric
+graphs the M objective is constant. It targets asynchronous/Gauss-Seidel
+convergence, not double-buffered Jacobi kernels such as PR-SpMV.
 
 Variants:
 

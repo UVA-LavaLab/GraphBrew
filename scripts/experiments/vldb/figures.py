@@ -199,6 +199,7 @@ ALGO_COLORS = {
     "GORDER":        PAPER_PALETTE["cream"],
     "Gorder":        PAPER_PALETTE["cream"],
     "GoGraphOrder":  PAPER_PALETTE["green"],
+    "GoGraph-Core":  PAPER_PALETTE["green"],
     "RCM":           PAPER_PALETTE["grey"],
     # GraphBrew headline
     "GraphBrew":     PAPER_PALETTE["orange"],
@@ -260,7 +261,8 @@ KERNEL_SPEEDUP_LABELS = {
     ALL_ALGORITHMS["12:hrab"]: "HRAB-RCM",
     ALL_ALGORITHMS["12:rabbit"]: "GB-Rabbit",
     ALL_ALGORITHMS["12:hubcluster"]: "GB-HubSplit",
-    "GoGraphOrder": "GoGraph",
+    "GoGraphOrder": "GoGraph-Core",
+    "GoGraph-Core": "GoGraph-Core",
     "RCM": "RCM",
 }
 KERNEL_SPEEDUP_COLORS = (
@@ -1003,7 +1005,7 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
         ALL_ALGORITHMS["12:hrab"],
         ALL_ALGORITHMS["12:rabbit"],
         ALL_ALGORITHMS["12:hubcluster"],
-        "GoGraphOrder", "RCM",
+        ALL_ALGORITHMS["16"], "RCM",
     ]
     all_algos = set()
     for b in benchmarks_plot:
@@ -1437,7 +1439,7 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
         ALL_ALGORITHMS["12:hrab"],
         ALL_ALGORITHMS["12:rabbit"],
         ALL_ALGORITHMS["12:hubcluster"],
-        "GoGraphOrder", "RCM",
+        ALL_ALGORITHMS["16"], "RCM",
     ]
     all_algos = set()
     for g in graphs:

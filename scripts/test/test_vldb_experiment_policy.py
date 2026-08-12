@@ -396,7 +396,7 @@ def test_kernel_speedup_figure_uses_distinct_compact_styles_and_gm():
         ALL_ALGORITHMS["12:hrab"],
         ALL_ALGORITHMS["12:rabbit"],
         ALL_ALGORITHMS["12:hubcluster"],
-        "GoGraphOrder",
+        ALL_ALGORITHMS["16"],
         "RCM",
     ]
     labels = [
