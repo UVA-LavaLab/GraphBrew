@@ -38,7 +38,7 @@ the other IDs are individual primitives or baselines.
 | 7 | `-o 7` | HUBCLUSTERDBG | O(n) | DBG buckets + hub-cluster within |
 | 8 | `-o 8` | RABBITORDER | O(n log n + m) | Louvain + dendrogram DFS; variants `csr` (default), `boost` |
 | 9 | `-o 9:csr` | GORDER | O(n·w + m) | faithful CSR sliding-window greedy, w=5; `9:gograph` forces the legacy validation path and bare `9` auto-selects CSR above the 32-bit edge range |
-| 10 | `-o 10` | CORDER | O(n log n) | cache-aware bandwidth reduction |
+| 10 | `-o 10` | CORDER | O(n) | hot/cold workload segments; `10` historical 1K, `10:canonical` upstream 1 MiB |
 | 11 | `-o 11` | RCM | O(n log n + m) | Reverse Cuthill–McKee; variants `default`, `bnf` |
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
@@ -114,8 +114,9 @@ NP-hard in the limit; reorder time is typically 10-100× a community
 method on the same graph. `-o 9:gograph` forces the mapping-equivalent
 legacy validation path; bare `-o 9` is compatibility auto mode.
 
-**CORDER** (`-o 10`) — cache-aware bandwidth reduction. Less common;
-included for completeness.
+**CORDER** (`-o 10`) — degree-based hot/cold workload balancing. Bare
+`-o 10` preserves GraphBrew's historical 1,024-vertex partitions;
+`-o 10:canonical` uses the upstream 1 MiB float-property segment.
 
 ### Bandwidth-based (11)
 

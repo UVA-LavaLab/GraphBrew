@@ -161,7 +161,12 @@ def expand_algorithms_with_variants(
     Returns:
         List of AlgorithmConfig objects
     """
-    from scripts.lib.core.utils import GORDER_VARIANTS, GORDER_DEFAULT_VARIANT
+    from scripts.lib.core.utils import (
+        CORDER_DEFAULT_VARIANT,
+        CORDER_VARIANTS,
+        GORDER_VARIANTS,
+        GORDER_DEFAULT_VARIANT,
+    )
     
     if rabbit_variants is None:
         # When expanding variants, include both RabbitOrder variants; otherwise just csr
@@ -225,6 +230,22 @@ def expand_algorithms_with_variants(
                 name=canonical_algo_key(algo_id, variant),
                 option_string=algo_converter_opt(algo_id, variant),
                 variant=variant
+            ))
+        elif algo_id == 10 and expand_leiden_variants:
+            for variant in CORDER_VARIANTS:
+                configs.append(AlgorithmConfig(
+                    algo_id=algo_id,
+                    name=canonical_algo_key(algo_id, variant),
+                    option_string=algo_converter_opt(algo_id, variant),
+                    variant=variant,
+                ))
+        elif algo_id == 10:
+            configs.append(AlgorithmConfig(
+                algo_id=algo_id,
+                name=canonical_algo_key(
+                    algo_id, CORDER_DEFAULT_VARIANT),
+                option_string=algo_converter_opt(algo_id),
+                variant=CORDER_DEFAULT_VARIANT,
             ))
         elif algo_id == 15:
             # LeidenOrder: just resolution

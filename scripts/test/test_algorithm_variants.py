@@ -140,6 +140,7 @@ TIER1_BASIC = [
     ("8",  "RABBITORDER_default"),
     ("9",  "GORDER"),
     ("10", "CORDER"),
+    ("10:canonical", "CORDER_canonical"),
     ("11", "RCMORDER"),
     ("12", "GraphBrewOrder_default"),
     ("15", "LeidenOrder_default"),

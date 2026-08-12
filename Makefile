@@ -418,7 +418,7 @@ lint-includes:
 check-python:
 	$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS) $(PYTEST_SELECT)
 
-check: lint-includes check-native-core $(BIN_DIR)/pr $(BIN_SIM_DIR)/pr
+check: lint-includes check-native-core $(BIN_DIR)/pr $(BIN_SIM_DIR)/pr $(BIN_DIR)/converter
 	$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS) $(PYTEST_SELECT)
 
 # Run simulation with default parameters (single-core mode)

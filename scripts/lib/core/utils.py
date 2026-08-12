@@ -257,6 +257,12 @@ RABBITORDER_DEFAULT_VARIANT = "csr"
 GORDER_VARIANTS = ("default", "gograph", "csr", "fast")
 GORDER_DEFAULT_VARIANT = "default"
 
+# COrder implementation variants: -o 10:variant
+# Bare ID 10 preserves the historical 1K-vertex GraphBrew baseline.
+# `canonical` uses the upstream 1 MiB float-property segment.
+CORDER_VARIANTS = ("legacy", "canonical")
+CORDER_DEFAULT_VARIANT = "legacy"
+
 # GoGraph variants: -o 16:variant
 # "default" = faithful GetOptVal greedy M-maximizing insertion (paper algorithm)
 # "fast"  = iterative flow-score sorting (heuristic, O(n log n + m) per iter)
@@ -416,19 +422,22 @@ VARIANT_ALGO_IDS = frozenset(_VARIANT_ALGO_REGISTRY.keys())
 
 
 def get_algo_variants(algo_id: int) -> tuple[str, ...] | None:
-    """Return the variant tuple for an algorithm, or ``None`` if not a variant algo.
+    """Return execution variants for an algorithm, if declared.
 
-    This is the public accessor for the variant list stored in
-    ``_VARIANT_ALGO_REGISTRY``.  Callers should use this instead of
-    destructuring the private registry directly.
+    Selector-identity variants come from ``_VARIANT_ALGO_REGISTRY``. COrder is
+    a compatibility exception: its bare historical identity remains
+    ``CORDER``, while ``canonical`` is an explicit baseline implementation.
 
     Examples::
 
         get_algo_variants(8)   → ("csr", "boost")
+        get_algo_variants(10)  → ("legacy", "canonical")
         get_algo_variants(12)  → ("leiden", "rabbit", "hubcluster", "hrab", "tqr", "hcache", "streaming")
         get_algo_variants(16)  → ("default", "fast", "naive")
         get_algo_variants(2)   → None
     """
+    if algo_id == 10:
+        return CORDER_VARIANTS
     entry = _VARIANT_ALGO_REGISTRY.get(algo_id)
     return entry[1] if entry else None
 
@@ -444,6 +453,7 @@ DISPLAY_TO_CANONICAL: dict[str, str] = {
     "Random": "RANDOM", "Sort": "SORT", "HubSort": "HUBSORT",
     "HubCluster": "HUBCLUSTER", "HubSortDBG": "HUBSORTDBG",
     "HubClusterDBG": "HUBCLUSTERDBG", "COrder": "CORDER",
+    "COrder_canonical": "CORDER_canonical",
     "GOrder": "GORDER", "Original": "ORIGINAL",
     # Bare C++ display → default variant (backward compat)
     # Variant algorithms: bare name → canonical with default variant suffix
@@ -460,9 +470,9 @@ DISPLAY_TO_CANONICAL: dict[str, str] = {
 def get_all_algorithm_variant_names() -> list[str]:
     """Get all canonical algorithm names including variant-expanded names.
 
-    This is the SSOT list of names that appear in weight files and
-    perceptron scoring.  Derived from ALGORITHMS + the variant registry
-    + chained orderings.
+    This is the SSOT list of names that appear in offline fitting data.
+    Derived from ALGORITHMS, declared execution variants, and chained
+    orderings.
 
     Returns:
         Sorted list of canonical names like:
@@ -474,7 +484,9 @@ def get_all_algorithm_variant_names() -> list[str]:
     for algo_id, algo_name in ALGORITHMS.items():
         if algo_name in ("ORIGINAL", "RANDOM", "MAP", "AdaptiveOrder"):
             continue
-        if algo_id in _VARIANT_ALGO_REGISTRY:
+        if algo_id == 10:
+            names.extend(("CORDER", "CORDER_canonical"))
+        elif algo_id in _VARIANT_ALGO_REGISTRY:
             prefix, variants, _ = _VARIANT_ALGO_REGISTRY[algo_id]
             for v in variants:
                 names.append(f"{prefix}{v}")
@@ -1169,6 +1181,13 @@ def canonical_algo_key(algo_id: int, variant: str | None = None) -> str:
         ``algo_converter_opt`` — the paired function that builds the
         ``-o`` flag for the C++ converter/benchmark binaries.
     """
+    if algo_id == 10 and variant:
+        normalized = variant.replace(':', '_')
+        if normalized in {"legacy", "default"}:
+            return "CORDER"
+        if normalized not in CORDER_VARIANTS:
+            raise ValueError(f"Unknown COrder variant: {variant}")
+        return f"CORDER_{normalized}"
     if algo_id in _VARIANT_ALGO_REGISTRY:
         prefix, _, default = _VARIANT_ALGO_REGISTRY[algo_id]
         v = variant or default

@@ -1,14 +1,18 @@
 // ===========================================================================
 // reorder_don_lite.h — DON-Lite neural vertex ordering (P3 3.1f)
 //
-// Implements a lightweight neural reordering based on the DON-RL framework
-// (Zhao et al., ICDE'24). Uses a small fixed-weight MLP (2 layers, 32 hidden)
-// to compute a per-vertex "locality score". Vertices are then sorted by
-// this score to produce an ordering that maximizes cache locality.
+// Implements a lightweight fixed-weight neural heuristic inspired by DON-RL:
+//   Zhao et al., "Graph Ordering: Towards the Optimal by Learning,"
+//   WISE 2021, LNCS 13080, pp. 423-437.
+//   DOI: 10.1007/978-3-030-90888-1_33.
 //
-// The MLP is trained offline and weights are hardcoded at compile time.
-// This avoids any runtime training overhead while still benefiting from
-// learned vertex importance patterns.
+// This is NOT a faithful implementation of DON-RL's reinforcement-learning
+// policy or its Gorder locality objective. It is a diagnostic heuristic that
+// sorts vertices by a small hand-initialized MLP score and must not be reported
+// as a DON-RL baseline.
+//
+// The current MLP weights are initialized deterministically in code; they are
+// not a published DON-RL checkpoint. No runtime training occurs.
 //
 // Input features per vertex (5):
 //   [0] normalized_degree = degree / max_degree

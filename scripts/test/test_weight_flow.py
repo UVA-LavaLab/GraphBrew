@@ -305,8 +305,9 @@ class TestVariantRegistrySSOT:
         assert set(VARIANT_PREFIXES) == registry_prefixes
 
     def test_variant_algo_ids_complete(self):
-        """Every algo with variants should be in VARIANT_ALGO_IDS."""
+        """Selector-identity variants should be in VARIANT_ALGO_IDS."""
         assert 8 in VARIANT_ALGO_IDS   # RabbitOrder
+        assert 10 not in VARIANT_ALGO_IDS  # bare CORDER identity is frozen
         assert 11 in VARIANT_ALGO_IDS  # RCM
         assert 12 in VARIANT_ALGO_IDS  # GraphBrewOrder
         assert 16 in VARIANT_ALGO_IDS  # GoGraphOrder
@@ -326,6 +327,7 @@ class TestVariantRegistrySSOT:
         assert "GraphBrewOrder_leiden" in names
         assert "GraphBrewOrder_rabbit" in names
         assert "GraphBrewOrder_hubcluster" in names
+        assert "CORDER_canonical" in names
         assert "LeidenOrder" in names
 
     def test_get_all_variant_names_excludes_meta(self):
@@ -426,6 +428,7 @@ class TestVariantRegistrySSOT:
     def test_get_algo_variants_variant_algos(self):
         """get_algo_variants() returns variant tuples for registered algorithms."""
         assert get_algo_variants(8) == RABBITORDER_VARIANTS
+        assert get_algo_variants(10) == ("legacy", "canonical")
         assert get_algo_variants(11) == RCM_VARIANTS
         assert get_algo_variants(12) == GRAPHBREW_VARIANTS
 

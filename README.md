@@ -106,7 +106,7 @@ Use `-o <id[:options]>` to select an ordering.
 | 7 | HUBCLUSTERDBG | HubCluster + DBG |
 | 8 | RABBITORDER | Rabbit CSR/Boost baseline |
 | 9 | GORDER | Window-locality baseline |
-| 10 | CORDER | Workload-oriented baseline |
+| 10 | CORDER | Historical 1K baseline; `10:canonical` uses upstream 1 MiB segments |
 | 11 | RCM | Bandwidth-oriented baseline |
 | 12 | GraphBrewOrder | Configurable GraphBrew pipeline |
 | 13 | MAP | Load a pre-generated `.lo` mapping |

@@ -24,7 +24,7 @@ def test_make_check_excludes_extended_reference_suites():
 
     assert (
         "check: lint-includes check-native-core "
-        "$(BIN_DIR)/pr $(BIN_SIM_DIR)/pr"
+        "$(BIN_DIR)/pr $(BIN_SIM_DIR)/pr $(BIN_DIR)/converter"
     ) in makefile
     assert "$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS)" in makefile
     check_declaration = next(

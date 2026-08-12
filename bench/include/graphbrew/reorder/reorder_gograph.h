@@ -2,8 +2,8 @@
 // reorder_gograph.h — GoGraph M(σ)-maximizing vertex reordering (P3 3.4)
 //
 // Faithful implementation of the GoGraph algorithm from:
-//   Zhou et al., "GoGraph: Fast Iterative Graph Computing with Updated
-//   Neighbor States", IEEE TPDS 2024.
+//   Zhou et al., "Fast Iterative Graph Computing with Updated Neighbor
+//   States", IEEE ICDE 2024, pp. 2449-2462.
 //
 // Core idea: Maximize M(σ) = count of "positive edges" (u,v) where
 // σ(u) < σ(v), i.e., source vertex precedes destination in the processing
@@ -56,6 +56,7 @@
 // NOTE: For symmetric/undirected graphs, M(σ) is constant for any ordering
 // (each undirected edge contributes exactly 1 regardless of vertex order).
 // GoGraph benefits primarily directed graphs or asymmetric CSR storage.
+// Source: https://github.com/iDC-NEU/GoGraph
 // ===========================================================================
 
 #ifndef REORDER_GOGRAPH_H

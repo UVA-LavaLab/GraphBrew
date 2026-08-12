@@ -303,7 +303,7 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
  * 
  * COrder partitions vertices into "hot" (high-degree) and "cold" (low-degree)
  * segments, then interleaves them within fixed-size partitions to balance
- * workload across cache lines.
+ * workload.
  * 
  * Algorithm:
  *   1. Classify vertices as hot (degree > avg) or cold (degree <= avg)
@@ -315,8 +315,13 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
  * Complexity: O(n) - linear pass through vertices
  * 
  * Reference:
- *   Zhang, Y., et al. (2017). Making caches work for graph analytics.
- *   IEEE Big Data.
+ *   Chen, Y.-A. and Chung, Y.-C. (2022). Workload Balancing via Graph
+ *   Reordering on Multicore Systems. IEEE TPDS 33(5), 1231-1245.
+ *   DOI: 10.1109/TPDS.2021.3105323.
+ *
+ * The historical GraphBrew default uses 1,024-vertex partitions. The
+ * ``canonical`` variant uses the upstream Ligra configuration of a 1 MiB
+ * float-property segment (262,144 vertices).
  * 
  * @tparam NodeID_ Node ID type
  * @tparam DestID_ Destination ID type
@@ -326,7 +331,9 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
  */
 template <typename NodeID_, typename DestID_, bool invert>
 void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
-                           pvector<NodeID_>& new_ids) {
+                           pvector<NodeID_>& new_ids,
+                           unsigned partition_size = 1024,
+                           const char* timing_label = "COrder Map Time") {
     Timer t;
     t.Start();
     
@@ -336,14 +343,18 @@ void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
         t.Stop();
-        PrintTime("COrder Map Time", t.Seconds());
+        PrintTime(timing_label, t.Seconds());
         return;
     }
     
     const unsigned average_degree = num_edges / num_nodes;
     
     // Configure partitioning
-    corder_params::partition_size = 1024;
+    if (partition_size == 0) {
+        throw std::invalid_argument(
+            "COrder partition size must be positive");
+    }
+    corder_params::partition_size = partition_size;
     corder_params::num_partitions = (num_nodes - 1) / corder_params::partition_size + 1;
     const unsigned num_partitions = corder_params::num_partitions;
     
@@ -395,22 +406,38 @@ void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // Handle remaining vertices in last segment
     auto last_large = num_large_per_seg * last_cls;
     auto last_small = num_small_per_seg * last_cls;
-    unsigned index = last_cls * corder_params::partition_size;
-    
-    #pragma omp parallel for
+    const unsigned tail_start =
+        last_cls * corder_params::partition_size;
+
+    #pragma omp parallel for schedule(static)
     for (unsigned i = last_large; i < segment_large.size(); i++) {
-        unsigned local_index = __sync_fetch_and_add(&index, 1);
-        new_ids[segment_large[i]] = local_index;
+        new_ids[segment_large[i]] =
+            tail_start + (i - last_large);
     }
-    
-    #pragma omp parallel for
+
+    const unsigned small_tail_start =
+        tail_start + (segment_large.size() - last_large);
+    #pragma omp parallel for schedule(static)
     for (unsigned i = last_small; i < segment_small.size(); i++) {
-        unsigned local_index = __sync_fetch_and_add(&index, 1);
-        new_ids[segment_small[i]] = local_index;
+        new_ids[segment_small[i]] =
+            small_tail_start + (i - last_small);
     }
     
     t.Stop();
-    PrintTime("COrder Map Time", t.Seconds());
+    PrintTime(timing_label, t.Seconds());
+}
+
+template <typename NodeID_, typename DestID_, bool invert>
+void GenerateCOrderCanonicalMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids) {
+    constexpr unsigned kPropertyBytes = sizeof(float);
+    constexpr unsigned kL2Bytes = 1024 * 1024;
+    GenerateCOrderMapping(
+        g,
+        new_ids,
+        kL2Bytes / kPropertyBytes,
+        "COrder Canonical Map Time");
 }
 
 /**

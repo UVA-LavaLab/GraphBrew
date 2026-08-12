@@ -1418,8 +1418,20 @@ public:
         }
         break;
         case COrder:
-            GenerateCOrderMapping(g, new_ids);
-            break;
+        {
+            std::string corder_variant =
+                resolveVariant(reordering_options, "legacy");
+            if (corder_variant == "canonical") {
+                GenerateCOrderCanonicalMapping(g, new_ids);
+            } else {
+                warnUnknownVariant(
+                    corder_variant,
+                    "COrder",
+                    {"legacy", "default", "canonical"});
+                GenerateCOrderMapping(g, new_ids);
+            }
+        }
+        break;
         case RCMOrder:
         {
             // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
@@ -1493,6 +1505,12 @@ public:
             std::string algo_name = ReorderingAlgoStr(reordering_algo);
             double reorder_secs = reorder_timer.Seconds();
             int algo_id = static_cast<int>(reordering_algo);
+            if (
+                reordering_algo == COrder
+                && resolveVariant(
+                    reordering_options, "legacy") == "canonical") {
+                algo_name = "CORDER_canonical";
+            }
 
             // ── MAP mode: derive real algorithm identity from .lo filename ──
             // When using pre-generated mappings (MAP, id=13), the .lo filename
@@ -1702,8 +1720,20 @@ public:
         }
         break;
         case COrder:
-            GenerateCOrderMapping(g, new_ids);
-            break;
+        {
+            std::string corder_variant =
+                resolveVariant(reordering_options, "legacy");
+            if (corder_variant == "canonical") {
+                GenerateCOrderCanonicalMapping(g, new_ids);
+            } else {
+                warnUnknownVariant(
+                    corder_variant,
+                    "COrder",
+                    {"legacy", "default", "canonical"});
+                GenerateCOrderMapping(g, new_ids);
+            }
+        }
+        break;
         case RCMOrder:
         {
             // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
