@@ -103,9 +103,9 @@ def test_boost_variant_is_explicit_when_available(tmp_path):
 
 
 @pytest.mark.parametrize("option,expected,resolved", [
-    ("8", "RABBITORDER_csr", "8:csr:degree-sort=out-in"),
-    ("8:csr", "RABBITORDER_csr", "8:csr:degree-sort=out-in"),
-    ("8:boost", "RABBITORDER_boost", "8:boost:degree-sort=out-in"),
+    ("8", "RABBITORDER_csr", "8:csr:degree-sort=out-in:resolution=1"),
+    ("8:csr", "RABBITORDER_csr", "8:csr:degree-sort=out-in:resolution=1"),
+    ("8:boost", "RABBITORDER_boost", "8:boost:degree-sort=out-in:resolution=1"),
 ])
 def test_cpp_self_recording_preserves_rabbit_variant_and_fingerprint(
     tmp_path,
@@ -190,3 +190,54 @@ def test_graphbrew_rabbit_propagates_schedule_sensitivity(tmp_path):
     assert result.returncode == 0, result.stderr
     row = json.loads((db_dir / "benchmarks.json").read_text())[0]
     assert row["reorder_schedule_sensitive"] is True
+
+
+def test_rabbit_resolution_is_strict_and_resolved(tmp_path):
+    _require(CONVERTER)
+    mapping = tmp_path / "rabbit.lo"
+    env = {
+        **os.environ,
+        "GRAPHBREW_DB_DIR": "",
+        "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+        "OMP_NUM_THREADS": "1",
+        "RABBIT_RESOLUTION": "0.5",
+    }
+    result = subprocess.run(
+        [
+            str(CONVERTER),
+            "-f",
+            str(TINY_GRAPH),
+            "-s",
+            "-o",
+            "8:csr",
+            "-q",
+            str(mapping),
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "resolution=0.5" in result.stdout
+
+    env["RABBIT_RESOLUTION"] = "not-a-number"
+    invalid = subprocess.run(
+        [
+            str(CONVERTER),
+            "-f",
+            str(TINY_GRAPH),
+            "-s",
+            "-o",
+            "8:csr",
+            "-q",
+            str(tmp_path / "invalid.lo"),
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert invalid.returncode != 0

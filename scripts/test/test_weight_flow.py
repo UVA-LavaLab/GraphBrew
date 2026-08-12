@@ -33,6 +33,7 @@ from scripts.lib.core.utils import (
     get_all_algorithm_variant_names, resolve_canonical_name, is_variant_prefixed,
     canonical_algo_key, algo_converter_opt, get_algo_variants,
     canonical_name_from_converter_opt, chain_canonical_name,
+    algorithm_id_from_canonical_name,
     get_algorithm_name,
 )
 from scripts.lib.ml.weights import (
@@ -606,6 +607,14 @@ class TestCanonicalAlgoKey:
         assert canonical_algo_key(9) == "GORDER"
         assert canonical_algo_key(10) == "CORDER"
         assert canonical_algo_key(15) == "LeidenOrder"
+
+    def test_canonical_name_to_numeric_id(self):
+        assert algorithm_id_from_canonical_name(
+            "GOGRAPHORDER_fast") == 16
+        assert algorithm_id_from_canonical_name("GORDER_csr") == 9
+        assert algorithm_id_from_canonical_name(
+            "CORDER_canonical") == 10
+        assert algorithm_id_from_canonical_name("RCM_mind") == 11
 
     def test_variant_algorithms_default(self):
         """Variant algorithms always include default variant suffix."""

@@ -482,19 +482,34 @@ def generate_reorderings(
                     legacy_name = _LEGACY_ALGO_NAMES_REV.get(algo_name)
                     if legacy_name:
                         timing_file = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.time")
-                reorder_time = _load_mapping_reorder_time(
-                    timing_file, actual_map_file)
-                
-                log.info(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
-                results.append(ReorderResult(
-                    graph=graph.name,
-                    algorithm_id=algo_id,
-                    algorithm_name=algo_name,
-                    reorder_time=reorder_time,
-                    mapping_file=actual_map_file,
-                    success=True
-                ))
-                continue
+                try:
+                    reorder_time = _load_mapping_reorder_time(
+                        timing_file, actual_map_file)
+                    timing_valid = (
+                        reorder_time_metadata_path(timing_file).exists()
+                        or (
+                            os.environ.get(
+                                "GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+                            and os.path.exists(timing_file)
+                        )
+                    )
+                except (OSError, ValueError):
+                    timing_valid = False
+                if timing_valid:
+                    log.info(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
+                    results.append(ReorderResult(
+                        graph=graph.name,
+                        algorithm_id=algo_id,
+                        algorithm_name=algo_name,
+                        reorder_time=reorder_time,
+                        mapping_file=actual_map_file,
+                        success=True
+                    ))
+                    continue
+                log.warning(
+                    f"  [{current}/{total}] {algo_name}: stale timing "
+                    "metadata; regenerating mapping")
+                os.remove(actual_map_file)
             
             # Remove existing files if force_reorder
             if force_reorder and map_file and os.path.exists(map_file):
@@ -682,29 +697,54 @@ def generate_label_maps(
             
             if os.path.exists(actual_map_file):
                 actual_timing = timing_file
-                if not os.path.exists(timing_file):
+                if not (
+                    reorder_time_metadata_path(timing_file).exists()
+                    or (
+                        os.environ.get("GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+                        and os.path.exists(timing_file)
+                    )
+                ):
                     legacy_name = _LEGACY_ALGO_NAMES_REV.get(algo_name)
                     if legacy_name:
                         legacy_tf = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.time")
-                        if os.path.exists(legacy_tf):
+                        if (
+                            reorder_time_metadata_path(legacy_tf).exists()
+                            or (
+                                os.environ.get(
+                                    "GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+                                and os.path.exists(legacy_tf)
+                            )
+                        ):
                             actual_timing = legacy_tf
-                if os.path.exists(actual_timing):
-                    with open(actual_timing) as f:
-                        reorder_time = float(f.read().strip())
-                else:
-                    reorder_time = 0.0
-                
-                log.info(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
-                label_maps[graph.name][algo_name] = actual_map_file
-                reorder_results.append(ReorderResult(
-                    graph=graph.name,
-                    algorithm_id=algo_id,
-                    algorithm_name=algo_name,
-                    reorder_time=reorder_time,
-                    mapping_file=actual_map_file,
-                    success=True
-                ))
-                continue
+                try:
+                    reorder_time = _load_mapping_reorder_time(
+                        actual_timing, actual_map_file)
+                    timing_valid = (
+                        reorder_time_metadata_path(actual_timing).exists()
+                        or (
+                            os.environ.get(
+                                "GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+                            and os.path.exists(actual_timing)
+                        )
+                    )
+                except (OSError, ValueError):
+                    timing_valid = False
+                if timing_valid:
+                    log.info(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
+                    label_maps[graph.name][algo_name] = actual_map_file
+                    reorder_results.append(ReorderResult(
+                        graph=graph.name,
+                        algorithm_id=algo_id,
+                        algorithm_name=algo_name,
+                        reorder_time=reorder_time,
+                        mapping_file=actual_map_file,
+                        success=True
+                    ))
+                    continue
+                log.warning(
+                    f"  [{current}/{total}] {algo_name}: stale timing "
+                    "metadata; regenerating mapping")
+                os.remove(actual_map_file)
             
             # Use converter to generate mapping
             binary = os.path.join(bin_dir, "converter")
@@ -732,17 +772,16 @@ def generate_label_maps(
                     log.debug(f"Failed to save run log: {e}")
             
             if success and os.path.exists(map_file):
-                # Save timing
-                with open(timing_file, 'w') as f:
-                    f.write(f"{elapsed:.6f}")
+                reorder_time = _write_mapping_reorder_time(
+                    timing_file, stdout + stderr)
                 
-                log.info(f"  [{current}/{total}] {algo_name}: generated ({elapsed:.4f}s)")
+                log.info(f"  [{current}/{total}] {algo_name}: generated ({reorder_time:.4f}s)")
                 label_maps[graph.name][algo_name] = map_file
                 reorder_results.append(ReorderResult(
                     graph=graph.name,
                     algorithm_id=algo_id,
                     algorithm_name=algo_name,
-                    reorder_time=elapsed,
+                    reorder_time=reorder_time,
                     mapping_file=map_file,
                     success=True
                 ))

@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 from scripts.graphbrew_experiment import _save_reorder_time
-from scripts.lib.pipeline.benchmark import parse_benchmark_output
+from scripts.lib.core.utils import BenchmarkResult
+from scripts.lib.pipeline.benchmark import (
+    apply_pregenerated_reorder_cost,
+    parse_benchmark_output,
+)
 from scripts.lib.pipeline.benchmark import mapping_permutation_fingerprint
 from scripts.lib.pipeline.reorder import parse_reorder_time_from_converter
 from scripts.lib.pipeline.reorder_timing import (
@@ -128,7 +132,6 @@ def test_versioned_time_sidecar_is_bound_to_mapping(tmp_path):
         mapping_fingerprint="aaaaaaaaaaaaaaaa",
         algorithm_spec="5:degree=out",
     )
-
     assert read_reorder_time(
         path,
         expected_mapping_fingerprint="aaaaaaaaaaaaaaaa",
@@ -139,6 +142,38 @@ def test_versioned_time_sidecar_is_bound_to_mapping(tmp_path):
             expected_mapping_fingerprint="bbbbbbbbbbbbbbbb",
         )
 
+
+def test_pregenerated_result_charges_generation_not_replay(tmp_path):
+    mappings = tmp_path / "mappings" / "g"
+    mappings.mkdir(parents=True)
+    mapping = mappings / "DBG.lo"
+    mapping.write_text("0\n1\n")
+    fingerprint = mapping_permutation_fingerprint(mapping)
+    write_reorder_time(
+        mappings / "DBG.time",
+        complete_reorder_time=4.0,
+        mapping_fingerprint=fingerprint,
+        algorithm_spec="5:degree=out",
+    )
+    result = BenchmarkResult(
+        graph="g",
+        algorithm="DBG",
+        algorithm_id=5,
+        benchmark="pr",
+        time_seconds=1.0,
+        reorder_time=0.25,
+    )
+
+    apply_pregenerated_reorder_cost(
+        result,
+        graph_name="g",
+        algo_name="DBG",
+        mappings_dir=str(mappings),
+    )
+
+    assert result.reorder_time == pytest.approx(4.0)
+    assert result.mapping_replay_time == pytest.approx(0.25)
+    assert result.extra["mapping_replay_time"] == pytest.approx(0.25)
 
 def test_cpp_self_recording_persists_preprocessing_boundaries(tmp_path):
     if not PR_BINARY.exists():
@@ -264,3 +299,35 @@ def test_chained_fingerprint_matches_written_and_map_replay(tmp_path):
         replay.stdout
     )
     assert replay_timing["mapping_fingerprint"] == expected
+    assert replay_timing["resolved_algorithm_spec"] == (
+        f"13:fingerprint={expected}"
+    )
+
+    db_dir = tmp_path / "map-db"
+    db_dir.mkdir()
+    self_record = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-f",
+            str(TINY_GRAPH),
+            "-s",
+            "-o",
+            f"13:{mapping}",
+            "-n",
+            "1",
+            "-D",
+            str(db_dir) + "/",
+        ],
+        cwd=PROJECT_ROOT,
+        env={
+            key: value for key, value in env.items()
+            if key != "GRAPHBREW_DB_DIR"
+        },
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert self_record.returncode == 0, self_record.stderr
+    row = json.loads((db_dir / "benchmarks.json").read_text())[0]
+    assert row["mapping_identity_id"] == f"map:{expected}"
+    assert row["mapping_fingerprint"] == expected

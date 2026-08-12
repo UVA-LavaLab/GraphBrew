@@ -150,6 +150,7 @@ from .core.utils import (
     benchmark_condition_key,
     benchmark_request_key,
     condition_discriminator,
+    algorithm_id_from_canonical_name,
     # Formatting
     format_size,
     format_duration,

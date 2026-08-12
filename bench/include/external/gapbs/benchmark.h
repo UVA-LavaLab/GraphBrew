@@ -514,6 +514,12 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
             preprocessing.total_preprocessing_time;
         report.mapping_fingerprint =
             GetMappingFingerprintHint();
+        if (
+            report.algorithm_spec.find("13:fingerprint=")
+            != std::string::npos) {
+            report.mapping_identity_id =
+                "map:" + report.mapping_fingerprint;
+        }
         report.num_trials   = cli.num_trials();
         report.trials       = std::move(trial_results);
         report.reorder_metas = GetReorderMetaHints();  // accumulated reorder metadata

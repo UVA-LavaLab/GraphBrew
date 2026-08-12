@@ -972,6 +972,25 @@ public:
             GetPreprocessingTimingHint().excluded_diagnostic_time +=
                 composed_fingerprint_timer.Seconds();
             SetMappingFingerprintHint(composed_fingerprint);
+            bool spec_changed = false;
+            std::string resolved_chain;
+            for (auto& meta : GetReorderMetaHints()) {
+                if (
+                    meta.algorithm_spec.rfind(
+                        "13:fingerprint=", 0) == 0) {
+                    meta.algorithm_spec =
+                        "13:fingerprint=" + composed_fingerprint;
+                    spec_changed = true;
+                }
+                if (!resolved_chain.empty()) resolved_chain += "+";
+                resolved_chain += meta.algorithm_spec;
+            }
+            if (spec_changed) {
+                SetReorderSpecHint(resolved_chain);
+                PrintLabel(
+                    "Resolved Reorder Spec",
+                    resolved_chain);
+            }
             PrintLabel(
                 "Composed Mapping Fingerprint",
                 composed_fingerprint);
@@ -1711,10 +1730,17 @@ public:
                          << (useOutdeg ? "out" : "in");
                     break;
                 case RabbitOrder:
-                    spec << "8:"
-                         << resolveVariant(reordering_options, "csr")
-                         << ":degree-sort=out-in";
+                {
+                    const std::string variant =
+                        resolveVariant(reordering_options, "csr");
+                    spec << "8:" << variant
+                         << ":degree-sort=out-in"
+                         << ":resolution=" << std::setprecision(17)
+                         << (variant == "csr"
+                             ? ResolveRabbitResolution()
+                             : 1.0);
                     break;
+                }
                 case GOrder:
                 {
                     std::string variant =

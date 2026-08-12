@@ -452,6 +452,32 @@ def test_append_fails_closed_on_malformed_database(tmp_path):
     assert path.read_bytes() == malformed
 
 
+def test_legacy_migration_is_idempotent(monkeypatch, tmp_path):
+    import scripts.lib.core.datastore as datastore
+
+    target = tmp_path / "data" / "benchmarks.json"
+    legacy_file = tmp_path / "benchmark_old.json"
+    legacy_file.write_text(json.dumps([{
+        "graph": "g",
+        "algorithm": "ORIGINAL",
+        "algorithm_id": 0,
+        "benchmark": "pr",
+        "time_seconds": 1.0,
+        "success": True,
+    }]))
+    monkeypatch.setattr(datastore, "BENCHMARKS_FILE", target)
+
+    datastore.migrate_legacy_files(tmp_path)
+    first = json.loads(target.read_text())
+    datastore.migrate_legacy_files(tmp_path)
+    second = json.loads(target.read_text())
+
+    assert first == second
+    assert len(second) == 1
+    assert second[0]["schema"] == "benchmark-observation/legacy"
+    assert second[0]["run_id"].startswith("migration-")
+
+
 def test_single_cpp_style_record_reads_compatibly(tmp_path):
     """A single C++-written record (already carrying condition fields) loads."""
     path = tmp_path / "benchmarks.json"
@@ -527,6 +553,7 @@ def test_generic_run_benchmark_disables_cpp_self_recording(monkeypatch, tmp_path
         trials=1, bin_dir=str(tmp_path),
     )
     assert captured["env"].get("GRAPHBREW_DB_DIR") == ""
+    assert captured["env"].get("GRAPHBREW_TOPOLOGY_ANALYSIS") == "0"
 
     # Explicit opt-in inherits the ambient environment.
     bench.run_benchmark(
@@ -572,7 +599,7 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
     assert res.measurement_mode == "process"
     assert res.threads == 16
     assert res.mapping_identity_id == "map:GORDER.lo"
-    assert res.requested_algorithm_spec == "0"
+    assert res.requested_algorithm_spec.startswith("0|graph:")
     assert res.algorithm_spec == "0"
     assert res.attempt == 2
     assert res.run_id  # non-empty unique id
@@ -649,10 +676,31 @@ def test_map_request_spec_uses_content_identity_not_path(
         mapping_identity_id="map:GORDER.lo:sha256:deadbeef",
     )
 
-    assert result.requested_algorithm_spec == (
-        "13:map:GORDER.lo:sha256:deadbeef"
-    )
+    assert result.requested_algorithm_spec.startswith(
+        "13:map:GORDER.lo:sha256:deadbeef|graph:")
     assert "/absolute/private/path" not in result.requested_algorithm_spec
+
+
+def test_adaptive_request_spec_tracks_model_content(
+    monkeypatch,
+    tmp_path,
+):
+    from scripts.lib.pipeline.benchmark import requested_execution_spec
+
+    model = tmp_path / "weights.json"
+    model.write_text('{"version": 1}')
+    monkeypatch.setenv("PERCEPTRON_WEIGHTS_FILE", str(model))
+    first = requested_execution_spec(
+        algorithm="14",
+        graph_path=TINY_GRAPH,
+    )
+    model.write_text('{"version": 2}')
+    second = requested_execution_spec(
+        algorithm="14",
+        graph_path=TINY_GRAPH,
+    )
+
+    assert first != second
 
 
 # =============================================================================

@@ -93,6 +93,7 @@
 
 #include <cstddef>
 #include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
 #include "reorder_types.h"
@@ -517,6 +518,22 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         "Adaptive Override Reason",
         best.override_reason.empty() ? "none" : best.override_reason);
     PrintTime("Adaptive Confidence", best.confidence);
+    {
+        auto& staged =
+            graphbrew::database::GetStagedReorderMeta();
+        std::ostringstream spec;
+        spec << "14:model="
+             << SelectionModelToString(selection_policy.model)
+             << ":criterion="
+             << SelectionCriterionToString(
+                    selection_policy.criterion)
+             << ":applied=" << best.canonical_spec;
+        staged.algorithm_spec = spec.str();
+        staged.schedule_sensitive =
+            best.canonical_spec.find("8:") == 0
+            || best.canonical_spec.find("rabbit") !=
+                std::string::npos;
+    }
     std::cout << "\n=== Selected Algorithm: " << best.canonical_spec
               << " ===\n";
     Timer arm_timer;

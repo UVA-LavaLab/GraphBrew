@@ -38,6 +38,7 @@ import copy
 import shutil
 import statistics
 import uuid
+import zlib
 from datetime import datetime
 from dataclasses import asdict
 from pathlib import Path
@@ -347,9 +348,10 @@ class BenchmarkStore:
             rec['algorithm'] = canonical
         schema = rec.get('schema')
         if schema in (None, ''):
-            rec['schema'] = BENCHMARK_OBSERVATION_SCHEMA
-            schema = BENCHMARK_OBSERVATION_SCHEMA
+            rec['schema'] = 'benchmark-observation/legacy'
+            schema = rec['schema']
         elif schema not in {
+            'benchmark-observation/legacy',
             'benchmark-observation/v1',
             BENCHMARK_OBSERVATION_SCHEMA,
         }:
@@ -357,7 +359,9 @@ class BenchmarkStore:
                 f"Unsupported benchmark observation schema: {schema!r}"
             )
         prefix = (
-            'derived-v1'
+            'legacy-derived'
+            if schema == 'benchmark-observation/legacy'
+            else 'derived-v1'
             if schema == 'benchmark-observation/v1'
             else 'derived-v2'
         )
@@ -843,7 +847,30 @@ def migrate_legacy_files(results_dir: str = None, dry_run: bool = False) -> Dict
             with open(f) as fh:
                 data = json.load(fh)
             if isinstance(data, list) and data:
-                store.append(data, save=False)
+                prepared = []
+                for index, row in enumerate(data):
+                    if not isinstance(row, dict):
+                        continue
+                    record = dict(row)
+                    record.setdefault(
+                        'schema', 'benchmark-observation/legacy')
+                    if not record.get('run_id'):
+                        canonical = json.dumps(
+                            {
+                                'file': f.name,
+                                'index': index,
+                                'record': row,
+                            },
+                            sort_keys=True,
+                            separators=(',', ':'),
+                            default=str,
+                        ).encode()
+                        record['run_id'] = (
+                            'migration-'
+                            f"{zlib.crc32(canonical) & 0xffffffff:08x}"
+                        )
+                    prepared.append(record)
+                store.append(prepared, save=False)
                 files_imported.append(f.name)
         except Exception as e:
             log.warning(f"Skipping {f.name}: {e}")

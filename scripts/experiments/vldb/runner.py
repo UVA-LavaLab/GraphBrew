@@ -156,9 +156,14 @@ _DRY_RUN_MODE = False
 _CAMPAIGN_ID: Optional[str] = None
 _ACTIVE_VERIFICATION_GATE_ID: Optional[str] = None
 _FILE_FINGERPRINT_CACHE: dict[tuple[str, int, int], dict[str, int | str]] = {}
+_FILE_CRC32_CACHE: dict[tuple[str, int, int], str] = {}
 _ALGORITHM_FILTER: Optional[set[str]] = None
 _MEASUREMENT_GENERATION_OVERRIDE: Optional[str] = None
-_ALGORITHM_ENV_KEYS = ("GORDER_WINDOW", "RABBIT_RESOLUTION")
+_ALGORITHM_ENV_KEYS = (
+    "GORDER_FAST_BATCH",
+    "GORDER_WINDOW",
+    "RABBIT_RESOLUTION",
+)
 
 
 # ============================================================================
@@ -179,6 +184,22 @@ def _short_id(payload: Any) -> str:
         default=str,
     ).encode()
     return f"{zlib.crc32(encoded) & 0xffffffff:08x}"
+
+
+def _file_crc32(path: str | Path) -> str:
+    file_path = Path(path)
+    stat = file_path.stat()
+    key = (str(file_path.resolve()), stat.st_size, stat.st_mtime_ns)
+    cached = _FILE_CRC32_CACHE.get(key)
+    if cached is not None:
+        return cached
+    value = 0
+    with file_path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            value = zlib.crc32(block, value)
+    digest = f"{value & 0xffffffff:08x}"
+    _FILE_CRC32_CACHE[key] = digest
+    return digest
 
 
 def ensure_dir(p: Path) -> Path:
@@ -1341,6 +1362,8 @@ def _graph_conversion_policy_id(provenance: dict) -> str:
         "random_seed": provenance.get("random_seed"),
         "reorder_semantics_version":
             provenance.get("reorder_semantics_version"),
+        "source_crc32": provenance.get("source_crc32"),
+        "output_crc32": provenance.get("output_crc32"),
     }
     return _short_id(payload)
 
@@ -1358,6 +1381,7 @@ def _graph_provenance_valid(
     graph_path: str | Path,
     *,
     graph_name: Optional[str] = None,
+    canonical_output_path: Optional[str | Path] = None,
 ) -> bool:
     graph_path = Path(graph_path)
     provenance_path = _graph_provenance_path(graph_path)
@@ -1368,7 +1392,10 @@ def _graph_provenance_valid(
         graph_info = _serialized_graph_info(graph_path)
         converter_args = provenance.get("converter_args", [])
         source_path = Path(provenance.get("source_path", ""))
-        output_path = Path(provenance.get("output_path", ""))
+        recorded_output_path = Path(
+            provenance.get("output_path", ""))
+        expected_output_path = Path(
+            canonical_output_path or graph_path).resolve()
         random_arg = (
             converter_args.index("-o") + 1 < len(converter_args)
             and converter_args[converter_args.index("-o") + 1] == "1"
@@ -1384,28 +1411,29 @@ def _graph_provenance_valid(
             )
             and provenance.get("random_order_algorithm") == "1"
             and provenance.get("random_seed") == RANDOM_BASELINE_SEED
-            and source_path.is_absolute()
-            and source_path.is_file()
-            and provenance.get("source_bytes")
-            == source_path.stat().st_size
-            and output_path == graph_path.resolve()
+            and (
+                not source_path.is_file()
+                or (
+                    provenance.get("source_bytes")
+                    == source_path.stat().st_size
+                    and provenance.get("source_crc32")
+                    == _file_crc32(source_path)
+                )
+                and recorded_output_path.name == expected_output_path.name
+            )
             and isinstance(converter_args, list)
             and "-s" in converter_args
             and random_arg
             and "-f" in converter_args
-            and Path(
-                converter_args[converter_args.index("-f") + 1]
-            ).resolve() == source_path.resolve()
             and "-b" in converter_args
-            and Path(
-                converter_args[converter_args.index("-b") + 1]
-            ).resolve() == output_path.resolve()
             and graph_info["directed"] is False
             and provenance.get("directed") is False
             and provenance.get("symmetrized") is True
             and provenance.get("nodes") == graph_info["nodes"]
             and provenance.get("directed_edges") == graph_info["edges"]
             and provenance.get("output_bytes") == graph_path.stat().st_size
+            and provenance.get("output_crc32")
+            == _file_crc32(graph_path)
             and provenance.get("conversion_policy_id")
             == _graph_conversion_policy_id(provenance)
         )
@@ -1531,6 +1559,21 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
     return 1
 
 
+def _mapping_generation_policy_id(
+    graph_path: str | Path,
+    algo_flags: list[str],
+) -> str:
+    return _short_id({
+        "schema": "mapping-generation-policy/v1",
+        "reorder_semantics_version": REORDER_SEMANTICS_VERSION,
+        "graph_crc32": _file_crc32(graph_path),
+        "converter_flags": list(algo_flags),
+        "omp_env": dict(_RUNTIME_ENV),
+        "cpu_list": _RUNTIME_CPU_LIST,
+        "algorithm_env": _algorithm_environment(),
+    })
+
+
 def _mapping_is_valid(
     graph_name: str,
     algo_key: str,
@@ -1553,6 +1596,12 @@ def _mapping_is_valid(
         if (
             meta.get("reorder_semantics_version")
             != REORDER_SEMANTICS_VERSION
+        ):
+            return False
+        if meta.get("graph_crc32") != _file_crc32(graph_path):
+            return False
+        if meta.get("generation_policy_id") != (
+            _mapping_generation_policy_id(graph_path, algo_flags)
         ):
             return False
         top_effective = meta.get("graphbrew_effective_configs", [])
@@ -1992,8 +2041,11 @@ def _pregenerate_mappings(
                     REORDER_SEMANTICS_VERSION,
                 "graph": gname,
                 "graph_info": _serialized_graph_info(sg),
+                "graph_crc32": _file_crc32(sg),
                 "algo_key": algo_key,
                 "converter_flags": list(aflags),
+                "generation_policy_id":
+                    _mapping_generation_policy_id(sg, aflags),
                 "omp_env": dict(_RUNTIME_ENV),
                 "cpu_list": _RUNTIME_CPU_LIST,
                 "algorithm_env": _algorithm_environment(),
@@ -2098,13 +2150,16 @@ def algo_flags_or_map(
             if draw_path.is_file():
                 draw_files.append({
                     "path": record.get("path"),
-                    "file": _graph_fingerprint(draw_path),
+                    "bytes": draw_path.stat().st_size,
+                    "mapping_fingerprint":
+                        record.get("mapping_fingerprint"),
                 })
         return ["-o", f"13:{lo}"], rt, {
             "source": "map",
-            "path": str(lo),
-            "file": _graph_fingerprint(lo),
-            "mapping_build_id": meta.get("timestamp"),
+            "path": lo.name,
+            "bytes": lo.stat().st_size,
+            "mapping_fingerprint": meta.get("mapping_fingerprint"),
+            "generation_policy_id": meta.get("generation_policy_id"),
             "selected_draw": meta.get("selected_draw"),
             "mapping_draws": draw_files,
         }
@@ -6181,9 +6236,9 @@ def _recorded_graph_input(
     except (KeyError, OSError, TypeError, ValueError):
         return None
     if (
-        provenance.get("schema") != "graph_source/v1"
+        provenance.get("schema") not in {
+            "graph_source/v1", "graph_source/v2"}
         or provenance.get("graph") != graph_name
-        or not source_path.is_absolute()
         or not source_path.is_file()
     ):
         return None
@@ -6192,6 +6247,14 @@ def _recorded_graph_input(
             f"{graph_name}: recorded graph source changed: {source_path} "
             f"from {provenance_path}"
         )
+    if (
+        provenance.get("schema") == "graph_source/v2"
+        and provenance.get("source_crc32")
+        != _file_crc32(source_path)
+    ):
+        raise RuntimeError(
+            f"{graph_name}: recorded graph source content changed: "
+            f"{source_path}")
     return source_path
 
 
@@ -6453,8 +6516,10 @@ def _setup_convert_graphs(
                 "source_path": str(input_file.resolve()),
                 "source_bytes": source_stat.st_size,
                 "source_mtime_ns": source_stat.st_mtime_ns,
+                "source_crc32": _file_crc32(input_file),
                 "output_path": str(sg_path.resolve()),
                 "output_bytes": candidate_path.stat().st_size,
+                "output_crc32": _file_crc32(candidate_path),
                 "converter_args": logical_cmd,
                 "directed": graph_info["directed"],
                 "symmetrized": not graph_info["directed"],
@@ -6476,7 +6541,9 @@ def _setup_convert_graphs(
                 json.dumps(provenance, indent=2)
             )
             if not _graph_provenance_valid(
-                candidate_path, graph_name=name,
+                candidate_path,
+                graph_name=name,
+                canonical_output_path=sg_path,
             ):
                 candidate_path.unlink(missing_ok=True)
                 candidate_provenance.unlink(missing_ok=True)

@@ -27,6 +27,9 @@
 #include <iterator>
 #include <stdexcept>
 #include <atomic>
+#include <cerrno>
+#include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <omp.h>
@@ -64,6 +67,25 @@ using adjacency_list = std::vector<std::vector<std::pair<rabbit_order::vint, flo
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+inline double ResolveRabbitResolution() {
+    const char* value = std::getenv("RABBIT_RESOLUTION");
+    if (value == nullptr || value[0] == '\0') return 1.0;
+    char* end = nullptr;
+    errno = 0;
+    double resolution = std::strtod(value, &end);
+    if (
+        errno != 0
+        || end == value
+        || *end != '\0'
+        || !std::isfinite(resolution)
+        || resolution <= 0.0
+        || resolution > 10.0) {
+        throw std::invalid_argument(
+            "RABBIT_RESOLUTION must be in (0, 10]");
+    }
+    return resolution;
+}
 
 #ifdef RABBIT_ENABLE
 
@@ -1030,11 +1052,7 @@ void GenerateRabbitOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // Prior auto-adaptive γ < 1 caused over-merging (fewer, larger communities)
     // which degraded traversal locality for BFS/CC/SSSP by ~80% on medium graphs.
     {
-        rg.resolution = 1.0;  // Match Boost default
-        const char* res_env = std::getenv("RABBIT_RESOLUTION");
-        if (res_env) {
-            rg.resolution = std::atof(res_env);
-        }
+        rg.resolution = ResolveRabbitResolution();
         double avg_deg = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 1.0;
         const auto old_flags = std::cout.flags();
         const auto old_precision = std::cout.precision();

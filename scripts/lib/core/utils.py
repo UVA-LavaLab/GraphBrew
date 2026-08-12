@@ -527,6 +527,29 @@ def is_variant_prefixed(name: str) -> bool:
     return any(name.startswith(p) for p in VARIANT_PREFIXES)
 
 
+def algorithm_id_from_canonical_name(name: str) -> int:
+    """Resolve a canonical result name to its numeric algorithm ID."""
+    if is_chained_ordering_name(name):
+        return -1
+    for algo_id, algo_name in ALGORITHMS.items():
+        if name == algo_name:
+            return algo_id
+    if name.startswith("GORDER_"):
+        return 9
+    if name.startswith("CORDER_"):
+        return 10
+    for algo_id, (prefix, _variants, _default) in (
+        _VARIANT_ALGO_REGISTRY.items()
+    ):
+        if name.startswith(prefix):
+            return algo_id
+    canonical = resolve_canonical_name(name)
+    for algo_id, algo_name in ALGORITHMS.items():
+        if canonical == algo_name:
+            return algo_id
+    return 0
+
+
 def enumerate_graphbrew_multilayer() -> dict[str, Any]:
     """Enumerate the full multi-layer configuration space for GraphBrewOrder.
 
@@ -706,6 +729,7 @@ class BenchmarkResult:
     reorder_validation_time: float = 0.0
     reorder_apply_time: float = 0.0
     total_preprocessing_time: float = 0.0
+    mapping_replay_time: float = 0.0
     mapping_fingerprint: str = ""
     reorder_schedule_sensitive: bool = False
     reorder_thread_policy_sensitive: bool = False

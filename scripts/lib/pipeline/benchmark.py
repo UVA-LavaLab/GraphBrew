@@ -32,9 +32,10 @@ from ..core.utils import (
     BenchmarkResult, log, run_command, check_binary_exists,
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option,
     ENABLE_RUN_LOGGING, canonical_algo_key, algo_converter_opt,
-    ELIGIBLE_ALGORITHMS, GRAPHS_DIR, RESULTS_DIR, TIMEOUT_BENCHMARK,
+    ELIGIBLE_ALGORITHMS, DATA_DIR, GRAPHS_DIR, RESULTS_DIR, TIMEOUT_BENCHMARK,
     normalize_graph_name, benchmark_condition_key,
     benchmark_request_key, REORDER_SEMANTICS_VERSION,
+    algorithm_id_from_canonical_name,
 )
 from .reorder import get_algorithm_name_with_variant  # deprecated; kept for compat
 from .reorder_timing import read_reorder_time
@@ -83,11 +84,20 @@ def compute_adaptive_timeout(edges: int, base_timeout: int = 600) -> int:
 # Default directory for mappings (relative to results dir)
 _DEFAULT_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))), "results", "mappings")
-_MAPPING_IDENTITY_CACHE: Dict[Tuple[str, int, int], str] = {}
-_MAPPING_PERMUTATION_CACHE: Dict[Tuple[str, int, int], str] = {}
+_MAPPING_IDENTITY_CACHE: Dict[Tuple[str, int, int, int], str] = {}
+_MAPPING_PERMUTATION_CACHE: Dict[Tuple[str, int, int, int], str] = {}
+_REQUEST_ENV_KEYS = (
+    "GORDER_FAST_BATCH",
+    "GORDER_WINDOW",
+    "RABBIT_RESOLUTION",
+)
 
 
-def mapping_artifact_identity(mapping_path: str | os.PathLike) -> str:
+def mapping_artifact_identity(
+    mapping_path: str | os.PathLike,
+    *,
+    use_cache: bool = True,
+) -> str:
     """Return a cached content identity for a pre-generated mapping.
 
     Mapping filenames identify the algorithm, but not a regenerated artifact.
@@ -96,8 +106,13 @@ def mapping_artifact_identity(mapping_path: str | os.PathLike) -> str:
     """
     path = Path(mapping_path).resolve()
     before = path.stat()
-    cache_key = (str(path), before.st_size, before.st_mtime_ns)
-    cached = _MAPPING_IDENTITY_CACHE.get(cache_key)
+    cache_key = (
+        str(path),
+        before.st_size,
+        before.st_mtime_ns,
+        before.st_ctime_ns,
+    )
+    cached = _MAPPING_IDENTITY_CACHE.get(cache_key) if use_cache else None
     if cached is not None:
         return cached
 
@@ -107,14 +122,16 @@ def mapping_artifact_identity(mapping_path: str | os.PathLike) -> str:
             digest.update(block)
 
     after = path.stat()
-    if (before.st_size, before.st_mtime_ns) != (
+    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
         after.st_size,
         after.st_mtime_ns,
+        after.st_ctime_ns,
     ):
         raise RuntimeError(f"Mapping changed while hashing: {path}")
 
     identity = f"map:{path.name}:sha256:{digest.hexdigest()}"
-    _MAPPING_IDENTITY_CACHE[cache_key] = identity
+    if use_cache:
+        _MAPPING_IDENTITY_CACHE[cache_key] = identity
     return identity
 
 
@@ -125,7 +142,11 @@ def mapping_permutation_fingerprint(
     path = Path(mapping_path)
     stat = path.stat()
     cache_key = (
-        str(path.resolve()), stat.st_size, stat.st_mtime_ns)
+        str(path.resolve()),
+        stat.st_size,
+        stat.st_mtime_ns,
+        stat.st_ctime_ns,
+    )
     cached = _MAPPING_PERMUTATION_CACHE.get(cache_key)
     if cached is not None:
         return cached
@@ -158,6 +179,48 @@ def mapping_permutation_fingerprint(
     return fingerprint
 
 
+def requested_execution_spec(
+    *,
+    algorithm: str,
+    graph_path: str | os.PathLike,
+    mapping_identity_id: str = "direct",
+) -> str:
+    algo_id, _params = parse_algorithm_option(algorithm)
+    requested = (
+        f"13:{mapping_identity_id}"
+        if algo_id == 13
+        else algorithm
+    )
+    graph_identity = mapping_artifact_identity(
+        graph_path).replace("map:", "graph:", 1)
+    policy = {
+        key: os.environ[key]
+        for key in _REQUEST_ENV_KEYS
+        if key in os.environ
+    }
+    model_identity = ""
+    if algo_id == 14:
+        model_path = Path(
+            os.environ.get(
+                "PERCEPTRON_WEIGHTS_FILE",
+                DATA_DIR / "adaptive_models.json",
+            )
+        )
+        model_identity = (
+            mapping_artifact_identity(
+                model_path, use_cache=False).replace(
+                "map:", "model:", 1)
+            if model_path.is_file()
+            else "model:missing"
+        )
+    encoded_policy = json.dumps(
+        policy, sort_keys=True, separators=(",", ":"))
+    return (
+        f"{requested}|{graph_identity}|env={encoded_policy}"
+        + (f"|{model_identity}" if model_identity else "")
+    )
+
+
 def load_reorder_time_for_algo(graph_name: str, algo_name: str,
                                mappings_dir: str = None) -> float:
     """Load a versioned complete-reorder timing sidecar."""
@@ -178,6 +241,50 @@ def load_reorder_time_for_algo(graph_name: str, algo_name: str,
         ),
     )
     return value if value is not None else 0.0
+
+
+def require_reorder_time_for_algo(
+    graph_name: str,
+    algo_name: str,
+    mappings_dir: str = None,
+) -> float:
+    base = Path(mappings_dir or _DEFAULT_MAPPINGS_DIR)
+    if base.name != graph_name:
+        base /= graph_name
+    mapping = base / f"{algo_name}.lo"
+    fingerprint = (
+        mapping_permutation_fingerprint(mapping)
+        if mapping.is_file()
+        else None
+    )
+    value = read_reorder_time(
+        base / f"{algo_name}.time",
+        expected_mapping_fingerprint=fingerprint,
+        allow_legacy=False,
+    )
+    if value is None:
+        raise RuntimeError(
+            f"Missing versioned reorder-time sidecar for "
+            f"{graph_name}/{algo_name}")
+    return float(value)
+
+
+def apply_pregenerated_reorder_cost(
+    result: BenchmarkResult,
+    *,
+    graph_name: str,
+    algo_name: str,
+    mappings_dir: str,
+) -> None:
+    replay_time = result.reorder_time
+    result.mapping_replay_time = replay_time
+    result.extra["mapping_replay_time"] = replay_time
+    result.reorder_time = require_reorder_time_for_algo(
+        graph_name,
+        algo_name,
+        mappings_dir=mappings_dir,
+    )
+    result.extra["mapping_generation_time"] = result.reorder_time
 
 
 # =============================================================================
@@ -740,6 +847,7 @@ def run_benchmark(
     requested_algorithm_spec: str = None,
     attempt: int = 1,
     self_record: bool = False,
+    topology_analysis: bool = False,
 ) -> BenchmarkResult:
     """
     Run a single benchmark with specified algorithm.
@@ -776,6 +884,8 @@ def run_benchmark(
             When True, the ambient environment is inherited so an explicit
             ``-D`` flag or exported ``GRAPHBREW_DB_DIR`` can enable C++
             self-recording.
+        topology_analysis: Opt into global topology diagnostics inside the
+            child process. Disabled by default for measured runs.
         
     Returns:
         BenchmarkResult with timing information
@@ -789,10 +899,10 @@ def run_benchmark(
     resolved_mode = measurement_mode or "process"
     requested_spec = requested_algorithm_spec
     if not requested_spec:
-        requested_spec = (
-            f"13:{mapping_identity_id}"
-            if algo_id == 13
-            else algorithm
+        requested_spec = requested_execution_spec(
+            algorithm=algorithm,
+            graph_path=graph_path,
+            mapping_identity_id=mapping_identity_id,
         )
 
     def _make_result(**overrides) -> BenchmarkResult:
@@ -856,6 +966,8 @@ def run_benchmark(
     child_env = os.environ.copy()
     if not self_record:
         child_env["GRAPHBREW_DB_DIR"] = ""
+    if not topology_analysis:
+        child_env["GRAPHBREW_TOPOLOGY_ANALYSIS"] = "0"
     
     # Run benchmark
     try:
@@ -1164,10 +1276,10 @@ def run_benchmarks_multi_graph(
                     algo_opt = str(algo_id)
                     mapping_identity_id = "direct"
                     run_mode = "direct"
-                requested_spec = (
-                    f"13:{mapping_identity_id}"
-                    if run_mode != "direct"
-                    else algo_opt
+                requested_spec = requested_execution_spec(
+                    algorithm=algo_opt,
+                    graph_path=graph_path,
+                    mapping_identity_id=mapping_identity_id,
                 )
 
                 # Resume: skip runs already in the database.  The key is the
@@ -1228,10 +1340,12 @@ def run_benchmarks_multi_graph(
                     result.graph = graph_name
                     result.nodes = graph.nodes
                     result.edges = graph.edges
-                    # Load reorder_time from .time file (written during pregeneration)
-                    if result.reorder_time <= 0:
-                        result.reorder_time = load_reorder_time_for_algo(
-                            graph_name, algo_name, mappings_dir=mappings_dir)
+                    apply_pregenerated_reorder_cost(
+                        result,
+                        graph_name=graph_name,
+                        algo_name=algo_name,
+                        mappings_dir=mappings_dir,
+                    )
                     results.append(result)
                     graph_results.append(result)
                     completed += 1
@@ -1275,6 +1389,12 @@ def run_benchmarks_multi_graph(
                 if run_mode == "labelmap":
                     result.algorithm = algo_name
                     result.algorithm_id = algo_id
+                    apply_pregenerated_reorder_cost(
+                        result,
+                        graph_name=graph_name,
+                        algo_name=algo_name,
+                        mappings_dir=mappings_dir,
+                    )
                 
                 results.append(result)
                 graph_results.append(result)
@@ -1321,7 +1441,11 @@ def run_benchmarks_multi_graph(
                         continue
                     # Resume: chained orderings resume on the same shared key.
                     map_spec = f"13:{pregen_lo}"
-                    requested_spec = f"13:{mapping_identity_id}"
+                    requested_spec = requested_execution_spec(
+                        algorithm=map_spec,
+                        graph_path=graph.path,
+                        mapping_identity_id=mapping_identity_id,
+                    )
                     if _condition_key(canonical, requested_spec, bench, graph_name,
                                       mapping_identity_id) in skip_existing:
                         skipped_existing += 1
@@ -1346,10 +1470,12 @@ def run_benchmarks_multi_graph(
                     result.graph = graph_name
                     result.nodes = graph.nodes
                     result.edges = graph.edges
-                    # Load reorder_time from .time file (written during pregeneration)
-                    if result.reorder_time <= 0:
-                        result.reorder_time = load_reorder_time_for_algo(
-                            graph_name, canonical, mappings_dir=mappings_dir)
+                    apply_pregenerated_reorder_cost(
+                        result,
+                        graph_name=graph_name,
+                        algo_name=canonical,
+                        mappings_dir=mappings_dir,
+                    )
                     results.append(result)
     
     # Save the graph properties cache after all benchmarks
@@ -1510,28 +1636,14 @@ def run_benchmarks_with_variants(
     variant suffixes like GraphBrewOrder_leiden, RABBITORDER_csr) to ensure the results
     contain the full variant names.
 
-    When using .lo files (MAP mode), loads reorder_time from the corresponding
-    .time file instead of parsing from benchmark output.
+    When using .lo files (MAP mode), loads complete generation cost from the
+    versioned timing sidecar and records MAP replay cost separately.
 
     The ``labeling`` / ``measurement_mode`` / ``threads`` arguments populate the
     observation condition of every success and failure result so distinct
     conditions never collide, and mapping identity distinguishes direct
     (``ORIGINAL``) inputs from pre-generated MAP inputs.
     """
-    from pathlib import Path as _Path
-
-    def load_reorder_time(label_map_path: str) -> float:
-        """Load reorder time from .time file corresponding to .lo file."""
-        if not label_map_path:
-            return 0.0
-        time_file = _Path(label_map_path).with_suffix('.time')
-        if time_file.exists():
-            try:
-                return float(time_file.read_text().strip())
-            except (ValueError, IOError):
-                return 0.0
-        return 0.0
-
     results = []
 
     # Collect all unique algorithm names from label_maps
@@ -1584,11 +1696,8 @@ def run_benchmarks_with_variants(
 
                 # Early-exit: skip if this graph×benchmark already timed out
                 if combo_key in timed_out_combos:
-                    algo_id = 0
-                    for aid, aname in ALGORITHMS.items():
-                        if algo_name == aname or algo_name.startswith(aname + "_"):
-                            algo_id = aid
-                            break
+                    algo_id = algorithm_id_from_canonical_name(
+                        algo_name)
                     result = BenchmarkResult(
                         graph=graph_name,
                         algorithm=algo_name,
@@ -1612,11 +1721,7 @@ def run_benchmarks_with_variants(
                     continue
 
                 # Determine algorithm ID from name
-                algo_id = 0
-                for aid, aname in ALGORITHMS.items():
-                    if algo_name == aname or algo_name.startswith(aname + "_"):
-                        algo_id = aid
-                        break
+                algo_id = algorithm_id_from_canonical_name(algo_name)
 
                 # Get label map path for this algorithm (if not ORIGINAL)
                 label_map_path = ""
@@ -1650,8 +1755,10 @@ def run_benchmarks_with_variants(
                             measurement_mode=measurement_mode,
                             threads=threads,
                             mapping_identity_id=mapping_identity_id,
-                            requested_algorithm_spec=(
-                                f"13:{mapping_identity_id}"
+                            requested_algorithm_spec=requested_execution_spec(
+                                algorithm=f"13:{pregen_lo}",
+                                graph_path=graph_path,
+                                mapping_identity_id=mapping_identity_id,
                             ),
                         )
                         # Preserve original algo identity for analysis
@@ -1660,9 +1767,12 @@ def run_benchmarks_with_variants(
                         result.graph = graph_name
                         result.nodes = graph.nodes
                         result.edges = graph.edges
-                        # Load reorder_time from .time file (written during pregeneration)
-                        if result.reorder_time <= 0:
-                            result.reorder_time = load_reorder_time_for_algo(graph_name, algo_name)
+                        apply_pregenerated_reorder_cost(
+                            result,
+                            graph_name=graph_name,
+                            algo_name=algo_name,
+                            mappings_dir=mappings_dir,
+                        )
                         results.append(result)
                         completed += 1
                         if progress:
@@ -1696,10 +1806,10 @@ def run_benchmarks_with_variants(
                     measurement_mode=measurement_mode,
                     threads=threads,
                     mapping_identity_id=mapping_identity_id,
-                    requested_algorithm_spec=(
-                        algo_opt
-                        if mapping_identity_id == "direct"
-                        else f"13:{mapping_identity_id}"
+                    requested_algorithm_spec=requested_execution_spec(
+                        algorithm=algo_opt,
+                        graph_path=graph_path,
+                        mapping_identity_id=mapping_identity_id,
                     ),
                 )
 
@@ -1732,7 +1842,12 @@ def run_benchmarks_with_variants(
 
                 # Load reorder_time from .time file when using .lo files
                 if label_map_path:
-                    result.reorder_time = load_reorder_time(label_map_path)
+                    apply_pregenerated_reorder_cost(
+                        result,
+                        graph_name=graph_name,
+                        algo_name=algo_name,
+                        mappings_dir=mappings_dir,
+                    )
 
                 results.append(result)
                 completed += 1

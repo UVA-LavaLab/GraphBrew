@@ -1331,7 +1331,10 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
             runner.REORDER_SEMANTICS_VERSION,
         "graph": "tiny",
         "graph_info": runner._serialized_graph_info(graph),
+        "graph_crc32": runner._file_crc32(graph),
         "converter_flags": flags,
+        "generation_policy_id":
+            runner._mapping_generation_policy_id(graph, flags),
         "lo_path": lo.name,
         "lo_bytes": lo.stat().st_size,
         "mapping_draw_count": runner._mapping_draw_count(flags),
@@ -1388,7 +1391,7 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
         "tiny", "8:csr", graph, ["-o", "8:boost"],
     )
     graph.write_bytes(struct.pack("<?qq", False, 20, 10) + b"second")
-    assert runner._mapping_is_valid("tiny", "8:csr", graph, flags)
+    assert not runner._mapping_is_valid("tiny", "8:csr", graph, flags)
     other_graph = tmp_path / "other.sg"
     other_graph.write_bytes(struct.pack("<?qq", False, 22, 11))
     assert not runner._mapping_is_valid(
@@ -1396,7 +1399,10 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
     )
 
 
-def test_mapping_metadata_v6_requires_complete_timing_contract(tmp_path):
+def test_mapping_metadata_v6_requires_complete_timing_contract(
+    tmp_path,
+    monkeypatch,
+):
     artifact_root = tmp_path / "artifacts"
     runner.configure_artifact_root(artifact_root)
     graph = tmp_path / "tiny.sg"
@@ -1414,7 +1420,10 @@ def test_mapping_metadata_v6_requires_complete_timing_contract(tmp_path):
             runner.REORDER_SEMANTICS_VERSION,
         "graph": "tiny",
         "graph_info": runner._serialized_graph_info(graph),
+        "graph_crc32": runner._file_crc32(graph),
         "converter_flags": flags,
+        "generation_policy_id":
+            runner._mapping_generation_policy_id(graph, flags),
         "lo_path": lo.name,
         "lo_bytes": lo.stat().st_size,
         "mapping_draw_count": 1,
@@ -1457,6 +1466,10 @@ def test_mapping_metadata_v6_requires_complete_timing_contract(tmp_path):
     meta_path.write_text(json.dumps(payload))
     assert runner._mapping_is_valid("tiny", "5", graph, flags)
 
+    monkeypatch.setenv("GORDER_FAST_BATCH", "32")
+    assert not runner._mapping_is_valid("tiny", "5", graph, flags)
+    monkeypatch.delenv("GORDER_FAST_BATCH")
+
     payload["total_preprocessing_time"] = 3.0
     meta_path.write_text(json.dumps(payload))
     assert not runner._mapping_is_valid("tiny", "5", graph, flags)
@@ -1476,8 +1489,10 @@ def test_graph_provenance_uses_semantic_conversion_policy(tmp_path):
         "graph": "tiny",
         "source_path": str(source.resolve()),
         "source_bytes": source.stat().st_size,
+        "source_crc32": runner._file_crc32(source),
         "output_path": str(graph.resolve()),
         "output_bytes": graph.stat().st_size,
+        "output_crc32": runner._file_crc32(graph),
         "directed": False,
         "symmetrized": True,
         "nodes": 10,
@@ -1503,6 +1518,53 @@ def test_graph_provenance_uses_semantic_conversion_policy(tmp_path):
     provenance["random_seed"] = 1
     provenance_path.write_text(json.dumps(provenance))
     assert not runner._graph_provenance_valid(graph)
+
+
+def test_candidate_graph_validates_against_canonical_destination(tmp_path):
+    source = tmp_path / "tiny.el"
+    source.write_text("0 1\n")
+    canonical = tmp_path / "tiny.sg"
+    candidate = tmp_path / ".tiny.candidate.sg"
+    candidate.write_bytes(struct.pack("<?qq", False, 2, 2))
+    provenance = {
+        "schema": "graph_source/v2",
+        "reorder_semantics_version":
+            runner.REORDER_SEMANTICS_VERSION,
+        "graph": "tiny",
+        "source_path": str(source.resolve()),
+        "source_bytes": source.stat().st_size,
+        "source_crc32": runner._file_crc32(source),
+        "output_path": str(canonical.resolve()),
+        "output_bytes": candidate.stat().st_size,
+        "output_crc32": runner._file_crc32(candidate),
+        "directed": False,
+        "symmetrized": True,
+        "nodes": 2,
+        "directed_edges": 2,
+        "random_order_algorithm": "1",
+        "random_seed": runner.RANDOM_BASELINE_SEED,
+        "converter_args": [
+            str(runner.BIN_DIR / "converter"),
+            "-f", str(source.resolve()), "-s", "-o", "1",
+            "-b", str(canonical.resolve()),
+        ],
+    }
+    provenance["conversion_policy_id"] = (
+        runner._graph_conversion_policy_id(provenance)
+    )
+    runner._graph_provenance_path(candidate).write_text(
+        json.dumps(provenance)
+    )
+
+    assert runner._graph_provenance_valid(
+        candidate,
+        graph_name="tiny",
+        canonical_output_path=canonical,
+    )
+    assert not runner._graph_provenance_valid(
+        candidate,
+        graph_name="tiny",
+    )
 
 
 def test_verification_gate_manifest_requires_complete_rows(tmp_path):

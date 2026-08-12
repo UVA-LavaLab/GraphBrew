@@ -457,10 +457,18 @@ struct RunReport {
                 mapping_fingerprint.empty()
                     ? reorder_metas.back().mapping_fingerprint
                     : mapping_fingerprint;
-            j["reorder_schedule_sensitive"] =
-                reorder_metas.back().schedule_sensitive;
+            bool schedule_sensitive = false;
+            bool thread_policy_sensitive = false;
+            for (const auto& meta : reorder_metas) {
+                schedule_sensitive =
+                    schedule_sensitive || meta.schedule_sensitive;
+                thread_policy_sensitive =
+                    thread_policy_sensitive
+                    || meta.thread_policy_sensitive;
+            }
+            j["reorder_schedule_sensitive"] = schedule_sensitive;
             j["reorder_thread_policy_sensitive"] =
-                reorder_metas.back().thread_policy_sensitive;
+                thread_policy_sensitive;
         }
 
         // Extra (backward compat placeholder)
