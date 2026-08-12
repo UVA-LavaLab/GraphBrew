@@ -1,22 +1,9 @@
 #!/usr/bin/env python3
 """
-Experiment 3 — Comprehensive Model Ablation for LOGO CV Accuracy.
+Retired model ablation based on non-nested LOGO CV.
 
-Grid:
-  Models:    DT(d=2), DT(d=3), DT(d=5), Hybrid(d=3), RF(100), XGBoost(100)
-  Classes:   17-individual, 8-family
-  Features:  12D (legacy), 14D (current +dv,+apl)
-  Criteria:  F-Reorder, F-Execution, E2E, Amortize
-  Metrics:   strict top-1, ≤5% regret-bounded, family-level accuracy
-
-Output:
-  JSON results table + LaTeX-ready summary.
-
-Usage:
-  python scripts/experiments/adaptive_ml/exp3_model_ablation.py
-  python scripts/experiments/adaptive_ml/exp3_model_ablation.py --json results.json
-  python scripts/experiments/adaptive_ml/exp3_model_ablation.py --models dt rf xgboost
-  python scripts/experiments/adaptive_ml/exp3_model_ablation.py --quick   # Only F-Execution
+This entry point fails closed. Replace it with the nested topology-held-out
+evaluation defined by the research roadmap before collecting new evidence.
 """
 
 from __future__ import annotations
@@ -41,6 +28,10 @@ from scripts.lib.core.experiment_policy import (
     MODEL_ABLATION_BENCHMARK_ORDER,
 )
 from scripts.lib.core.utils import RESULTS_DIR, Logger
+from scripts.lib.core.experiment_policy import (
+    reject_legacy_non_nested_logo,
+    retired_legacy_logo,
+)
 from scripts.lib.ml.model_tree import (
     Criterion,
     compute_oracle,
@@ -246,6 +237,7 @@ def _restore_feature_extractor():
 # LOGO CV Runner
 # ===================================================================
 
+@retired_legacy_logo
 def run_logo_cv(
     config: AblationConfig,
     raw_records: list,
@@ -469,6 +461,7 @@ def main():
     parser.add_argument('--latex', action='store_true',
                         help='Print LaTeX table')
     args = parser.parse_args()
+    reject_legacy_non_nested_logo("adaptive_ml.exp3_model_ablation")
 
     # Build grid
     family_modes = [False] if args.no_family else [False, True]

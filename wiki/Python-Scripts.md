@@ -339,7 +339,7 @@ The `lib/` folder is organised into five sub-packages. All public names are re-e
 
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
-| `weights.py` | **SSO** scoring (fallback) | `PerceptronWeight`, `compute_weights_from_results`, `cross_validate_logo` |
+| `weights.py` | **SSO** scoring (fallback); legacy LOGO entry points fail closed | `PerceptronWeight`, `compute_weights_from_results` |
 | `eval_weights.py` | Data loading | `load_all_results`, `build_performance_matrix`, `compute_graph_features` |
 | `training.py` | ML training | `train_adaptive_weights_iterative`, `train_adaptive_weights_large_scale` |
 | `adaptive_emulator.py` | C++ emulation | `AdaptiveOrderEmulator` |

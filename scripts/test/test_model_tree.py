@@ -22,7 +22,13 @@ from scripts.lib.ml.model_tree import (
     train_all_models,
     train_decision_tree,
     train_hybrid_tree,
+    cross_validate_logo_xgboost,
     cross_validate_logo_model_tree,
+    cross_validate_logo_two_stage,
+    cross_validate_logo_xgboost_family,
+    cross_validate_logo_xgboost_family_xbench,
+    cross_validate_logo_regression_xbench,
+    cross_validate_logo_random_forest,
 )
 
 
@@ -428,26 +434,15 @@ class TestSaveLoad:
 # ===================================================================
 
 class TestLOGOCV:
-    def test_logo_returns_valid_structure(self):
-        records = _make_records()
-        result = cross_validate_logo_model_tree(
-            records, SAMPLE_PROPS,
-            model_type='decision_tree',
-            criterion=Criterion.FASTEST_EXECUTION,
-        )
-        assert 'accuracy' in result
-        assert 'correct' in result
-        assert 'total' in result
-        assert 'per_graph' in result
-        assert 0 <= result['accuracy'] <= 1.0
-        assert result['total'] > 0
-
-    def test_logo_hybrid(self):
-        records = _make_records()
-        result = cross_validate_logo_model_tree(
-            records, SAMPLE_PROPS,
-            model_type='hybrid',
-            criterion=Criterion.FASTEST_EXECUTION,
-        )
-        assert 'accuracy' in result
-        assert result['total'] > 0
+    @pytest.mark.parametrize("evaluator", [
+        cross_validate_logo_xgboost,
+        cross_validate_logo_model_tree,
+        cross_validate_logo_two_stage,
+        cross_validate_logo_xgboost_family,
+        cross_validate_logo_xgboost_family_xbench,
+        cross_validate_logo_regression_xbench,
+        cross_validate_logo_random_forest,
+    ])
+    def test_legacy_non_nested_evaluators_fail_closed(self, evaluator):
+        with pytest.raises(RuntimeError, match="non-nested LOGO"):
+            evaluator([], {})

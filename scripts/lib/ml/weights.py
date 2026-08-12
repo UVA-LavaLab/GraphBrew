@@ -36,6 +36,7 @@ from ..core.utils import (
     is_chained_ordering_name,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
+from ..core.experiment_policy import retired_legacy_logo
 from .portfolio import DEPLOYABLE_ARM_CANONICAL_NAMES
 
 # Initialize logger
@@ -2427,6 +2428,7 @@ def compute_weights_from_results(
     return weights
 
 
+@retired_legacy_logo
 def cross_validate_logo(
     benchmark_results: List,
     reorder_results: List = None,
@@ -2703,6 +2705,7 @@ def cross_validate_logo(
     }
 
 
+@retired_legacy_logo
 def cross_validate_logo_grouped(
     benchmark_results: List,
     reorder_results: List = None,

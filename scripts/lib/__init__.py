@@ -53,7 +53,7 @@ Sub-packages:
     python -m scripts.lib.pipeline.benchmark --graph test.mtx --algorithms 0,1,8
     python -m scripts.lib.pipeline.cache --graph test.mtx --benchmarks pr,bfs
     python -m scripts.lib.ml.weights --list-types
-    python -m scripts.lib.ml.eval_weights --logo
+    python -m scripts.lib.ml.eval_weights --sg-only
     python -m scripts.lib.core.utils --list-algorithms
 
 **Library Usage:**

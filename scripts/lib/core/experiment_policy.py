@@ -63,6 +63,29 @@ PAPER_CACHE_CAPACITIES_MIB = CACHE_CAPACITY_CANDIDATES_MIB[:5]
 PAPER_CACHE_PREVIEW_CAPACITIES_MIB = (2, 8, 64)
 CACHE_PR_ITERATIONS = 5
 
+LEGACY_NON_NESTED_LOGO_ERROR = (
+    "Legacy non-nested LOGO is retired for adaptive claims; use the "
+    "nested leave-one-topology-out evaluator with fold-local portfolio "
+    "selection, model fitting, and OOD calibration"
+)
+
+
+def reject_legacy_non_nested_logo(context: str = "") -> None:
+    prefix = f"{context}: " if context else ""
+    raise RuntimeError(prefix + LEGACY_NON_NESTED_LOGO_ERROR)
+
+
+def retired_legacy_logo(function):
+    """Decorator for public evaluators whose non-nested protocol is retired."""
+    def rejected(*args, **kwargs):
+        reject_legacy_non_nested_logo(function.__name__)
+
+    rejected.__name__ = function.__name__
+    rejected.__qualname__ = function.__qualname__
+    rejected.__doc__ = function.__doc__
+    rejected.__module__ = function.__module__
+    return rejected
+
 
 def mib_to_bytes(capacity_mib: int) -> int:
     if type(capacity_mib) is not int or capacity_mib <= 0:

@@ -1925,15 +1925,15 @@ def run_experiment(args):
             log("   python3 scripts/graphbrew_experiment.py --phase download --size small")
             log("   Or specify graphs: --graph-list web-Google soc-LiveJournal1")
             sys.exit(1)
-        # Minimum-graph validation: LOGO CV needs ≥3 graphs; warn if <10
+        # Small corpora can train, but cannot support credible held-out claims.
         n_graphs = len(graphs)
-        if n_graphs < 3:
-            log(f"ERROR: Only {n_graphs} graph(s) available — need at least 3 for LOGO CV.", "ERROR")
-            log("   Download more graphs: --target-graphs 50  or  --size medium --catalog-size 50")
-            sys.exit(1)
         if n_graphs < 10:
-            log(f"WARNING: Only {n_graphs} graphs available. ML evaluation needs ≥10 graphs for "
-                "meaningful results. Consider --target-graphs 50+.", "WARN")
+            log(
+                f"WARNING: Only {n_graphs} graphs available. Use this model "
+                "for prototyping only; nested held-out evaluation needs a "
+                "larger topology corpus.",
+                "WARN",
+            )
         log_section("Fill All Weights - Comprehensive Training")
         log("This mode runs all phases to populate every weight field:")
         log("  - Phase 0: Graph Analysis (detects graph types from properties)")
@@ -2444,8 +2444,6 @@ def main():
                        help="A/B test: AdaptiveOrder vs Original on all .sg graphs")
     g_sub.add_argument("--eval-weights", action="store_true",
                        help="Train perceptron weights and evaluate accuracy")
-    g_sub.add_argument("--logo", action="store_true",
-                       help="[retired] use Sprint-3 nested fold-local LOGO")
     g_sub.add_argument("--sg-only", action="store_true",
                        help="[eval-weights] Only use .sg benchmark data")
     g_sub.add_argument("--benchmark-file", default=None,
@@ -2967,7 +2965,7 @@ def main():
             results_dir=args.results_dir,
             sg_only=args.sg_only,
             benchmark_file=args.benchmark_file,
-            logo=args.logo,
+            logo=False,
         )
         return
 

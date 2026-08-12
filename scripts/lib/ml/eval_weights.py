@@ -31,6 +31,7 @@ from ..core.utils import (
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
 )
 from ..core.datastore import get_benchmark_store
+from ..core.experiment_policy import reject_legacy_non_nested_logo
 from .weights import compute_weights_from_results, PerceptronWeight
 from .features import load_graph_properties_cache
 
@@ -456,16 +457,13 @@ def train_and_evaluate(
         weights_dir: Directory for weight files (type_0/weights.json, type_0/{bench}.json)
         sg_only: Only use .sg benchmark data
         benchmark_file: Load a specific benchmark JSON file instead of auto-discover
-        logo: Run Leave-One-Graph-Out cross-validation to measure generalization
+        logo: Retired compatibility flag; ``True`` always raises
 
     Returns:
         EvalReport with all accuracy/regret metrics.
     """
     if logo:
-        raise RuntimeError(
-            "Legacy non-nested LOGO is retired for adaptive claims; "
-            "use the Sprint-3 fold-local portfolio/model/OOD evaluation"
-        )
+        reject_legacy_non_nested_logo("train_and_evaluate")
     results_dir = str(results_dir or RESULTS_DIR)
     if weights_dir is None:
         weights_dir = str(WEIGHTS_DIR)
@@ -786,8 +784,6 @@ def main():
                         help="Only use .sg benchmark data for training")
     parser.add_argument("--benchmark-file", default=None,
                         help="Load a specific benchmark JSON file")
-    parser.add_argument("--logo", action="store_true",
-                        help="Retired: Sprint 3 provides nested fold-local LOGO")
     args = parser.parse_args()
 
     train_and_evaluate(
@@ -795,7 +791,7 @@ def main():
         weights_dir=args.weights_dir,
         sg_only=args.sg_only,
         benchmark_file=args.benchmark_file,
-        logo=args.logo,
+        logo=False,
     )
 
 

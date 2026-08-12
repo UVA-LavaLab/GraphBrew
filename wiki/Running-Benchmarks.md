@@ -97,7 +97,7 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --size small
 | **Reorder** | Runs 17 algorithms × 14 variants on each graph → `.lo` label maps | `results/mappings/<name>/<algo>.lo` |
 | **Benchmark** | Runs 7 kernels (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC) × all orderings × 2 trials | `results/data/benchmarks.json` |
 | **Cache Sim** | Simulates L1/L2/L3 cache hit rates for PR and BFS | `results/data/benchmarks.json` (cache fields) |
-| **Evaluate** | LOGO (Leave-One-Graph-Out) cross-validation on perceptron, decision-tree, hybrid, kNN | `results/data/evaluation_summary.json` |
+| **Evaluate** | In-sample diagnostics only; legacy non-nested LOGO is retired pending nested topology-held-out evaluation | `results/data/evaluation_summary.json` |
 
 **What the ML models learn:** For each graph, the pipeline records benchmark runtimes for every reordering algorithm. The ML model learns to predict which algorithm gives the best speedup based on graph topology features (degree distribution, modularity, hub concentration, etc.). More graphs = better predictions.
 

@@ -6,17 +6,18 @@ Evaluates every combination of:
   - Models:    Perceptron, Decision Tree, Hybrid (DT+Perceptron), Database kNN
   - Criteria:  Fastest-Reorder, Fastest-Execution, Best-E2E, Best-Amortization
 
-Additional evaluations:
-  - LOGO cross-validation (leave-one-graph-out) for each model
+Additional diagnostics:
   - Weight / feature importance analysis (--weights flag)
   - Per-benchmark breakdown
 
 Usage:
   python3 scripts/evaluate_all_modes.py                # In-sample, all criteria
-  python3 scripts/evaluate_all_modes.py --logo          # Add LOGO CV
-  python3 scripts/evaluate_all_modes.py --all           # Everything
+  python3 scripts/evaluate_all_modes.py --all           # In-sample + weights
   python3 scripts/evaluate_all_modes.py --weights       # Weight analysis
   python3 scripts/evaluate_all_modes.py --json          # JSON output
+
+Legacy non-nested LOGO flags fail closed. Generalization claims require the
+nested leave-one-topology-out evaluator planned in the research roadmap.
 """
 
 import argparse
@@ -34,6 +35,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib.core.utils import RESULTS_DIR, WEIGHTS_DIR, BENCHMARKS, Logger
 from scripts.lib.core.datastore import get_benchmark_store
+from scripts.lib.core.experiment_policy import (
+    reject_legacy_non_nested_logo,
+    retired_legacy_logo,
+)
 from scripts.lib.ml.model_tree import (
     Criterion, compute_oracle, criterion_value,
     extract_dt_features, train_all_models, load_adaptive_models,
@@ -574,6 +579,7 @@ def eval_insample_matrix(bench_results, raw_records, graph_props, reorder_result
 # Section 2: LOGO Cross-Validation
 # ===================================================================
 
+@retired_legacy_logo
 def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_results):
     """LOGO cross-validation for all models."""
     from scripts.lib.ml.weights import cross_validate_logo
@@ -842,6 +848,7 @@ def eval_logo_all_models(bench_results, raw_records, graph_props, reorder_result
 # Section 2b: Family-Class LOGO Ablation
 # ===================================================================
 
+@retired_legacy_logo
 def eval_logo_family_ablation(raw_records, graph_props):
     """Compare LOGO CV with 17-class (individual) vs 8-class (family) labels.
 
@@ -1312,16 +1319,18 @@ def main():
         description="Model x Criterion evaluation of adaptive reordering"
     )
     parser.add_argument("--logo", action="store_true",
-                        help="Include LOGO cross-validation")
+                        help="Retired non-nested LOGO protocol (always rejected)")
     parser.add_argument("--family", action="store_true",
-                        help="Include family-class LOGO ablation")
+                        help="Retired family-class LOGO ablation (always rejected)")
     parser.add_argument("--all", action="store_true",
-                        help="Run everything: LOGO + family + weight analysis")
+                        help="Run in-sample evaluation and weight analysis")
     parser.add_argument("--weights", action="store_true",
                         help="Run weight & feature importance analysis")
     parser.add_argument("--json", action="store_true",
                         help="Output results as JSON")
     args = parser.parse_args()
+    if args.logo or args.family:
+        reject_legacy_non_nested_logo("evaluate_all_modes")
 
     bench_results, reorder_results, graph_props, raw_records = load_data()
 
@@ -1331,12 +1340,12 @@ def main():
 
     # 2. LOGO
     logo = None
-    if args.logo or args.all:
+    if args.logo:
         logo = eval_logo_all_models(
             bench_results, raw_records, graph_props, reorder_results)
 
     # 2b. Family-class LOGO ablation
-    if args.family or args.all:
+    if args.family:
         eval_logo_family_ablation(raw_records, graph_props)
 
     # 3. Weight analysis

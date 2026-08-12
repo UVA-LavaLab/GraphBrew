@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from ..core.utils import RESULTS_DIR
+from ..core.experiment_policy import retired_legacy_logo
 
 
 # ============================================================================
@@ -673,6 +674,7 @@ def _summarize_per_bench(per_bench: dict) -> dict:
     }
 
 
+@retired_legacy_logo
 def cross_validate_logo_xgboost(
     bench_records: List[dict],
     graph_props: dict,
@@ -1028,6 +1030,7 @@ def train_all_models(
 # LOGO CV for DT/Hybrid
 # ============================================================================
 
+@retired_legacy_logo
 def cross_validate_logo_model_tree(
     bench_records: List[dict],
     graph_props: dict,
@@ -1362,6 +1365,7 @@ def predict_two_stage(model_dict, features: List[float]) -> str:
     return str(le2.inverse_transform([pred2_enc])[0])
 
 
+@retired_legacy_logo
 def cross_validate_logo_two_stage(
     bench_records: List[dict],
     graph_props: dict,
@@ -1534,6 +1538,7 @@ def cross_validate_logo_two_stage(
 # XGBoost Family+ORIGINAL (single-stage with ORIGINAL as a family)
 # ===================================================================
 
+@retired_legacy_logo
 def cross_validate_logo_xgboost_family(
     bench_records: List[dict],
     graph_props: dict,
@@ -1737,6 +1742,7 @@ def _extract_extended_features(props: dict) -> List[float]:
     return base
 
 
+@retired_legacy_logo
 def cross_validate_logo_xgboost_family_xbench(
     bench_records: List[dict],
     graph_props: dict,
@@ -1924,6 +1930,7 @@ def cross_validate_logo_xgboost_family_xbench(
     }
 
 
+@retired_legacy_logo
 def cross_validate_logo_regression_xbench(
     bench_records: List[dict],
     graph_props: dict,
@@ -2159,6 +2166,7 @@ def cross_validate_logo_regression_xbench(
     }
 
 
+@retired_legacy_logo
 def cross_validate_logo_random_forest(
     bench_records: List[dict],
     graph_props: dict,

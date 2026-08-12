@@ -1,26 +1,10 @@
 #!/usr/bin/env python3
-"""
-Cold-Start → Warm Learning Curve Simulation.
+"""Retired non-nested cold-start simulation.
 
-Simulates the streaming-database learning process:
-  - Start with an empty knowledge base.
-  - Process graphs one by one (random order).
-  - After each graph, retrain the perceptron on the accumulated data.
-  - Evaluate selection accuracy (top-1, top-3, regret) on the remaining
-    unseen graphs.
-  - Repeat for multiple random permutations to reduce variance.
-
-Produces data for a learning-curve plot:
-  x-axis = number of graphs seen
-  y-axis = selection accuracy / regret on unseen graphs
-
-Usage:
-    python -m scripts.lib.analysis.cold_start_sim \\
-        --benchmark-db results/data/benchmarks.json \\
-        --output results/vldb_experiments/exp5_cold_start/learning_curve.json \\
-        --permutations 10
-
-Requires existing benchmark data for ALL candidate algorithms × graphs.
+This implementation fails closed because it evaluated unseen graphs with the
+legacy non-nested LOGO protocol. Cold-start evidence must use nested
+topology-held-out folds with fold-local portfolio selection, model fitting,
+and OOD calibration.
 """
 
 from __future__ import annotations
@@ -47,6 +31,10 @@ from scripts.lib.ml.weights import (  # noqa: E402
 )
 from scripts.lib.ml.eval_weights import load_benchmark_entries  # noqa: E402
 from scripts.lib.core.datastore import get_benchmark_store, get_props_store  # noqa: E402
+from scripts.lib.core.experiment_policy import (  # noqa: E402
+    reject_legacy_non_nested_logo,
+    retired_legacy_logo,
+)
 
 log = logging.getLogger("cold_start_sim")
 
@@ -61,6 +49,7 @@ def _filter_records(records: List[dict], graphs: set) -> List[dict]:
     return [r for r in records if r["graph"] in graphs]
 
 
+@retired_legacy_logo
 def simulate_cold_start(
     all_records: List[dict],
     graph_order: List[str],
@@ -159,6 +148,7 @@ def simulate_cold_start(
     return curve
 
 
+@retired_legacy_logo
 def run_cold_start_experiment(
     records: List[dict],
     n_permutations: int = 10,
@@ -250,6 +240,7 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true")
 
     args = parser.parse_args()
+    reject_legacy_non_nested_logo("cold_start_sim")
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
