@@ -60,7 +60,8 @@ namespace corder_params {
  *   3. Apply greedy ordering with window size w
  *   4. Map back to original vertex IDs
  * 
- * Complexity: O(n × w) where w is window size (default: 5)
+ * Work is proportional to the one- and two-hop score updates:
+ * O(n log n + m + sum_v out_degree(v)^2), which is O(nm) in the worst case.
  * 
  * Reference:
  *   Wei, H., Yu, J.X., Lu, C., Lin, X. (2016). Speedup Graph Processing

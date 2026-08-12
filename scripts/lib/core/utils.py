@@ -1188,6 +1188,15 @@ def canonical_algo_key(algo_id: int, variant: str | None = None) -> str:
         if normalized not in CORDER_VARIANTS:
             raise ValueError(f"Unknown COrder variant: {variant}")
         return f"CORDER_{normalized}"
+    if algo_id == 9 and variant:
+        normalized = variant.replace(':', '_')
+        if normalized == "default":
+            return "GORDER"
+        if normalized == "sym":
+            normalized = "csr"
+        if normalized not in GORDER_VARIANTS:
+            raise ValueError(f"Unknown GOrder variant: {variant}")
+        return f"GORDER_{normalized}"
     if algo_id in _VARIANT_ALGO_REGISTRY:
         prefix, _, default = _VARIANT_ALGO_REGISTRY[algo_id]
         v = variant or default

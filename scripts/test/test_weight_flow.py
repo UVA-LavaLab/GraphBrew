@@ -612,6 +612,11 @@ class TestCanonicalAlgoKey:
     def test_variant_algorithms_explicit(self):
         """Explicit variant is used when provided."""
         assert canonical_algo_key(8, "boost") == "RABBITORDER_boost"
+        assert canonical_algo_key(9, "gograph") == "GORDER_gograph"
+        assert canonical_algo_key(9, "csr") == "GORDER_csr"
+        assert canonical_algo_key(9, "fast") == "GORDER_fast"
+        assert canonical_algo_key(10, "canonical") == "CORDER_canonical"
+        assert canonical_algo_key(11, "mind") == "RCM_mind"
         assert canonical_algo_key(11, "bnf") == "RCM_bnf"
         assert canonical_algo_key(12, "rabbit") == "GraphBrewOrder_rabbit"
         assert canonical_algo_key(12, "hubcluster") == "GraphBrewOrder_hubcluster"

@@ -112,7 +112,9 @@ greedy vertex placement maximising a local cache-locality score
 (Gscore). Produces best-in-class cache hits but is serial and
 NP-hard in the limit; reorder time is typically 10-100× a community
 method on the same graph. `-o 9:gograph` forces the mapping-equivalent
-legacy validation path; bare `-o 9` is compatibility auto mode.
+legacy validation path; bare `-o 9` is compatibility auto mode. `-o 9:fast`
+is a distinct relaxed mapping with fixed batch/window semantics and explicit
+environment overrides.
 
 **CORDER** (`-o 10`) — degree-based hot/cold workload balancing. Bare
 `-o 10` preserves GraphBrew's historical 1,024-vertex partitions;

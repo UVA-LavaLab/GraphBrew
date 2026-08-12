@@ -155,6 +155,9 @@ Baseline hygiene findings discovered by the same review:
 - Bare Algorithm 11 composes two MIND-start RCM passes. It is frozen historical
   evidence, not a canonical single-pass baseline; `11:mind` and `11:bnf`
   provide explicit future controls.
+- Gorder `9:gograph` and `9:csr` are exact mapping-equivalent implementations;
+  `9:fast` is a distinct relaxed mapping. Its batch/window semantics and
+  frontier merge are now deterministic across thread counts.
 
 The source identities are now corrected, Algorithm 10 is deterministic, and
 `10:canonical` exposes the upstream-sized baseline without changing frozen

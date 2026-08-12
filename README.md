@@ -105,7 +105,7 @@ Use `-o <id[:options]>` to select an ordering.
 | 6 | HUBSORTDBG | HubSort + DBG |
 | 7 | HUBCLUSTERDBG | HubCluster + DBG |
 | 8 | RABBITORDER | Rabbit CSR/Boost baseline |
-| 9 | GORDER | Window-locality baseline |
+| 9 | GORDER | Exact `gograph`/`csr` baselines plus deterministic relaxed `fast` |
 | 10 | CORDER | Historical 1K baseline; `10:canonical` uses upstream 1 MiB segments |
 | 11 | RCM | `11` historical double-pass; `11:mind` single-pass; `11:bnf` CSR-native BNF |
 | 12 | GraphBrewOrder | Configurable GraphBrew pipeline |

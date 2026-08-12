@@ -36,7 +36,8 @@
 //     - Batch extraction: stale scores within each batch
 //     - Fan-out cap (64): bounds 2-hop inner loop work
 //     - Hub threshold n^(1/3) instead of n^(1/2)
-//   Auto-tunes: batch=max(64, 4×threads), window=max(5, 2×batch).
+//   Fixed semantics: batch=64 and window=128 by default, with explicit
+//   GORDER_FAST_BATCH / GORDER_WINDOW overrides.
 //   2-3× greedy speedup on power-law graphs at 8 threads.
 //
 // RCM pre-ordering:
@@ -60,6 +61,7 @@
 #include <cmath>
 #include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <numeric>
@@ -626,8 +628,11 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
     std::vector<int> score(n, 0);
     std::vector<char> placed(n, 0);
     std::vector<std::atomic<int>> delta(n);
-    for (int i = 0; i < n; i++)
+    std::vector<std::atomic<int>> touched_epoch(n);
+    for (int i = 0; i < n; i++) {
         delta[i].store(0, std::memory_order_relaxed);
+        touched_epoch[i].store(-1, std::memory_order_relaxed);
+    }
 
     // --- Active frontier (vertices with score > 0 and not placed) ---
     std::vector<int> frontier;
@@ -668,14 +673,16 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
     // --- Neighbor update helper (thread-safe via atomic delta) ---
     // sign = +1 for push (vertex enters window)
     // sign = -1 for pop  (vertex exits window)
-    // 'seen' is a per-thread dedup array: touched records only unique vertices.
     auto update_neighbors = [&](int v, int sign,
                                 std::vector<int>& touched,
-                                std::vector<char>& seen) {
+                                int epoch) {
         auto touch = [&](int w) {
             if (placed[w]) return;
             delta[w].fetch_add(sign, std::memory_order_relaxed);
-            if (!seen[w]) { seen[w] = 1; touched.push_back(w); }
+            if (touched_epoch[w].exchange(
+                    epoch, std::memory_order_relaxed) != epoch) {
+                touched.push_back(w);
+            }
         };
         // 1-hop: out-neighbors of v
         if (outdeg(v) <= hugevertex) {
@@ -708,10 +715,9 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
     placed[start_v] = 1;
     {   // Initial push (serial for the single start vertex)
         std::vector<int> touched;
-        std::vector<char> seen(n, 0);
-        update_neighbors(start_v, +1, touched, seen);
+        update_neighbors(start_v, +1, touched, 0);
+        std::sort(touched.begin(), touched.end());
         for (int w : touched) {
-            seen[w] = 0;
             int d = delta[w].exchange(0, std::memory_order_relaxed);
             if (d != 0) score[w] += d;
             if (score[w] > 0 && !in_frontier[w] && !placed[w]) {
@@ -725,11 +731,11 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
     const int total_to_place = n - static_cast<int>(zero.size());
     int pos = 1; // vertices placed so far (including start)
 
-    // Thread-local touched lists and dedup arrays
+    // Thread-local touched lists; global atomic epochs deduplicate vertices.
     const int nthreads = omp_get_max_threads();
     std::vector<std::vector<int>> t_touched(nthreads);
-    std::vector<std::vector<char>> t_seen(nthreads, std::vector<char>(n, 0));
     for (auto& tt : t_touched) tt.reserve(batch_size * FANOUT_CAP);
+    std::vector<int> merged_touched;
 
     while (pos < total_to_place) {
         int B = std::min(batch_size, total_to_place - pos);
@@ -767,7 +773,9 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
                 // Exact tie: use DON priority if available, else indeg
                 if (use_don && don_priority[a] != don_priority[b])
                     return don_priority[a] > don_priority[b];
-                return indeg(a) > indeg(b);
+                if (indeg(a) != indeg(b))
+                    return indeg(a) > indeg(b);
+                return a < b;
             };
             if (static_cast<int>(frontier.size()) > B_front)
                 std::partial_sort(frontier.begin(), frontier.begin() + B_front,
@@ -819,30 +827,38 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
             #pragma omp for schedule(dynamic)
             for (int i = 0; i < actual_B; i++) {
                 // Push: batch[i] enters window
-                update_neighbors(batch[i], +1, t_touched[tid], t_seen[tid]);
+                update_neighbors(
+                    batch[i], +1, t_touched[tid], pos);
                 // Pop: window-exit vertex
                 int exit_pos = pos + i - window;
                 if (exit_pos >= 0)
-                    update_neighbors(order[exit_pos], -1, t_touched[tid], t_seen[tid]);
+                    update_neighbors(
+                        order[exit_pos], -1, t_touched[tid], pos);
             }
         }
 
         // === Phase 3: Merge deltas and update frontier (serial) ===
-        // Per-thread dedup ensures each vertex appears at most once per thread.
-        // Cross-thread duplicates are handled by delta[w].exchange(0):
-        // first exchange gets the accumulated value, subsequent return 0.
+        merged_touched.clear();
         for (int tid = 0; tid < nthreads; tid++) {
-            for (int w : t_touched[tid]) {
-                t_seen[tid][w] = 0;  // clear dedup flag
-                if (placed[w]) continue;
-                int d = delta[w].exchange(0, std::memory_order_relaxed);
-                if (d != 0) score[w] += d;
-                if (score[w] > 0 && !in_frontier[w]) {
-                    frontier.push_back(w);
-                    in_frontier[w] = 1;
-                }
-            }
+            merged_touched.insert(
+                merged_touched.end(),
+                t_touched[tid].begin(),
+                t_touched[tid].end());
             t_touched[tid].clear();
+        }
+        std::sort(merged_touched.begin(), merged_touched.end());
+        merged_touched.erase(
+            std::unique(
+                merged_touched.begin(), merged_touched.end()),
+            merged_touched.end());
+        for (int w : merged_touched) {
+            if (placed[w]) continue;
+            int d = delta[w].exchange(0, std::memory_order_relaxed);
+            if (d != 0) score[w] += d;
+            if (score[w] > 0 && !in_frontier[w]) {
+                frontier.push_back(w);
+                in_frontier[w] = 1;
+            }
         }
 
         pos += actual_B;
@@ -883,14 +899,8 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // The original GOrder paper (Wei et al., 2016) uses w=5 as its default.
     Timer tm;
     if (g.num_nodes() > static_cast<int64_t>(std::numeric_limits<int>::max())) {
-        std::cerr << "GOrder: graph has "
-                  << static_cast<long long>(g.num_nodes())
-                  << " nodes, exceeding int32 limit. Falling back to identity.\n";
-        new_ids.resize(g.num_nodes());
-        #pragma omp parallel for
-        for (int64_t i = 0; i < g.num_nodes(); ++i)
-            new_ids[i] = static_cast<NodeID_>(i);
-        return;
+        throw std::overflow_error(
+            "GOrder CSR requires vertex IDs representable as int32");
     }
     const int n = static_cast<int>(g.num_nodes());
     if (n == 0) return;
@@ -952,7 +962,8 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 //   Step 3: Parallel batch greedy with atomic score updates
 //   Step 4: Compose permutations (parallel)
 //
-// Auto-tuning: batch = max(8, 2*threads), window = max(5, 2*batch)
+// Defaults: batch=64, window=128. Explicit environment overrides preserve
+// reproducible semantics across thread counts.
 // ============================================================================
 
 template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
@@ -961,14 +972,8 @@ void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                const std::string& /*filename*/) {
     Timer tm;
     if (g.num_nodes() > static_cast<int64_t>(std::numeric_limits<int>::max())) {
-        std::cerr << "GOrder_fast: graph has "
-                  << static_cast<long long>(g.num_nodes())
-                  << " nodes, exceeding int32 limit. Falling back to identity.\n";
-        new_ids.resize(g.num_nodes());
-        #pragma omp parallel for
-        for (int64_t i = 0; i < g.num_nodes(); ++i)
-            new_ids[i] = static_cast<NodeID_>(i);
-        return;
+        throw std::overflow_error(
+            "GOrder fast requires vertex IDs representable as int32");
     }
     const int n = static_cast<int>(g.num_nodes());
 
@@ -978,8 +983,16 @@ void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         new_ids.resize(n);
 
     const int nthreads = omp_get_max_threads();
-    const int batch  = std::max(64, nthreads * 4);
-    const int window = std::max(5, batch * 2);
+    int batch = 64;
+    if (const char* env_batch = std::getenv("GORDER_FAST_BATCH")) {
+        int value = std::atoi(env_batch);
+        if (value >= 8 && value <= 4096) batch = value;
+    }
+    int window = std::max(5, batch * 2);
+    if (const char* env_window = std::getenv("GORDER_WINDOW")) {
+        int value = std::atoi(env_window);
+        if (value >= 2 && value <= 8192) window = value;
+    }
 
     std::cout << "GOrder_fast config: batch=" << batch
               << " window=" << window

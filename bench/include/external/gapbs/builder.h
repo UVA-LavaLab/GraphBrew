@@ -1539,6 +1539,14 @@ public:
                 algo_name = "RCM_"
                     + resolveVariant(reordering_options, "default");
             }
+            if (reordering_algo == GOrder) {
+                std::string variant =
+                    resolveVariant(reordering_options, "default");
+                if (variant == "sym") variant = "csr";
+                algo_name = variant == "default"
+                    ? "GORDER"
+                    : "GORDER_" + variant;
+            }
 
             // ── MAP mode: derive real algorithm identity from .lo filename ──
             // When using pre-generated mappings (MAP, id=13), the .lo filename
