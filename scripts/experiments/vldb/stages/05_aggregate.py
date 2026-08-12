@@ -64,6 +64,12 @@ PAPER_PACKAGE_FILES = [
     "dataCharts/tables/table_chained.tex",
     "dataCharts/tables/table_scalability.tex",
 ]
+PAPER_PACKAGE_FILES += [
+    Path(relative).with_suffix(".svg").as_posix()
+    for relative in PAPER_PACKAGE_FILES
+    if relative.startswith("dataCharts/")
+    and relative.endswith(".png")
+]
 
 
 def build_paper_package(paper_dir: Path | None = None) -> Path:

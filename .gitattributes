@@ -1,3 +1,6 @@
 bench/include/external/gorder/GoGraph.h whitespace=cr-at-eol
 research/ACM-Reference-Format.bst whitespace=-trailing-space
 research/acmart.cls whitespace=-trailing-space
+research/dataCharts/cache/*.svg whitespace=-trailing-space
+research/dataCharts/speedup/*.svg whitespace=-trailing-space
+research/dataCharts/trials/*.svg whitespace=-trailing-space

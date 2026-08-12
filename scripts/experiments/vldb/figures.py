@@ -338,7 +338,7 @@ CACHE_ALGO_STYLES = {
     "8:boost": ("Rabbit Boost", "#54A24B", "^", "-"),
     "9:csr": ("Gorder", "#ECA82C", "D", "-"),
     "11": ("RCM", "#B279A2", "v", "-"),
-    "12:leiden": ("Leiden", "#E45756", "*", "-"),
+    "12:leiden": ("GB-Leiden", "#E45756", "*", "-"),
     "12:hrab:bfs_intra": ("HRAB-BFS", "#F58518", "P", "-."),
     "12:hrab": ("HRAB-RCM", "#FF9DA6", "X", ":"),
     "12:tqr": ("TQR", "#9D755D", "h", "-."),
@@ -475,6 +475,26 @@ def copy_to_paper(src: Path, subdir: str, filename: Optional[str] = None) -> Non
     dst = dst_dir / (filename or src.name)
     shutil.copy2(src, dst)
     log.info(f"  Copied to paper: {display_path(dst)}")
+
+
+def save_and_publish_figure(
+    fig,
+    output: Path,
+    paper_subdir: str,
+    paper_filename: str,
+    *,
+    dpi: int = 300,
+) -> None:
+    """Save PNG+SVG outputs and publish both into the paper tree."""
+    fig.savefig(output, dpi=dpi)
+    svg_output = output.with_suffix(".svg")
+    fig.savefig(svg_output)
+    copy_to_paper(output, paper_subdir, paper_filename)
+    copy_to_paper(
+    svg_output,
+    paper_subdir,
+    Path(paper_filename).with_suffix(".svg").name,
+    )
 
 
 def generate_sample_speedup_data() -> dict:
@@ -850,9 +870,10 @@ def fig1_cache_performance(sample: bool = False) -> None:
 
     plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=0.6)
     out = FIGURES_DIR / "fig1_cache_performance.png"
-    plt.savefig(out); plt.close()
+    save_and_publish_figure(
+        fig, out, "cache", "cacheGM.png")
+    plt.close(fig)
     log.info(f"  Saved: {out}")
-    copy_to_paper(out, "cache", "cacheGM.png")
 
     for graph in graphs:
         fig_single, ax = plt.subplots(
@@ -918,13 +939,13 @@ def fig1_cache_performance(sample: bool = False) -> None:
         )
         plt.tight_layout(rect=[0, 0, 1, 0.9], pad=0.3)
         graph_out = FIGURES_DIR / f"fig1_{graph}.png"
-        plt.savefig(graph_out, dpi=300)
-        plt.close(fig_single)
-        copy_to_paper(
+        save_and_publish_figure(
+            fig_single,
             graph_out,
             "cache",
             CACHE_GRAPH_FILENAMES[graph],
         )
+        plt.close(fig_single)
         log.info(f"  Saved: {graph_out}")
 
 
@@ -1082,9 +1103,10 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
 
     plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=0.6)
     out = FIGURES_DIR / "fig2_kernel_speedup.png"
-    plt.savefig(out, dpi=300); plt.close()
+    save_and_publish_figure(
+        fig, out, "speedup", "aggregateSpeedups.png")
+    plt.close(fig)
     log.info(f"  Saved: {out}")
-    copy_to_paper(out, "speedup", "aggregateSpeedups.png")
 
     # Also generate per-benchmark per-graph charts (one PNG each, 2-col wide)
     for bench in benchmarks_plot:
@@ -1163,8 +1185,6 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
                   frameon=True)
         plt.tight_layout(pad=0.3)
         out_b = FIGURES_DIR / f"fig2_{bench}.png"
-        plt.savefig(out_b); plt.close()
-        log.info(f"  Saved: {out_b}")
         paper_name = {
             "bfs": "BFS.png",
             "pr": "PR.png",
@@ -1174,7 +1194,10 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
             "cc_sv": "CC_SV.png",
             "bc": "BC.png",
         }[bench]
-        copy_to_paper(out_b, "speedup", paper_name)
+        save_and_publish_figure(
+            fig, out_b, "speedup", paper_name)
+        plt.close(fig)
+        log.info(f"  Saved: {out_b}")
 
     controlled_benchmarks = {"pr", "pr_spmv", "sssp", "bc"}
     controlled_by_algo_graph: Dict[
@@ -1393,10 +1416,15 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
             if isinstance(timeout_value, (int, float)) and timeout_value > 0:
                 censored[(graph, algo)] = float(timeout_value)
 
-    graphs = sorted(
+    graph_set = (
         set(graph_algo_time)
         | {graph for graph, _algo in censored}
     )
+    graphs = [
+        graph["name"] for graph in EVAL_GRAPHS
+        if graph["name"] in graph_set
+    ]
+    graphs.extend(sorted(graph_set - set(graphs)))
     if not graphs:
         log.warning("  No valid overhead data")
         return
@@ -1421,21 +1449,34 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
 
     algo_styles = kernel_speedup_styles(key_algos)
 
-    fig, ax = plt.subplots(figsize=(max(10, len(graphs) * 1.5), 5))
-    x = np.arange(len(graphs))
+    plot_categories = [*graphs, "GM"]
+    fig, ax = plt.subplots(figsize=(TWOCOL_WIDTH_IN, 2.65))
+    x = np.arange(len(plot_categories))
     n_algos = len(key_algos)
-    width = 0.8 / n_algos
+    width = 0.84 / n_algos
+    gm_candidates = []
 
     for i, algo in enumerate(key_algos):
-        vals = [
+        graph_values = [
             graph_algo_time[g].get(
                 algo,
                 censored.get((g, algo), np.nan),
             )
             for g in graphs
         ]
+        if any(
+            not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or value <= 0
+            for value in graph_values
+        ):
+            raise RuntimeError(
+                f"Incomplete reorder-overhead cohort for {algo}")
+        gm_value = _geo_mean([
+            float(value) for value in graph_values])
+        vals = [*graph_values, gm_value]
         bars = ax.bar(
-            x + i * width - 0.4 + width/2,
+            x + i * width - 0.42 + width / 2,
             vals,
             width,
             label=kernel_speedup_label(algo),
@@ -1443,7 +1484,7 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
             edgecolor="black",
             linewidth=0.2,
         )
-        for graph, bar in zip(graphs, bars):
+        for graph, bar in zip(plot_categories, bars):
             if (graph, algo) in censored:
                 bar.set_fill(False)
                 bar.set_edgecolor(algo_styles[algo][0])
@@ -1464,11 +1505,50 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
                     markersize=3,
                     color="#222222",
                 )
+        gm_candidates.append((gm_value, algo, bars[-1]))
+
+    gm_value, gm_algorithm, gm_bar = min(
+        gm_candidates,
+        key=lambda candidate: candidate[0],
+    )
+    ax.annotate(
+        f"{kernel_speedup_label(gm_algorithm)}\n{gm_value:.2f} s",
+        xy=(
+            gm_bar.get_x() + gm_bar.get_width() / 2,
+            gm_bar.get_height(),
+        ),
+        xytext=(0, 12),
+        textcoords="offset points",
+        ha="center",
+        va="bottom",
+        fontsize=5.5,
+        fontweight="bold",
+        arrowprops={
+            "arrowstyle": "->",
+            "color": "#222222",
+            "linewidth": 0.7,
+        },
+        annotation_clip=False,
+    )
 
     short_names = {g["name"]: g["short"] for gl in [EVAL_GRAPHS] for g in gl}
     ax.set_xticks(x)
-    ax.set_xticklabels([short_names.get(g, g[:12]) for g in graphs],
-                       rotation=30, ha="right", fontsize=8)
+    ax.set_xticklabels(
+        [
+            *[short_names.get(g, g[:12]) for g in graphs],
+            "GM",
+        ],
+        rotation=30,
+        ha="right",
+        fontsize=7,
+    )
+    ax.get_xticklabels()[-1].set_fontweight("bold")
+    ax.axvline(
+        len(graphs) - 0.5,
+        color="#444444",
+        linestyle=":",
+        linewidth=0.8,
+    )
     ax.set_ylabel("Complete Reorder Time (s)")
     ax.set_title("Calibrated Complete Reorder Overhead")
     ax.set_yscale("log")
@@ -1486,13 +1566,22 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
             edgecolor="black",
             label="Stage-02 timing (faded)",
         ))
-    ax.legend(handles=handles, fontsize=6, ncol=3, loc="upper left")
+    fig.legend(
+        handles=handles,
+        labels=labels,
+        fontsize=5.5,
+        ncol=4,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.995),
+        frameon=True,
+    )
     ax.grid(axis="y", alpha=0.3)
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.86], pad=0.3)
     out = FIGURES_DIR / "fig3_reorder_overhead.png"
-    plt.savefig(out, dpi=300); plt.close()
+    save_and_publish_figure(
+        fig, out, "speedup", "overheadReorder.png")
+    plt.close(fig)
     log.info(f"  Saved: {out}")
-    copy_to_paper(out, "speedup", "overheadReorder.png")
 
 
 # ============================================================================
@@ -2478,6 +2567,7 @@ def _plot_amortization_panel(
     styles: dict[str, tuple[str, str]],
     title: str,
     output: Path,
+    paper_filename: str,
 ) -> None:
     fig, ax = plt.subplots(figsize=(TWOCOL_WIDTH_IN, 2.65))
     x = np.arange(len(categories))
@@ -2607,8 +2697,9 @@ def _plot_amortization_panel(
     )
     ax.grid(axis="y", alpha=0.25, which="both")
     plt.tight_layout(rect=[0, 0, 1, 0.86], pad=0.3)
-    plt.savefig(output, dpi=300)
-    plt.close()
+    save_and_publish_figure(
+        fig, output, "trials", paper_filename)
+    plt.close(fig)
 
 
 def fig9_amortization_trials(sample: bool = False) -> None:
@@ -2694,8 +2785,8 @@ def fig9_amortization_trials(sample: bool = False) -> None:
             styles,
             f"{benchmark.upper()} — calibrated break-even",
             out,
+            filename,
         )
-        copy_to_paper(out, "trials", filename)
         log.info(f"  Saved: {out}")
 
     aggregate_values = {}
@@ -2724,9 +2815,8 @@ def fig9_amortization_trials(sample: bool = False) -> None:
         styles,
         "Calibrated runs to amortize reordering",
         aggregate_out,
+        "aggregateTrials.png",
     )
-    copy_to_paper(
-        aggregate_out, "trials", "aggregateTrials.png")
     log.info(f"  Saved: {aggregate_out}")
 
 

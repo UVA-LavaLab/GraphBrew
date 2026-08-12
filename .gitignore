@@ -51,6 +51,7 @@ research/dataCharts/cache/*
 !research/dataCharts/cache/Com-Orkut.png
 !research/dataCharts/cache/Hollywood.png
 !research/dataCharts/cache/road.png
+!research/dataCharts/cache/*.svg
 !research/dataCharts/speedup/
 research/dataCharts/speedup/*
 !research/dataCharts/speedup/aggregateSpeedups.png
@@ -62,6 +63,7 @@ research/dataCharts/speedup/*
 !research/dataCharts/speedup/CC.png
 !research/dataCharts/speedup/CC_SV.png
 !research/dataCharts/speedup/BC.png
+!research/dataCharts/speedup/*.svg
 !research/dataCharts/trials/
 research/dataCharts/trials/*
 !research/dataCharts/trials/aggregateTrials.png
@@ -72,6 +74,7 @@ research/dataCharts/trials/*
 !research/dataCharts/trials/CC.png
 !research/dataCharts/trials/CC_SV.png
 !research/dataCharts/trials/BC.png
+!research/dataCharts/trials/*.svg
 !research/dataCharts/tables/
 research/dataCharts/tables/*
 !research/dataCharts/tables/table_kernel_speedup.tex
