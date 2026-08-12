@@ -43,9 +43,12 @@ DATA_DIR = RESULTS_DIR / "data"
 GRAPH_PROPS_FILE = DATA_DIR / "graph_properties.json"
 BENCHMARK_DATA_FILE = DATA_DIR / "benchmarks.json"
 
-# Export DATA_DIR so C++ binaries auto-enable self-recording via InitSelfRecording().
-# The C++ side checks GRAPHBREW_DB_DIR when no --db-dir / -D flag is given.
-os.environ.setdefault("GRAPHBREW_DB_DIR", str(DATA_DIR))
+# NOTE: We deliberately do NOT auto-enable C++ self-recording here.
+# The top-level Python harness is the sole official writer for generic runs and
+# launches C++ subprocesses with GRAPHBREW_DB_DIR='' so no ambient data-dir
+# writer is inherited.  Explicit C++ self-recording remains opt-in via the
+# ``-D`` / ``--db-dir`` flag or by exporting GRAPHBREW_DB_DIR yourself before
+# invoking a benchmark binary directly.
 
 # --- Offline-trained models ---------------------------------------------------
 # Benchmark binaries load exported model artifacts and never train at runtime.
@@ -637,9 +640,19 @@ def get_graph_dimensions(path: str) -> Tuple[int, int]:
 # Data Classes
 # =============================================================================
 
+BENCHMARK_OBSERVATION_SCHEMA = "benchmark-observation/v1"
+
+
 @dataclass
 class BenchmarkResult:
-    """Results from a single benchmark run."""
+    """Results from a single benchmark run.
+
+    The ``run_id`` / ``labeling`` / ``measurement_mode`` / ``threads`` /
+    ``mapping_identity_id`` / ``process_id`` / ``attempt`` fields describe the
+    *observation condition* so distinct runs never collapse into one another.
+    Every field keeps a backward-compatible default so legacy call sites and
+    legacy JSON rows continue to construct without change.
+    """
     graph: str
     algorithm: str
     algorithm_id: int
@@ -653,13 +666,103 @@ class BenchmarkResult:
     error: str = ""
     error_kind: str = ""
     extra: Dict = None
-    
+    # ── Observation-condition identity (immutable raw-observation model) ──
+    schema: str = BENCHMARK_OBSERVATION_SCHEMA
+    run_id: str = ""
+    labeling: str = "natural"
+    measurement_mode: str = "process"
+    threads: int = 0
+    mapping_identity_id: str = "direct"
+    process_id: int = 0
+    attempt: int = 1
+
     def __post_init__(self):
         if self.extra is None:
             self.extra = {}
-    
+
     def to_dict(self) -> Dict:
         return asdict(self)
+
+
+# =============================================================================
+# Benchmark Observation Condition Key (shared SSOT)
+# =============================================================================
+#
+# A single named tuple of field names is the single source of truth for the
+# condition that identifies a distinct benchmark observation.  Producers (the
+# harness resume check, the store) and consumers (perf_matrix, get_existing_keys)
+# MUST derive keys through ``benchmark_condition_key()`` so a positional
+# ``(graph, algorithm, benchmark)`` tuple can never be built independently and
+# drift out of order.
+
+#: Ordered condition-identity fields.  ``attempt`` is included so repeated draws
+#: of an identical condition are retained as distinct observations.
+CONDITION_FIELDS: Tuple[str, ...] = (
+    "graph",
+    "algorithm",
+    "benchmark",
+    "labeling",
+    "measurement_mode",
+    "threads",
+    "mapping_identity_id",
+    "attempt",
+)
+
+#: Fields that distinguish *measurement conditions* for aggregation.  These
+#: exclude the (graph, algorithm, benchmark) identity and the ``attempt`` repeat
+#: index, so ``perf_matrix`` can median repeated attempts of one condition while
+#: still refusing to mix e.g. ``natural`` and ``shuffled`` labelings.
+CONDITION_DISCRIMINATORS: Tuple[str, ...] = (
+    "labeling",
+    "measurement_mode",
+    "threads",
+    "mapping_identity_id",
+)
+
+#: Defaults applied only when a field is entirely absent from a record.  Legacy
+#: rows are adapted by the store to ``labeling='legacy-unspecified'`` /
+#: ``measurement_mode='legacy'`` before keys are computed, so these fallbacks
+#: mostly matter for freshly constructed dict payloads.
+_CONDITION_DEFAULTS: Dict[str, Any] = {
+    "graph": "",
+    "algorithm": "",
+    "benchmark": "",
+    "labeling": "natural",
+    "measurement_mode": "process",
+    "threads": 0,
+    "mapping_identity_id": "direct",
+    "attempt": 1,
+}
+
+
+def _condition_field_value(record: Any, field: str) -> Any:
+    """Read ``field`` from a dict or dataclass-like record with a fallback."""
+    default = _CONDITION_DEFAULTS.get(field)
+    if isinstance(record, dict):
+        value = record.get(field, default)
+    else:
+        value = getattr(record, field, default)
+    if value is None:
+        value = default
+    return value
+
+
+def benchmark_condition_key(record: Any) -> Tuple:
+    """Return the named condition key for a benchmark record.
+
+    Accepts a ``dict`` or a :class:`BenchmarkResult`-like object.  The key is a
+    tuple of values in :data:`CONDITION_FIELDS` order.  This is the single
+    shared key used for storage identity, resume skipping, and perf aggregation
+    grouping so producer and consumer never build divergent positional tuples.
+    """
+    return tuple(_condition_field_value(record, f) for f in CONDITION_FIELDS)
+
+
+def condition_discriminator(record: Any) -> Tuple:
+    """Return only the measurement-condition discriminator fields for a record."""
+    return tuple(
+        _condition_field_value(record, f) for f in CONDITION_DISCRIMINATORS
+    )
 
 
 # =============================================================================
@@ -898,7 +1001,8 @@ def run_command(
     timeout: Optional[int] = None,
     capture_output: bool = True,
     check: bool = False,
-    cwd: Path = None
+    cwd: Path = None,
+    env: Optional[Dict[str, str]] = None,
 ):
     """
     Run a shell command with timeout and error handling.
@@ -913,6 +1017,10 @@ def run_command(
         capture_output: Whether to capture stdout/stderr
         check: Whether to raise exception on non-zero exit
         cwd: Working directory
+        env: Optional environment mapping for the child process.  When None the
+            parent environment is inherited unchanged.  Callers that must
+            control ambient state (e.g. disabling C++ self-recording by setting
+            ``GRAPHBREW_DB_DIR=''``) pass a fully-resolved environment here.
         
     Returns:
         If cmd is a string: Tuple of (success, stdout, stderr)
@@ -929,6 +1037,7 @@ def run_command(
                 capture_output=True,
                 text=True,
                 cwd=cwd,
+                env=env,
                 preexec_fn=_limit_subprocess_memory,
             )
             return result.returncode == 0, result.stdout, result.stderr
@@ -949,6 +1058,7 @@ def run_command(
             text=True,
             check=check,
             cwd=cwd,
+            env=env,
             preexec_fn=_limit_subprocess_memory,
         )
         return result

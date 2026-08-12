@@ -42,6 +42,11 @@
 #include <sys/file.h>   // flock() for concurrent-write safety
 #include <sys/stat.h>   // mkdir() for directory creation
 #include <cerrno>
+#include <cstdlib>      // getenv() for explicit self-recording env overrides
+#include <cstdint>      // fixed-width ints for run-id generation
+#include <unistd.h>     // getpid() for unique run-id generation
+#include <chrono>       // steady_clock for unique run-id generation
+#include <atomic>       // atomic counter for unique run-id generation
 
 // nlohmann/json for robust JSON parsing of the 140K-line database
 #include "../../external/nlohmann_json.hpp"
@@ -58,6 +63,8 @@ namespace database {
 
 /// Default directory containing the centralized data files
 inline constexpr const char* DEFAULT_DATA_DIR = "results/data/";
+inline constexpr const char* BENCHMARK_OBSERVATION_SCHEMA =
+    "benchmark-observation/v1";
 
 /// Number of nearest neighbors for kNN selection
 inline constexpr int KNN_K = 5;
@@ -162,7 +169,6 @@ public:
     ~FileLockGuard() {
         if (fd_ >= 0) {
             ::flock(fd_, LOCK_UN);
-            ::unlink(path_.c_str());   // Clean up lock file
             ::close(fd_);
         }
     }
@@ -173,6 +179,48 @@ private:
     int fd_;
     std::string path_;
 };
+
+// ============================================================================
+// Observation-condition helpers (explicit self-recording)
+// ============================================================================
+//
+// Direct binaries (invoked without the Python harness) persist raw
+// RunReport observations.  The observation condition (labeling, measurement
+// mode, thread policy, mapping identity, attempt) is taken from explicit
+// environment overrides with defaults appropriate for a direct binary, and a
+// unique run-id is generated per report so repeated self-recording runs never
+// collide or replace one another.
+
+/// Return env var value if set and non-empty, else the fallback.
+inline std::string SelfRecordEnvOr(const char* name, const std::string& fallback) {
+    const char* v = std::getenv(name);
+    if (v != nullptr && v[0] != '\0') return std::string(v);
+    return fallback;
+}
+
+/// Return integer env var value if set and parseable, else the fallback.
+inline int SelfRecordEnvIntOr(const char* name, int fallback) {
+    const char* v = std::getenv(name);
+    if (v != nullptr && v[0] != '\0') {
+        try { return std::stoi(std::string(v)); } catch (...) {}
+    }
+    return fallback;
+}
+
+/// Generate a process-unique run-id (``cpp-<pid>-<ns>-<counter>``).  Honors an
+/// explicit ``GRAPHBREW_RUN_ID`` override when set (single-report invocations).
+inline std::string GenerateRunId() {
+    const char* forced = std::getenv("GRAPHBREW_RUN_ID");
+    if (forced != nullptr && forced[0] != '\0') return std::string(forced);
+    static std::atomic<uint64_t> counter{0};
+    uint64_t n = counter.fetch_add(1, std::memory_order_relaxed);
+    auto now = std::chrono::steady_clock::now().time_since_epoch();
+    long long ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
+    std::ostringstream oss;
+    oss << "cpp-" << static_cast<long>(::getpid()) << "-" << ns << "-" << n;
+    return oss.str();
+}
 
 // ============================================================================
 // Data Structures
@@ -296,10 +344,21 @@ struct RunReport {
     bool        success = true;
     std::string error;
 
+    // Observation condition (explicit self-recording).  Empty string / 0
+    // means "unset" — to_json() fills the effective value from explicit env
+    // overrides or direct-binary defaults so persisted evidence is unambiguous.
+    std::string run_id;                   ///< unique per observation
+    std::string labeling;                 ///< e.g. "natural" / "shuffled"
+    std::string measurement_mode;         ///< e.g. "self-record"
+    int         omp_threads = 0;          ///< OpenMP thread policy in effect
+    std::string mapping_identity_id;      ///< "direct" or "map:<file>"
+    int         attempt = 0;              ///< repeated-draw index (>=1)
+
     /// Convert to JSON matching existing benchmarks.json schema
     nlohmann::json to_json() const {
         nlohmann::json j;
         j["graph"] = graph_name;
+        j["schema"] = BENCHMARK_OBSERVATION_SCHEMA;
         j["algorithm"] = algorithm;
         j["algorithm_id"] = algorithm_id;
         j["benchmark"] = benchmark;
@@ -310,6 +369,30 @@ struct RunReport {
         j["edges"] = edges;
         j["success"] = success;
         j["error"] = error;
+
+        // Observation condition — raw, immutable evidence.  Effective values
+        // come from explicit env overrides with direct-binary defaults.
+        j["run_id"] = run_id.empty() ? GenerateRunId() : run_id;
+        j["labeling"] =
+            labeling.empty()
+                ? SelfRecordEnvOr("GRAPHBREW_LABELING", "natural")
+                : labeling;
+        j["measurement_mode"] =
+            measurement_mode.empty()
+                ? SelfRecordEnvOr("GRAPHBREW_MEASUREMENT_MODE", "self-record")
+                : measurement_mode;
+        j["threads"] =
+            omp_threads > 0
+                ? omp_threads
+                : SelfRecordEnvIntOr("GRAPHBREW_THREADS", 0);
+        j["mapping_identity_id"] =
+            mapping_identity_id.empty()
+                ? SelfRecordEnvOr("GRAPHBREW_MAPPING_IDENTITY", "direct")
+                : mapping_identity_id;
+        j["process_id"] = static_cast<long>(::getpid());
+        j["attempt"] =
+            attempt > 0 ? attempt
+                        : SelfRecordEnvIntOr("GRAPHBREW_ATTEMPT", 1);
 
         // Per-trial detail (new in v2.1)
         nlohmann::json trial_arr = nlohmann::json::array();
@@ -1150,6 +1233,10 @@ public:
 
         // File-level lock for concurrent process safety
         FileLockGuard flock(GetBenchmarksFile());
+        if (!flock.locked()) {
+            throw std::runtime_error(
+                "Unable to lock benchmark database for self-recording");
+        }
 
         // Re-read from disk to get latest (another process may have written)
         reload_benchmarks_unlocked();
@@ -1172,7 +1259,10 @@ public:
         loaded_ = true;
 
         // Save with full RunReport JSON (includes trial_details)
-        save_benchmarks_with_run(report);
+        if (!save_benchmarks_with_run(report)) {
+            throw std::runtime_error(
+                "Unable to append raw benchmark observation");
+        }
     }
 
     /**
@@ -1186,6 +1276,10 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
 
         FileLockGuard flock(GetGraphPropsFile());
+        if (!flock.locked()) {
+            throw std::runtime_error(
+                "Unable to lock graph-properties database");
+        }
 
         // Update internal feature vector
         auto& fv = graph_features_[props.graph_name];
@@ -1206,7 +1300,10 @@ public:
         fv.sampled_locality_score = props.sampled_locality_score;
 
         // Save: re-read from disk, merge, write
-        save_graph_props_with_raw(props);
+        if (!save_graph_props_with_raw(props)) {
+            throw std::runtime_error(
+                "Unable to update graph-properties database");
+        }
     }
 
     /**
@@ -1593,7 +1690,10 @@ private:
     }
 
     /// Save benchmarks with full RunReport JSON (includes trial_details).
-    /// Re-reads existing file, merges the new run report, writes back.
+    /// Re-reads the existing file and appends the new run report as a raw,
+    /// immutable observation.  Persisted evidence is never replaced merely
+    /// because a run was faster — the in-memory oracle view minimizes
+    /// internally as a derived view, but the file retains every observation.
     bool save_benchmarks_with_run(const RunReport& report) {
         std::string filepath = GetBenchmarksFile();
 
@@ -1605,34 +1705,45 @@ private:
                 try {
                     nlohmann::json existing;
                     ifs >> existing;
-                    if (existing.is_array()) j = existing;
-                } catch (...) {}
-            }
-        }
-
-        // Dedup key
-        std::string key = report.graph_name + "|" + report.algorithm + "|" + report.benchmark;
-
-        // Find and replace existing entry, or append
-        bool found = false;
-        nlohmann::json new_entry = report.to_json();
-        for (auto& entry : j) {
-            std::string ek = entry.value("graph", "") + "|" +
-                             entry.value("algorithm", "") + "|" +
-                             entry.value("benchmark", "");
-            if (ek == key) {
-                double existing_time = entry.value("time_seconds", 1e99);
-                if (report.avg_time < existing_time) {
-                    entry = new_entry;
+                    if (!existing.is_array()) {
+                        std::cerr
+                            << "[DATABASE] Refusing to replace non-array "
+                            << filepath << "\n";
+                        return false;
+                    }
+                    j = std::move(existing);
+                } catch (const std::exception& error) {
+                    std::cerr
+                        << "[DATABASE] Refusing to replace malformed "
+                        << filepath << ": " << error.what() << "\n";
+                    return false;
                 }
-                found = true;
-                break;
             }
         }
-        if (!found) {
-            j.push_back(new_entry);
+
+        // Build the raw observation entry and append it.  Never find-and-
+        // replace: distinct observations of the same (graph, algorithm,
+        // benchmark) coexist so raw evidence is preserved.
+        nlohmann::json new_entry = report.to_json();
+        std::string rid = new_entry.value("run_id", std::string());
+
+        // Idempotency / uniqueness guard on run_id: an exact duplicate is a
+        // no-op; a same-id-different-content collision fails closed.
+        if (!rid.empty()) {
+            for (const auto& entry : j) {
+                if (entry.value("run_id", std::string()) == rid) {
+                    if (entry == new_entry) {
+                        return true;  // idempotent — identical observation
+                    }
+                    std::cerr
+                        << "[DATABASE] Conflicting benchmark run_id: "
+                        << rid << "\n";
+                    return false;
+                }
+            }
         }
 
+        j.push_back(new_entry);
         return atomic_write_json(filepath, j);
     }
 
@@ -1691,7 +1802,12 @@ private:
     /// Atomic JSON write: write to .tmp, then rename over target.
     static bool atomic_write_json(const std::string& filepath,
                                    const nlohmann::json& j) {
-        std::string tmp = filepath + ".tmp";
+        static std::atomic<uint64_t> temp_counter{0};
+        std::ostringstream tmp_name;
+        tmp_name << filepath << ".tmp." << static_cast<long>(::getpid())
+                 << "."
+                 << temp_counter.fetch_add(1, std::memory_order_relaxed);
+        std::string tmp = tmp_name.str();
         {
             std::ofstream ofs(tmp);
             if (!ofs.is_open()) {
@@ -1703,6 +1819,7 @@ private:
         if (std::rename(tmp.c_str(), filepath.c_str()) != 0) {
             std::cerr << "[DATABASE] Cannot rename " << tmp << " → "
                       << filepath << "\n";
+            std::remove(tmp.c_str());
             return false;
         }
         return true;

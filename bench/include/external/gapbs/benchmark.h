@@ -484,6 +484,14 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
         report.edges        = g.num_edges_directed();
         report.success      = true;
 
+        // Observation condition for this raw self-recorded run.  A unique
+        // run-id (with GRAPHBREW_RUN_ID override) keeps repeated direct runs
+        // from colliding; the thread policy is the OpenMP default in effect.
+        report.run_id       = GenerateRunId();
+#ifdef _OPENMP
+        report.omp_threads  = omp_get_max_threads();
+#endif
+
         // If no algorithm hint was set, default to "Original"
         if (report.algorithm.empty()) {
             report.algorithm = "Original";

@@ -19,9 +19,11 @@ Library usage:
 import json
 import os
 import re
+import hashlib
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
@@ -31,7 +33,7 @@ from ..core.utils import (
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option,
     ENABLE_RUN_LOGGING, canonical_algo_key, algo_converter_opt,
     ELIGIBLE_ALGORITHMS, GRAPHS_DIR, RESULTS_DIR, TIMEOUT_BENCHMARK,
-    normalize_graph_name,
+    normalize_graph_name, benchmark_condition_key,
 )
 from .reorder import get_algorithm_name_with_variant  # deprecated; kept for compat
 from ..ml.features import update_graph_properties, save_graph_properties_cache
@@ -79,6 +81,38 @@ def compute_adaptive_timeout(edges: int, base_timeout: int = 600) -> int:
 # Default directory for mappings (relative to results dir)
 _DEFAULT_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))), "results", "mappings")
+_MAPPING_IDENTITY_CACHE: Dict[Tuple[str, int, int], str] = {}
+
+
+def mapping_artifact_identity(mapping_path: str | os.PathLike) -> str:
+    """Return a cached content identity for a pre-generated mapping.
+
+    Mapping filenames identify the algorithm, but not a regenerated artifact.
+    The SHA-256 digest makes resume exact while the stat-keyed cache ensures
+    each mapping is read at most once per harness process.
+    """
+    path = Path(mapping_path).resolve()
+    before = path.stat()
+    cache_key = (str(path), before.st_size, before.st_mtime_ns)
+    cached = _MAPPING_IDENTITY_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+
+    after = path.stat()
+    if (before.st_size, before.st_mtime_ns) != (
+        after.st_size,
+        after.st_mtime_ns,
+    ):
+        raise RuntimeError(f"Mapping changed while hashing: {path}")
+
+    identity = f"map:{path.name}:sha256:{digest.hexdigest()}"
+    _MAPPING_IDENTITY_CACHE[cache_key] = identity
+    return identity
 
 
 def load_reorder_time_for_algo(graph_name: str, algo_name: str,
@@ -548,6 +582,11 @@ def run_benchmark(
     measurement_mode: str = None,
     expected_source_out_degrees: Sequence[int] = None,
     expected_source_internals: Sequence[int] = None,
+    labeling: str = "natural",
+    threads: int = 0,
+    mapping_identity_id: str = "direct",
+    attempt: int = 1,
+    self_record: bool = False,
 ) -> BenchmarkResult:
     """
     Run a single benchmark with specified algorithm.
@@ -571,6 +610,18 @@ def run_benchmark(
             pass the base graph name ("ca-GrQc") so logs are grouped
             correctly.
         result_graph_name: Explicit graph key stored in the result record.
+        labeling: Observation labeling (e.g. ``natural`` / ``shuffled``).
+        threads: Thread policy recorded on the observation.
+        mapping_identity_id: Mapping identity for this run (``direct`` for a
+            runtime reorder, or a ``map:<file>`` identity for a pre-generated
+            mapping) so direct and MAP inputs never collide.
+        attempt: Attempt index for repeated draws of the same condition.
+        self_record: When False (default) the C++ subprocess is launched with
+            ``GRAPHBREW_DB_DIR=''`` so no ambient data-dir writer is inherited
+            — the Python harness is the sole official writer for generic runs.
+            When True, the ambient environment is inherited so an explicit
+            ``-D`` flag or exported ``GRAPHBREW_DB_DIR`` can enable C++
+            self-recording.
         
     Returns:
         BenchmarkResult with timing information
@@ -581,16 +632,31 @@ def run_benchmark(
     
     algo_id, _ = parse_algorithm_option(algorithm)
     algo_name = get_algorithm_name(algorithm)
-    
-    # Build command
-    binary = bin_dir_path / benchmark
-    if not binary.exists():
-        return BenchmarkResult(
+    resolved_mode = measurement_mode or "process"
+
+    def _make_result(**overrides) -> BenchmarkResult:
+        """Build a BenchmarkResult with the observation condition populated."""
+        fields = dict(
             graph=graph_name,
             algorithm=algo_name,
             algorithm_id=algo_id,
             benchmark=benchmark,
             time_seconds=0.0,
+            run_id=uuid.uuid4().hex,
+            labeling=labeling,
+            measurement_mode=resolved_mode,
+            threads=threads,
+            mapping_identity_id=mapping_identity_id,
+            process_id=process_id if process_id is not None else 0,
+            attempt=attempt,
+        )
+        fields.update(overrides)
+        return BenchmarkResult(**fields)
+
+    # Build command
+    binary = bin_dir_path / benchmark
+    if not binary.exists():
+        return _make_result(
             success=False,
             error=f"Binary not found: {binary}",
             error_kind="missing-binary",
@@ -617,11 +683,18 @@ def run_benchmark(
     
     if extra_args:
         cmd.extend(extra_args)
+
+    # Child environment: for generic runs, disable inherited C++ self-recording
+    # so the Python harness stays the sole official writer.  Explicit
+    # self-recording (self_record=True) inherits the ambient environment.
+    child_env = os.environ.copy()
+    if not self_record:
+        child_env["GRAPHBREW_DB_DIR"] = ""
     
     # Run benchmark
     try:
         start_time = time.time()
-        result = run_command(cmd, timeout=timeout, check=False)
+        result = run_command(cmd, timeout=timeout, check=False, env=child_env)
         elapsed = time.time() - start_time
         
         # Save run log
@@ -643,12 +716,7 @@ def run_benchmark(
         
         if result.returncode != 0:
             error_msg = result.stderr[:500] if result.stderr else f"Exit code {result.returncode}"
-            return BenchmarkResult(
-                graph=graph_name,
-                algorithm=algo_name,
-                algorithm_id=algo_id,
-                benchmark=benchmark,
-                time_seconds=0.0,
+            return _make_result(
                 success=False,
                 error=error_msg,
                 error_kind="process-failure",
@@ -672,38 +740,24 @@ def run_benchmark(
                 expected_out_degrees=expected_source_out_degrees,
             )
         
-        return BenchmarkResult(
-            graph=graph_name,
-            algorithm=algo_name,
-            algorithm_id=algo_id,
-            benchmark=benchmark,
+        return _make_result(
             time_seconds=avg_time,
             reorder_time=reorder_time,
             trials=trials,
             success=True,
-            extra=extra
+            extra=extra,
         )
         
     except SourceContractError:
         raise
     except subprocess.TimeoutExpired as error:
-        return BenchmarkResult(
-            graph=graph_name,
-            algorithm=algo_name,
-            algorithm_id=algo_id,
-            benchmark=benchmark,
-            time_seconds=0.0,
+        return _make_result(
             success=False,
             error=str(error),
             error_kind="timeout",
         )
     except Exception as e:
-        return BenchmarkResult(
-            graph=graph_name,
-            algorithm=algo_name,
-            algorithm_id=algo_id,
-            benchmark=benchmark,
-            time_seconds=0.0,
+        return _make_result(
             success=False,
             error=str(e),
             error_kind="process-failure",
@@ -782,7 +836,10 @@ def run_benchmarks_multi_graph(
     progress = None,  # Optional ProgressTracker
     use_pregenerated: bool = False,
     on_graph_complete = None,  # Optional[Callable[[str, List[BenchmarkResult]], None]]
-    skip_existing: set = None,  # Optional[Set[Tuple[str,str,str]]] of (graph, benchmark, algo) already in DB
+    skip_existing: set = None,  # Optional[Set[condition-key]] already in DB
+    labeling: str = "natural",
+    measurement_mode: str = "process",
+    threads: int = 0,
 ) -> List[BenchmarkResult]:
     """
     Run benchmarks across multiple graphs.
@@ -806,9 +863,15 @@ def run_benchmarks_multi_graph(
         on_graph_complete: Optional callback invoked after each graph's
             benchmarks finish.  Receives ``(graph_name, graph_results)``.
             Useful for per-graph incremental flushing to the datastore.
-        skip_existing: Optional set of ``(graph, benchmark, algorithm)``
-            tuples already in the database.  Matching runs are skipped
-            (enables benchmark resume after interruption).
+        skip_existing: Optional set of shared ``benchmark_condition_key``
+            tuples already in the database.  A run is skipped only when its
+            fully-resolved condition key (including labeling, measurement mode,
+            thread policy and mapping identity) matches — so direct and MAP
+            inputs resume independently.
+        labeling: Observation labeling for every result (e.g. ``natural`` /
+            ``shuffled``).
+        measurement_mode: Measurement mode recorded on every result.
+        threads: Thread policy recorded on every result.
         
     Returns:
         List of BenchmarkResult objects
@@ -817,6 +880,20 @@ def run_benchmarks_multi_graph(
     label_maps = label_maps or {}
     results = []
     skip_existing = skip_existing or set()
+
+    def _condition_key(algo_name: str, bench: str, graph_name: str,
+                       mapping_identity_id: str, attempt: int = 1):
+        """Compute the shared condition key for resume comparison."""
+        return benchmark_condition_key({
+            "graph": graph_name,
+            "algorithm": algo_name,
+            "benchmark": bench,
+            "labeling": labeling,
+            "measurement_mode": measurement_mode,
+            "threads": threads,
+            "mapping_identity_id": mapping_identity_id,
+            "attempt": attempt,
+        })
     
     # Filter slow algorithms if requested
     if skip_slow:
@@ -853,16 +930,46 @@ def run_benchmarks_multi_graph(
             for algo_id in algorithms:
                 # Always include variant in name for algorithms that have variants
                 algo_name = get_algorithm_name_with_variant(algo_id)
-                
-                # Resume: skip runs already in the database
-                if (graph_name, bench, algo_name) in skip_existing:
+                combo_key = (graph_name, bench)
+
+                # ── Resolve the mapping mode first so the observation
+                #    condition (direct vs pre-generated MAP) is known before
+                #    the resume check and result recording. ──
+                label_map_path = graph_label_maps.get(algo_name, "")
+                mappings_dir = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(graph_path))),
+                    'mappings', graph_name,
+                )
+                pregen_lo = os.path.join(mappings_dir, f"{algo_name}.lo")
+
+                if (use_pregenerated and algo_id not in (0, 1)
+                        and os.path.isfile(pregen_lo)):
+                    algo_opt = f"13:{pregen_lo}"
+                    mapping_identity_id = mapping_artifact_identity(pregen_lo)
+                    run_mode = "pregen"
+                elif (label_map_path and os.path.exists(label_map_path)
+                        and algo_id != 0):
+                    algo_opt = f"13:{label_map_path}"
+                    mapping_identity_id = mapping_artifact_identity(
+                        label_map_path
+                    )
+                    run_mode = "labelmap"
+                else:
+                    algo_opt = str(algo_id)
+                    mapping_identity_id = "direct"
+                    run_mode = "direct"
+
+                # Resume: skip runs already in the database.  The key is the
+                # shared benchmark_condition_key computed *after* the mapping
+                # mode is known, so direct and MAP inputs resume independently.
+                if _condition_key(algo_name, bench, graph_name,
+                                  mapping_identity_id) in skip_existing:
                     completed += 1
                     skipped_existing += 1
                     continue
-                
+
                 # Early-exit: skip remaining algorithms if this graph×benchmark
                 # already proved intractable (timeout or crash on a prior algorithm)
-                combo_key = (graph_name, bench)
                 if combo_key in timed_out_combos:
                     result = BenchmarkResult(
                         graph=graph_name,
@@ -871,7 +978,11 @@ def run_benchmarks_multi_graph(
                         benchmark=bench,
                         time_seconds=0.0,
                         success=False,
-                        error="SKIPPED: prior algorithm timed out on this graph+benchmark"
+                        error="SKIPPED: prior algorithm timed out on this graph+benchmark",
+                        labeling=labeling,
+                        measurement_mode=measurement_mode,
+                        threads=threads,
+                        mapping_identity_id=mapping_identity_id,
                     )
                     result.nodes = graph.nodes
                     result.edges = graph.edges
@@ -880,62 +991,7 @@ def run_benchmarks_multi_graph(
                     completed += 1
                     skipped += 1
                     continue
-                
-                # Check if we have a label map
-                label_map_path = graph_label_maps.get(algo_name, "")
-                
-                # ── Pre-generated .lo mapping shortcut ───────────────
-                # When a pre-generated .lo mapping file exists in the
-                # mappings directory, use it via MAP mode (-o 13:path.lo)
-                # to skip runtime reorder overhead.  This is much more
-                # disk-efficient than storing full .sg files per ordering.
-                if (use_pregenerated
-                        and algo_id not in (0, 1)):
-                    # algo_name already includes the variant suffix for
-                    # variant algorithms (e.g. "RABBITORDER_csr") thanks
-                    # to get_algorithm_name_with_variant().
-                    mappings_dir = os.path.join(
-                        os.path.dirname(os.path.dirname(os.path.dirname(graph_path))),
-                        'mappings', graph_name,
-                    )
-                    pregen_lo = os.path.join(mappings_dir, f"{algo_name}.lo")
-                    if os.path.isfile(pregen_lo):
-                        result = run_benchmark(
-                            benchmark=bench,
-                            graph_path=graph_path,
-                            algorithm=f"13:{pregen_lo}",  # MAP mode with .lo
-                            trials=num_trials,
-                            timeout=graph_timeout,
-                            bin_dir=bin_dir,
-                            log_algorithm=algo_name,
-                            log_graph_name=graph_name,
-                        )
-                        # Preserve original algo identity for analysis
-                        result.algorithm = algo_name
-                        result.algorithm_id = algo_id
-                        result.graph = graph_name
-                        result.nodes = graph.nodes
-                        result.edges = graph.edges
-                        # Load reorder_time from .time file (written during pregeneration)
-                        if result.reorder_time <= 0:
-                            result.reorder_time = load_reorder_time_for_algo(
-                                graph_name, algo_name, mappings_dir=mappings_dir)
-                        results.append(result)
-                        graph_results.append(result)
-                        completed += 1
-                        if progress and completed % 10 == 0:
-                            progress.info(f"  Progress: {completed}/{total_configs}")
-                        continue
 
-                # Build algorithm option string
-                # Use MAP (algo 13) with label map when available, except for ORIGINAL (algo 0)
-                if label_map_path and os.path.exists(label_map_path) and algo_id != 0:
-                    algo_opt = f"13:{label_map_path}"
-                    using_label_map = True
-                else:
-                    algo_opt = str(algo_id)
-                    using_label_map = False
-                
                 result = run_benchmark(
                     benchmark=bench,
                     graph_path=graph_path,
@@ -944,8 +1000,32 @@ def run_benchmarks_multi_graph(
                     timeout=graph_timeout,
                     bin_dir=bin_dir,
                     log_algorithm=algo_name,
+                    log_graph_name=graph_name if run_mode != "direct" else None,
+                    labeling=labeling,
+                    measurement_mode=measurement_mode,
+                    threads=threads,
+                    mapping_identity_id=mapping_identity_id,
                 )
-                
+
+                # ── Pre-generated .lo mapping path ───────────────────
+                if run_mode == "pregen":
+                    # Preserve original algo identity for analysis
+                    result.algorithm = algo_name
+                    result.algorithm_id = algo_id
+                    result.graph = graph_name
+                    result.nodes = graph.nodes
+                    result.edges = graph.edges
+                    # Load reorder_time from .time file (written during pregeneration)
+                    if result.reorder_time <= 0:
+                        result.reorder_time = load_reorder_time_for_algo(
+                            graph_name, algo_name, mappings_dir=mappings_dir)
+                    results.append(result)
+                    graph_results.append(result)
+                    completed += 1
+                    if progress and completed % 10 == 0:
+                        progress.info(f"  Progress: {completed}/{total_configs}")
+                    continue
+
                 # Detect timeout or crash — mark this graph×benchmark as intractable
                 if not result.success:
                     err_lower = (result.error or "").lower()
@@ -979,7 +1059,7 @@ def run_benchmarks_multi_graph(
                         update_graph_properties(graph_name, features_to_cache, "results")
                 
                 # Preserve original algorithm name when using label map
-                if using_label_map:
+                if run_mode == "labelmap":
                     result.algorithm = algo_name
                     result.algorithm_id = algo_id
                 
@@ -1019,11 +1099,17 @@ def run_benchmarks_multi_graph(
                 pregen_lo = os.path.join(mappings_dir, f"{canonical}.lo")
                 if not os.path.isfile(pregen_lo):
                     continue
+                mapping_identity_id = mapping_artifact_identity(pregen_lo)
                 for bench in benchmarks:
                     if not check_binary_exists(bench, bin_dir):
                         continue
                     combo_key = (graph_name, bench)
                     if combo_key in timed_out_combos:
+                        continue
+                    # Resume: chained orderings resume on the same shared key.
+                    if _condition_key(canonical, bench, graph_name,
+                                      mapping_identity_id) in skip_existing:
+                        skipped_existing += 1
                         continue
                     result = run_benchmark(
                         benchmark=bench,
@@ -1034,6 +1120,10 @@ def run_benchmarks_multi_graph(
                         bin_dir=bin_dir,
                         log_algorithm=canonical,
                         log_graph_name=graph_name,
+                        labeling=labeling,
+                        measurement_mode=measurement_mode,
+                        threads=threads,
+                        mapping_identity_id=mapping_identity_id,
                     )
                     result.algorithm = canonical
                     result.algorithm_id = -1
@@ -1192,7 +1282,10 @@ def run_benchmarks_with_variants(
     timeout: int = 600,
     weights_dir: str = "",
     update_weights: bool = True,
-    progress=None
+    progress=None,
+    labeling: str = "natural",
+    measurement_mode: str = "process",
+    threads: int = 0,
 ) -> List[BenchmarkResult]:
     """
     Run benchmarks with variant-expanded label maps.
@@ -1203,6 +1296,11 @@ def run_benchmarks_with_variants(
 
     When using .lo files (MAP mode), loads reorder_time from the corresponding
     .time file instead of parsing from benchmark output.
+
+    The ``labeling`` / ``measurement_mode`` / ``threads`` arguments populate the
+    observation condition of every success and failure result so distinct
+    conditions never collide, and mapping identity distinguishes direct
+    (``ORIGINAL``) inputs from pre-generated MAP inputs.
     """
     from pathlib import Path as _Path
 
@@ -1283,6 +1381,9 @@ def run_benchmarks_with_variants(
                         time_seconds=0.0,
                         success=False,
                         error="SKIPPED: prior algorithm timed out on this graph+benchmark",
+                        labeling=labeling,
+                        measurement_mode=measurement_mode,
+                        threads=threads,
                     )
                     result.nodes = graph.nodes
                     result.edges = graph.edges
@@ -1305,6 +1406,7 @@ def run_benchmarks_with_variants(
                 label_map_path = ""
                 if algo_name == "ORIGINAL":
                     algo_opt = "0"
+                    mapping_identity_id = "direct"
                 else:
                     # ── Pre-generated .lo mapping shortcut ───────────────
                     # When a pre-generated .lo mapping exists in the
@@ -1325,6 +1427,12 @@ def run_benchmarks_with_variants(
                             bin_dir=bin_dir,
                             log_algorithm=algo_name,
                             log_graph_name=graph_name,
+                            labeling=labeling,
+                            measurement_mode=measurement_mode,
+                            threads=threads,
+                            mapping_identity_id=mapping_artifact_identity(
+                                pregen_lo
+                            ),
                         )
                         # Preserve original algo identity for analysis
                         result.algorithm = algo_name
@@ -1352,6 +1460,9 @@ def run_benchmarks_with_variants(
                     if not label_map_path:
                         continue
                     algo_opt = f"13:{label_map_path}"
+                    mapping_identity_id = mapping_artifact_identity(
+                        label_map_path
+                    )
 
                 result = run_benchmark(
                     benchmark=bench,
@@ -1361,6 +1472,10 @@ def run_benchmarks_with_variants(
                     timeout=graph_timeout,
                     bin_dir=bin_dir,
                     log_algorithm=algo_name,
+                    labeling=labeling,
+                    measurement_mode=measurement_mode,
+                    threads=threads,
+                    mapping_identity_id=mapping_identity_id,
                 )
 
                 # Detect timeout or crash

@@ -383,6 +383,26 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
     """
     _flushed_graphs = set()  # tracks graphs flushed incrementally
 
+    # ── Observation condition for this phase ──────────────────────────
+    # labeling: 'shuffled' when the graphs were converted with a RANDOM
+    # baseline ordering, otherwise 'natural'.  measurement_mode is an
+    # explicit out-of-process wall-clock measurement.  threads records the
+    # OpenMP thread policy in effect so distinct policies never collide.
+    labeling = 'shuffled' if getattr(args, 'random_baseline', False) else 'natural'
+    measurement_mode = 'process'
+    try:
+        omp_threads = os.environ.get('OMP_NUM_THREADS')
+        if omp_threads:
+            threads = int(omp_threads)
+        elif hasattr(os, 'sched_getaffinity'):
+            threads = len(os.sched_getaffinity(0))
+        else:
+            threads = os.cpu_count() or 1
+        if threads <= 0:
+            raise ValueError("thread count must be positive")
+    except (TypeError, ValueError):
+        threads = os.cpu_count() or 1
+
     if has_variant_maps and expand_variants:
         _progress.info("Mode: Variant-aware benchmarking (GraphBrewOrder_leiden, GraphBrewOrder_rabbit, etc.)")
         benchmark_results = run_benchmarks_with_variants(
@@ -395,6 +415,9 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
             weights_dir=args.weights_dir,
             update_weights=update_weights,
             progress=_progress,
+            labeling=labeling,
+            measurement_mode=measurement_mode,
+            threads=threads,
         )
     else:
         _progress.info("Mode: Standard benchmarking")
@@ -431,6 +454,9 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
             use_pregenerated=use_pregenerated,
             on_graph_complete=_flush_graph,
             skip_existing=_skip_existing,
+            labeling=labeling,
+            measurement_mode=measurement_mode,
+            threads=threads,
         )
 
     # Save intermediate results (optional)

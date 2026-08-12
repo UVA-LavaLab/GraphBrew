@@ -138,6 +138,12 @@ from .core.utils import (
     Colors,
     run_command,
     get_timestamp,
+    # Benchmark observation condition-key SSOT
+    BENCHMARK_OBSERVATION_SCHEMA,
+    CONDITION_FIELDS,
+    CONDITION_DISCRIMINATORS,
+    benchmark_condition_key,
+    condition_discriminator,
     # Formatting
     format_size,
     format_duration,

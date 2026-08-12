@@ -2,12 +2,20 @@
 """
 Centralized Data Store for GraphBrew.
 
-Single-file append-only benchmark database with automatic deduplication.
-Offline training exports one load-only adaptive_models.json artifact.
+Append-only benchmark database that persists **immutable raw observations**.
+Each observation is one measured run identified by a unique ``run_id``; the
+store never min-collapses distinct ``(graph, algorithm, benchmark)`` tuples.
+Distinct labeling, measurement mode, thread policy, mapping identity and
+attempt are preserved as separate observations and never collide.
+
+Failures and timeouts are persisted as observations too, but the
+compatibility query/training views (``to_list``/``query``/``perf_matrix``/
+``get_existing_keys``) default to successful records.
 
 Data file: results/data/benchmarks.json
-    Schema: JSON array of records, each with a unique composite key
-            (graph, algorithm, benchmark). Best time is kept on conflict.
+    Schema: JSON array of raw observation records.  Aggregation (median over
+            repeated same-condition observations) is a *derived view*, not the
+            stored evidence.
 
 Graph properties: results/data/graph_properties.json
     Schema: JSON dict keyed by graph name, values are feature dicts.
@@ -16,24 +24,32 @@ Usage:
     from scripts.lib.core.datastore import BenchmarkStore
 
     store = BenchmarkStore()           # loads results/data/benchmarks.json
-    store.append(results)              # append + dedup, auto-saves
+    store.append(results)              # append raw observations, auto-saves
     store.append_from_file("run.json") # ingest a legacy file
-    data = store.query(benchmark="pr") # filter records
-    matrix = store.perf_matrix()       # {graph: {algo: {bench: time}}}
+    obs = store.observations()         # every raw observation
+    data = store.query(benchmark="pr") # successful records only
+    matrix = store.perf_matrix()       # {graph: {algo: {bench: median_time}}}
 """
 
 import json
 import os
+import fcntl
+import copy
 import shutil
+import statistics
+import uuid
 from datetime import datetime
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Iterable
 from collections import defaultdict
 
 from .utils import (
     DATA_DIR, RESULTS_DIR, WEIGHTS_DIR, Logger,
     DISPLAY_TO_CANONICAL, VARIANT_PREFIXES,
+    BENCHMARK_OBSERVATION_SCHEMA,
+    CONDITION_FIELDS, CONDITION_DISCRIMINATORS,
+    benchmark_condition_key, condition_discriminator,
 )
 
 log = Logger()
@@ -45,9 +61,44 @@ log = Logger()
 BENCHMARKS_FILE = DATA_DIR / "benchmarks.json"
 GRAPH_PROPS_FILE = DATA_DIR / "graph_properties.json"
 
-# Composite key for deduplication: (graph, algorithm, benchmark)
-# When a duplicate key is found, the record with the lowest time_seconds wins.
+# Legacy compatibility: the (graph, algorithm, benchmark) identity tuple.  It is
+# no longer a dedup key — raw observations are retained — but some callers still
+# reference the field names.  The authoritative condition identity is
+# ``benchmark_condition_key`` from utils.
 _KEY_FIELDS = ("graph", "algorithm", "benchmark")
+
+# In-memory-only sentinels applied to legacy rows (rows loaded without a
+# ``run_id``).  These are NEVER written to disk on load.
+_LEGACY_LABELING = "legacy-unspecified"
+_LEGACY_MEASUREMENT_MODE = "legacy"
+_LEGACY_RUN_ID_PREFIX = "legacy-"
+
+
+class FileLock:
+    """Minimal advisory file lock (fcntl-based), mirroring the C++ flock guard.
+
+    Acquires an exclusive lock on ``<path>.lock`` on entry and releases it on
+    exit so concurrent official writers cannot clobber each other's appends.
+    """
+
+    def __init__(self, target: Path):
+        self._lock_path = Path(str(target) + ".lock")
+        self._fd = None
+
+    def __enter__(self):
+        self._lock_path.parent.mkdir(parents=True, exist_ok=True)
+        self._fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+        fcntl.flock(self._fd, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if self._fd is not None:
+            try:
+                fcntl.flock(self._fd, fcntl.LOCK_UN)
+            finally:
+                os.close(self._fd)
+                self._fd = None
+        return False
 
 
 # =============================================================================
@@ -56,39 +107,161 @@ _KEY_FIELDS = ("graph", "algorithm", "benchmark")
 
 class BenchmarkStore:
     """
-    Append-only benchmark database backed by a single JSON file.
+    Append-only benchmark database of immutable raw observations.
 
-    Records are deduplicated by (graph, algorithm, benchmark).
-    On conflict the record with the lowest time_seconds is kept.
+    Every observation is retained verbatim and identified by a unique
+    ``run_id``.  Distinct labeling / measurement mode / thread policy /
+    mapping identity / attempt never collapse.  Failures are kept as
+    observations; the compatibility views (``to_list``/``query``/
+    ``perf_matrix``/``get_existing_keys``) default to successful records.
     """
 
     def __init__(self, path: Optional[Path] = None):
         self.path = Path(path) if path else BENCHMARKS_FILE
-        self._records: Dict[tuple, dict] = {}  # key → record
+        self._observations: List[dict] = []       # raw ordered observations
+        self._by_run_id: Dict[str, dict] = {}     # run_id → record
+        self._persisted_records: Dict[str, dict] = {}
+        self._persisted_sequence: List[dict] = []
+        self._reserved_run_ids: Dict[str, dict] = {}
+        self._legacy_counter: int = 0
+        self._load_error: Optional[Exception] = None
         self._load()
 
     # ── persistence ──────────────────────────────────────────────────────
 
+    def _reset(self):
+        self._observations = []
+        self._by_run_id = {}
+        self._persisted_records = {}
+        self._persisted_sequence = []
+        self._reserved_run_ids = {}
+        self._legacy_counter = 0
+        self._load_error = None
+
     def _load(self):
-        """Load existing database from disk."""
+        """Load existing database from disk (never writes the file on load)."""
         if self.path.exists():
             try:
                 with open(self.path) as f:
                     data = json.load(f)
-                for r in data:
-                    if isinstance(r, dict):
-                        self._insert(r)
+                self._ingest_disk_records(data, strict=True)
             except Exception as e:
+                self._load_error = e
                 log.warning(f"DataStore: failed to load {self.path}: {e}")
-        log.info(f"DataStore: {len(self._records)} records loaded from {self.path}")
+        log.info(
+            f"DataStore: {len(self._observations)} observations loaded "
+            f"from {self.path}"
+        )
+
+    def _ingest_disk_records(self, data, *, strict: bool = False):
+        """Populate in-memory state from a list of on-disk dicts.
+
+        Legacy rows (no ``run_id``) receive deterministic in-memory-only
+        defaults; the file itself is not rewritten here.
+        """
+        if not isinstance(data, list):
+            if strict:
+                raise ValueError(
+                    f"Benchmark database must be a JSON array: {self.path}"
+                )
+            return
+        for r in data:
+            if not isinstance(r, dict):
+                if strict:
+                    raise ValueError(
+                        f"Benchmark database contains a non-object row: {self.path}"
+                    )
+                continue
+            raw = copy.deepcopy(r)
+            self._persisted_sequence.append(raw)
+            adapted = self._adapt_loaded_record(r)
+            if adapted is None:
+                run_id = raw.get("run_id")
+                if run_id:
+                    existing = self._reserved_run_ids.get(run_id)
+                    if existing is not None:
+                        raise ValueError(
+                            f"duplicate run_id in benchmark database: {run_id!r}"
+                        )
+                    self._reserved_run_ids[run_id] = raw
+                continue
+            try:
+                added = self._add_observation(adapted)
+                if added:
+                    self._persisted_records[adapted["run_id"]] = raw
+            except ValueError as e:
+                if strict:
+                    raise
+                log.warning(f"DataStore: skipping conflicting loaded row: {e}")
 
     def save(self):
-        """Write database to disk (atomic via temp file)."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix('.tmp')
-        with open(tmp, 'w') as f:
-            json.dump(self.to_list(), f, indent=2)
-        shutil.move(str(tmp), str(self.path))
+        """Persist observations added with ``save=False``.
+
+        Existing on-disk observations are re-read under the file lock and
+        preserved verbatim.  A malformed or conflicting database aborts the
+        save rather than being replaced by a partial in-memory view.
+        """
+        pending = [
+            copy.deepcopy(record)
+            for record in self._observations
+            if record["run_id"] not in self._persisted_records
+        ]
+        if pending:
+            self.append(pending, save=True)
+
+    def _atomic_write(self, records: List[dict]):
+        """Serialize ``records`` to ``self.path`` via a process-unique temp file."""
+        tmp = self.path.with_name(
+            f".{self.path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
+        )
+        try:
+            with open(tmp, 'w') as f:
+                json.dump(records, f, indent=2)
+                f.write("\n")
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(str(tmp), str(self.path))
+            directory_fd = os.open(str(self.path.parent), os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        except Exception:
+            try:
+                tmp.unlink()
+            except FileNotFoundError:
+                pass
+            raise
+
+    def _serialized_observations(self) -> List[dict]:
+        """Return records exactly as they should appear on disk.
+
+        Rows loaded from an existing file retain their original spelling and
+        legacy shape; adapter-only defaults remain in memory.  Newly appended
+        observations use the versioned condition-aware representation.
+        """
+        records = copy.deepcopy(self._persisted_sequence)
+        records.extend(
+            copy.deepcopy(record)
+            for record in self._observations
+            if record["run_id"] not in self._persisted_records
+        )
+        return records
+
+    def _mark_persisted(self, records: List[dict]):
+        """Snapshot the representation written for each observation."""
+        self._persisted_sequence = copy.deepcopy(records)
+        by_run_id = {
+            record.get("run_id"): record
+            for record in records
+            if record.get("run_id")
+        }
+        for view in self._observations:
+            run_id = view["run_id"]
+            if run_id in by_run_id:
+                self._persisted_records[run_id] = copy.deepcopy(
+                    by_run_id[run_id]
+                )
 
     # ── core operations ──────────────────────────────────────────────────
 
@@ -99,9 +272,6 @@ class BenchmarkStore:
         Variant-prefixed names (``GraphBrewOrder_*``, ``RABBITORDER_*``,
         ``RCM_*``) pass through unchanged.  Known display names are mapped
         via ``DISPLAY_TO_CANONICAL``.  Unknown names pass through as-is.
-
-        ``MAP`` is explicitly rejected — callers must resolve the real
-        algorithm identity from the ``.lo`` filename before inserting.
         """
         if not name:
             return name
@@ -110,84 +280,158 @@ class BenchmarkStore:
                 return name
         return DISPLAY_TO_CANONICAL.get(name, name)
 
-    def _key(self, record: dict) -> Optional[tuple]:
-        """Extract composite key from a record. Returns None if incomplete."""
-        vals = tuple(record.get(f, '') for f in _KEY_FIELDS)
-        if all(vals):
-            return vals
-        return None
+    def _adapt_loaded_record(self, record: dict) -> Optional[dict]:
+        """Return an in-memory copy of a loaded row with legacy defaults.
 
-    def _insert(self, record: dict):
-        """Insert a record, keeping the one with lower time on conflict.
-
-        B4 safeguards:
-        - Records with algorithm="MAP" are rejected (MAP is a mechanism,
-          not an algorithm — the caller must resolve the real name from
-          the .lo filename before storing).
-        - Algorithm names are auto-normalized via DISPLAY_TO_CANONICAL
-          so legacy display names (e.g. "RabbitOrder") become canonical
-          training names (e.g. "RABBITORDER_csr").
+        - ``MAP`` records are rejected (MAP is a loading mechanism, not an
+          algorithm — the real name must come from the ``.lo`` filename).
+        - Algorithm display names are normalized to canonical names.
+        - Rows without a ``run_id`` are treated as legacy: they receive a
+          deterministic ``legacy-0000000N`` id and ``legacy-unspecified`` /
+          ``legacy`` condition sentinels *in memory only*.
         """
         algo = record.get('algorithm', '')
         if algo == 'MAP':
-            log.debug(f"DataStore: rejected MAP record for "
-                      f"{record.get('graph', '?')}/{record.get('benchmark', '?')} "
-                      f"— resolve to real algorithm name before inserting")
-            return
+            log.debug(
+                f"DataStore: rejected MAP record for "
+                f"{record.get('graph', '?')}/{record.get('benchmark', '?')}"
+            )
+            return None
 
-        # Auto-normalize algorithm name
+        rec = dict(record)
         canonical = self._normalize_algorithm(algo)
         if canonical != algo:
-            record['algorithm'] = canonical
+            rec['algorithm'] = canonical
 
-        key = self._key(record)
-        if key is None:
-            return
-        existing = self._records.get(key)
-        if existing is None:
-            self._records[key] = record
-        else:
-            # Keep the faster time (lower is better)
-            new_time = record.get('time_seconds', float('inf'))
-            old_time = existing.get('time_seconds', float('inf'))
-            if new_time < old_time:
-                self._records[key] = record
+        run_id = rec.get('run_id')
+        if not run_id:
+            self._legacy_counter += 1
+            rec['run_id'] = f"{_LEGACY_RUN_ID_PREFIX}{self._legacy_counter:08d}"
+            rec.setdefault('labeling', _LEGACY_LABELING)
+            rec.setdefault('measurement_mode', _LEGACY_MEASUREMENT_MODE)
+        rec.setdefault('schema', 'benchmark-observation/legacy')
+        return rec
+
+    def _prepare_append_record(self, record) -> Optional[dict]:
+        """Normalize a to-be-appended record and ensure it carries a run_id."""
+        rec = asdict(record) if hasattr(record, '__dataclass_fields__') else dict(record)
+        algo = rec.get('algorithm', '')
+        if algo == 'MAP':
+            log.debug(
+                f"DataStore: rejected MAP record for "
+                f"{rec.get('graph', '?')}/{rec.get('benchmark', '?')}"
+            )
+            return None
+        canonical = self._normalize_algorithm(algo)
+        if canonical != algo:
+            rec['algorithm'] = canonical
+        rec.setdefault('schema', BENCHMARK_OBSERVATION_SCHEMA)
+        if rec['schema'] != BENCHMARK_OBSERVATION_SCHEMA:
+            raise ValueError(
+                f"Unsupported benchmark observation schema: {rec['schema']!r}"
+            )
+        if not rec.get('run_id'):
+            rec['run_id'] = uuid.uuid4().hex
+        return rec
+
+    @staticmethod
+    def _content_equal(a: dict, b: dict) -> bool:
+        """Order-insensitive content comparison for idempotency checks."""
+        try:
+            return json.dumps(a, sort_keys=True, default=str) == \
+                   json.dumps(b, sort_keys=True, default=str)
+        except TypeError:
+            return a == b
+
+    def _add_observation(self, record: dict) -> bool:
+        """Insert one raw observation.
+
+        Exact-duplicate ``run_id`` with identical content is idempotent; the
+        same ``run_id`` with different content raises ``ValueError``.
+        """
+        run_id = record.get('run_id')
+        if not run_id:
+            run_id = uuid.uuid4().hex
+            record['run_id'] = run_id
+        existing = self._by_run_id.get(run_id)
+        if existing is not None:
+            if self._content_equal(existing, record):
+                return False  # idempotent
+            raise ValueError(
+                f"run_id collision with differing content: {run_id!r}"
+            )
+        reserved = self._reserved_run_ids.get(run_id)
+        if reserved is not None:
+            raise ValueError(
+                f"run_id collision with excluded persisted record: {run_id!r}"
+            )
+        self._by_run_id[run_id] = record
+        self._reserved_run_ids[run_id] = record
+        self._observations.append(record)
+        return True
 
     def append(self, results, save: bool = True):
         """
-        Append benchmark results to the store.
+        Append raw benchmark observations to the store.
+
+        Failed observations are retained (they are excluded only from the
+        default query/perf views).  The write is performed under a file lock
+        with a re-read-merge-write cycle so concurrent official writers do not
+        clobber each other.
 
         Args:
             results: List of dicts or BenchmarkResult dataclasses.
-            save: Auto-save after appending (default True).
+            save: Persist to disk after appending (default True).
         """
         if not results:
             return
-        added = 0
-        updated = 0
-        for r in results:
-            rec = asdict(r) if hasattr(r, '__dataclass_fields__') else dict(r)
-            if not rec.get('success', True):
-                continue  # skip failed runs
-            key = self._key(rec)
-            if key is None:
-                continue
-            was_present = key in self._records
-            old_time = self._records[key].get('time_seconds', float('inf')) if was_present else float('inf')
-            self._insert(rec)
-            if not was_present:
-                added += 1
-            elif rec.get('time_seconds', float('inf')) < old_time:
-                updated += 1
 
-        if added or updated:
-            log.info(f"DataStore: +{added} new, {updated} updated → "
-                     f"{len(self._records)} total records")
-            if save:
-                self.save()
+        prepared: List[dict] = []
+        for r in results:
+            rec = self._prepare_append_record(r)
+            if rec is not None:
+                prepared.append(rec)
+        if not prepared:
+            return
+
+        if not save:
+            added = 0
+            for rec in prepared:
+                if self._add_observation(rec):
+                    added += 1
+            if added:
+                log.info(
+                    f"DataStore: +{added} observations (unsaved) → "
+                    f"{len(self._observations)} total"
+                )
+            return
+
+        # Saved path: lock, re-read disk, merge, add new, write raw.
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with FileLock(self.path):
+            self._reset()
+            if self.path.exists():
+                with open(self.path) as f:
+                    disk = json.load(f)
+                self._ingest_disk_records(disk, strict=True)
+            added = 0
+            for rec in prepared:
+                if self._add_observation(rec):
+                    added += 1
+            if added:
+                serialized = self._serialized_observations()
+                self._atomic_write(serialized)
+                self._mark_persisted(serialized)
+
+        if added:
+            s = self.stats()
+            log.info(
+                f"DataStore: +{added} observations → {s['observations']} total "
+                f"({s['successful']} ok, {s['failures']} failed)"
+            )
 
     def append_from_file(self, filepath: str, save: bool = True):
-        """Ingest records from a legacy benchmark JSON file."""
+        """Ingest records from a benchmark JSON file (raw append)."""
         with open(filepath) as f:
             data = json.load(f)
         if isinstance(data, list):
@@ -195,26 +439,36 @@ class BenchmarkStore:
 
     # ── queries ──────────────────────────────────────────────────────────
 
+    def observations(self) -> List[dict]:
+        """Return every raw observation (successful and failed), in order."""
+        return copy.deepcopy(self._observations)
+
+    def _successful(self) -> List[dict]:
+        return [r for r in self._observations if r.get('success', True)]
+
     def get_existing_keys(self) -> set:
-        """Return the set of ``(graph, algorithm, benchmark)`` composite keys.
+        """Return the set of successful observation condition keys.
 
-        This is used by the incremental pipeline to skip runs that are
-        already present in the database.
+        Used by the incremental pipeline to skip runs already present.  The key
+        is the shared :func:`benchmark_condition_key`, so producer (resume
+        check) and consumer (this store) never build divergent tuples.
         """
-        return set(self._records.keys())
+        return {benchmark_condition_key(r) for r in self._successful()}
 
-    def to_list(self) -> List[dict]:
-        """Return all records as a sorted list."""
-        records = list(self._records.values())
-        records.sort(key=lambda r: (r.get('graph', ''), r.get('benchmark', ''),
-                                     r.get('algorithm', '')))
-        return records
+    def to_list(self, include_failed: bool = False) -> List[dict]:
+        """Return records as a sorted list (successful-only by default)."""
+        records = self._observations if include_failed else self._successful()
+        out = copy.deepcopy(records)
+        out.sort(key=lambda r: (r.get('graph', ''), r.get('benchmark', ''),
+                                r.get('algorithm', '')))
+        return out
 
     def query(self, graph: str = None, algorithm: str = None,
-              benchmark: str = None) -> List[dict]:
-        """Filter records by any combination of fields."""
+              benchmark: str = None, include_failed: bool = False) -> List[dict]:
+        """Filter records by any combination of fields (successful-only default)."""
+        source = self._observations if include_failed else self._successful()
         out = []
-        for r in self._records.values():
+        for r in source:
             if graph and r.get('graph') != graph:
                 continue
             if algorithm and r.get('algorithm') != algorithm:
@@ -222,54 +476,115 @@ class BenchmarkStore:
             if benchmark and r.get('benchmark') != benchmark:
                 continue
             out.append(r)
-        return out
+        return copy.deepcopy(out)
 
     def graphs(self) -> List[str]:
-        """Return sorted list of unique graph names."""
-        return sorted(set(r.get('graph', '') for r in self._records.values()))
+        """Return sorted list of unique graph names (successful records)."""
+        return sorted(set(r.get('graph', '') for r in self._successful()))
 
     def algorithms(self) -> List[str]:
-        """Return sorted list of unique algorithm names."""
-        return sorted(set(r.get('algorithm', '') for r in self._records.values()))
+        """Return sorted list of unique algorithm names (successful records)."""
+        return sorted(set(r.get('algorithm', '') for r in self._successful()))
 
     def benchmarks(self) -> List[str]:
-        """Return sorted list of unique benchmark names."""
-        return sorted(set(r.get('benchmark', '') for r in self._records.values()))
+        """Return sorted list of unique benchmark names (successful records)."""
+        return sorted(set(r.get('benchmark', '') for r in self._successful()))
 
-    def perf_matrix(self) -> Dict[str, Dict[str, Dict[str, float]]]:
+    def perf_matrix(
+        self,
+        labeling: str = None,
+        measurement_mode: str = None,
+        threads: int = None,
+        mapping_identity_id: str = None,
+    ) -> Dict[str, Dict[str, Dict[str, float]]]:
         """
-        Build performance matrix: {graph: {algo: {bench: best_time}}}.
+        Build performance matrix ``{graph: {algo: {bench: median_time}}}``.
 
-        This is the standard format consumed by
-        perceptron training, evaluation scripts, and C++ runtime.
+        Successful, strictly-positive observations are aggregated by **median**
+        over repeated attempts of the *same* measurement condition.  If more
+        than one distinct condition exists for the same graph/algorithm/
+        benchmark and no explicit condition filter was supplied, this fails
+        closed (raises ``ValueError``) rather than silently mixing conditions.
+
+        Optional filters restrict to a single condition; supply them to
+        disambiguate an intentionally multi-condition store.
         """
-        matrix: Dict[str, Dict[str, Dict[str, float]]] = defaultdict(
-            lambda: defaultdict(dict)
+        explicit_filter = any(
+            v is not None
+            for v in (labeling, measurement_mode, threads, mapping_identity_id)
         )
-        for r in self._records.values():
+
+        # group[(graph, algo, bench)][discriminator] = [times...]
+        group: Dict[Tuple[str, str, str],
+                    Dict[Tuple, List[float]]] = defaultdict(
+                        lambda: defaultdict(list))
+        for r in self._observations:
+            if not r.get('success', True):
+                continue
+            t = r.get('time_seconds', 0.0)
+            if not (isinstance(t, (int, float)) and t > 0):
+                continue
+            if labeling is not None and r.get('labeling') != labeling:
+                continue
+            if measurement_mode is not None and \
+                    r.get('measurement_mode') != measurement_mode:
+                continue
+            if threads is not None and r.get('threads') != threads:
+                continue
+            if mapping_identity_id is not None and \
+                    r.get('mapping_identity_id') != mapping_identity_id:
+                continue
             g = r.get('graph', '')
             a = r.get('algorithm', '')
             b = r.get('benchmark', '')
-            t = r.get('time_seconds', float('inf'))
-            if g and a and b:
-                matrix[g][a][b] = t  # already deduplicated to best time
+            if not (g and a and b):
+                continue
+            group[(g, a, b)][condition_discriminator(r)].append(float(t))
+
+        matrix: Dict[str, Dict[str, Dict[str, float]]] = defaultdict(
+            lambda: defaultdict(dict)
+        )
+        for (g, a, b), by_condition in group.items():
+            if len(by_condition) > 1:
+                if not explicit_filter:
+                    raise ValueError(
+                        "perf_matrix: multiple measurement conditions for "
+                        f"{g!r}/{a!r}/{b!r}: {sorted(by_condition.keys())}. "
+                        "Supply a condition filter (labeling / measurement_mode "
+                        "/ threads / mapping_identity_id) to disambiguate."
+                    )
+                # Even with a filter, refuse to mix conditions.
+                raise ValueError(
+                    "perf_matrix: condition filter still leaves multiple "
+                    f"conditions for {g!r}/{a!r}/{b!r}: "
+                    f"{sorted(by_condition.keys())}."
+                )
+            (times,) = by_condition.values()
+            matrix[g][a][b] = statistics.median(times)
         return dict(matrix)
 
     def stats(self) -> Dict[str, Any]:
-        """Return summary statistics."""
+        """Return summary statistics distinguishing totals and outcomes."""
+        successful = self._successful()
+        failures = len(self._observations) - len(successful)
         return {
-            'records': len(self._records),
+            'observations': len(self._observations),
+            'successful': len(successful),
+            'failures': failures,
+            # Backward-compatible alias (successful record count).
+            'records': len(successful),
             'graphs': len(self.graphs()),
             'algorithms': len(self.algorithms()),
             'benchmarks': len(self.benchmarks()),
         }
 
     def __len__(self):
-        return len(self._records)
+        return len(self._observations)
 
     def __repr__(self):
         s = self.stats()
-        return (f"BenchmarkStore({s['records']} records, "
+        return (f"BenchmarkStore({s['observations']} observations, "
+                f"{s['successful']} ok, {s['failures']} failed, "
                 f"{s['graphs']} graphs, {s['algorithms']} algos, "
                 f"{s['benchmarks']} benchmarks)")
 
