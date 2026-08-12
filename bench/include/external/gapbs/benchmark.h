@@ -400,15 +400,22 @@ inline std::string ExtractGraphName(const std::string& filepath) {
     return base;
 }
 
-inline std::string ReorderSpec(const CLApp& cli) {
+inline std::string RequestedReorderSpec(const CLApp& cli) {
     std::ostringstream spec;
     const auto& options = cli.reorder_options();
     if (options.empty()) return "0";
     for (size_t index = 0; index < options.size(); ++index) {
         if (index > 0) spec << "+";
         spec << static_cast<int>(options[index].first);
-        for (const auto& token : options[index].second) {
-            spec << ":" << token;
+        for (size_t token = 0; token < options[index].second.size(); ++token) {
+            spec << ":";
+            if (
+                options[index].first == MAP
+                && token == 0) {
+                spec << "<mapping>";
+            } else {
+                spec << options[index].second[token];
+            }
         }
     }
     return spec.str();
@@ -488,7 +495,8 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
         RunReport report;
         report.graph_name   = ExtractGraphName(cli.filename());
         report.algorithm    = GetReorderAlgoHint();
-        report.algorithm_spec = ReorderSpec(cli);
+        report.requested_algorithm_spec = RequestedReorderSpec(cli);
+        report.algorithm_spec = GetReorderSpecHint();
         report.algorithm_id = GetReorderAlgoIdHint();
         report.benchmark    = benchmark_name;
         report.avg_time     = avg_time;
@@ -504,6 +512,8 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
             preprocessing.reorder_apply_time;
         report.total_preprocessing_time =
             preprocessing.total_preprocessing_time;
+        report.mapping_fingerprint =
+            GetMappingFingerprintHint();
         report.num_trials   = cli.num_trials();
         report.trials       = std::move(trial_results);
         report.reorder_metas = GetReorderMetaHints();  // accumulated reorder metadata

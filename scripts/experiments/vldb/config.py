@@ -19,6 +19,7 @@ from scripts.lib.core.experiment_policy import (
     PAPER_CACHE_CAPACITIES_MIB,
     PAPER_CACHE_PREVIEW_CAPACITIES_MIB,
     PREVIEW_BENCHMARK_ORDER,
+    REORDER_SEMANTICS_VERSION,
     SHUFFLED_LABEL_SEED,
     cache_capacities_bytes,
 )

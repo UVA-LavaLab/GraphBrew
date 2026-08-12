@@ -49,7 +49,8 @@ from .utils import (
     DISPLAY_TO_CANONICAL, VARIANT_PREFIXES,
     BENCHMARK_OBSERVATION_SCHEMA,
     CONDITION_FIELDS, CONDITION_DISCRIMINATORS,
-    benchmark_condition_key, condition_discriminator,
+    benchmark_condition_key, benchmark_request_key,
+    condition_discriminator,
 )
 
 log = Logger()
@@ -309,8 +310,26 @@ class BenchmarkStore:
             rec['run_id'] = f"{_LEGACY_RUN_ID_PREFIX}{self._legacy_counter:08d}"
             rec.setdefault('labeling', _LEGACY_LABELING)
             rec.setdefault('measurement_mode', _LEGACY_MEASUREMENT_MODE)
-        rec.setdefault('algorithm_spec', rec.get('algorithm', ''))
-        rec.setdefault('schema', 'benchmark-observation/legacy')
+        schema = rec.get('schema')
+        if not schema:
+            schema = 'benchmark-observation/legacy'
+            rec['schema'] = schema
+        prefix = (
+            'legacy-derived'
+            if schema == 'benchmark-observation/legacy'
+            else 'derived-v1'
+            if schema == 'benchmark-observation/v1'
+            else 'derived-v2'
+        )
+        rec.setdefault('reorder_semantics_version', 'legacy')
+        rec.setdefault(
+            'requested_algorithm_spec',
+            f"{prefix}:{rec.get('algorithm', '')}",
+        )
+        rec.setdefault(
+            'algorithm_spec',
+            f"{prefix}:{rec.get('algorithm', '')}",
+        )
         return rec
 
     def _prepare_append_record(self, record) -> Optional[dict]:
@@ -327,13 +346,30 @@ class BenchmarkStore:
         if canonical != algo:
             rec['algorithm'] = canonical
         schema = rec.get('schema')
-        if schema in (None, '', 'benchmark-observation/v1'):
+        if schema in (None, ''):
             rec['schema'] = BENCHMARK_OBSERVATION_SCHEMA
-        elif schema != BENCHMARK_OBSERVATION_SCHEMA:
+            schema = BENCHMARK_OBSERVATION_SCHEMA
+        elif schema not in {
+            'benchmark-observation/v1',
+            BENCHMARK_OBSERVATION_SCHEMA,
+        }:
             raise ValueError(
                 f"Unsupported benchmark observation schema: {schema!r}"
             )
-        rec.setdefault('algorithm_spec', rec.get('algorithm', ''))
+        prefix = (
+            'derived-v1'
+            if schema == 'benchmark-observation/v1'
+            else 'derived-v2'
+        )
+        rec.setdefault('reorder_semantics_version', 'legacy')
+        rec.setdefault(
+            'requested_algorithm_spec',
+            f"{prefix}:{rec.get('algorithm', '')}",
+        )
+        rec.setdefault(
+            'algorithm_spec',
+            f"{prefix}:{rec.get('algorithm', '')}",
+        )
         if not rec.get('run_id'):
             rec['run_id'] = uuid.uuid4().hex
         return rec
@@ -459,6 +495,13 @@ class BenchmarkStore:
         """
         return {benchmark_condition_key(r) for r in self._successful()}
 
+    def get_existing_request_keys(self) -> set:
+        """Return successful pre-execution keys for resumable requests."""
+        return {
+            benchmark_request_key(record)
+            for record in self._successful()
+        }
+
     def to_list(self, include_failed: bool = False) -> List[dict]:
         """Return records as a sorted list (successful-only by default)."""
         records = self._observations if include_failed else self._successful()
@@ -504,6 +547,7 @@ class BenchmarkStore:
         measurement_mode: str = None,
         threads: int = None,
         mapping_identity_id: str = None,
+        mapping_fingerprint: str = None,
     ) -> Dict[str, Dict[str, Dict[str, float]]]:
         """
         Build performance matrix ``{graph: {algo: {bench: median_time}}}``.
@@ -525,6 +569,7 @@ class BenchmarkStore:
                 measurement_mode,
                 threads,
                 mapping_identity_id,
+                mapping_fingerprint,
             )
         )
 
@@ -551,6 +596,9 @@ class BenchmarkStore:
             if mapping_identity_id is not None and \
                     r.get('mapping_identity_id') != mapping_identity_id:
                 continue
+            if mapping_fingerprint is not None and \
+                    r.get('mapping_fingerprint') != mapping_fingerprint:
+                continue
             g = r.get('graph', '')
             a = r.get('algorithm', '')
             b = r.get('benchmark', '')
@@ -568,7 +616,8 @@ class BenchmarkStore:
                         "perf_matrix: multiple measurement conditions for "
                         f"{g!r}/{a!r}/{b!r}: {sorted(by_condition.keys())}. "
                         "Supply a condition filter (labeling / measurement_mode "
-                        "/ algorithm_spec / threads / mapping_identity_id) "
+                        "/ algorithm_spec / threads / mapping_identity_id / "
+                        "mapping_fingerprint) "
                         "to disambiguate."
                     )
                 # Even with a filter, refuse to mix conditions.

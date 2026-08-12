@@ -10,11 +10,18 @@ import pytest
 
 from scripts.graphbrew_experiment import _save_reorder_time
 from scripts.lib.pipeline.benchmark import parse_benchmark_output
+from scripts.lib.pipeline.benchmark import mapping_permutation_fingerprint
 from scripts.lib.pipeline.reorder import parse_reorder_time_from_converter
+from scripts.lib.pipeline.reorder_timing import (
+    metadata_path as reorder_time_metadata_path,
+    read_reorder_time,
+    write_reorder_time,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PR_BINARY = PROJECT_ROOT / "bench" / "bin" / "pr"
+CONVERTER = PROJECT_ROOT / "bench" / "bin" / "converter"
 TINY_GRAPH = PROJECT_ROOT / "scripts" / "test" / "data" / "tiny.el"
 
 
@@ -78,11 +85,16 @@ Reorder Time: 0.20000
 Reorder Validation Time: 0.10000
 Reorder Apply Time: 0.30000
 Reorder End-to-End Time: 0.60000
+Mapping Fingerprint: abcdef0123456789
+Composed Mapping Fingerprint: abcdef0123456789
+Resolved Reorder Spec: 5:degree=out
 """
 
     _save_reorder_time(output, str(time_path), str(tmp_path))
 
-    assert float(time_path.read_text()) == pytest.approx(0.6)
+    assert not time_path.exists()
+    assert reorder_time_metadata_path(time_path).is_file()
+    assert read_reorder_time(time_path) == pytest.approx(0.6)
 
 
 def test_reorder_pipeline_uses_shared_complete_cost():
@@ -96,6 +108,36 @@ Reorder End-to-End Time: 0.60000
 """
 
     assert parse_reorder_time_from_converter(output) == pytest.approx(0.6)
+
+
+def test_legacy_time_sidecars_are_opt_in(tmp_path):
+    legacy = tmp_path / "DBG.time"
+    legacy.write_text("1.25\n")
+
+    assert read_reorder_time(legacy) is None
+    assert read_reorder_time(legacy, allow_legacy=True) == pytest.approx(
+        1.25
+    )
+
+
+def test_versioned_time_sidecar_is_bound_to_mapping(tmp_path):
+    path = tmp_path / "DBG.time"
+    write_reorder_time(
+        path,
+        complete_reorder_time=2.5,
+        mapping_fingerprint="aaaaaaaaaaaaaaaa",
+        algorithm_spec="5:degree=out",
+    )
+
+    assert read_reorder_time(
+        path,
+        expected_mapping_fingerprint="aaaaaaaaaaaaaaaa",
+    ) == pytest.approx(2.5)
+    with pytest.raises(ValueError, match="mapping mismatch"):
+        read_reorder_time(
+            path,
+            expected_mapping_fingerprint="bbbbbbbbbbbbbbbb",
+        )
 
 
 def test_cpp_self_recording_persists_preprocessing_boundaries(tmp_path):
@@ -161,3 +203,64 @@ def test_cpp_self_recording_persists_preprocessing_boundaries(tmp_path):
     assert detail["apply_time"] == pytest.approx(
         timing["reorder_apply_time"], abs=5e-5
     )
+
+
+def test_chained_fingerprint_matches_written_and_map_replay(tmp_path):
+    if not CONVERTER.exists():
+        pytest.skip("converter is not built")
+    mapping = tmp_path / "chain.lo"
+    env = {
+        **os.environ,
+        "GRAPHBREW_DB_DIR": "",
+        "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+        "OMP_NUM_THREADS": "1",
+    }
+    direct = subprocess.run(
+        [
+            str(CONVERTER),
+            "-f",
+            str(TINY_GRAPH),
+            "-s",
+            "-o",
+            "2",
+            "-o",
+            "5",
+            "-q",
+            str(mapping),
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert direct.returncode == 0, direct.stderr
+    _average, _reorder, direct_timing = parse_benchmark_output(
+        direct.stdout
+    )
+    expected = mapping_permutation_fingerprint(mapping)
+    assert len(direct_timing["mapping_fingerprints"]) == 2
+    assert direct_timing["mapping_fingerprint"] == expected
+
+    replay = subprocess.run(
+        [
+            str(CONVERTER),
+            "-f",
+            str(TINY_GRAPH),
+            "-s",
+            "-o",
+            f"13:{mapping}",
+            "-q",
+            str(tmp_path / "replay.lo"),
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert replay.returncode == 0, replay.stderr
+    _average, _reorder, replay_timing = parse_benchmark_output(
+        replay.stdout
+    )
+    assert replay_timing["mapping_fingerprint"] == expected

@@ -192,6 +192,44 @@ def test_cpp_self_recording_preserves_spec_and_layout(tmp_path):
 
     row = json.loads((db_dir / "benchmarks.json").read_text())[0]
     assert row["algorithm"] == "LeidenOrder"
-    assert row["algorithm_spec"] == option
+    assert row["requested_algorithm_spec"] == option
+    assert (
+        row["algorithm_spec"]
+        == "15:0.75:10:10:final-stable:seed=0"
+    )
     assert row["reorder_thread_policy_sensitive"] is True
     assert row["reorder_details"][0]["layout"] == "final-stable"
+
+
+def test_graphbrew_leiden_propagates_thread_policy_sensitivity(tmp_path):
+    _require(PR_BINARY)
+    db_dir = tmp_path / "graphbrew-leiden"
+    db_dir.mkdir()
+    env = {
+        **os.environ,
+        "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+        "OMP_NUM_THREADS": "1",
+    }
+    env.pop("GRAPHBREW_DB_DIR", None)
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g",
+            "8",
+            "-s",
+            "-o",
+            "12:leiden:flat",
+            "-n",
+            "1",
+            "-D",
+            str(db_dir) + "/",
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    row = json.loads((db_dir / "benchmarks.json").read_text())[0]
+    assert row["reorder_thread_policy_sensitive"] is True

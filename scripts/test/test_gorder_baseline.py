@@ -169,16 +169,72 @@ def test_fast_variant_is_deterministic_across_parallel_rounds(tmp_path):
     assert one == four == repeat
 
 
-@pytest.mark.parametrize("option,expected", [
-    ("9", "GORDER"),
-    ("9:gograph", "GORDER_gograph"),
-    ("9:csr", "GORDER_csr"),
-    ("9:fast", "GORDER_fast"),
+def test_fast_resolved_spec_includes_environment_controls(tmp_path):
+    _require(CONVERTER)
+    graph = _graph(tmp_path)
+    mapping = tmp_path / "configured.lo"
+    env = {
+        **os.environ,
+        "GRAPHBREW_DB_DIR": "",
+        "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+        "OMP_NUM_THREADS": "4",
+        "GORDER_FAST_BATCH": "32",
+        "GORDER_WINDOW": "64",
+    }
+    result = subprocess.run(
+        [
+            str(CONVERTER),
+            "-f",
+            str(graph),
+            "-o",
+            "9:fast",
+            "-q",
+            str(mapping),
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (
+        "Resolved Reorder Spec:9:fast:batch=32:window=64"
+        .replace(" ", "")
+        in result.stdout.replace(" ", "")
+    )
+
+    env["GORDER_WINDOW"] = "32"
+    invalid = subprocess.run(
+        [
+            str(CONVERTER),
+            "-f",
+            str(graph),
+            "-o",
+            "9:fast",
+            "-q",
+            str(tmp_path / "invalid.lo"),
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert invalid.returncode != 0
+
+
+@pytest.mark.parametrize("option,expected,resolved", [
+    ("9", "GORDER", "9:gograph:window=5"),
+    ("9:gograph", "GORDER_gograph", "9:gograph:window=5"),
+    ("9:csr", "GORDER_csr", "9:csr:window=5"),
+    ("9:fast", "GORDER_fast", "9:fast:batch=64:window=128"),
 ])
 def test_cpp_self_recording_preserves_gorder_implementation(
     tmp_path,
     option,
     expected,
+    resolved,
 ):
     _require(PR_BINARY)
     graph = _graph(tmp_path)
@@ -212,4 +268,5 @@ def test_cpp_self_recording_preserves_gorder_implementation(
 
     rows = json.loads((db_dir / "benchmarks.json").read_text())
     assert rows[0]["algorithm"] == expected
-    assert rows[0]["algorithm_spec"] == option
+    assert rows[0]["requested_algorithm_spec"] == option
+    assert rows[0]["algorithm_spec"] == resolved

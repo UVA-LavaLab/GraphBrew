@@ -328,6 +328,9 @@ class TestVariantRegistrySSOT:
         assert "GraphBrewOrder_leiden" in names
         assert "GraphBrewOrder_rabbit" in names
         assert "GraphBrewOrder_hubcluster" in names
+        assert "GORDER_gograph" in names
+        assert "GORDER_csr" in names
+        assert "GORDER_fast" in names
         assert "CORDER_canonical" in names
         assert "LeidenOrder" in names
 
@@ -437,7 +440,8 @@ class TestVariantRegistrySSOT:
         """get_algo_variants() returns None for non-variant algorithms."""
         assert get_algo_variants(0) is None
         assert get_algo_variants(2) is None
-        assert get_algo_variants(9) is None   # GOrder: intentionally not in registry
+        assert get_algo_variants(9) == (
+            "default", "gograph", "csr", "fast")
         assert get_algo_variants(15) is None  # LeidenOrder
 
 

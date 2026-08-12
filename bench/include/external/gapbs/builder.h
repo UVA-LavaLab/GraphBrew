@@ -738,6 +738,8 @@ public:
         representation_build_timer.Start();
         SetReorderTimeHint(0.0);
         SetReorderAlgoHint("");
+        SetReorderSpecHint("");
+        SetMappingFingerprintHint("");
         SetReorderAlgoIdHint(0);
         ClearReorderMetaHints();
         ClearPreprocessingTimingHint();
@@ -916,7 +918,63 @@ public:
                 meta.schedule_sensitive || option.first == RabbitOrder;
             meta.thread_policy_sensitive =
                 meta.thread_policy_sensitive || option.first == LeidenOrder;
+            if (
+                option.first == GraphBrewOrder
+                && meta.schedule_sensitive) {
+                PrintLabel(
+                    "Reorder Schedule Sensitive",
+                    "true");
+            }
+            if (
+                option.first == GraphBrewOrder
+                && meta.thread_policy_sensitive) {
+                PrintLabel(
+                    "Reorder Thread Policy Sensitive",
+                    "true");
+            }
+            if (option.first == MAP) {
+                meta.algorithm_spec =
+                    "13:fingerprint=" + mapping_fingerprint;
+            }
+            if (meta.algorithm_spec.empty()) {
+                throw std::runtime_error(
+                    "Missing resolved reorder specification");
+            }
+            std::string resolved_chain = GetReorderSpecHint();
+            if (!resolved_chain.empty()) resolved_chain += "+";
+            resolved_chain += meta.algorithm_spec;
+            SetReorderSpecHint(resolved_chain);
+            PrintLabel(
+                "Resolved Reorder Spec",
+                resolved_chain);
             meta.reorder_time = accounted_end_to_end_time;
+        }
+
+        if (!cli_.reorder_options().empty()) {
+            Timer composed_fingerprint_timer;
+            composed_fingerprint_timer.Start();
+            pvector<NodeID_> source_to_final(g_final.num_nodes());
+            NodeID_* final_to_source = g_final.get_org_ids();
+            ValidatePermutationOrThrow(
+                final_to_source,
+                g_final.num_nodes(),
+                "composed graph original IDs");
+            #pragma omp parallel for schedule(static)
+            for (NodeID_ final_id = 0;
+                 final_id < g_final.num_nodes();
+                 ++final_id) {
+                source_to_final[final_to_source[final_id]] =
+                    final_id;
+            }
+            const std::string composed_fingerprint =
+                MappingFingerprint(source_to_final);
+            composed_fingerprint_timer.Stop();
+            GetPreprocessingTimingHint().excluded_diagnostic_time +=
+                composed_fingerprint_timer.Seconds();
+            SetMappingFingerprintHint(composed_fingerprint);
+            PrintLabel(
+                "Composed Mapping Fingerprint",
+                composed_fingerprint);
         }
 
         total_preprocessing_timer.Stop();
@@ -1634,6 +1692,93 @@ public:
             meta.algorithm    = algo_name;
             meta.algorithm_id = algo_id;
             meta.reorder_time = reorder_secs;
+            if (meta.algorithm_spec.empty()) {
+                std::ostringstream spec;
+                switch (reordering_algo) {
+                case ORIGINAL:
+                    spec << "0";
+                    break;
+                case Random:
+                    spec << "1:seed=0";
+                    break;
+                case Sort:
+                case HubSort:
+                case HubCluster:
+                case DBG:
+                case HubSortDBG:
+                case HubClusterDBG:
+                    spec << algo_id << ":degree="
+                         << (useOutdeg ? "out" : "in");
+                    break;
+                case RabbitOrder:
+                    spec << "8:"
+                         << resolveVariant(reordering_options, "csr")
+                         << ":degree-sort=out-in";
+                    break;
+                case GOrder:
+                {
+                    std::string variant =
+                        resolveVariant(reordering_options, "default");
+                    if (variant == "sym") variant = "csr";
+                    if (variant == "default") {
+                        variant = graphbrew::classic_detail::PreferGOrderCSR(
+                            g.num_edges_directed())
+                            ? "csr"
+                            : "gograph";
+                    }
+                    spec << "9:" << variant;
+                    if (variant == "csr") {
+                        spec << ":window="
+                             << ResolveGOrderCSRWindow();
+                    } else if (variant == "gograph") {
+                        spec << ":window=5";
+                    } else {
+                        auto [batch, window] =
+                            ResolveGOrderFastConfig();
+                        spec << ":batch=" << batch
+                             << ":window=" << window;
+                    }
+                    break;
+                }
+                case COrder:
+                {
+                    std::string variant =
+                        resolveVariant(reordering_options, "legacy");
+                    if (variant == "default") variant = "legacy";
+                    spec << "10:" << variant << ":partition="
+                         << (variant == "canonical"
+                             ? (1024 * 1024 / sizeof(float))
+                             : 1024);
+                    break;
+                }
+                case RCMOrder:
+                    spec << "11:"
+                         << resolveVariant(
+                                reordering_options, "default");
+                    break;
+                case MAP:
+                    spec << "13:<mapping>";
+                    break;
+                case AdaptiveOrder:
+                    spec << "14";
+                    for (const auto& token : reordering_options) {
+                        spec << ":" << token;
+                    }
+                    break;
+                case GoGraphOrder:
+                    spec << "16:"
+                         << resolveVariant(
+                                reordering_options, "default");
+                    break;
+                default:
+                    spec << algo_id;
+                    for (const auto& token : reordering_options) {
+                        spec << ":" << token;
+                    }
+                    break;
+                }
+                meta.algorithm_spec = spec.str();
+            }
             AppendReorderMetaHint(meta);
         }
 
@@ -2813,6 +2958,13 @@ public:
             staged.resolution      = resolution;
             staged.layout          = layout;
             staged.thread_policy_sensitive = true;
+            std::ostringstream spec;
+            spec << "15:" << std::setprecision(17) << resolution
+                 << ":" << maxIterations
+                 << ":" << maxPasses
+                 << ":" << layout
+                 << ":seed=0";
+            staged.algorithm_spec = spec.str();
         }
     }
 
@@ -3700,7 +3852,74 @@ public:
         config.rabbitDegreeSortPreprocess =
             config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
         graphbrew::printGraphBrewEffectiveConfig(config);
+        {
+            nlohmann::json resolved;
+            resolved["algorithm"] =
+                graphbrew::graphBrewAlgorithmName(config.algorithm);
+            resolved["community_mode"] =
+                graphbrew::graphBrewCommunityModeName(
+                    config.communityMode);
+            resolved["aggregation"] =
+                graphbrew::graphBrewAggregationName(
+                    config.aggregation);
+            resolved["ordering"] =
+                config.algorithm ==
+                        graphbrew::GraphBrewAlgorithm::RABBIT_ORDER
+                    && !config.hasExplicitOrdering
+                ? "rabbit-native-dfs"
+                : graphbrew::graphBrewOrderingName(config.ordering);
+            resolved["super_graph"] =
+                graphbrew::graphBrewSuperGraphName(
+                    config.superGraphOrder);
+            resolved["community_order"] =
+                graphbrew::graphBrewCommunityOrderName(
+                    config.communityOrder);
+            resolved["intra_community_order"] =
+                graphbrew::graphBrewIntraOrderName(
+                    config.intraCommunityOrder);
+            resolved["resolution"] = config.resolution;
+            resolved["super_graph_resolution"] =
+                config.superGraphResolution;
+            resolved["max_iterations"] = config.maxIterations;
+            resolved["max_passes"] = config.maxPasses;
+            resolved["refinement_depth"] =
+                config.refinementDepth;
+            resolved["gorder_window"] = config.gorderWindow;
+            resolved["final_algo_id"] = config.finalAlgoId;
+            resolved["recursive_depth"] = config.recursiveDepth;
+            resolved["sub_algo_id"] = config.subAlgoId;
+            resolved["rabbit_degree_sort_preprocess"] =
+                config.rabbitDegreeSortPreprocess;
+            resolved["use_refinement"] = config.useRefinement;
+            resolved["dynamic_resolution"] =
+                config.useDynamicResolution;
+            resolved["degree_sorting"] = config.useDegreeSorting;
+            resolved["community_merging"] =
+                config.useCommunityMerging;
+            resolved["hub_extraction"] = config.useHubExtraction;
+            resolved["hub_extraction_pct"] =
+                config.hubExtractionPct;
+            resolved["gorder_intra"] = config.useGorderIntra;
+            resolved["hub_sort"] = config.useHubSort;
+            resolved["rcm_super"] = config.useRCMSuper;
+            resolved["rcm_intra"] = config.useRCMIntra;
+            resolved["small_community_merging"] =
+                config.useSmallCommunityMerging;
+            graphbrew::database::GetStagedReorderMeta().algorithm_spec =
+                "12:" + resolved.dump();
+        }
         auto realized = graphbrew::makeGraphBrewRealizedConfig(config);
+        {
+            auto& staged =
+                graphbrew::database::GetStagedReorderMeta();
+            staged.schedule_sensitive =
+                staged.schedule_sensitive
+                || realized.scheduleSensitive;
+            staged.thread_policy_sensitive =
+                staged.thread_policy_sensitive
+                || config.algorithm ==
+                    graphbrew::GraphBrewAlgorithm::LEIDEN;
+        }
         
         ReorderingAlgo finalAlgo = static_cast<ReorderingAlgo>(
             (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) 
@@ -4386,6 +4605,17 @@ public:
         }
         if (realized.blockAlgorithms.count("RabbitOrder") > 0) {
             realized.scheduleSensitive = true;
+        }
+        {
+            auto& staged =
+                graphbrew::database::GetStagedReorderMeta();
+            staged.schedule_sensitive =
+                staged.schedule_sensitive
+                || realized.scheduleSensitive;
+            staged.thread_policy_sensitive =
+                staged.thread_policy_sensitive
+                || config.algorithm ==
+                    graphbrew::GraphBrewAlgorithm::LEIDEN;
         }
         graphbrew::printGraphBrewRealizedConfig(realized);
     }

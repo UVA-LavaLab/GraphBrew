@@ -65,6 +65,8 @@ namespace database {
 inline constexpr const char* DEFAULT_DATA_DIR = "results/data/";
 inline constexpr const char* BENCHMARK_OBSERVATION_SCHEMA =
     "benchmark-observation/v2";
+inline constexpr const char* REORDER_SEMANTICS_VERSION =
+    "graphbrew-reorder/v2";
 
 /// Number of nearest neighbors for kNN selection
 inline constexpr int KNN_K = 5;
@@ -284,6 +286,7 @@ struct TrialResult {
 /// Reorder metadata — stored alongside graph properties for debugging
 struct ReorderMeta {
     std::string algorithm;                ///< e.g. "GraphBrewOrder", "LeidenOrder"
+    std::string algorithm_spec;           ///< resolved per-pass execution spec
     int         algorithm_id = 0;
     double      reorder_time = 0.0;       ///< total wall-clock
     double      reorder_core_time = 0.0;  ///< mapping construction/load
@@ -310,6 +313,9 @@ struct ReorderMeta {
     nlohmann::json to_json() const {
         nlohmann::json j;
         j["algorithm"] = algorithm;
+        if (!algorithm_spec.empty()) {
+            j["algorithm_spec"] = algorithm_spec;
+        }
         j["algorithm_id"] = algorithm_id;
         j["reorder_time"] = reorder_time;
         j["reorder_core_time"] = reorder_core_time;
@@ -339,7 +345,10 @@ struct RunReport {
     // Identity
     std::string graph_name;               ///< from filename or --graph-name
     std::string algorithm;                ///< from -o flag (e.g. "GraphBrewOrder")
+    std::string requested_algorithm_spec; ///< portable requested -o chain
     std::string algorithm_spec;           ///< exact ordered numeric -o chain
+    std::string reorder_semantics_version =
+        REORDER_SEMANTICS_VERSION;
     int         algorithm_id = 0;         ///< numeric algo ID
     std::string benchmark;                ///< "pr", "bfs", "cc", etc.
 
@@ -351,6 +360,7 @@ struct RunReport {
     double      reorder_validation_time = 0.0;
     double      reorder_apply_time = 0.0;
     double      total_preprocessing_time = 0.0;
+    std::string mapping_fingerprint;
     int         num_trials = 0;
 
     // Per-trial details
@@ -383,8 +393,13 @@ struct RunReport {
         j["graph"] = graph_name;
         j["schema"] = BENCHMARK_OBSERVATION_SCHEMA;
         j["algorithm"] = algorithm;
+        j["requested_algorithm_spec"] =
+            requested_algorithm_spec.empty()
+                ? algorithm
+                : requested_algorithm_spec;
         j["algorithm_spec"] =
             algorithm_spec.empty() ? algorithm : algorithm_spec;
+        j["reorder_semantics_version"] = reorder_semantics_version;
         j["algorithm_id"] = algorithm_id;
         j["benchmark"] = benchmark;
         j["time_seconds"] = avg_time;
@@ -439,7 +454,9 @@ struct RunReport {
             }
             j["reorder_details"] = reorder_arr;
             j["mapping_fingerprint"] =
-                reorder_metas.back().mapping_fingerprint;
+                mapping_fingerprint.empty()
+                    ? reorder_metas.back().mapping_fingerprint
+                    : mapping_fingerprint;
             j["reorder_schedule_sensitive"] =
                 reorder_metas.back().schedule_sensitive;
             j["reorder_thread_policy_sensitive"] =
@@ -587,6 +604,23 @@ inline std::string& GetReorderAlgoHint() {
     return name;
 }
 inline void SetReorderAlgoHint(const std::string& name) { GetReorderAlgoHint() = name; }
+
+inline std::string& GetReorderSpecHint() {
+    static std::string spec;
+    return spec;
+}
+inline void SetReorderSpecHint(const std::string& spec) {
+    GetReorderSpecHint() = spec;
+}
+
+inline std::string& GetMappingFingerprintHint() {
+    static std::string fingerprint;
+    return fingerprint;
+}
+inline void SetMappingFingerprintHint(
+        const std::string& fingerprint) {
+    GetMappingFingerprintHint() = fingerprint;
+}
 
 /// Global hint: algorithm ID (set in MakeGraph, read in BenchmarkKernel)
 inline int& GetReorderAlgoIdHint() {
@@ -1270,8 +1304,9 @@ public:
      * Writes to benchmarks.json and graph_properties.json.
      */
     bool save() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return save_benchmarks() && save_graph_props();
+        throw std::logic_error(
+            "Legacy aggregated database save is retired; "
+            "use append_run for raw observations");
     }
 
     // ========================================================================
@@ -3184,6 +3219,8 @@ inline void AppendBenchmarkResult(
     int nodes,
     int edges,
     const CommunityFeatures& feat) {
+    throw std::logic_error(
+        "AppendBenchmarkResult is retired; use RunReport/append_run");
 
     BenchRecord rec;
     rec.graph = graph_name;

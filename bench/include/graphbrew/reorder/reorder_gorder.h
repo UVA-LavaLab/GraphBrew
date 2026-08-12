@@ -879,6 +879,45 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
 
 } // namespace gorder_csr_detail
 
+inline int ResolveGOrderCSRWindow(int requested = -1) {
+    int window = requested > 0 ? requested : 5;
+    if (const char* env_window = std::getenv("GORDER_WINDOW")) {
+        int value = std::atoi(env_window);
+        if (value < 2 || value > 100) {
+            throw std::invalid_argument(
+                "GORDER_WINDOW must be between 2 and 100");
+        }
+        window = value;
+    }
+    return window;
+}
+
+inline std::pair<int, int> ResolveGOrderFastConfig() {
+    int batch = 64;
+    if (const char* env_batch = std::getenv("GORDER_FAST_BATCH")) {
+        int value = std::atoi(env_batch);
+        if (value < 8 || value > 4096) {
+            throw std::invalid_argument(
+                "GORDER_FAST_BATCH must be between 8 and 4096");
+        }
+        batch = value;
+    }
+    int window = std::max(5, batch * 2);
+    if (const char* env_window = std::getenv("GORDER_WINDOW")) {
+        int value = std::atoi(env_window);
+        if (value < 2 || value > 8192) {
+            throw std::invalid_argument(
+                "GORDER_WINDOW must be between 2 and 8192");
+        }
+        window = value;
+    }
+    if (window < 2 * batch) {
+        throw std::invalid_argument(
+            "GOrder fast requires window >= 2 * batch");
+    }
+    return {batch, window};
+}
+
 // ============================================================================
 // Public API -- GenerateGOrderCSRMapping
 // ============================================================================
@@ -905,15 +944,7 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     const int n = static_cast<int>(g.num_nodes());
     if (n == 0) return;
 
-    if (window <= 0) {
-        window = 5;  // Match SIGMOD'16 paper default (w=5)
-    }
-
-    // Allow runtime window override via GORDER_WINDOW env var
-    if (const char* env_w = std::getenv("GORDER_WINDOW")) {
-        int w = std::atoi(env_w);
-        if (w >= 2 && w <= 100) window = w;
-    }
+    window = ResolveGOrderCSRWindow(window);
 
     std::cout << "GOrder_CSR window=" << window << std::endl;
 
@@ -983,16 +1014,7 @@ void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         new_ids.resize(n);
 
     const int nthreads = omp_get_max_threads();
-    int batch = 64;
-    if (const char* env_batch = std::getenv("GORDER_FAST_BATCH")) {
-        int value = std::atoi(env_batch);
-        if (value >= 8 && value <= 4096) batch = value;
-    }
-    int window = std::max(5, batch * 2);
-    if (const char* env_window = std::getenv("GORDER_WINDOW")) {
-        int value = std::atoi(env_window);
-        if (value >= 2 && value <= 8192) window = value;
-    }
+    auto [batch, window] = ResolveGOrderFastConfig();
 
     std::cout << "GOrder_fast config: batch=" << batch
               << " window=" << window

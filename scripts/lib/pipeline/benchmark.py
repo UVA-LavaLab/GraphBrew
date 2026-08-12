@@ -34,8 +34,10 @@ from ..core.utils import (
     ENABLE_RUN_LOGGING, canonical_algo_key, algo_converter_opt,
     ELIGIBLE_ALGORITHMS, GRAPHS_DIR, RESULTS_DIR, TIMEOUT_BENCHMARK,
     normalize_graph_name, benchmark_condition_key,
+    benchmark_request_key, REORDER_SEMANTICS_VERSION,
 )
 from .reorder import get_algorithm_name_with_variant  # deprecated; kept for compat
+from .reorder_timing import read_reorder_time
 from ..ml.features import update_graph_properties, save_graph_properties_cache
 
 
@@ -82,6 +84,7 @@ def compute_adaptive_timeout(edges: int, base_timeout: int = 600) -> int:
 _DEFAULT_MAPPINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))), "results", "mappings")
 _MAPPING_IDENTITY_CACHE: Dict[Tuple[str, int, int], str] = {}
+_MAPPING_PERMUTATION_CACHE: Dict[Tuple[str, int, int], str] = {}
 
 
 def mapping_artifact_identity(mapping_path: str | os.PathLike) -> str:
@@ -115,21 +118,66 @@ def mapping_artifact_identity(mapping_path: str | os.PathLike) -> str:
     return identity
 
 
+def mapping_permutation_fingerprint(
+    mapping_path: str | os.PathLike,
+) -> str:
+    """Return the C++ old-to-new FNV fingerprint for a text ``.lo`` map."""
+    path = Path(mapping_path)
+    stat = path.stat()
+    cache_key = (
+        str(path.resolve()), stat.st_size, stat.st_mtime_ns)
+    cached = _MAPPING_PERMUTATION_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        new_to_source = [
+            int(value) for value in path.read_text().split()
+        ]
+    except ValueError as error:
+        raise ValueError(f"Malformed mapping file: {path}") from error
+    size = len(new_to_source)
+    source_to_new = [-1] * size
+    for new_id, source_id in enumerate(new_to_source):
+        if (
+            source_id < 0
+            or source_id >= size
+            or source_to_new[source_id] != -1
+        ):
+            raise ValueError(f"Mapping is not a permutation: {path}")
+        source_to_new[source_id] = new_id
+
+    value = 1469598103934665603
+    mask = (1 << 64) - 1
+    for source_id, new_id in enumerate(source_to_new):
+        value ^= source_id
+        value = (value * 1099511628211) & mask
+        value ^= new_id
+        value = (value * 1099511628211) & mask
+    fingerprint = f"{value:016x}"
+    _MAPPING_PERMUTATION_CACHE[cache_key] = fingerprint
+    return fingerprint
+
+
 def load_reorder_time_for_algo(graph_name: str, algo_name: str,
                                mappings_dir: str = None) -> float:
-    """Load reorder time from a .time file for a given graph and algorithm.
-
-    Checks ``{mappings_dir}/{graph_name}/{algo_name}.time``.  Returns 0.0
-    if the file does not exist.
-    """
-    mappings_dir = mappings_dir or _DEFAULT_MAPPINGS_DIR
-    time_file = os.path.join(mappings_dir, graph_name, f"{algo_name}.time")
-    if os.path.isfile(time_file):
-        try:
-            return float(Path(time_file).read_text().strip())
-        except (ValueError, IOError):
-            return 0.0
-    return 0.0
+    """Load a versioned complete-reorder timing sidecar."""
+    base = Path(mappings_dir or _DEFAULT_MAPPINGS_DIR)
+    if base.name != graph_name:
+        base /= graph_name
+    mapping = base / f"{algo_name}.lo"
+    fingerprint = (
+        mapping_permutation_fingerprint(mapping)
+        if mapping.is_file()
+        else None
+    )
+    value = read_reorder_time(
+        base / f"{algo_name}.time",
+        expected_mapping_fingerprint=fingerprint,
+        allow_legacy=(
+            os.environ.get("GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+        ),
+    )
+    return value if value is not None else 0.0
 
 
 # =============================================================================
@@ -271,6 +319,7 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             ("Leiden Layout", "leiden_layout"),
             ("Leiden Seed", "leiden_seed"),
             ("Random Seed", "random_seed"),
+            ("Resolved Reorder Spec", "resolved_algorithm_spec"),
         ):
             if line.startswith(label + ":"):
                 extra[key] = line.split(":", 1)[1].strip()
@@ -453,12 +502,29 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     mapping_fingerprints = [
         value.lower()
         for value in re.findall(
-            r"Mapping Fingerprint:\s*([0-9a-fA-F]+)", output,
+            r"^Mapping Fingerprint:\s*([0-9a-fA-F]+)",
+            output,
+            flags=re.MULTILINE,
         )
     ]
     if mapping_fingerprints:
         extra["mapping_fingerprints"] = mapping_fingerprints
         extra["mapping_fingerprint"] = mapping_fingerprints[-1]
+    composed_mapping_fingerprints = [
+        value.lower()
+        for value in re.findall(
+            r"^Composed Mapping Fingerprint:\s*([0-9a-fA-F]+)",
+            output,
+            flags=re.MULTILINE,
+        )
+    ]
+    if composed_mapping_fingerprints:
+        extra["composed_mapping_fingerprint"] = (
+            composed_mapping_fingerprints[-1]
+        )
+        extra["mapping_fingerprint"] = (
+            composed_mapping_fingerprints[-1]
+        )
 
     schedule_sensitive = re.findall(
         r"Reorder Schedule Sensitive:\s*(true|false)",
@@ -671,7 +737,7 @@ def run_benchmark(
     labeling: str = "natural",
     threads: int = 0,
     mapping_identity_id: str = "direct",
-    algorithm_spec: str = None,
+    requested_algorithm_spec: str = None,
     attempt: int = 1,
     self_record: bool = False,
 ) -> BenchmarkResult:
@@ -702,8 +768,7 @@ def run_benchmark(
         mapping_identity_id: Mapping identity for this run (``direct`` for a
             runtime reorder, or a ``map:<file>`` identity for a pre-generated
             mapping) so direct and MAP inputs never collide.
-        algorithm_spec: Exact ordered reordering specification. Defaults to
-            the literal ``algorithm`` argument.
+        requested_algorithm_spec: Portable requested reorder specification.
         attempt: Attempt index for repeated draws of the same condition.
         self_record: When False (default) the C++ subprocess is launched with
             ``GRAPHBREW_DB_DIR=''`` so no ambient data-dir writer is inherited
@@ -722,6 +787,13 @@ def run_benchmark(
     algo_id, _ = parse_algorithm_option(algorithm)
     algo_name = get_algorithm_name(algorithm)
     resolved_mode = measurement_mode or "process"
+    requested_spec = requested_algorithm_spec
+    if not requested_spec:
+        requested_spec = (
+            f"13:{mapping_identity_id}"
+            if algo_id == 13
+            else algorithm
+        )
 
     def _make_result(**overrides) -> BenchmarkResult:
         """Build a BenchmarkResult with the observation condition populated."""
@@ -732,7 +804,11 @@ def run_benchmark(
             benchmark=benchmark,
             time_seconds=0.0,
             run_id=uuid.uuid4().hex,
-            algorithm_spec=algorithm_spec or algorithm,
+            reorder_semantics_version=REORDER_SEMANTICS_VERSION,
+            requested_algorithm_spec=requested_spec,
+            algorithm_spec=(
+                "resolved-unavailable:" + requested_spec
+            ),
             labeling=labeling,
             measurement_mode=resolved_mode,
             threads=threads,
@@ -833,6 +909,12 @@ def run_benchmark(
         return _make_result(
             time_seconds=avg_time,
             reorder_time=reorder_time,
+            algorithm_spec=str(
+                extra.get(
+                    "resolved_algorithm_spec",
+                    "resolved-unavailable:" + requested_spec,
+                )
+            ),
             representation_build_time=float(
                 extra.get("representation_build_time", 0.0)
             ),
@@ -865,6 +947,12 @@ def run_benchmark(
         
     except SourceContractError:
         raise
+    except ValueError as error:
+        return _make_result(
+            success=False,
+            error=str(error),
+            error_kind="parse-contract",
+        )
     except subprocess.TimeoutExpired as error:
         return _make_result(
             success=False,
@@ -996,14 +1084,15 @@ def run_benchmarks_multi_graph(
     results = []
     skip_existing = skip_existing or set()
 
-    def _condition_key(algo_name: str, algorithm_spec: str, bench: str,
+    def _condition_key(algo_name: str, requested_spec: str, bench: str,
                        graph_name: str, mapping_identity_id: str,
                        attempt: int = 1):
         """Compute the shared condition key for resume comparison."""
-        return benchmark_condition_key({
+        return benchmark_request_key({
             "graph": graph_name,
             "algorithm": algo_name,
-            "algorithm_spec": algorithm_spec,
+            "reorder_semantics_version": REORDER_SEMANTICS_VERSION,
+            "requested_algorithm_spec": requested_spec,
             "benchmark": bench,
             "labeling": labeling,
             "measurement_mode": measurement_mode,
@@ -1075,11 +1164,16 @@ def run_benchmarks_multi_graph(
                     algo_opt = str(algo_id)
                     mapping_identity_id = "direct"
                     run_mode = "direct"
+                requested_spec = (
+                    f"13:{mapping_identity_id}"
+                    if run_mode != "direct"
+                    else algo_opt
+                )
 
                 # Resume: skip runs already in the database.  The key is the
                 # shared benchmark_condition_key computed *after* the mapping
                 # mode is known, so direct and MAP inputs resume independently.
-                if _condition_key(algo_name, algo_opt, bench, graph_name,
+                if _condition_key(algo_name, requested_spec, bench, graph_name,
                                   mapping_identity_id) in skip_existing:
                     completed += 1
                     skipped_existing += 1
@@ -1096,7 +1190,7 @@ def run_benchmarks_multi_graph(
                         time_seconds=0.0,
                         success=False,
                         error="SKIPPED: prior algorithm timed out on this graph+benchmark",
-                        algorithm_spec=algo_opt,
+                        requested_algorithm_spec=requested_spec,
                         labeling=labeling,
                         measurement_mode=measurement_mode,
                         threads=threads,
@@ -1123,6 +1217,7 @@ def run_benchmarks_multi_graph(
                     measurement_mode=measurement_mode,
                     threads=threads,
                     mapping_identity_id=mapping_identity_id,
+                    requested_algorithm_spec=requested_spec,
                 )
 
                 # ── Pre-generated .lo mapping path ───────────────────
@@ -1226,7 +1321,8 @@ def run_benchmarks_multi_graph(
                         continue
                     # Resume: chained orderings resume on the same shared key.
                     map_spec = f"13:{pregen_lo}"
-                    if _condition_key(canonical, map_spec, bench, graph_name,
+                    requested_spec = f"13:{mapping_identity_id}"
+                    if _condition_key(canonical, requested_spec, bench, graph_name,
                                       mapping_identity_id) in skip_existing:
                         skipped_existing += 1
                         continue
@@ -1243,6 +1339,7 @@ def run_benchmarks_multi_graph(
                         measurement_mode=measurement_mode,
                         threads=threads,
                         mapping_identity_id=mapping_identity_id,
+                        requested_algorithm_spec=requested_spec,
                     )
                     result.algorithm = canonical
                     result.algorithm_id = -1
@@ -1537,6 +1634,9 @@ def run_benchmarks_with_variants(
                     )
                     pregen_lo = os.path.join(mappings_dir, f"{algo_name}.lo")
                     if os.path.isfile(pregen_lo):
+                        mapping_identity_id = mapping_artifact_identity(
+                            pregen_lo
+                        )
                         result = run_benchmark(
                             benchmark=bench,
                             graph_path=graph_path,
@@ -1549,8 +1649,9 @@ def run_benchmarks_with_variants(
                             labeling=labeling,
                             measurement_mode=measurement_mode,
                             threads=threads,
-                            mapping_identity_id=mapping_artifact_identity(
-                                pregen_lo
+                            mapping_identity_id=mapping_identity_id,
+                            requested_algorithm_spec=(
+                                f"13:{mapping_identity_id}"
                             ),
                         )
                         # Preserve original algo identity for analysis
@@ -1595,6 +1696,11 @@ def run_benchmarks_with_variants(
                     measurement_mode=measurement_mode,
                     threads=threads,
                     mapping_identity_id=mapping_identity_id,
+                    requested_algorithm_spec=(
+                        algo_opt
+                        if mapping_identity_id == "direct"
+                        else f"13:{mapping_identity_id}"
+                    ),
                 )
 
                 # Detect timeout or crash

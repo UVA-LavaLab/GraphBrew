@@ -86,6 +86,7 @@ from scripts.experiments.vldb.config import (
     PR_FIXED_ITERATIONS,
     PR_TOLERANCE,
     RANDOM_BASELINE_SEED,
+    REORDER_SEMANTICS_VERSION,
     PROMOTED_GORDER_GRAPHS,
     PAPER_ARTIFACT_ROOT,
     PAPER_GRAPH_ROOT,
@@ -1291,7 +1292,10 @@ KERNEL_RUNS_DIR = VLDB_ROOT / "vldb_runs"
 # Library parser: superset of the runner's old parse_timing(), plus per-trial
 # vectors, MTEPS, iteration counts, topology features, and chained-reorder
 # summing. Delegated to here so the rich data flows through to sidecars.
-from scripts.lib.pipeline.benchmark import parse_benchmark_output as _lib_parse_bench  # noqa: E402
+from scripts.lib.pipeline.benchmark import (  # noqa: E402
+    mapping_permutation_fingerprint,
+    parse_benchmark_output as _lib_parse_bench,
+)
 from scripts.lib.core.utils import get_graph_dimensions  # noqa: E402
 from scripts.lib.ml.working_set import modeled_property_bytes  # noqa: E402
 
@@ -1335,6 +1339,8 @@ def _graph_conversion_policy_id(provenance: dict) -> str:
         "directed": provenance.get("directed"),
         "random_order_algorithm": provenance.get("random_order_algorithm"),
         "random_seed": provenance.get("random_seed"),
+        "reorder_semantics_version":
+            provenance.get("reorder_semantics_version"),
     }
     return _short_id(payload)
 
@@ -1369,7 +1375,9 @@ def _graph_provenance_valid(
             if "-o" in converter_args else False
         )
         return (
-            provenance.get("schema") == "graph_source/v1"
+            provenance.get("schema") == "graph_source/v2"
+            and provenance.get("reorder_semantics_version")
+            == REORDER_SEMANTICS_VERSION
             and (
                 graph_name is None
                 or provenance.get("graph") == graph_name
@@ -1540,7 +1548,12 @@ def _mapping_is_valid(
     meta = _load_reorder_meta(graph_name, algo_key)
     try:
         schema = meta.get("schema")
-        if schema not in {"reorder_meta/v4", "reorder_meta/v5"}:
+        if schema != "reorder_meta/v6":
+            return False
+        if (
+            meta.get("reorder_semantics_version")
+            != REORDER_SEMANTICS_VERSION
+        ):
             return False
         top_effective = meta.get("graphbrew_effective_configs", [])
         top_realized = meta.get("graphbrew_realized_configs", [])
@@ -1564,6 +1577,8 @@ def _mapping_is_valid(
             and all(
                 record_path.is_file()
                 and record_path.stat().st_size > 0
+                and record.get("mapping_fingerprint")
+                == mapping_permutation_fingerprint(record_path)
                 and _mapping_draw_config_is_valid(
                     list(algo_flags), record,
                 )
@@ -1583,29 +1598,28 @@ def _mapping_is_valid(
             and isinstance(command_template, list)
             and command_template[-1] == draw_records[0].get("path")
         )
-        timing_valid = True
-        if schema == "reorder_meta/v5":
-            timing_valid = all(
-                isinstance(meta.get(field), (int, float))
-                and meta[field] >= 0
-                for field in (
-                    "representation_build_time",
-                    "reorder_core_time",
-                    "reorder_validation_time",
-                    "reorder_apply_time",
-                    "total_preprocessing_time",
-                )
+        timing_valid = all(
+            isinstance(meta.get(field), (int, float))
+            and meta[field] >= 0
+            for field in (
+                "representation_build_time",
+                "reorder_core_time",
+                "reorder_validation_time",
+                "reorder_apply_time",
+                "total_preprocessing_time",
             )
-            if timing_valid:
-                complete = (
-                    float(meta["reorder_core_time"])
-                    + float(meta["reorder_validation_time"])
-                    + float(meta["reorder_apply_time"])
-                )
-                timing_valid = (
-                    float(meta["total_preprocessing_time"]) + 1e-4
-                    >= float(meta["representation_build_time"]) + complete
-                )
+        )
+        if timing_valid:
+            complete = (
+                float(meta["reorder_core_time"])
+                + float(meta["reorder_validation_time"])
+                + float(meta["reorder_apply_time"])
+            )
+            timing_valid = (
+                float(meta["total_preprocessing_time"]) + 1e-4
+                >= float(meta["representation_build_time"]) + complete
+            )
+        mapping_fingerprint = mapping_permutation_fingerprint(lo)
         return (
             meta.get("graph") == graph_name
             and meta.get("graph_info")
@@ -1613,6 +1627,8 @@ def _mapping_is_valid(
             and meta.get("converter_flags") == list(algo_flags)
             and meta.get("lo_path") == lo.name
             and meta.get("lo_bytes") == lo.stat().st_size
+            and meta.get("mapping_fingerprint")
+            == mapping_fingerprint
             and meta.get("mapping_draw_count") == draw_count
             and draws_valid
             and command_valid
@@ -1711,7 +1727,7 @@ def _pregenerate_mappings(
     """Pre-generate .lo mapping files for all (graph, algorithm) pairs.
 
     Runs the converter with ``-q {lo_path}`` to produce a vertex-permutation
-    file, and writes a reorder_meta/v5 ``.json``
+    file, and writes a reorder_meta/v6 ``.json``
     sidecar next to it with the full cmd / env / timing / stdout tail.
     Schedule-sensitive Rabbit pipelines retain multiple named draws while
     pinning draw 0 as the mapping used by measured kernels.
@@ -1865,6 +1881,17 @@ def _pregenerate_mappings(
                     aflags, effective_configs, realized_configs,
                 )
                 timing = parse_timing(output)
+                mapping_fingerprint = timing.get(
+                    "mapping_fingerprint")
+                if (
+                    not isinstance(mapping_fingerprint, str)
+                    or mapping_fingerprint
+                    != mapping_permutation_fingerprint(draw_path)
+                ):
+                    raise RuntimeError(
+                        f"Mapping fingerprint mismatch for "
+                        f"{gname}/{algo_key}/draw{draw}"
+                    )
                 core_times = timing.get("reorder_core_time_passes", [])
                 validation_times = timing.get(
                     "reorder_validation_time_passes", []
@@ -1905,6 +1932,7 @@ def _pregenerate_mappings(
                 draw_records.append({
                     "draw": draw,
                     "path": draw_path.name,
+                    "mapping_fingerprint": mapping_fingerprint,
                     "cmd": cmd,
                     "reorder_time": sum(end_to_end_times),
                     "reorder_time_passes": end_to_end_times,
@@ -1959,7 +1987,9 @@ def _pregenerate_mappings(
             total = draw_records[0]["reorder_time"]
             timing = parse_timing(output)
             meta = {
-                "schema": "reorder_meta/v5",
+                "schema": "reorder_meta/v6",
+                "reorder_semantics_version":
+                    REORDER_SEMANTICS_VERSION,
                 "graph": gname,
                 "graph_info": _serialized_graph_info(sg),
                 "algo_key": algo_key,
@@ -1999,6 +2029,8 @@ def _pregenerate_mappings(
                     draw_records[0]["total_preprocessing_time"],
                 "lo_path": lo.name,
                 "lo_bytes": lo.stat().st_size,
+                "mapping_fingerprint":
+                    draw_records[0]["mapping_fingerprint"],
                 "mapping_draw_count": draw_count,
                 "selected_draw": 0,
                 "mapping_draws": draw_records,
@@ -6414,7 +6446,9 @@ def _setup_convert_graphs(
                     f"{name}: converter did not produce a symmetrized graph"
                 )
             provenance = {
-                "schema": "graph_source/v1",
+                "schema": "graph_source/v2",
+                "reorder_semantics_version":
+                    REORDER_SEMANTICS_VERSION,
                 "graph": name,
                 "source_path": str(input_file.resolve()),
                 "source_bytes": source_stat.st_size,

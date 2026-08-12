@@ -178,9 +178,15 @@ from scripts.lib.pipeline.reorder import (
     load_label_maps_index,
 )
 from scripts.lib.pipeline.benchmark import (
-    parse_complete_reorder_time,
+    mapping_permutation_fingerprint,
+    parse_benchmark_output,
     run_benchmarks_multi_graph,
     run_benchmarks_with_variants,
+)
+from scripts.lib.pipeline.reorder_timing import (
+    metadata_path as reorder_time_metadata_path,
+    read_reorder_time,
+    write_reorder_time,
 )
 from scripts.lib.pipeline.cache import run_cache_simulations_with_variants
 from scripts.lib.analysis.adaptive import (
@@ -376,7 +382,10 @@ def _do_benchmark_phase(args, graphs, algorithms, label_maps,
         # Build a callback that flushes each graph's results to the
         # datastore immediately, so progress is not lost on interruption.
         _incremental_store = get_benchmark_store() if save_results else None
-        _skip_existing = _incremental_store.get_existing_keys() if _incremental_store else None
+        _skip_existing = (
+            _incremental_store.get_existing_request_keys()
+            if _incremental_store else None
+        )
         _flushed_graphs = set()
 
         def _flush_graph(graph_name: str, graph_results: list):
@@ -801,14 +810,18 @@ def _save_reorder_time(stdout: str, time_path: str, mappings_dir: str) -> None:
     ``Reorder End-to-End Time``.  Legacy outputs without explicit phase
     boundaries retain their historical ``Reorder Time`` fallback.
     """
-    total = parse_complete_reorder_time(stdout)
-    if total is None:
+    _average, total, timing = parse_benchmark_output(stdout)
+    if "reorder_time_passes" not in timing:
         return
     os.makedirs(mappings_dir, exist_ok=True)
-    target = Path(time_path)
-    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
-    temporary.write_text(f"{total}\n")
-    os.replace(temporary, target)
+    write_reorder_time(
+        time_path,
+        complete_reorder_time=total,
+        mapping_fingerprint=str(
+            timing.get("mapping_fingerprint", "")),
+        algorithm_spec=str(
+            timing.get("resolved_algorithm_spec", "")),
+    )
 
 
 def convert_graph_to_sg(
@@ -920,18 +933,13 @@ def convert_graphs_to_sg(
         # Skip if .sg already exists and force is not set
         if os.path.isfile(sg_path) and os.path.getsize(sg_path) > 0 and not force:
             skipped += 1
-            # Back-fill .time if missing (approximate — re-runs the ordering).
-            # .lo cannot be back-filled because the random permutation is lost.
-            if not os.path.isfile(time_path):
-                converter = os.path.join(bin_dir, "converter")
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.sg', delete=True) as tmp:
-                    backfill_cmd = (
-                        f"{converter} -f {sg_path} -s -o {order} -b {tmp.name}"
-                    )
-                    _bf_ok, bf_stdout, _ = run_command(backfill_cmd, timeout=timeout)
-                    if bf_stdout:
-                        _save_reorder_time(bf_stdout, time_path, mappings_dir)
+            if not reorder_time_metadata_path(time_path).is_file():
+                log(
+                    f"  {entry}: embedded baseline exists without a "
+                    "versioned conversion-time sidecar; not backfilling "
+                    "from a different permutation",
+                    "WARN",
+                )
             continue
 
         # Locate the .mtx source
@@ -1102,14 +1110,23 @@ def pregenerate_reordered_sgs(
             lo_exists = os.path.isfile(lo_path) and os.path.getsize(lo_path) > 0
 
             if lo_exists and not force:
-                skipped += 1
-                # Back-fill .time if missing.
-                if not os.path.isfile(time_file):
-                    with tempfile.NamedTemporaryFile(suffix='.sg', delete=True) as tmp:
-                        timing_cmd = f"{converter} -f {baseline_sg} -s {o_flags} -b {tmp.name}"
-                        _t_ok, t_stdout, _ = run_command(timing_cmd, timeout=timeout)
-                        _save_reorder_time(t_stdout or '', time_file, mappings_dir)
-                continue
+                try:
+                    existing_time = read_reorder_time(
+                        time_file,
+                        expected_mapping_fingerprint=
+                            mapping_permutation_fingerprint(lo_path),
+                    )
+                except (OSError, ValueError):
+                    existing_time = None
+                if existing_time is not None:
+                    skipped += 1
+                    continue
+                log(
+                    f"  {entry}/{canonical}: stale or missing timing "
+                    "metadata; regenerating mapping",
+                    "WARN",
+                )
+                os.remove(lo_path)
 
             os.makedirs(mappings_dir, exist_ok=True)
             log(f"  {entry} → {canonical} ...")

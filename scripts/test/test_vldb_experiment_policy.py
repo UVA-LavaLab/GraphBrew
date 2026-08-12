@@ -1320,11 +1320,15 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
         draw_records.append({
             "draw": draw,
             "path": draw_path.name,
+            "mapping_fingerprint":
+                runner.mapping_permutation_fingerprint(draw_path),
             "graphbrew_effective_configs": [],
             "graphbrew_realized_configs": [],
         })
     meta.write_text(json.dumps({
-        "schema": "reorder_meta/v4",
+        "schema": "reorder_meta/v6",
+        "reorder_semantics_version":
+            runner.REORDER_SEMANTICS_VERSION,
         "graph": "tiny",
         "graph_info": runner._serialized_graph_info(graph),
         "converter_flags": flags,
@@ -1343,15 +1347,29 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
             "-q", f"{lo.stem}.draw0.lo",
         ],
         "reorder_time": 1.0,
+        "representation_build_time": 0.1,
+        "reorder_core_time": 0.5,
+        "reorder_validation_time": 0.1,
+        "reorder_apply_time": 0.4,
+        "total_preprocessing_time": 1.1,
+        "mapping_fingerprint":
+            runner.mapping_permutation_fingerprint(lo),
         "graphbrew_effective_configs": [],
         "graphbrew_realized_configs": [],
     }))
     assert runner._mapping_is_valid("tiny", "8:csr", graph, flags)
+    current_meta = json.loads(meta.read_text())
+    current_meta["schema"] = "reorder_meta/v5"
+    meta.write_text(json.dumps(current_meta))
+    assert not runner._mapping_is_valid(
+        "tiny", "8:csr", graph, flags)
+    current_meta["schema"] = "reorder_meta/v6"
+    meta.write_text(json.dumps(current_meta))
     relocated_root = tmp_path / "relocated"
     shutil.copytree(artifact_root, relocated_root)
     runner.configure_artifact_root(relocated_root)
     assert runner._mapping_is_valid("tiny", "8:csr", graph, flags)
-    _mapped_flags, _time, first_identity = runner.algo_flags_or_map(
+    _mapped_flags, _time, _first_identity = runner.algo_flags_or_map(
         "8:csr", flags, "tiny", str(graph),
     )
     mapped_lo = runner._lo_path("tiny", "8:csr")
@@ -1361,10 +1379,11 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
         mapped_lo,
         ns=(mapped_stat.st_atime_ns, mapped_stat.st_mtime_ns + 1_000_000),
     )
-    _mapped_flags, _time, second_identity = runner.algo_flags_or_map(
-        "8:csr", flags, "tiny", str(graph),
-    )
-    assert first_identity != second_identity
+    with pytest.raises(RuntimeError, match="does not match"):
+        runner.algo_flags_or_map(
+            "8:csr", flags, "tiny", str(graph),
+        )
+    mapped_lo.write_text("0\n")
     assert not runner._mapping_is_valid(
         "tiny", "8:csr", graph, ["-o", "8:boost"],
     )
@@ -1377,7 +1396,7 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
     )
 
 
-def test_mapping_metadata_v5_requires_complete_timing_contract(tmp_path):
+def test_mapping_metadata_v6_requires_complete_timing_contract(tmp_path):
     artifact_root = tmp_path / "artifacts"
     runner.configure_artifact_root(artifact_root)
     graph = tmp_path / "tiny.sg"
@@ -1390,7 +1409,9 @@ def test_mapping_metadata_v5_requires_complete_timing_contract(tmp_path):
     draw_path.write_text("0\n")
     meta_path = runner._meta_path("tiny", "5")
     payload = {
-        "schema": "reorder_meta/v5",
+        "schema": "reorder_meta/v6",
+        "reorder_semantics_version":
+            runner.REORDER_SEMANTICS_VERSION,
         "graph": "tiny",
         "graph_info": runner._serialized_graph_info(graph),
         "converter_flags": flags,
@@ -1400,6 +1421,8 @@ def test_mapping_metadata_v5_requires_complete_timing_contract(tmp_path):
         "mapping_draws": [{
             "draw": 0,
             "path": draw_path.name,
+            "mapping_fingerprint":
+                runner.mapping_permutation_fingerprint(draw_path),
             "graphbrew_effective_configs": [],
             "graphbrew_realized_configs": [],
         }],
@@ -1426,6 +1449,8 @@ def test_mapping_metadata_v5_requires_complete_timing_contract(tmp_path):
         "reorder_validation_time": 0.1,
         "reorder_apply_time": 0.4,
         "total_preprocessing_time": 3.6,
+        "mapping_fingerprint":
+            runner.mapping_permutation_fingerprint(lo),
         "graphbrew_effective_configs": [],
         "graphbrew_realized_configs": [],
     }
@@ -1445,7 +1470,9 @@ def test_graph_provenance_uses_semantic_conversion_policy(tmp_path):
     source.write_text("x")
     provenance_path = graph.with_suffix(".sg.meta.json")
     provenance = {
-        "schema": "graph_source/v1",
+        "schema": "graph_source/v2",
+        "reorder_semantics_version":
+            runner.REORDER_SEMANTICS_VERSION,
         "graph": "tiny",
         "source_path": str(source.resolve()),
         "source_bytes": source.stat().st_size,
@@ -1469,6 +1496,10 @@ def test_graph_provenance_uses_semantic_conversion_policy(tmp_path):
     )
     provenance_path.write_text(json.dumps(provenance))
     assert runner._graph_provenance_valid(graph)
+    provenance["schema"] = "graph_source/v1"
+    provenance_path.write_text(json.dumps(provenance))
+    assert not runner._graph_provenance_valid(graph)
+    provenance["schema"] = "graph_source/v2"
     provenance["random_seed"] = 1
     provenance_path.write_text(json.dumps(provenance))
     assert not runner._graph_provenance_valid(graph)

@@ -40,6 +40,7 @@ from scripts.lib.core.utils import (  # noqa: E402
     BENCHMARK_OBSERVATION_SCHEMA,
     CONDITION_FIELDS,
     benchmark_condition_key,
+    benchmark_request_key,
     condition_discriminator,
 )
 
@@ -241,16 +242,44 @@ def test_perf_matrix_never_mixes_algorithm_specs(tmp_path):
     )["g"]["LeidenOrder"]["pr"] == 1.0
 
 
+def test_perf_matrix_never_mixes_mapping_draws(tmp_path):
+    store = BenchmarkStore(tmp_path / "benchmarks.json")
+    store.append([
+        _result(
+            time_seconds=1.0,
+            mapping_fingerprint="draw-a",
+        ),
+        _result(
+            time_seconds=2.0,
+            mapping_fingerprint="draw-b",
+        ),
+    ])
+
+    with pytest.raises(ValueError, match="multiple measurement conditions"):
+        store.perf_matrix()
+    assert store.perf_matrix(
+        mapping_fingerprint="draw-a"
+    )["g"]["ORIGINAL"]["pr"] == 1.0
+
+
 # =============================================================================
 # Condition key: order, fields, direct vs MAP
 # =============================================================================
 
 def test_condition_key_field_order():
     """The key includes exact algorithm spec before benchmark."""
-    assert CONDITION_FIELDS[:4] == (
-        "graph", "algorithm", "algorithm_spec", "benchmark")
+    assert CONDITION_FIELDS[:6] == (
+        "graph",
+        "algorithm",
+        "reorder_semantics_version",
+        "requested_algorithm_spec",
+        "algorithm_spec",
+        "benchmark",
+    )
     key = benchmark_condition_key({
         "graph": "gA", "algorithm": "GORDER",
+        "reorder_semantics_version": "graphbrew-reorder/v2",
+        "requested_algorithm_spec": "9:csr",
         "algorithm_spec": "9:csr", "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,
         "mapping_identity_id": "direct", "attempt": 1,
@@ -258,12 +287,15 @@ def test_condition_key_field_order():
     # Positional order must match CONDITION_FIELDS, catching any regression to
     # the old (graph, benchmark, algorithm) tuple ordering.
     assert key == (
-        "gA", "GORDER", "9:csr", "pr",
-        "natural", "process", 16, "direct", 1)
+        "gA", "GORDER", "graphbrew-reorder/v2",
+        "9:csr", "9:csr", "pr",
+        "natural", "process", 16, "direct", "", 1)
 
 
 def test_condition_key_distinguishes_direct_vs_map_and_modes():
     common = dict(graph="gA", algorithm="GORDER",
+                  reorder_semantics_version="graphbrew-reorder/v2",
+                  requested_algorithm_spec="9:csr",
                   algorithm_spec="9:csr", benchmark="pr",
                   labeling="natural", measurement_mode="process", threads=16,
                   attempt=1)
@@ -280,7 +312,8 @@ def test_condition_key_distinguishes_direct_vs_map_and_modes():
 
     # The perf-aggregation discriminator excludes graph/algo/bench/attempt.
     assert condition_discriminator({**common, "mapping_identity_id": "direct"}) == (
-        "9:csr", "natural", "process", 16, "direct")
+        "graphbrew-reorder/v2", "9:csr",
+        "natural", "process", 16, "direct", "")
 
 
 def test_condition_key_distinguishes_algorithm_specs():
@@ -302,15 +335,17 @@ def test_resume_key_matches_store_existing_key(tmp_path):
     store = BenchmarkStore(path)
     store.append([
         _result(algorithm="GORDER", algorithm_id=8, time_seconds=1.0,
+                requested_algorithm_spec="9:csr",
                 algorithm_spec="9:csr",
                 labeling="natural", measurement_mode="process", threads=16,
                 mapping_identity_id="direct", attempt=1),
     ])
-    existing = store.get_existing_keys()
+    existing = store.get_existing_request_keys()
 
-    resume_direct = benchmark_condition_key({
+    resume_direct = benchmark_request_key({
         "graph": "g", "algorithm": "GORDER",
-        "algorithm_spec": "9:csr", "benchmark": "pr",
+        "reorder_semantics_version": "graphbrew-reorder/v2",
+        "requested_algorithm_spec": "9:csr", "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,
         "mapping_identity_id": "direct", "attempt": 1,
     })
@@ -318,9 +353,11 @@ def test_resume_key_matches_store_existing_key(tmp_path):
 
     # A MAP-mode run of the same algorithm is a *different* condition, so a
     # direct-only record must NOT satisfy its resume check.
-    resume_map = benchmark_condition_key({
+    resume_map = benchmark_request_key({
         "graph": "g", "algorithm": "GORDER",
-        "algorithm_spec": "13:GORDER.lo", "benchmark": "pr",
+        "reorder_semantics_version": "graphbrew-reorder/v2",
+        "requested_algorithm_spec": "13:map:GORDER.lo",
+        "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,
         "mapping_identity_id": "map:GORDER.lo", "attempt": 1,
     })
@@ -346,7 +383,7 @@ def test_legacy_row_gets_in_memory_defaults_without_rewriting(tmp_path):
     assert obs[0]["run_id"] == "legacy-00000001"
     assert obs[0]["labeling"] == "legacy-unspecified"
     assert obs[0]["measurement_mode"] == "legacy"
-    assert obs[0]["algorithm_spec"] == "ORIGINAL"
+    assert obs[0]["algorithm_spec"] == "legacy-derived:ORIGINAL"
     # Display name normalized to the canonical training name.
     assert obs[0]["algorithm"] == "ORIGINAL"
 
@@ -385,6 +422,25 @@ def test_append_preserves_legacy_and_excluded_rows_verbatim(tmp_path):
     assert persisted[2]["schema"] == BENCHMARK_OBSERVATION_SCHEMA
 
 
+def test_appending_v1_row_does_not_restamp_it_as_v2(tmp_path):
+    path = tmp_path / "benchmarks.json"
+    store = BenchmarkStore(path)
+    store.append([{
+        "schema": "benchmark-observation/v1",
+        "run_id": "v1-row",
+        "graph": "g",
+        "algorithm": "ORIGINAL",
+        "algorithm_id": 0,
+        "benchmark": "pr",
+        "time_seconds": 1.0,
+        "success": True,
+    }])
+
+    row = json.loads(path.read_text())[0]
+    assert row["schema"] == "benchmark-observation/v1"
+    assert row["algorithm_spec"] == "derived-v1:ORIGINAL"
+
+
 def test_append_fails_closed_on_malformed_database(tmp_path):
     path = tmp_path / "benchmarks.json"
     malformed = b'{"not": "a complete JSON array"'
@@ -416,7 +472,7 @@ def test_single_cpp_style_record_reads_compatibly(tmp_path):
     records = store.query(graph="tiny")
     assert len(records) == 1
     assert records[0]["benchmark"] == "pr"
-    assert records[0]["algorithm_spec"] == "ORIGINAL"
+    assert records[0]["algorithm_spec"] == "derived-v1:ORIGINAL"
     assert records[0]["time_seconds"] == 0.25
     assert store.perf_matrix()["tiny"]["ORIGINAL"]["pr"] == 0.25
 
@@ -494,6 +550,7 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
             "Reorder Validation Time: 0.0100\n"
             "Reorder Apply Time: 0.0300\n"
             "Reorder End-to-End Time: 0.2400\n"
+            "Resolved Reorder Spec: 0\n"
             "Total Preprocessing Time: 1.3000\n"
             "Average Time: 0.5000\n"
         )
@@ -515,6 +572,7 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
     assert res.measurement_mode == "process"
     assert res.threads == 16
     assert res.mapping_identity_id == "map:GORDER.lo"
+    assert res.requested_algorithm_spec == "0"
     assert res.algorithm_spec == "0"
     assert res.attempt == 2
     assert res.run_id  # non-empty unique id
@@ -525,6 +583,76 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
     assert res.reorder_time == pytest.approx(0.24)
     assert res.total_preprocessing_time == pytest.approx(1.3)
     assert res.mapping_fingerprint == "abcdef0123456789"
+
+
+def test_generic_run_benchmark_classifies_parse_contract_errors(
+    monkeypatch,
+    tmp_path,
+):
+    import scripts.lib.pipeline.benchmark as bench
+
+    class _FakeCompleted:
+        returncode = 0
+        stdout = (
+            "Reorder Core Time: 0.2000\n"
+            "Reorder Time: 0.3000\n"
+            "Average Time: 0.5000\n"
+        )
+        stderr = ""
+
+    monkeypatch.setattr(
+        bench,
+        "run_command",
+        lambda cmd, timeout=None, check=False, env=None: _FakeCompleted(),
+    )
+    (tmp_path / "pr").write_text("#!/bin/sh\n")
+
+    result = bench.run_benchmark(
+        benchmark="pr",
+        graph_path=str(TINY_GRAPH),
+        algorithm="0",
+        trials=1,
+        bin_dir=str(tmp_path),
+    )
+
+    assert result.success is False
+    assert result.error_kind == "parse-contract"
+
+
+def test_map_request_spec_uses_content_identity_not_path(
+    monkeypatch,
+    tmp_path,
+):
+    import scripts.lib.pipeline.benchmark as bench
+
+    class _FakeCompleted:
+        returncode = 0
+        stdout = (
+            "Resolved Reorder Spec: "
+            "13:fingerprint=abcdef0123456789\n"
+            "Average Time: 0.5000\n"
+        )
+        stderr = ""
+
+    monkeypatch.setattr(
+        bench,
+        "run_command",
+        lambda cmd, timeout=None, check=False, env=None: _FakeCompleted(),
+    )
+    (tmp_path / "pr").write_text("#!/bin/sh\n")
+    result = bench.run_benchmark(
+        benchmark="pr",
+        graph_path=str(TINY_GRAPH),
+        algorithm="13:/absolute/private/path/GORDER.lo",
+        trials=1,
+        bin_dir=str(tmp_path),
+        mapping_identity_id="map:GORDER.lo:sha256:deadbeef",
+    )
+
+    assert result.requested_algorithm_spec == (
+        "13:map:GORDER.lo:sha256:deadbeef"
+    )
+    assert "/absolute/private/path" not in result.requested_algorithm_spec
 
 
 # =============================================================================

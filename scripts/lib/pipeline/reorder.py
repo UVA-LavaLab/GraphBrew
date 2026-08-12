@@ -37,6 +37,11 @@ from ..core.utils import (
     canonical_algo_key, algo_converter_opt,
 )
 from ..core.graph_types import GraphInfo
+from .reorder_timing import (
+    metadata_path as reorder_time_metadata_path,
+    read_reorder_time,
+    write_reorder_time,
+)
 
 # Initialize logger
 log = Logger()
@@ -196,7 +201,7 @@ def expand_algorithms_with_variants(
                     option_str = f"{algo_id}:{variant}"
                 configs.append(AlgorithmConfig(
                     algo_id=algo_id,
-                    name=f"GORDER_{variant}",
+                    name=canonical_algo_key(algo_id, variant),
                     option_string=option_str,
                     variant=variant
                 ))
@@ -209,7 +214,7 @@ def expand_algorithms_with_variants(
                 option_str = f"{algo_id}:{variant}"
             configs.append(AlgorithmConfig(
                 algo_id=algo_id,
-                name=f"GORDER_{variant}",
+                name=canonical_algo_key(algo_id, variant),
                 option_string=option_str,
                 variant=variant
             ))
@@ -325,6 +330,46 @@ def parse_reorder_time_from_converter(output: str) -> Optional[float]:
     return parse_complete_reorder_time(output)
 
 
+def _load_mapping_reorder_time(
+    time_path: str,
+    mapping_path: str,
+) -> float:
+    from .benchmark import mapping_permutation_fingerprint
+
+    fingerprint = (
+        mapping_permutation_fingerprint(mapping_path)
+        if os.path.isfile(mapping_path)
+        else None
+    )
+    value = read_reorder_time(
+        time_path,
+        expected_mapping_fingerprint=fingerprint,
+        allow_legacy=(
+            os.environ.get("GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+        ),
+    )
+    return value if value is not None else 0.0
+
+
+def _write_mapping_reorder_time(
+    time_path: str,
+    output: str,
+) -> float:
+    from .benchmark import parse_benchmark_output
+
+    _average, complete, timing = parse_benchmark_output(output)
+    if "reorder_time_passes" not in timing:
+        raise ValueError("Converter output is missing reorder timing")
+    write_reorder_time(
+        time_path,
+        complete_reorder_time=complete,
+        mapping_fingerprint=str(timing.get("mapping_fingerprint", "")),
+        algorithm_spec=str(
+            timing.get("resolved_algorithm_spec", "")),
+    )
+    return complete
+
+
 # =============================================================================
 # Core Reordering Functions
 # =============================================================================
@@ -427,15 +472,18 @@ def generate_reorderings(
             if generate_maps and actual_map_file and os.path.exists(actual_map_file) and not force_reorder:
                 timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
                 # Also try legacy timing file
-                if not os.path.exists(timing_file):
+                if not (
+                    reorder_time_metadata_path(timing_file).exists()
+                    or (
+                        os.environ.get("GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+                        and os.path.exists(timing_file)
+                    )
+                ):
                     legacy_name = _LEGACY_ALGO_NAMES_REV.get(algo_name)
                     if legacy_name:
                         timing_file = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.time")
-                if os.path.exists(timing_file):
-                    with open(timing_file) as f:
-                        reorder_time = float(f.read().strip())
-                else:
-                    reorder_time = 0.0
+                reorder_time = _load_mapping_reorder_time(
+                    timing_file, actual_map_file)
                 
                 log.info(f"  [{current}/{total}] {algo_name}: exists ({reorder_time:.4f}s)")
                 results.append(ReorderResult(
@@ -454,6 +502,8 @@ def generate_reorderings(
                 timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
                 if os.path.exists(timing_file):
                     os.remove(timing_file)
+                reorder_time_metadata_path(timing_file).unlink(
+                    missing_ok=True)
             
             # Generate mapping with converter
             if generate_maps:
@@ -491,16 +541,9 @@ def generate_reorderings(
                 
                 if generate_maps:
                     if os.path.exists(map_file):
-                        actual_reorder_time = parse_reorder_time_from_converter(output)
-                        reorder_time = (
-                            actual_reorder_time
-                            if actual_reorder_time is not None
-                            else elapsed
-                        )
-                        
                         timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
-                        with open(timing_file, 'w') as f:
-                            f.write(f"{reorder_time:.6f}")
+                        reorder_time = _write_mapping_reorder_time(
+                            timing_file, output)
                         
                         log.info(f"  [{current}/{total}] {algo_name}: {reorder_time:.4f}s (map: {safe_name}.lo)")
                         results.append(ReorderResult(
@@ -854,17 +897,27 @@ def generate_reorderings_with_variants(
             
             if os.path.exists(actual_map_file) and not force_reorder:
                 actual_timing = timing_file
-                if not os.path.exists(timing_file):
+                if not (
+                    reorder_time_metadata_path(timing_file).exists()
+                    or (
+                        os.environ.get("GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+                        and os.path.exists(timing_file)
+                    )
+                ):
                     legacy_name = _LEGACY_ALGO_NAMES_REV.get(cfg.name)
                     if legacy_name:
                         legacy_tf = os.path.join(graph_mappings_dir, f"{safe_filename(legacy_name)}.time")
-                        if os.path.exists(legacy_tf):
+                        if (
+                            reorder_time_metadata_path(legacy_tf).exists()
+                            or (
+                                os.environ.get(
+                                    "GRAPHBREW_ALLOW_LEGACY_TIME") == "1"
+                                and os.path.exists(legacy_tf)
+                            )
+                        ):
                             actual_timing = legacy_tf
-                if os.path.exists(actual_timing):
-                    with open(actual_timing) as f:
-                        reorder_time = float(f.read().strip())
-                else:
-                    reorder_time = 0.0
+                reorder_time = _load_mapping_reorder_time(
+                    actual_timing, actual_map_file)
                 
                 log.info(f"  [{current}/{total}] {cfg.name}: exists ({reorder_time:.4f}s)")
                 label_maps[graph.name][cfg.name] = actual_map_file
@@ -884,6 +937,8 @@ def generate_reorderings_with_variants(
                     os.remove(map_file)
                 if os.path.exists(timing_file):
                     os.remove(timing_file)
+                reorder_time_metadata_path(timing_file).unlink(
+                    missing_ok=True)
             
             # Generate using full option string
             binary = os.path.join(bin_dir, "converter")
@@ -911,13 +966,8 @@ def generate_reorderings_with_variants(
                     log.debug(f"Failed to save run log: {e}")
             
             if success and os.path.exists(map_file):
-                actual_time = parse_reorder_time_from_converter(stdout + stderr)
-                reorder_time = (
-                    actual_time if actual_time is not None else elapsed
-                )
-                
-                with open(timing_file, 'w') as f:
-                    f.write(f"{reorder_time:.6f}")
+                reorder_time = _write_mapping_reorder_time(
+                    timing_file, stdout + stderr)
                 
                 log.info(f"  [{current}/{total}] {cfg.name}: {reorder_time:.4f}s")
                 label_maps[graph.name][cfg.name] = map_file

@@ -22,6 +22,7 @@ from dataclasses import dataclass, asdict
 
 from .experiment_policy import (
     ALL_BENCHMARKS,
+    REORDER_SEMANTICS_VERSION,
     REORDER_BENCHMARKS,
 )
 
@@ -431,11 +432,14 @@ def get_algo_variants(algo_id: int) -> tuple[str, ...] | None:
     Examples::
 
         get_algo_variants(8)   → ("csr", "boost")
+        get_algo_variants(9)   → ("default", "gograph", "csr", "fast")
         get_algo_variants(10)  → ("legacy", "canonical")
         get_algo_variants(12)  → ("leiden", "rabbit", "hubcluster", "hrab", "tqr", "hcache", "streaming")
         get_algo_variants(16)  → ("default", "fast", "naive")
         get_algo_variants(2)   → None
     """
+    if algo_id == 9:
+        return GORDER_VARIANTS
     if algo_id == 10:
         return CORDER_VARIANTS
     entry = _VARIANT_ALGO_REGISTRY.get(algo_id)
@@ -484,7 +488,14 @@ def get_all_algorithm_variant_names() -> list[str]:
     for algo_id, algo_name in ALGORITHMS.items():
         if algo_name in ("ORIGINAL", "RANDOM", "MAP", "AdaptiveOrder"):
             continue
-        if algo_id == 10:
+        if algo_id == 9:
+            names.extend((
+                "GORDER",
+                "GORDER_gograph",
+                "GORDER_csr",
+                "GORDER_fast",
+            ))
+        elif algo_id == 10:
             names.extend(("CORDER", "CORDER_canonical"))
         elif algo_id in _VARIANT_ALGO_REGISTRY:
             prefix, variants, _ = _VARIANT_ALGO_REGISTRY[algo_id]
@@ -681,6 +692,8 @@ class BenchmarkResult:
     # ── Observation-condition identity (immutable raw-observation model) ──
     schema: str = BENCHMARK_OBSERVATION_SCHEMA
     run_id: str = ""
+    reorder_semantics_version: str = REORDER_SEMANTICS_VERSION
+    requested_algorithm_spec: str = ""
     algorithm_spec: str = ""
     labeling: str = "natural"
     measurement_mode: str = "process"
@@ -700,8 +713,13 @@ class BenchmarkResult:
     def __post_init__(self):
         if self.extra is None:
             self.extra = {}
+        if not self.requested_algorithm_spec:
+            self.requested_algorithm_spec = self.algorithm
         if not self.algorithm_spec:
-            self.algorithm_spec = self.algorithm
+            self.algorithm_spec = (
+                "resolved-unavailable:"
+                + self.requested_algorithm_spec
+            )
 
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -723,12 +741,15 @@ class BenchmarkResult:
 CONDITION_FIELDS: Tuple[str, ...] = (
     "graph",
     "algorithm",
+    "reorder_semantics_version",
+    "requested_algorithm_spec",
     "algorithm_spec",
     "benchmark",
     "labeling",
     "measurement_mode",
     "threads",
     "mapping_identity_id",
+    "mapping_fingerprint",
     "attempt",
 )
 
@@ -737,11 +758,26 @@ CONDITION_FIELDS: Tuple[str, ...] = (
 #: index, so ``perf_matrix`` can median repeated attempts of one condition while
 #: still refusing to mix e.g. ``natural`` and ``shuffled`` labelings.
 CONDITION_DISCRIMINATORS: Tuple[str, ...] = (
+    "reorder_semantics_version",
     "algorithm_spec",
     "labeling",
     "measurement_mode",
     "threads",
     "mapping_identity_id",
+    "mapping_fingerprint",
+)
+
+REQUEST_CONDITION_FIELDS: Tuple[str, ...] = (
+    "graph",
+    "algorithm",
+    "reorder_semantics_version",
+    "requested_algorithm_spec",
+    "benchmark",
+    "labeling",
+    "measurement_mode",
+    "threads",
+    "mapping_identity_id",
+    "attempt",
 )
 
 #: Defaults applied only when a field is entirely absent from a record.  Legacy
@@ -751,12 +787,15 @@ CONDITION_DISCRIMINATORS: Tuple[str, ...] = (
 _CONDITION_DEFAULTS: Dict[str, Any] = {
     "graph": "",
     "algorithm": "",
+    "reorder_semantics_version": "legacy",
+    "requested_algorithm_spec": "",
     "algorithm_spec": "",
     "benchmark": "",
     "labeling": "natural",
     "measurement_mode": "process",
     "threads": 0,
     "mapping_identity_id": "direct",
+    "mapping_fingerprint": "",
     "attempt": 1,
 }
 
@@ -768,11 +807,15 @@ def _condition_field_value(record: Any, field: str) -> Any:
         value = record.get(field, default)
     else:
         value = getattr(record, field, default)
-    if field == "algorithm_spec" and not value:
+    if field in {"requested_algorithm_spec", "algorithm_spec"} and not value:
         if isinstance(record, dict):
-            value = record.get("algorithm", "")
+            base = record.get("algorithm", "")
         else:
-            value = getattr(record, "algorithm", "")
+            base = getattr(record, "algorithm", "")
+        value = (
+            base if field == "requested_algorithm_spec"
+            else "resolved-unavailable:" + base
+        )
     if value is None:
         value = default
     return value
@@ -787,6 +830,14 @@ def benchmark_condition_key(record: Any) -> Tuple:
     grouping so producer and consumer never build divergent positional tuples.
     """
     return tuple(_condition_field_value(record, f) for f in CONDITION_FIELDS)
+
+
+def benchmark_request_key(record: Any) -> Tuple:
+    """Return the pre-execution key used for safe resume checks."""
+    return tuple(
+        _condition_field_value(record, field)
+        for field in REQUEST_CONDITION_FIELDS
+    )
 
 
 def condition_discriminator(record: Any) -> Tuple:

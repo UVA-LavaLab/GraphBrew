@@ -102,15 +102,16 @@ def test_boost_variant_is_explicit_when_available(tmp_path):
     assert "Algorithm:           RabbitOrder" in result.stdout
 
 
-@pytest.mark.parametrize("option,expected", [
-    ("8", "RABBITORDER_csr"),
-    ("8:csr", "RABBITORDER_csr"),
-    ("8:boost", "RABBITORDER_boost"),
+@pytest.mark.parametrize("option,expected,resolved", [
+    ("8", "RABBITORDER_csr", "8:csr:degree-sort=out-in"),
+    ("8:csr", "RABBITORDER_csr", "8:csr:degree-sort=out-in"),
+    ("8:boost", "RABBITORDER_boost", "8:boost:degree-sort=out-in"),
 ])
 def test_cpp_self_recording_preserves_rabbit_variant_and_fingerprint(
     tmp_path,
     option,
     expected,
+    resolved,
 ):
     _require(PR_BINARY)
     if option.endswith("boost") and not _rabbit_build_enabled():
@@ -149,8 +150,43 @@ def test_cpp_self_recording_preserves_rabbit_variant_and_fingerprint(
     row = rows[0]
     detail = row["reorder_details"][0]
     assert row["algorithm"] == expected
-    assert row["algorithm_spec"] == option
+    assert row["requested_algorithm_spec"] == option
+    assert row["algorithm_spec"] == resolved
     assert re.fullmatch(r"[0-9a-f]{16}", row["mapping_fingerprint"])
     assert row["reorder_schedule_sensitive"] is True
     assert detail["mapping_fingerprint"] == row["mapping_fingerprint"]
     assert detail["schedule_sensitive"] is True
+
+
+def test_graphbrew_rabbit_propagates_schedule_sensitivity(tmp_path):
+    _require(PR_BINARY)
+    db_dir = tmp_path / "graphbrew-rabbit"
+    db_dir.mkdir()
+    env = {
+        **os.environ,
+        "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+        "OMP_NUM_THREADS": "1",
+    }
+    env.pop("GRAPHBREW_DB_DIR", None)
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g",
+            "8",
+            "-s",
+            "-o",
+            "12:rabbit",
+            "-n",
+            "1",
+            "-D",
+            str(db_dir) + "/",
+        ],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    row = json.loads((db_dir / "benchmarks.json").read_text())[0]
+    assert row["reorder_schedule_sensitive"] is True

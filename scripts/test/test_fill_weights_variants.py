@@ -502,13 +502,13 @@ class TestDefaultWeights:
         # algo 11 (RCM) → 3,
         # algo 12 (GraphBrew) → 7, algo 16 (GoGraph) → 3
         # Plus LeidenOrder (single, non-variant)
-        # So: 24 prior single variants + RCM_mind = 25
+        # So: 25 prior single variants + 3 explicit Gorder identities = 28
         # Plus chained orderings
         single = [n for n in ALL_VARIANTS if not is_chained_ordering_name(n)]
         chained = [n for n in ALL_VARIANTS if is_chained_ordering_name(n)]
-        assert len(single) == 25, f"Expected 25 single variants, got {len(single)}: {single}"
+        assert len(single) == 28, f"Expected 28 single variants, got {len(single)}: {single}"
         assert len(chained) == 5, f"Expected 5 chained orderings, got {len(chained)}: {chained}"
-        assert len(ALL_VARIANTS) == 30
+        assert len(ALL_VARIANTS) == 33
 
 
 # ---------------------------------------------------------------------------

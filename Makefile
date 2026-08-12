@@ -11,6 +11,7 @@ PYTHON=@python3
 PIP=@pip
 PYTEST_ARGS ?= -q
 PYTEST_SELECT = $(if $(strip $(PYTEST_FILTER)),-k "$(PYTEST_FILTER)",)
+MAX_TEST_SKIPS ?= $(if $(filter 1,$(RABBIT_ENABLE)),1,7)
 # =========================================================
 SCRIPT_DIR  = scripts
 # Lint
@@ -184,10 +185,10 @@ report-edge-gas-performance: edge-all gas-all $(addprefix $(BIN_DIR)/,$(filter-o
 	$(PYTHON) scripts/experiments/edge_gas_report.py
 
 check-native-core: $(CORE_UNIT_TESTS_BIN)
-	@for test in $(CORE_UNIT_TESTS_BIN); do $$test; done
+	@for test in $(CORE_UNIT_TESTS_BIN); do $$test || exit $$?; done
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
-	@for test in $(UNIT_TESTS_BIN); do $$test; done
+	@for test in $(UNIT_TESTS_BIN); do $$test || exit $$?; done
 	$(PYTHON) scripts/test/check_partition_runtime_traffic.py \
 		--bfs $(BIN_DIR)/bfs_p
 	@for partitions in 1 2 4 16; do \
@@ -418,8 +419,11 @@ lint-includes:
 check-python:
 	$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS) $(PYTEST_SELECT)
 
-check: lint-includes check-native-core $(BIN_DIR)/pr $(BIN_SIM_DIR)/pr $(BIN_DIR)/converter
-	$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS) $(PYTEST_SELECT)
+check: lint-includes check-native-core \
+	$(addprefix $(BIN_DIR)/,pr bfs cc sssp converter) \
+	$(BIN_SIM_DIR)/pr $(BIN_WORK_DIR)/bfs
+	$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS) $(PYTEST_SELECT) \
+		--max-skips=$(MAX_TEST_SKIPS)
 
 # Run simulation with default parameters (single-core mode)
 run-sim-%: $(BIN_SIM_DIR)/%
