@@ -38,15 +38,15 @@ from typing import Dict, List, Optional
 # Resolve project root
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent.parent.parent
-sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
+sys.path.insert(0, str(_PROJECT_ROOT))
 
-from lib.ml.weights import (  # noqa: E402
+from scripts.lib.ml.weights import (  # noqa: E402
     compute_weights_from_results,
     cross_validate_logo,
     get_perceptron_candidates,
 )
-from lib.ml.eval_weights import load_benchmark_entries  # noqa: E402
-from lib.core.datastore import get_benchmark_store, get_props_store  # noqa: E402
+from scripts.lib.ml.eval_weights import load_benchmark_entries  # noqa: E402
+from scripts.lib.core.datastore import get_benchmark_store, get_props_store  # noqa: E402
 
 log = logging.getLogger("cold_start_sim")
 

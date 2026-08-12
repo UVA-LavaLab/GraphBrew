@@ -5,7 +5,9 @@ They all share the same graph/benchmark selection logic, lifted out here
 so the per-stage scripts stay small.
 
 Usage from a stage script:
-    from _common import add_common_args, resolve_config
+    from scripts.experiments.vldb.stages._common import (
+        add_common_args, resolve_config,
+    )
     args = parser.parse_args()
     cfg = resolve_config(args)   # -> dict with graphs, benchmarks, trials, timeout, graph_dir
 """
@@ -14,18 +16,17 @@ import argparse
 import sys
 from pathlib import Path
 
-# Make sibling package importable
+# Make the repository package importable under one canonical identity.
 _THIS = Path(__file__).resolve()
 _VLDB_DIR = _THIS.parent.parent          # scripts/experiments/vldb
 _EXP_DIR = _VLDB_DIR.parent              # scripts/experiments
 _SCRIPTS = _EXP_DIR.parent               # scripts
 _ROOT = _SCRIPTS.parent                  # repo root
-for p in (str(_SCRIPTS), str(_EXP_DIR)):
-    if p not in sys.path:
-        sys.path.insert(0, p)
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-from experiments.vldb import runner as V                   # noqa: E402
-from experiments.vldb.config import (                      # noqa: E402
+from scripts.experiments.vldb import runner as V           # noqa: E402
+from scripts.experiments.vldb.config import (              # noqa: E402
     EVAL_GRAPHS, EVAL_GRAPHS_64GB, EVAL_GRAPHS_LOCAL, PREVIEW_GRAPHS,
     CACHE_GRAPH_NAMES, SCALABILITY_GRAPH_NAMES,
     BENCHMARKS, BENCHMARKS_PREVIEW,

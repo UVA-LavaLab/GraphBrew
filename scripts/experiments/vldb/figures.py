@@ -31,9 +31,9 @@ from typing import Any, Dict, List, Optional
 
 # Ensure project root is on path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from experiments.vldb.config import (
+from scripts.experiments.vldb.config import (
     ABLATION_CONTRASTS,
     ALL_ALGORITHMS,
     BASELINE_ALGORITHMS,

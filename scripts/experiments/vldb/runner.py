@@ -50,9 +50,9 @@ from typing import Any, Dict, List, Optional
 
 # Ensure project root is on path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from experiments.vldb.config import (
+from scripts.experiments.vldb.config import (
     ABLATION_CONFIGS,
     ALGORITHM_GRAPH_EXCLUSION_EVIDENCE,
     ALGORITHM_GRAPH_EXCLUSIONS,
@@ -1784,9 +1784,9 @@ KERNEL_RUNS_DIR = VLDB_ROOT / "vldb_runs"
 # Library parser: superset of the runner's old parse_timing(), plus per-trial
 # vectors, MTEPS, iteration counts, topology features, and chained-reorder
 # summing. Delegated to here so the rich data flows through to sidecars.
-from lib.pipeline.benchmark import parse_benchmark_output as _lib_parse_bench  # noqa: E402
-from lib.core.utils import get_graph_dimensions  # noqa: E402
-from lib.ml.working_set import modeled_property_bytes  # noqa: E402
+from scripts.lib.pipeline.benchmark import parse_benchmark_output as _lib_parse_bench  # noqa: E402
+from scripts.lib.core.utils import get_graph_dimensions  # noqa: E402
+from scripts.lib.ml.working_set import modeled_property_bytes  # noqa: E402
 
 
 def _lo_path(graph_name: str, algo_key: str) -> Path:
@@ -6484,7 +6484,7 @@ def _setup_download_graphs(graphs: list[dict], dest_dir: Path) -> None:
     if catalog_names:
         log.info(f"  Downloading {len(catalog_names)} graphs from SuiteSparse...")
         try:
-            from lib.pipeline.download import (
+            from scripts.lib.pipeline.download import (
                 download_graphs_parallel,
                 get_graph_info,
                 DownloadableGraph,

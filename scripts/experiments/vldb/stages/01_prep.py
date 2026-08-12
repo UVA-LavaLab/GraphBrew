@@ -22,8 +22,10 @@ import argparse
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import add_common_args, resolve_config, banner, V
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
+from scripts.experiments.vldb.stages._common import (
+    add_common_args, resolve_config, banner, V,
+)
 
 
 def main() -> None:

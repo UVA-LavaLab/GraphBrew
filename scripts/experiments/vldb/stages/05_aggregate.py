@@ -15,9 +15,13 @@ import sys
 import zipfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import add_common_args, resolve_config, V  # noqa: F401
-from experiments.vldb.config import PAPER_ARTIFACT_ROOT, PAPER_GRAPH_ROOT
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
+from scripts.experiments.vldb.stages._common import (  # noqa: F401
+    add_common_args, resolve_config, V,
+)
+from scripts.experiments.vldb.config import (
+    PAPER_ARTIFACT_ROOT, PAPER_GRAPH_ROOT,
+)
 
 PAPER_PACKAGE_NAME = (
     "GraphBrew__Multilayered_Graph_Reordering_Techniques_for_"
@@ -133,7 +137,7 @@ def main() -> None:
         os.environ["GRAPHBREW_PUBLISH_PAPER_FIGURES"] = "1"
     print("STAGE 05 — rebuilding results/INDEX.json")
     try:
-        from lib.analysis.results_index import write_index
+        from scripts.lib.analysis.results_index import write_index
         out = write_index(
             Path(args.artifact_root),
             graph_root=Path(args.graph_dir) if args.graph_dir else None,
