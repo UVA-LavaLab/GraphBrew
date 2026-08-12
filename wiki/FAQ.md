@@ -57,9 +57,9 @@ Three common reasons:
 | Output | Location |
 |---|---|
 | Standard runs | stdout (`Read Time`, `Build Time`, `Average Time`) |
-| With `-q out.json` | `out.json` (machine-readable) |
-| Pipeline (`graphbrew_experiment.py`) | `results/data/benchmark.json` |
-| VLDB script (`vldb_paper_experiments.py`) | `results/vldb_paper/exp{1..8}_*/` |
+| Explicit C++ self-recording (`-D DIR`) | `DIR/benchmarks.json` |
+| Pipeline (`graphbrew_experiment.py`) | `results/data/benchmarks.json` |
+| Frozen-study runs | the configured `--paper-artifact-root` |
 | Trained adaptive models | `results/data/adaptive_models.json` |
 
 ## Where do trained AdaptiveOrder models live?
@@ -133,6 +133,6 @@ kept in-tree for future work.
 | `g++ unrecognized command line option '-std=c++17'` | install GCC 7+ |
 | `Cannot allocate memory` while building | `make -j2` instead of `-j` |
 | `*.sg file not found` after rebuild | re-run with `-f graph.el`; the binary will regenerate `.sg` |
-| AdaptiveOrder picks the same algorithm every time | `benchmark.json` is empty or untrained; run the pipeline once: `python3 scripts/graphbrew_experiment.py --train --size small` |
+| AdaptiveOrder picks the same algorithm every time | The load-only model artifact is missing, untrained, or intentionally abstaining; fit/export it offline with the orchestrator and inspect the Tier-0 weights |
 
 More in [Troubleshooting](Troubleshooting).

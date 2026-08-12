@@ -18,7 +18,9 @@ The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMA
 
 > **Available but excluded by default:** Triangle Counting (`tc`) — add via `--benchmarks pr bfs cc sssp tc`.
 
-> **Random Baseline:** By default, `.mtx` graphs are converted to `.sg` with RANDOM vertex ordering so all benchmark times reflect a worst-case baseline. Disable with `--no-random-baseline`.
+> **Shuffled control:** By default, `.mtx` graphs are converted to `.sg` with
+> the fixed seeded RANDOM ordering. This is a controlled labeling, not a
+> worst-case claim. Disable with `--no-random-baseline`.
 
 > **Pre-generated Reordered .sg:** After RANDOM baseline conversion, each algorithm's reordered graph is pre-generated as `{graph}_{ALGO}.sg` (e.g., `email-Enron_SORT.sg`, `email-Enron_HUBCLUSTERDBG.sg`). At benchmark time, the pre-generated `.sg` is loaded with `-o 0` (ORIGINAL), eliminating runtime reorder overhead. Disk space is estimated first; if insufficient, the pipeline falls back to real-time reordering. Control with `--pregenerate-sg` (default ON) / `--no-pregenerate-sg`.
 
@@ -28,14 +30,17 @@ The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMA
 
 For batch benchmarking, use the unified experiment script:
 
+Pass `--graphs-dir /media/Data/00_GraphDatasets/GraphBrew` on the evaluation
+host so downloaded or converted graphs do not fill the repository filesystem.
+
 ```bash
-# One-command: download 150 graphs per size, run full pipeline + ML evaluation
+# One-command: download graphs and run full collection + offline fitting
 python3 scripts/graphbrew_experiment.py --target-graphs 150
 
 # Preview what would run (no execution)
 python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
 
-# One-click with explicit flags: downloads graphs, builds, runs all benchmarks
+# Full generic pipeline with explicit flags
 python3 scripts/graphbrew_experiment.py --full --size small
 
 # Auto-detect RAM and disk limits
@@ -57,24 +62,31 @@ python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
-See [[Command-Line-Reference]] for `--train` phases, download size options, and memory/disk management. See [[Python-Scripts]] for full script documentation. See [[VLDB-Experiments]] for reproducing the VLDB 2026 paper results.
+See [[Command-Line-Reference]] for phases, download size options, and
+memory/disk management. See [[Python-Scripts]] for module documentation and
+[[VLDB-Experiments]] for the isolated frozen-study matrix.
 
-### VLDB 2026 Paper Experiments
+### Frozen Study Reproduction
 
-For reproducing the GraphBrew VLDB paper, use the dedicated experiment runner:
+Use the top-level orchestrator for normal preview and full runs:
 
 ```bash
-# Preview (fast validation — 2 small graphs, ~30 min):
-python3 scripts/experiments/vldb/runner.py --all --preview
+# Preview
+python3 scripts/graphbrew_experiment.py --vldb --paper-preview \
+  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-threads 4 --paper-cpu-list 24-27
 
-# 64 GB machine (11 auto-downloadable graphs):
-python3 scripts/experiments/vldb/runner.py --all --64gb
-
-# Full evaluation (11 graphs, 7 benchmarks, 3 trials):
-python3 scripts/experiments/vldb/runner.py --all
+# Full frozen matrix
+python3 scripts/graphbrew_experiment.py --vldb \
+  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-threads 16 --paper-cpu-list 0-15
 ```
 
-### Full Training Example
+Use `scripts/experiments/vldb/stages/` only for restartable long runs.
+
+### Full Collection Example
 
 Here is exactly what happens when you run:
 
@@ -97,21 +109,15 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --size small
 | **Reorder** | Runs 17 algorithms × 14 variants on each graph → `.lo` label maps | `results/mappings/<name>/<algo>.lo` |
 | **Benchmark** | Runs 7 kernels (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC) × all orderings × 2 trials | `results/data/benchmarks.json` |
 | **Cache Sim** | Simulates L1/L2/L3 cache hit rates for PR and BFS | `results/data/benchmarks.json` (cache fields) |
-| **Evaluate** | In-sample diagnostics only; legacy non-nested LOGO is retired pending nested topology-held-out evaluation | `results/data/evaluation_summary.json` |
+| **Offline fit** | Fits and exports load-only model artifacts; no held-out claim | `results/data/adaptive_models.json` |
 
-**What the ML models learn:** For each graph, the pipeline records benchmark runtimes for every reordering algorithm. The ML model learns to predict which algorithm gives the best speedup based on graph topology features (degree distribution, modularity, hub concentration, etc.). More graphs = better predictions.
+**Adaptive status:** The pipeline can fit load-only artifacts from measured
+features and runtimes. Generalization claims remain blocked until the nested
+topology-held-out evaluator performs fold-local portfolio selection, model
+fitting, and OOD calibration.
 
-**Expected timeline** (on a modern workstation):
-- 50 small graphs: ~15–20 min
-- 150 small graphs: ~1–2 hours
-- 150 all sizes: ~4–8 hours
-
-**Output:** After completion, check `results/data/evaluation_summary.json` for model accuracy:
-```
-XBench Fam+Orig XGBoost  — 66.3% top-1  (current best)
-DT-Hybrid Perceptron     — 64.1% top-1
-Perceptron (vanilla)     — 58.2% top-1
-```
+Timelines are workload- and machine-dependent; use `--dry-run` and the
+orchestrator's budget/planning modes before broad collection.
 
 ---
 

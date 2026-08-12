@@ -308,10 +308,12 @@ int main(int argc, char* argv[]) {
 See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
-- `graphbrew_experiment.py` — Main orchestration (~2,838 lines)
+- `graphbrew_experiment.py` — Public research experiment orchestrator
 - `lib/tools/evaluate_all_modes.py` — In-sample model × criterion diagnostics; legacy LOGO flags fail closed
 - `lib/ml/weights.py` — **SSO** for scoring (`PerceptronWeight.compute_score()`) and type-based weight training
-- `lib/ml/eval_weights.py` — **SSO** for data loading (`load_all_results()`, `build_performance_matrix()`, `compute_graph_features()`)
+- `lib/core/datastore.py` — Versioned raw observations and graph properties
+- `lib/pipeline/benchmark.py` — Benchmark execution and timing parsing
+- `lib/pipeline/reorder_config.py` — Effective/realized reorder config validation
 - `lib/ml/adaptive_emulator.py` — C++ logic emulation (delegates scoring to `PerceptronWeight`)
 - `lib/ml/training.py` — Iterative/batched training with significance weighting (P0 3.1c)
 - `lib/ml/model_tree.py` — Decision tree & hybrid DT+Perceptron model training

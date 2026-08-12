@@ -5,17 +5,14 @@ experiments across multiple graphs, algorithms, and benchmarks.
 
 ## Overview
 
-For the edge-centric and Gather-Apply-Scatter CPU baseline roadmap, verifier
-contracts, and literature basis, see [[Edge-Centric-and-GAS]].
-
 ```
 scripts/
-├── graphbrew_experiment.py     # One-click unified pipeline
+├── graphbrew_experiment.py     # Public experiment orchestrator
 ├── requirements.txt            # Python dependencies
 └── lib/                        # 5 sub-packages (see lib/README.md)
     ├── core/                   # Constants, logging, data stores
     ├── pipeline/               # Experiment execution stages
-    ├── ml/                     # ML scoring & training (fallback)
+    ├── ml/                     # Offline scoring, fitting, and emulation
     ├── analysis/               # Post-run analysis & visualisation
     └── tools/                  # Standalone CLI utilities
 ```
@@ -33,9 +30,13 @@ python3 scripts/graphbrew_experiment.py --size small --quick         # Quick tes
 python3 scripts/graphbrew_experiment.py --brute-force               # Validation
 ```
 
-Sizes: `small` (16 hardcoded + up to ~225 auto-discovered, 10K–500K edges) · `medium` (28 + ~134, 500K–5M) · `large` (37 + ~70, 5M–50M) · `xlarge` (6 + ~37, 50M–500M) · `all` (combined). Auto-discovery searches SuiteSparse for graph, network, and multigraph matrices. Categories include mesh, web, social, road, citation, P2P, and synthetic graphs.
+Sizes: `small`, `medium`, `large`, `xlarge`, or `all`. Auto-discovery
+searches the configured graph catalogs; use `--dry-run` to inspect the exact
+resolved corpus before execution.
 
-Results saved to `./results/` (`reorder_*.json`, `benchmark_*.json`, `cache_*.json`) and weights to `./results/data/adaptive_models.json`.
+Generic raw observations are stored in `results/data/benchmarks.json`; exported
+load-only models use `results/data/adaptive_models.json`. Large frozen-study
+artifacts belong under the configured external artifact root.
 
 ---
 

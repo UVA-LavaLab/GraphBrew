@@ -1,75 +1,19 @@
 #!/usr/bin/env python3
-"""
-GraphBrew Unified Experiment Pipeline
-=====================================
+"""GraphBrew research experiment orchestrator.
 
-A comprehensive one-click script that runs the complete GraphBrew experiment workflow:
+This is the public front door for dependency checks, graph preparation,
+reordering, canonical kernel runs, cache simulation, offline model fitting,
+verification, and frozen-study reproduction.
 
-**Core Pipeline (--phase all):**
- 1. Download graphs (if not present) — via --download-only or --full
- 2. Build binaries (if not present) — via --build or --full
- 3. Convert .mtx → .sg with RANDOM baseline (--random-baseline, default ON)
- 4. Pre-generate reordered .sg per algorithm (--pregenerate-sg, default ON)
-    Falls back to real-time reordering if disk space is insufficient.
- 5. Phase 1: Generate reorderings (12 algorithms; baselines ORIGINAL/RANDOM are skipped)
- 6. Phase 2: Run benchmarks (14 algorithms × 7 benchmarks; TC excluded by default)
- 7. Phase 3: Run cache simulations (optional, skip with --skip-cache)
- 8. Store results to results/data/ — C++ trains ML models at runtime from this data
+Use two explicit execution paths:
 
-**Validation & Analysis:**
- 9. Adaptive order analysis (--adaptive-analysis)
-10. Adaptive vs fixed comparison (--adaptive-comparison)
-11. Brute-force validation (--brute-force)
+* Rapid iteration: small graph/algorithm/kernel subsets, one trial, and cache
+  simulation only when it is the feature under test.
+* Final evaluation: frozen manifests, fixed thread/affinity policy,
+  pre-generated mappings, repeated trials, and external artifact storage.
 
-**Training Modes:**
-12. Standard training (--train): One-pass pipeline that runs all phases
-13. Iterative training (--train-iterative): Repeatedly adjusts weights until target accuracy
-14. Batched training (--train-batched): Process graphs in batches for large datasets
-
-**Algorithm Variant Testing:**
-    For GraphBrewOrder (12) and RabbitOrder (8), you can test
-    specific variants or all variants.
-    
-    # Test all algorithm variants
-    python scripts/graphbrew_experiment.py --train --all-variants --size small
-    
-    # Test specific variants only
-    python scripts/graphbrew_experiment.py --train --graphbrew-variants leiden rabbit --size small
-    
-    # With custom Leiden parameters
-    python scripts/graphbrew_experiment.py --train --all-variants \\
-        --resolution 1.0 --passes 5 --size medium
-    
-    RabbitOrder (8) variants: csr (default), boost
-    GraphBrewOrder (12) ordering strategies:
-      - (default): Leiden + per-community RabbitOrder
-      - hrab: Hybrid Leiden+RabbitOrder (best locality) ⭐
-      - dfs, bfs: Dendrogram traversal orderings
-      - conn: Connectivity BFS within communities
-      - rabbit: RabbitOrder single-pass pipeline
-    
-    Resolution modes (for --resolution):
-      - Fixed: 1.5 (use specified value)
-      - Auto: auto or 0 (compute from graph density/CV)
-      - Dynamic: dynamic (adjust per-pass)
-
-All outputs are saved to the results/ directory for clean organization.
-Benchmark data is stored in results/data/ (benchmarks.json, graph_properties.json, adaptive_models.json).
-
-Usage:
-    python scripts/graphbrew_experiment.py --help
-    python scripts/graphbrew_experiment.py --full --size small     # Full pipeline with small graphs
-    python scripts/graphbrew_experiment.py --train --size medium   # Train on medium graphs
-    python scripts/graphbrew_experiment.py --download-only         # Just download graphs
-    python scripts/graphbrew_experiment.py --phase all             # Run all experiment phases
-    python scripts/graphbrew_experiment.py --brute-force           # Run brute-force validation
-
-Quick Start (One-Click):
-    python scripts/graphbrew_experiment.py --full --size small --auto              # Small graphs, auto resources
-    python scripts/graphbrew_experiment.py --full --size large --auto --quick      # Large graphs, quick mode
-    python scripts/graphbrew_experiment.py --train --all-variants --auto --size medium  # Train all variants
-
-Author: GraphBrew Team
+Benchmark binaries never train models at runtime. Python persists raw
+observations and exports versioned load-only model artifacts.
 """
 
 import argparse
@@ -925,10 +869,9 @@ def convert_graphs_to_sg(
 ) -> int:
     """Convert all discovered .mtx graphs to .sg with the specified ordering.
 
-    When *order=1* (RANDOM, the default) this creates a random-baseline
-    .sg so that subsequent benchmark runs with ``-o 0`` (ORIGINAL) measure
-    performance on a randomly-ordered graph, and every reordering algorithm
-    shows its *improvement* over that worst-case baseline.
+    When *order=1* (RANDOM, the default), this creates the fixed seeded
+    shuffled control used by generic runs. It is a controlled labeling, not a
+    claim that the input is worst-case.
 
     Args:
         graphs_dir:   Root directory containing graph sub-directories.
@@ -1940,8 +1883,8 @@ def run_experiment(args):
         log("  - Phase 1: Reorderings (fills w_reorder_time)")
         log("  - Phase 2: Benchmarks (fills bias, w_log_*, w_density, w_avg_degree)")
         log("  - Phase 3: Cache Simulation (fills cache_l1/l2/l3_impact)")
-        log("  - Phase 4–6: Skipped (C++ trains models at runtime from DB)")
-        log("  - Phase 7: Generate per-graph-type weight files (from detected properties)")
+        log("  - Phase 4: Fit and export load-only models offline")
+        log("  - Generalization evaluation: nested topology-held-out path pending")
         log("")
         
         # Respect --skip-cache flag
@@ -1993,7 +1936,7 @@ def run_experiment(args):
                 save_results=False,
             )
         
-        log_section("Phase 4–6: Offline adaptive model training")
+        log_section("Offline adaptive model fitting and export")
         from scripts.lib.ml.eval_weights import train_and_evaluate
         from scripts.lib.ml.model_tree import Criterion, train_all_models
         from scripts.lib.core.datastore import (
@@ -2018,11 +1961,11 @@ def run_experiment(args):
         log_section("Fill Weights Complete")
         log("Benchmark data recorded; C++ runtime is model-load only.")
         
-        # Phase 7: retired until Sprint-3 nested fold-local evaluation.
+        # Generalization evaluation remains gated until the nested protocol.
         if not getattr(args, 'skip_eval', False):
-            log_section("Phase 7: Retired legacy LOGO")
+            log_section("Generalization evaluation gated")
             log(
-                "  Sprint 3 will run fold-local portfolio/model/OOD tuning; "
+                "  The future evaluator will run fold-local portfolio/model/OOD tuning; "
                 "the old non-nested path is intentionally disabled."
             )
         else:
@@ -2040,7 +1983,7 @@ def run_experiment(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="GraphBrew Unified Experiment Pipeline",
+        description="GraphBrew research experiment orchestrator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 === EVALUATION MODES ===
@@ -2051,7 +1994,7 @@ def main():
   # BENCHMARK EVALUATION: Run graph algorithm benchmarks (BFS, PR, CC, etc.)
   python scripts/graphbrew_experiment.py --phase benchmark --size small --skip-cache
 
-  # END-TO-END EVALUATION: Full pipeline without weight training
+  # END-TO-END EVALUATION: Full generic pipeline
   python scripts/graphbrew_experiment.py --full --size small --auto
 
   # VALIDATION: Compare AdaptiveOrder vs all fixed algorithms
@@ -2068,9 +2011,9 @@ def main():
   # TRAIN BATCHED: Process graphs in batches for large datasets
   python scripts/graphbrew_experiment.py --train-batched --size medium --batch-size 8
 
-=== QUICK START ===
+=== RAPID RESEARCH PATH ===
 
-  # ONE-CLICK: Download, build, run full experiment
+  # Small end-to-end smoke run
   python scripts/graphbrew_experiment.py --full --size small --auto
 
   # QUICK TEST: Key algorithms only (faster)
@@ -2090,7 +2033,7 @@ def main():
   # Phase 3: Cache simulation only (uses .lo maps from Phase 1)
   python scripts/graphbrew_experiment.py --phase cache --size small
 
-  # Phase 4–6: Deprecated (C++ trains models at runtime from benchmarks.json)
+  # Phase 4: Offline model fitting/export from raw observations
 
   # Run phases sequentially (no --train needed)
   python scripts/graphbrew_experiment.py --phase reorder --size small && \\
@@ -2112,10 +2055,11 @@ def main():
     )
     
     # ── Pipeline ───────────────────────────────────────────────────────
-    g_pipe = parser.add_argument_group("Pipeline", "One-command and full pipeline options")
+    g_pipe = parser.add_argument_group(
+        "Pipeline", "Rapid and full generic experiment options")
     g_pipe.add_argument("--target-graphs", type=int, default=None, metavar="N",
                         help="One-command mode: download N graphs per size category, run full "
-                             "pipeline (download → build → reorder → benchmark → evaluate). "
+                             "pipeline (download → build → reorder → benchmark → offline fit). "
                              "Auto-enables --full, --catalog-size N, --auto, --all-variants. "
                              "Example: --target-graphs 150")
     g_pipe.add_argument("--full", action="store_true",
@@ -2313,15 +2257,17 @@ def main():
     g_clean.add_argument("--install-boost", action="store_true",
                          help="Download and install Boost 1.58.0 for RabbitOrder")
 
-    # ── Paper Experiments & Testing ──────────────────────────────────
-    g_paper = parser.add_argument_group("Paper Experiments & Testing",
-        "Run paper experiment suites or tests (early exit)")
+    # ── Frozen-study reproduction & testing ──────────────────────────
+    g_paper = parser.add_argument_group(
+        "Reproducibility & Testing",
+        "Run frozen-study suites or verification commands (early exit)",
+    )
     g_paper.add_argument("--vldb", nargs="*", type=int, metavar="EXP",
-                         help="Run VLDB paper experiments (all or specific: --vldb 1 2 3)")
+                         help="Run the frozen study matrix (all or selected compatibility IDs)")
     g_paper.add_argument("--ecg", nargs="*", type=int, metavar="EXP",
-                         help="Run ECG paper experiments (all or specific: --ecg 1 6)")
+                         help="Run the ECG study matrix (all or selected IDs)")
     g_paper.add_argument("--evaluate", action="store_true",
-                         help="Run evaluate_all_modes.py (Model × Criterion analysis)")
+                         help="Run in-sample model/criterion diagnostics")
     g_paper.add_argument("--test", nargs="?", const="", metavar="FILTER",
                          help="Run the authoritative make check gate (optional pytest filter)")
     g_paper.add_argument("--paper-preview", action="store_true",
@@ -2485,8 +2431,8 @@ def main():
     # Resolve --target-graphs N (one-command mode)
     if args.target_graphs is not None:
         N = args.target_graphs
-        if N < 3:
-            print(f"ERROR: --target-graphs {N} is too small (minimum 3 for LOGO CV)")
+        if N < 1:
+            print(f"ERROR: --target-graphs {N} must be positive")
             sys.exit(1)
         args.full = True
         args.catalog_size = N
@@ -2514,13 +2460,13 @@ def main():
             args.expand_variants = True
             log("Auto-enabling variant expansion (specific variants requested)", "INFO")
     
-    # Auto-enable --all-variants when running --full or --train pipeline
-    # Training on all variants is critical for the perceptron to learn which
-    # variant works best for each graph structure (e.g., GraphBrewOrder_leiden vs
-    # GraphBrewOrder_rabbit, RABBITORDER_csr vs RABBITORDER_boost, etc.)
+    # Full collection and offline fitting require the declared variant matrix.
     if (args.full or args.fill_weights) and not args.expand_variants:
         args.expand_variants = True
-        log("Auto-enabling variant expansion for training pipeline (train on all variants)", "INFO")
+        log(
+            "Auto-enabling variant expansion for the full collection matrix",
+            "INFO",
+        )
     
     # Resolve unified --size parameter
     if args.size is not None:
@@ -2619,7 +2565,11 @@ def main():
                 ("4. Reorder",   f"generate .lo mappings, variants={'ALL' if args.expand_variants else 'default'}"),
                 ("5. Benchmark", f"benchmarks={', '.join(args.benchmarks)}, trials={args.trials}"),
                 ("6. Cache Sim", "SKIP" if args.skip_cache else "pr, bfs"),
-                ("7. Evaluate",  "SKIP" if getattr(args, 'skip_eval', False) else "LOGO CV on all ML models"),
+                (
+                    "7. Offline fit",
+                    "SKIP" if getattr(args, 'skip_eval', False)
+                    else "fit/export load-only models; no generalization claim",
+                ),
             ]
         elif args.download_only:
             stages.append(("1. Download", f"size={getattr(args, 'download_size', 'SMALL')}"))
@@ -2650,7 +2600,7 @@ def main():
         if not (args.full or args.download_only or args.phase != "all"):
             return  # Just clean, don't run experiments
 
-    # ── Paper Experiments & Testing (early exit) ─────────────────────
+    # ── Reproducibility & testing (early exit) ───────────────────────
     if args.test is not None:
         import subprocess as _sp
         cmd = ["make", "check"]
@@ -2812,7 +2762,7 @@ def main():
             cmd += ["--cache-all-algorithms"]
         if args.paper_publish_figures:
             cmd += ["--publish-paper-figures"]
-        log_section(f"VLDB EXPERIMENTS: {' '.join(cmd)}")
+        log_section(f"FROZEN STUDY REPRODUCTION: {' '.join(cmd)}")
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)
 
@@ -3042,7 +2992,7 @@ def main():
         # Handle full pipeline mode
         if args.full:
             log("="*60, "INFO")
-            log("GRAPHBREW ONE-CLICK EXPERIMENT PIPELINE", "INFO")
+            log("GRAPHBREW RESEARCH EXPERIMENT PIPELINE", "INFO")
             log("="*60, "INFO")
             log(f"Configuration: size={args.download_size}, graphs={args.graphs}", "INFO")
             

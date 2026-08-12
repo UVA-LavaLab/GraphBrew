@@ -128,23 +128,24 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
 
 `--target-graphs N` is shorthand for `--full --catalog-size N --auto --all-variants`. See [Benchmark-Suite](Benchmark-Suite) for size buckets.
 
-## Reproducing the VLDB 2026 paper
+## Reproducing the frozen study
 
 ```bash
 # Preview: 2 small graphs, 1 trial — sanity check (~5 min)
-python3 scripts/experiments/vldb/runner.py --all --preview
+python3 scripts/graphbrew_experiment.py --vldb --paper-preview \
+  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-threads 4 --paper-cpu-list 24-27
 
-# 6-graph local set (cit-Patents → com-Orkut, fits 64 GB)
-python3 scripts/experiments/vldb/runner.py --all --local
-
-# 11-graph 64 GB-RAM set (adds web/mesh/synthetic, all auto-downloadable)
-python3 scripts/experiments/vldb/runner.py --all --64gb
-
-# Full set (includes twitter7 + webbase-2001, needs 256 GB+ RAM)
-python3 scripts/experiments/vldb/runner.py --all
+# Full frozen matrix on the dedicated 16-core evaluation host
+python3 scripts/graphbrew_experiment.py --vldb \
+  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-threads 16 --paper-cpu-list 0-15
 ```
 
-See [VLDB-Experiments](VLDB-Experiments) for the experiment-by-experiment guide.
+Use the independent stage runners only for restartable long runs. See
+[VLDB-Experiments](VLDB-Experiments) for the frozen matrix and stage guide.
 
 ## Common build issues
 

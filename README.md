@@ -1,445 +1,219 @@
-[![Build Status](https://app.travis-ci.com/UVA-LavaLab/GraphBrew.svg?branch=main)](https://app.travis-ci.com/UVA-LavaLab/GraphBrew)
-[![Wiki](https://img.shields.io/badge/📚_Wiki-Documentation-blue?style=flat)](https://github.com/UVA-LavaLab/GraphBrew/wiki)
+# GraphBrew
 
-[<p align="center"><img src="./docs/figures/logo.svg" width="200" ></p>](#graphbrew)
+GraphBrew is a C++17/OpenMP graph-reordering research framework built on the
+[GAP Benchmark Suite](https://github.com/sbeamer/gapbs). It provides canonical
+graph kernels, multiple reordering baselines, cache simulation, reproducible
+experiment orchestration, and an offline adaptive-selection research path.
 
-# GraphBrew <img src="./docs/figures/logo_left.png" width="50" align="center">
+The primary research surfaces are:
 
-A graph reordering and benchmarking framework built on the [GAP Benchmark Suite (GAPBS)](https://github.com/sbeamer/gapbs). GraphBrew reorders graph vertices to improve cache locality and speed up graph algorithms — with **17 algorithm IDs** (13 reorderers + 2 baselines + 2 meta), an **ML-based adaptive selector**, and a **one-click experiment pipeline**.
+- canonical kernels in `bench/src/`;
+- reordering quality and cost in `bench/include/graphbrew/reorder/`;
+- reproducible experiment policy in `scripts/graphbrew_experiment.py`;
+- reusable Python infrastructure in `scripts/lib/`.
 
-> **📖 Full documentation:** [Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki) · [Quick Start](https://github.com/UVA-LavaLab/GraphBrew/wiki/Quick-Start) · [Command-Line Reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)
+No fixed ordering is assumed to win across every topology and workload.
+RabbitOrder, Gorder, and Leiden are comparison baselines and diagnostic
+anchors; new GraphBrew-native work must establish independent novelty.
 
----
+See the [wiki](https://github.com/atmughrabi/GraphBrew/wiki) for detailed
+algorithm, CLI, cache-simulation, and architecture documentation.
 
-## Quick Start
+## Build and Run
 
-```bash
-# Clone and build
-git clone https://github.com/UVA-LavaLab/GraphBrew.git
-cd GraphBrew
-make all
-
-# Run PageRank with the standalone RabbitOrder CSR baseline
-./bench/bin/pr -g 20 -o 8:csr
-
-# Run BFS with GraphBrewOrder (community-based reordering)
-./bench/bin/bfs -f graph.mtx -o 12
-```
-
-### Build
-
-RabbitOrder is enabled by default and requires Boost, libnuma, and google-perftools.
-See [Installation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Installation) for details.
+RabbitOrder is enabled by default and requires Boost, libnuma, and
+google-perftools.
 
 ```bash
-# Default build (RabbitOrder enabled)
-make all
+# Check dependencies through the orchestrator
+python3 scripts/graphbrew_experiment.py --check-deps
 
-# Build without RabbitOrder (no Boost/libnuma/tcmalloc needed)
-RABBIT_ENABLE=0 make all
+# Full build
+make -j"$(nproc)" all
+
+# Reduced-dependency build
+RABBIT_ENABLE=0 make -j"$(nproc)" all
+
+# Small PageRank smoke test
+./bench/bin/pr -f scripts/test/data/tiny.el -s -o 0 -n 1
 ```
 
----
+Run one ordering with a canonical kernel:
+
+```bash
+./bench/bin/pr -f graph.sg -s -o 8:csr -n 3
+./bench/bin/bfs -f graph.sg -s -o 12:leiden:flat -n 3
+```
+
+Repeated `-o` flags form an ordered composition:
+
+```bash
+./bench/bin/pr -f graph.sg -s -o 2 -o 8:csr -n 3
+```
+
+## Research Experiment Harness
+
+Use `scripts/graphbrew_experiment.py` as the public Python entry point. Do not
+create one-off experiment runners or duplicate algorithm, graph, benchmark, or
+cache registries.
+
+Large graphs and generated mappings belong outside the repository filesystem.
+The canonical graph root is `/media/Data/00_GraphDatasets/GraphBrew`, with
+large artifacts under its `artifacts/` directory.
+
+### Rapid controlled check
+
+```bash
+python3 scripts/graphbrew_experiment.py --vldb 2 --paper-preview \
+  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-threads 4 --paper-cpu-list 24-27
+```
+
+Rapid runs are for smoke testing, bug detection, and candidate narrowing. They
+must not update final claims.
+
+### Frozen full evaluation
+
+```bash
+python3 scripts/graphbrew_experiment.py --vldb \
+  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-threads 16 --paper-cpu-list 0-15
+```
+
+The full path uses frozen manifests, fixed thread/affinity policy,
+pre-generated mappings, repeated trials, verification gates, and complete
+provenance. Independent stage runners under
+`scripts/experiments/vldb/stages/` are for restartable long runs.
+
+Generic collection remains available through `--full`, `--phase`, `--quick`,
+and `--target-graphs`. Use `--dry-run` before broad collection.
 
 ## Reordering Algorithms
 
-GraphBrew provides 17 algorithm IDs (0-16). IDs 0-1 are baselines, IDs 2-12, 15-16 produce reorderings, and IDs 13-14 are meta-algorithms. Use `-o <id>` to select one:
+Use `-o <id[:options]>` to select an ordering.
 
-| ID | Algorithm | Description |
-|----|-----------|-------------|
-| 0 | ORIGINAL | No reordering (baseline) |
-| 1 | RANDOM | Random permutation (baseline) |
-| 2 | SORT | Sort by degree |
-| 3 | HUBSORT | Hub-based sorting |
-| 4 | HUBCLUSTER | Hub-score clustering |
+| ID | Algorithm | Role |
+|---:|---|---|
+| 0 | ORIGINAL | Input-label baseline |
+| 1 | RANDOM | Fixed seeded shuffled control |
+| 2 | SORT | Degree sort |
+| 3 | HUBSORT | Hub-based sort |
+| 4 | HUBCLUSTER | Hub clustering |
 | 5 | DBG | Degree-based grouping |
 | 6 | HUBSORTDBG | HubSort + DBG |
 | 7 | HUBCLUSTERDBG | HubCluster + DBG |
-| 8 | RABBITORDER | Community clustering (variants: `csr` / `boost`) |
-| 9 | GORDER | Window-based cache optimization (variants: `default` / `csr` / `fast`) |
-| 10 | CORDER | Workload-balanced reordering |
-| 11 | RCM | Reverse Cuthill-McKee |
-| 12 | GRAPHBREWORDER | Leiden clustering + configurable per-community order |
-| 13 | MAP | Load ordering from file (`-o 13:mapping.lo`) |
-| 14 | ADAPTIVEORDER | Research-only offline-trained selector; no runtime graph-name oracle |
-| 15 | LEIDENORDER | Leiden via GVE-Leiden library (`15:resolution`) — baseline reference |
-| 16 | GOGRAPHORDER | Flow-edge ordering (variants: `default` / `fast` / `naive`) |
+| 8 | RABBITORDER | Rabbit CSR/Boost baseline |
+| 9 | GORDER | Window-locality baseline |
+| 10 | CORDER | Workload-oriented baseline |
+| 11 | RCM | Bandwidth-oriented baseline |
+| 12 | GraphBrewOrder | Configurable GraphBrew pipeline |
+| 13 | MAP | Load a pre-generated `.lo` mapping |
+| 14 | AdaptiveOrder | Load-only offline selector |
+| 15 | LeidenOrder | GVE-Leiden baseline |
+| 16 | GoGraphOrder | GoGraph reference ordering |
 
-### Which Algorithm Should I Use?
+Algorithm IDs, option parsing, C++ dispatch, Python canonical names, and
+experiment matrices must remain synchronized.
 
-| Graph Type | Recommended | Why |
-|------------|-------------|-----|
-| Low reuse / uncertain input | `0` or `5` | Avoid expensive preprocessing |
-| Reused general graph | `8:csr` or measured GraphBrew candidate | Lightweight community locality |
-| Road / mesh evaluation | `11:bnf` | Explicit bandwidth-oriented anchor |
-| Unknown / mixed | benchmark `0`, `5`, and `8:csr` first | No fixed method is universally best |
+## Canonical Kernels
 
----
+| Binary | Kernel |
+|---|---|
+| `pr` | Pull PageRank |
+| `pr_spmv` | SpMV PageRank |
+| `bfs` | Direction-optimizing BFS |
+| `cc` | Afforest connected components |
+| `cc_sv` | Shiloach-Vishkin connected components |
+| `sssp` | Delta-stepping SSSP |
+| `bc` | Betweenness centrality |
+| `tc` | Triangle counting |
 
-## One-Click Experiment Pipeline
+The default reordering study excludes `tc`; it remains available for explicit
+experiments.
 
-Run the complete benchmark + training workflow with one command:
+## Measurement Contract
 
-```bash
-# Install Python dependencies
-pip install -r scripts/requirements.txt
+New observations are immutable, versioned raw attempts keyed by graph,
+algorithm, benchmark, labeling, measurement mode, thread policy, mapping
+identity, and attempt. Failures and timeouts are retained.
 
-# Full pipeline: download graphs → build → benchmark → store results for C++ runtime ML
-python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --auto --trials 5
-```
+Preprocessing timing is explicit:
 
-| Parameter | Description |
-|-----------|-------------|
-| `--train` | Run the offline benchmark/model-training pipeline |
-| `--full` | Run full evaluation pipeline (no training) |
-| `--all-variants` | Test all algorithm variants |
-| `--size SIZE` | Graph category: `small` (62 MB), `medium` (1.1 GB), `large` (25 GB), `xlarge` (63 GB), `all` (89 GB) |
-| `--auto` | Auto-detect RAM/disk limits |
-| `--trials N` | Benchmark trials (default: 2) |
-| `--quick` | Test only key algorithms (faster) |
-| `--brute-force` | Compare adaptive selection vs all eligible algorithms |
-| `--download-only` | Download graphs without running benchmarks |
+- canonical representation build;
+- reorder core;
+- permutation validation;
+- CSR application;
+- total preprocessing.
 
-Results are saved to `./results/`. Benchmark data under `results/data/` is an
-offline training input; benchmark binaries only load exported model artifacts.
+`reorder_time` remains the complete core + validation + application
+compatibility metric. Aggregation is performed downstream; raw evidence is
+never reduced to a fastest-run record.
 
-```bash
-# See all options
-python3 scripts/graphbrew_experiment.py --help
-```
+The generic Python harness is the official result writer. C++ self-recording is
+available only through explicit `-D/--db-dir` or `GRAPHBREW_DB_DIR` use.
 
-> 📖 See [Running Benchmarks Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Running-Benchmarks) for advanced workflows.
+The shuffled control is a fixed seeded labeling, not a worst-case claim.
 
----
+## Adaptive Research Status
 
-## Graph Benchmarks
+Benchmark binaries never train models at runtime. They load versioned artifacts
+exported offline from measured Tier-0 features.
 
-Built on [GAPBS](https://github.com/sbeamer/gapbs), GraphBrew includes 8 benchmarks. The experiment pipeline defaults to 7 (`EXPERIMENT_BENCHMARKS`) — TC is excluded because triangle counting is a combinatorial kernel that doesn't benefit from vertex reordering.
+Legacy non-nested LOGO evaluation is retired and fails closed. Generalization
+claims require nested leave-one-topology-out evaluation with fold-local
+portfolio selection, model fitting, and OOD calibration.
 
-| Benchmark | Algorithm | In Experiments |
-|-----------|-----------|:-:|
-| `pr` | PageRank | ✓ |
-| `pr_spmv` | PageRank (SpMV variant) | ✓ |
-| `bfs` | Breadth-First Search (direction optimized) | ✓ |
-| `cc` | Connected Components (Afforest) | ✓ |
-| `cc_sv` | Connected Components (Shiloach-Vishkin) | ✓ |
-| `sssp` | Single-Source Shortest Paths | ✓ |
-| `bc` | Betweenness Centrality | ✓ |
-| `tc` | Triangle Counting | — |
+The long-term target is a lightweight topology/workload-aware selector over an
+independently designed GraphBrew-native ordering and controlled baselines.
 
-> **Random Baseline:** By default, graphs are converted to `.sg` with RANDOM vertex ordering so all benchmark measurements reflect improvement over a worst-case baseline. Use `--no-random-baseline` to disable.
+## Secondary Paths
 
-```bash
-# Run a single benchmark
-make run-bfs
-
-# Run with parameters
-./bench/bin/pr -f graph.mtx -n 16 -o 12
-
-# Generate a reordered graph
-./bench/bin/converter -f graph.mtx -p reordered.mtx -o 12
-```
-
-> 📖 See [Graph Benchmarks Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Graph-Benchmarks) for details.
-
----
-
-## Supported Graph Formats
-
-GraphBrew can load graphs in these formats:
-
-| Extension | Format |
-|-----------|--------|
-| `.el` | Edge list (node1 node2) |
-| `.wel` | Weighted edge list |
-| `.mtx` | Matrix Market |
-| `.gr` | DIMACS |
-| `.graph` | Metis |
-| `.sg` / `.wsg` | Serialized (pre-built via `converter`) |
-
-Graphs can also be generated synthetically:
-- `-g 20` — Kronecker graph with 2²⁰ vertices (Graph500)
-- `-u 20` — Uniform random graph with 2²⁰ vertices
-
-> 📖 See [Supported Graph Formats Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Supported-Graph-Formats) for details.
-
----
-
-## Prerequisites
-
-- **OS:** Ubuntu 22.04+ (or any Linux with GCC 7+)
-- **Compiler:** `g++` with C++17 and OpenMP support (GCC 9+ preferred)
-- **Build:** `make`
-- **Python:** 3.8+ (for experiment scripts)
-
-RabbitOrder (enabled by default): Boost 1.58+, libnuma, google-perftools.
-Use `RABBIT_ENABLE=0 make all` to build without these dependencies.
-
-> 📖 See [Installation Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Installation) for full setup instructions including Boost.
-
----
+- Compact CSR partitioning and `graph.shard.v1` are separate from normal
+  kernels; validate changes with `make check-partition`.
+- Edge-centric and GAS drivers are experimental references. Their documentation
+  lives in [Edge-Centric-and-GAS](wiki/Edge-Centric-and-GAS.md), not in the
+  primary evaluation path.
 
 ## Project Layout
 
-```
-bench/
-├── src/          # Canonical baseline sources (bc.cc, bfs.cc, pr.cc, ...)
-├── src_sim/      # Cache simulation variants
-├── bin/          # Compiled binaries
-└── include/
-    ├── graphbrew/    # Reordering algorithms & partitioning
-    ├── external/     # Bundled libraries (GAPBS, RabbitOrder, GOrder, COrder, Leiden)
-    └── cache_sim/    # Cache simulation headers
-
-scripts/
-├── graphbrew_experiment.py   # Main experiment orchestration
-├── lib/                      # Core Python modules
-└── test/                     # Test suite
-
-results/                      # Benchmark outputs, graph features, mappings
+```text
+bench/src/                         canonical kernels
+bench/src_sim/                     cache-instrumented kernels
+bench/include/graphbrew/reorder/   reordering implementations
+bench/include/external/gapbs/      CLI, builder, benchmark lifecycle
+scripts/graphbrew_experiment.py    public experiment orchestrator
+scripts/lib/                       shared Python policy and pipeline modules
+scripts/experiments/               frozen/restartable study runners
+scripts/test/                      Python regression suite
+wiki/                              detailed documentation
 ```
 
-> 📖 See [Code Architecture Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Code-Architecture) for the full layout.
+Generated binaries, graphs, mappings, and results are ignored. Do not place
+large datasets in repository-local `results/graphs/`.
 
----
-
-## Compact CSR Partitioning
-
-GraphBrew also provides a CPU reference for capacity-scaling graph shards.
-`bfs_p` keeps `bfs` unchanged and builds deterministic edge-balanced compact
-CSR partitions with owned/ghost-local neighbor slots. BFS state remains
-partition-local: top-down rounds merge owner inboxes and bottom-up rounds
-synchronize ghost frontier bits.
+## Verification
 
 ```bash
-make bfs_p
-./bench/bin/bfs_p -g 20 -n 1 -v -P 4 -B total
-make check-partition
-```
-
-`-P` selects the shard count. `-B` accepts `vertices`, `out`, or `total`.
-Cagra and TRUST remain separate research partitioners under
-`bench/include/graphbrew/partition/`.
-
-Each `bfs_p` run validates the composed internal-to-source vertex permutation
-and reports stable mapping, source-topology, shard-CSR, ghost-metadata, and
-source-space BFS-depth fingerprints. Partition metrics include remote incoming
-and outgoing arc fractions, ghost metadata bytes, storage balance, and
-vertex/edge imbalance for deterministic cut-policy comparisons.
-
-Self-recording also emits `graphbrew.partition_runtime_traffic.v1`. It records
-actual per-shard/per-superstep partitioned BFS payloads: bottom-up ghost-frontier
-copies and every cross-owner top-down parent proposal. It separately projects
-the GraphBlox host halo contract from ghost slots: two 32-bit values per BFS
-superstep and one 32-bit value per PR/CC iteration or initial SPMV transfer.
-
-The frozen Phase 1 matrix runs ORIGINAL, `RCM:bnf`, `GORDER:csr`, and the
-research-only `comm_cut_min` comparator across repeated thread counts:
-
-```bash
-.venv/bin/python scripts/experiments/partition_cut/phase1.py \
-  --graph results/graphs/web-Google/web-Google.sg \
-  --threads 1,32 --repeats 3 --partitions 16
-```
-
-Current P16 result:
-
-| Graph/policy | Deterministic | Remote reduction | Ghost reduction | Max-shard ratio |
-|---|:---:|---:|---:|---:|
-| web-Google / `RCM:bnf` | yes | 2.39x | 3.23x | 1.013x |
-| web-Google / `GORDER:csr` | yes | 2.04x | 3.63x | 1.033x |
-| web-Google / `comm_cut_min` fallback | no | 9.24x | 10.77x | 1.333x |
-
-The corrected `comm_cut_min` token explicitly selects GraphBrewOrder/Leiden.
-web-Google creates more than 4096 communities, so the quadratic CutMin stage
-reports and uses its DegreeDesc fallback; it is not evidence for CutMin itself.
-
-Phase 2 widens the same correctness/determinism/capacity contract across road,
-mesh, citation, and social classes. The smoke preset uses small real graphs;
-the scale preset uses roadNet-CA, delaunay_n20, cit-Patents, and soc-pokec.
-
-```bash
-.venv/bin/python scripts/experiments/partition_cut/phase2.py \
-  --preset smoke --prepare \
-  --threads 1,32 --repeats 3 --partitions 16 \
-  --max-shard-bytes 536870912
-```
-
-Preparation preserves native IDs, symmetrizes only catalog-symmetric graphs,
-and records source/converter/output hashes plus exact converter arguments.
-`--summarize-existing` rejects graph, binary, policy, partition, balance,
-source, thread, repeat, or Cartesian-matrix mismatches.
-The tracked
-[`phase2_native.json`](scripts/experiments/partition_cut/evidence/phase2_native.json)
-bundle freezes portable per-cell records, parsed runtime configurations,
-runtime traffic, input/binary hashes, commands, and raw-log hashes. The freezer
-revalidates traffic invariants and recomputes summaries before accepting them.
-Regenerate it with `freeze_phase2.py`; unchanged evidence is byte-stable.
-
-The additional research policies are `sg_hilbert`, `intra_hub2`,
-`intra_rcmpp`, and `leiden_hubsort`. They are classified from observed
-cross-thread/repeat fingerprints rather than presumed deterministic. The
-aggregate report computes geometric-mean cut/ghost-metadata reductions, worst-graph
-regression, worst-repeat capacity/work balance, absolute capacity, runtime
-fallbacks, and preprocessing gates.
-
-Final native-order P16 result over four smoke plus four scale graphs:
-
-| Policy | Determinism | Geo. structural reduction | Geo. CPU BFS reduction | Worst runtime reduction | Max-shard ratio |
-|---|---|---:|---:|---:|---:|
-| `RCM:bnf` | deterministic | 1.71x | 1.56x | 0.68x | 1.010x |
-| `GORDER:csr` | deterministic | 0.84x | 0.81x | 0.15x | 1.592x |
-| `comm_cut_min` | deterministic | 2.10x | 2.03x | 1.00x | 1.092x |
-| `intra_rcmpp` | deterministic | 3.15x | 3.10x | 1.00x | 1.069x |
-
-“Structural reduction” is the conservative minimum of remote-arc reduction and
-ghost-metadata footprint reduction. Runtime reports and gates are separate:
-actual CPU BFS exchange combines ghost synchronization and remote-parent
-payloads, while GraphBlox BFS/PR/CC/SPMV halo payloads are projected from the
-validated shard ghost slots.
-
-`comm_cut_min` falls back to DegreeDesc on 4/8 graphs because community count
-exceeds 4096. `intra_rcmpp` executes its requested policy everywhere and is the
-quality leader. Community detection is serialized deterministically while the
-compose ordering stage restores the requested OpenMP team; every community
-policy is repeat- and thread-stable. RCM's structural roadNet-CA regression is
-worse in actual top-down traffic: remote-parent and total CPU BFS payloads rise
-to 1.46x ORIGINAL, so the reduction factor falls to 0.68x. All scale cells remain far
-below the 512 MiB compact-CSR/ghost-metadata budget (largest observed shard is
-under 29 MiB). Algorithm state is not included in that footprint; runtime halo
-traffic is reported separately rather than counted as resident capacity.
-
-No universal default passes: RCM raises native roadNet-CA structural cost by
-about 30% and CPU BFS traffic by about 46%; GORDER severely regresses native
-road layouts; `comm_cut_min` has runtime fallback; and the deterministic
-community policies still reach about 1.75x worst storage imbalance. With runtime
-communication explicit and the host-side JobSpec accountant available, the next
-phase must carry complete per-bank resident bytes into the corpus, sweep balance
-policies, and compare contiguous with non-contiguous ownership before choosing
-the production seam.
-
-The deterministic `intra_rcmpp` balance sweep confirms `total` as the safest
-contiguous mode, not a solution:
-
-| Balance | Geo. structural reduction | Worst runtime reduction | Max-shard ratio | Worst storage imbalance | Worst edge imbalance |
-|---|---:|---:|---:|---:|---:|
-| `vertices` | 3.23x | 0.93x | 1.244x | 4.48x | 5.54x |
-| `out` | 3.11x | 1.00x | 1.021x | 4.60x | 6.37x |
-| `total` | 3.15x | 1.00x | 1.069x | 1.75x | 2.00x |
-
-The tracked Phase 2 evidence includes all three balance matrices. Since even
-`total` misses the 1.10 storage and edge-balance gates, the remaining analysis
-must compare contiguous ranges with a deterministic non-contiguous
-`owner_by_vertex` assignment on the same frozen communities.
-
-That analysis rejects the tested whole-community LPT design. A deterministic
-whole-community LPT assignment is stable and improves the cut/ghost geomean by
-1.61x versus contiguous `total`, but it passes the work, compact-storage, and
-edge-balance gates on only 4/8 graphs and the 1.10 compact-storage lower-bound
-max-shard ratio on only 1/8.
-Worst work imbalance reaches 14.15x. The compact-storage lower-bound max-shard
-ratio reaches 7.75x after accounting an owned-vertex map, but complete per-bank
-buffers are not modeled and may change that ratio. The result is explicitly
-analysis-only: it is incompatible with `graph.shard.v1`, does not claim measured
-runtime, and is not promotion evidence.
-
-The tracked
-[`ownership_ablation.json`](scripts/experiments/partition_cut/evidence/ownership_ablation.json)
-preserves deterministic fingerprints for the frozen membership, mapping, and
-both owner maps, plus per-shard metrics, raw-log hashes, and graph preparation
-provenance. This result does not justify introducing `graph.shard.v2`: the LPT
-assignment already fails the representation-independent work-balance gate on
-4/8 graphs, while the remaining graphs still require complete per-bank
-evaluation. Any future non-contiguous design must split oversized communities or
-optimize ownership directly while retaining the existing contiguous package as
-the production baseline.
-
-Export the backend-neutral shard package with `-E`:
-
-```bash
-./bench/bin/bfs_p -g 20 -P 16 -B total \
-  -E results/shards/kron-s20-p16
-```
-
-`graph.shard.v1` consists of `manifest.json`, source/internal mapping sidecars,
-and per-shard little-endian binary CSR/ghost arrays. The writer replaces the
-package atomically; the validator checks schema, containment, array sizes,
-fingerprints, mappings, ownership coverage, CSR offsets, local slots, and ghost
-owners.
-
-`ValidateShardPackage` is the exhaustive checker (it also confirms the
-`graph.id`, `identity`, `directed`, `directed_edges`, and `policy` fields the
-reader consumes, and that per-shard edge totals match `directed_edges`).
-Consumers that only need their own shard should instead use the lightweight
-`LoadShardManifestHeader` (validates scalars, ownership map, and optionally the
-source mapping without touching any shard arrays) and `LoadShardPackageShard`
-(validates and materializes exactly one shard, plus `O(P)` ownership scalars),
-so a worker never reads every shard just to load the one it owns.
-
-### Streaming `.sg` → graph.shard.v1 export
-
-For large graphs that already live on disk as an unweighted serialized graph
-(`.sg`), `graph_shard_export` streams the same `graph.shard.v1` package without
-materialising a second in-memory CSR. It maps the `.sg` read-only, derives the
-identical balanced ownership as `PartitionedGraph::Build`, then builds, writes,
-and discards **one shard at a time**. Peak extra memory is `O(N)` scratch plus
-the single largest shard rather than every shard at once, and the emitted
-package is byte-identical to the in-memory `bfs_p -E` writer for the same graph,
-partition count, and balance policy.
-
-```bash
-make graph_shard_export
-./bench/bin/graph_shard_export -f results/graphs/web-Google/web-Google.sg \
-  -P 16 -B total -E results/shards/web-Google-p16
-```
-
-Flags: `-f` input `.sg`, `-E` output package directory, `-P` partition count,
-`-B` balance (`vertices`/`out`/`total`), and optional manifest metadata `-i`
-graph id, `-a` policy name, `-d` policy id, and repeatable `-o` policy options.
-The exporter preserves the vertex ordering (and therefore the policy/mapping
-semantics) already baked into the `.sg`'s `org_ids`; it does not run a new
-reorder. `make check-partition` verifies the streamed package is byte-identical
-to the legacy build path.
-
-
----
-
-## Testing
-```bash
-pip install -r scripts/requirements.txt
+# Authoritative core gate: required binaries, core native tests, include lint,
+# and the Python suite
 make check
 
-# Partition/shard integration remains an explicit extended suite
+# CI-compatible reduced-dependency gate
+RABBIT_ENABLE=0 make check
+
+# Extended partition/shard integration
 make check-partition
 ```
 
----
+Edge/GAS validation suites remain explicit and are not part of the primary
+core gate.
 
-## Developer Tooling
+## Citation and License
 
-```bash
-make check                      # Authoritative core verification gate
-make lint-includes              # Include-path lint only
-make help                       # Show all Make targets
-make help-pr                    # Show parameters for a specific benchmark
-```
+GraphBrew integrates ideas and reference implementations from GAPBS,
+RabbitOrder, Gorder, Leiden/GVE-Leiden, and related graph-locality research.
+Consult the source headers and research bibliography for exact attribution.
 
----
-
-## How to Cite
-
-If you use GraphBrew in your research, please cite:
-
-- S. Beamer, K. Asanović, D. Patterson, "The GAP Benchmark Suite," arXiv:1508.03619, 2017.
-- J. Arai, H. Shiokawa, T. Yamamuro, M. Onizuka, S. Iwamura, "Rabbit Order: Just-in-time Parallel Reordering for Fast Graph Analysis."
-- P. Faldu, J. Diamond, B. Grot, "A Closer Look at Lightweight Graph Reordering," arXiv:2001.08448, 2020.
-- S. Sahu, "GVE-Leiden: Fast Leiden Algorithm for Community Detection in Shared Memory Setting," arXiv:2312.13936, 2024.
-- V. A. Traag, L. Waltman, N. J. van Eck, "From Louvain to Leiden: guaranteeing well-connected communities," Sci Rep 9, 5233, 2019.
-- H. Wei, J. X. Yu, C. Lu, X. Lin, "Speedup Graph Processing by Graph Ordering," SIGMOD 2016.
-- Y. Chen, Y.-C. Chung, "Workload Balancing via Graph Reordering on Multicore Systems," IEEE TPDS, 2021.
-
----
-
-## License
-
-See [LICENSE](LICENSE) for details.
+See [LICENSE](LICENSE) for licensing terms.

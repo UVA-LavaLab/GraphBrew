@@ -1,9 +1,9 @@
 # GraphBrew Wiki
 
-GraphBrew is a graph reordering framework. It composes lightweight
-primitives — Leiden communities, Rabbit Order, RCM, degree bucketing —
-into ten variants that match Gorder's cache quality at a fraction of
-the reorder cost.
+GraphBrew is a graph-reordering research framework with canonical GAP-style
+kernels, multiple baseline reorderers, cache simulation, reproducible
+experiment orchestration, and an offline adaptive-selection research path.
+No fixed ordering is assumed to win across every topology and workload.
 
 ## Documentation
 
@@ -22,14 +22,15 @@ the reorder cost.
 **Deep dives**
 - [GraphBrewOrder](GraphBrewOrder) — the composable pipeline
 - [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
+- [Partitioning-and-Shards](Partitioning-and-Shards) — compact CSR packages
 - [Code-Architecture](Code-Architecture) — codebase map
-- [VLDB-Experiments](VLDB-Experiments) — reproducing the paper
+- [VLDB-Experiments](VLDB-Experiments) — frozen study reproduction
 
 **Developer**
 - [Contributing](Contributing) — adding algorithms and benchmarks
 - [Python-Scripts](Python-Scripts) — analysis tools
 
-**Research-only (not part of the VLDB submission)**
+**Research roadmap**
 - [AdaptiveOrder-ML](AdaptiveOrder-ML) — runtime algorithm selector
 
 ## What GraphBrew gives you
@@ -49,4 +50,4 @@ See [Reordering-Algorithms](Reordering-Algorithms) for the full list.
 
 - Code: https://github.com/UVA-LavaLab/GraphBrew
 - Issues: https://github.com/UVA-LavaLab/GraphBrew/issues
-- Paper: see `paper/main.tex` (VLDB 2026 submission)
+- Reproducibility: use `graphbrew_experiment.py` and the frozen-study guide
