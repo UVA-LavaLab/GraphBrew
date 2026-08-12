@@ -74,6 +74,7 @@ try:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mticker
+    from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
     HAS_MPL = True
 except ImportError:
@@ -275,21 +276,6 @@ KERNEL_SPEEDUP_COLORS = (
     "#7F7F7F",
     "#17BECF",
 )
-KERNEL_SPEEDUP_HATCHES = (
-    "",
-    "//",
-    "\\\\",
-    "xx",
-    "..",
-    "++",
-    "oo",
-    "--",
-    "**",
-    "||",
-    "OO",
-)
-
-
 def kernel_speedup_label(algorithm: str) -> str:
     """Return the concise label used by the dense speedup figures."""
     return KERNEL_SPEEDUP_LABELS.get(algorithm, algorithm)
@@ -298,11 +284,11 @@ def kernel_speedup_label(algorithm: str) -> str:
 def kernel_speedup_styles(
     algorithms: list[str],
 ) -> dict[str, tuple[str, str]]:
-    """Assign redundant high-contrast color+hatch styles."""
+    """Assign high-contrast colors without hatch patterns."""
     return {
         algorithm: (
             KERNEL_SPEEDUP_COLORS[index % len(KERNEL_SPEEDUP_COLORS)],
-            KERNEL_SPEEDUP_HATCHES[index % len(KERNEL_SPEEDUP_HATCHES)],
+            "",
         )
         for index, algorithm in enumerate(algorithms)
     }
@@ -313,6 +299,36 @@ def append_graph_geomean(values: list[float]) -> list[float]:
     if not values or any(value <= 0 for value in values):
         raise ValueError("Graph speedups must be complete and positive")
     return [*values, _geo_mean(values)]
+
+
+def annotate_speedup_winner(
+    ax,
+    bar,
+    algorithm: str,
+    value: float,
+    *,
+    xytext: tuple[float, float] = (0, 12),
+    text_coordinates: str = "offset points",
+    horizontal_alignment: str = "center",
+    vertical_alignment: str = "bottom",
+) -> None:
+    """Point to the winning geometric-mean bar."""
+    ax.annotate(
+        f"{kernel_speedup_label(algorithm)}\n{value:.2f}$\\times$",
+        xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+        xytext=xytext,
+        textcoords=text_coordinates,
+        ha=horizontal_alignment,
+        va=vertical_alignment,
+        fontsize=5.5,
+        fontweight="bold",
+        arrowprops={
+            "arrowstyle": "->",
+            "color": "#222222",
+            "linewidth": 0.7,
+        },
+        annotation_clip=False,
+    )
 
 
 CACHE_ALGO_STYLES = {
@@ -333,6 +349,12 @@ CACHE_GRAPH_LABELS = {
     "com-Orkut": "com-Orkut",
     "hollywood-2009": "hollywood",
     "USA-road-d.USA": "USA-road",
+}
+CACHE_GRAPH_FILENAMES = {
+    "cit-Patents": "Cit-Patents.png",
+    "com-Orkut": "Com-Orkut.png",
+    "hollywood-2009": "Hollywood.png",
+    "USA-road-d.USA": "road.png",
 }
 
 
@@ -688,6 +710,7 @@ def fig1_cache_performance(sample: bool = False) -> None:
     size_mib = [size / 1024**2 for size in all_sizes]
     for idx, graph in enumerate(panels):
         ax = axes[idx]
+        gm_native_candidates = []
         for algo_key in show_algos:
             xs: list[float] = []
             ys: list[float] = []
@@ -739,6 +762,35 @@ def fig1_cache_performance(sample: bool = False) -> None:
                     label=label,
                     color=color,
                 )
+                if graph == "GM":
+                    native_index = min(
+                        range(len(xs)),
+                        key=lambda index: abs(xs[index] - 22.0),
+                    )
+                    gm_native_candidates.append((
+                        ys[native_index],
+                        label,
+                        xs[native_index],
+                    ))
+        if graph == "GM" and gm_native_candidates:
+            winner_value, winner_label, winner_x = max(
+                gm_native_candidates,
+                key=lambda candidate: candidate[0],
+            )
+            ax.annotate(
+                f"{winner_label}\n{winner_value:.2f}$\\times$ @22 MiB",
+                xy=(winner_x, winner_value),
+                xytext=(8, 12),
+                textcoords="offset points",
+                fontsize=5.5,
+                fontweight="bold",
+                arrowprops={
+                    "arrowstyle": "->",
+                    "color": "#222222",
+                    "linewidth": 0.7,
+                },
+                annotation_clip=False,
+            )
         if graph != "GM" and graph in property_working_set:
             ws_mib = property_working_set[graph] / 1024**2
             if size_mib and size_mib[0] <= ws_mib <= size_mib[-1]:
@@ -801,6 +853,79 @@ def fig1_cache_performance(sample: bool = False) -> None:
     plt.savefig(out); plt.close()
     log.info(f"  Saved: {out}")
     copy_to_paper(out, "cache", "cacheGM.png")
+
+    for graph in graphs:
+        fig_single, ax = plt.subplots(
+            figsize=(TWOCOL_WIDTH_IN, 2.35))
+        for algo_key in show_algos:
+            xs = []
+            ys = []
+            for size in all_sizes:
+                baseline = graph_algo_lookup[graph].get("0", {}).get(
+                    size, [])
+                samples = graph_algo_lookup[graph].get(
+                    algo_key, {}).get(size, [])
+                if baseline and samples:
+                    xs.append(size / 1024**2)
+                    ys.append(
+                        float(np.mean(baseline))
+                        / float(np.mean(samples))
+                    )
+            if xs:
+                label, color, marker, linestyle = (
+                    CACHE_ALGO_STYLES[algo_key])
+                ax.plot(
+                    xs,
+                    ys,
+                    marker=marker,
+                    markersize=3.5,
+                    linewidth=1.1,
+                    linestyle=linestyle,
+                    label=label,
+                    color=color,
+                )
+        if graph in property_working_set:
+            ws_mib = property_working_set[graph] / 1024**2
+            if size_mib[0] <= ws_mib <= size_mib[-1]:
+                ax.axvline(
+                    ws_mib,
+                    color="#666666",
+                    linestyle=":",
+                    linewidth=0.8,
+                    label="PR property WS",
+                )
+        ax.axhline(
+            1.0, color="#555555", linewidth=0.6, linestyle="--")
+        ax.set_xscale("log", base=2)
+        ax.set_xticks(size_mib)
+        ax.set_xticklabels([f"{size:g}" for size in size_mib])
+        ax.set_xlabel("Modeled LLC capacity (MiB)", fontsize=8)
+        ax.set_ylabel("Lookup reduction vs SHUFFLED", fontsize=8)
+        title = CACHE_GRAPH_LABELS.get(graph, graph)
+        if graph in property_working_set:
+            title += (
+                f" (property WS "
+                f"{property_working_set[graph] / 1024**2:.1f} MiB)"
+            )
+        ax.set_title(title, fontsize=8, pad=4)
+        ax.grid(True, alpha=0.25)
+        ax.legend(
+            fontsize=5.5,
+            ncol=4,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.27),
+            frameon=True,
+        )
+        plt.tight_layout(rect=[0, 0, 1, 0.9], pad=0.3)
+        graph_out = FIGURES_DIR / f"fig1_{graph}.png"
+        plt.savefig(graph_out, dpi=300)
+        plt.close(fig_single)
+        copy_to_paper(
+            graph_out,
+            "cache",
+            CACHE_GRAPH_FILENAMES[graph],
+        )
+        log.info(f"  Saved: {graph_out}")
 
 
 # ============================================================================
@@ -925,6 +1050,23 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
         )
         for bar, algorithm in zip(bars, key_algos):
             bar.set_hatch(algo_styles[algorithm][1])
+        winner_index = int(np.argmax(gm_vals))
+        annotate_speedup_winner(
+            ax,
+            bars[winner_index],
+            key_algos[winner_index],
+            gm_vals[winner_index],
+            xytext=(0.98, 0.94),
+            text_coordinates="axes fraction",
+            horizontal_alignment="right",
+            vertical_alignment="top",
+        )
+        ax.set_ylim(
+            top=max(
+                ax.get_ylim()[1],
+                gm_vals[winner_index] * 1.2,
+            )
+        )
         ax.axhline(y=1.0, color="#666666", linestyle="--", linewidth=0.5)
         ax.set_xticks(x)
         ax.set_xticklabels(
@@ -951,6 +1093,7 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
         x = np.arange(len(graphs_in_bench) + 1)
         n_algos = len(key_algos)
         width = 0.84 / max(n_algos, 1)
+        gm_candidates = []
         for i, algo in enumerate(key_algos):
             graph_speedups = []
             for g in graphs_in_bench:
@@ -976,6 +1119,20 @@ def fig2_kernel_speedup(sample: bool = False) -> None:
             )
             for bar in bars:
                 bar.set_hatch(algo_styles[algo][1])
+            gm_candidates.append((vals[-1], algo, bars[-1]))
+        gm_value, gm_algorithm, gm_bar = max(
+            gm_candidates,
+            key=lambda candidate: candidate[0],
+        )
+        annotate_speedup_winner(
+            ax,
+            gm_bar,
+            gm_algorithm,
+            gm_value,
+        )
+        ax.set_ylim(
+            top=max(ax.get_ylim()[1], gm_value * 1.16)
+        )
         ax.set_xticks(x)
         short_names = {g["name"]: g["short"] for gl in [EVAL_GRAPHS] for g in gl}
         ax.set_xticklabels(
@@ -1262,7 +1419,7 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
     if not key_algos:
         key_algos = sorted(all_algos)[:10]
 
-    algo_colors = {algo: algo_color(algo) for algo in key_algos}
+    algo_styles = kernel_speedup_styles(key_algos)
 
     fig, ax = plt.subplots(figsize=(max(10, len(graphs) * 1.5), 5))
     x = np.arange(len(graphs))
@@ -1281,17 +1438,32 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
             x + i * width - 0.4 + width/2,
             vals,
             width,
-            label=algo.replace("GB-", ""),
-            color=algo_colors.get(algo, "#aaaaaa"),
+            label=kernel_speedup_label(algo),
+            color=algo_styles[algo][0],
             edgecolor="black",
             linewidth=0.2,
         )
         for graph, bar in zip(graphs, bars):
             if (graph, algo) in censored:
-                bar.set_hatch("//")
                 bar.set_fill(False)
+                bar.set_edgecolor(algo_styles[algo][0])
+                bar.set_linewidth(0.9)
+                ax.plot(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height(),
+                    marker="^",
+                    markersize=3,
+                    color=algo_styles[algo][0],
+                )
             elif (graph, algo) in reused:
-                bar.set_hatch("..")
+                bar.set_alpha(0.55)
+                ax.plot(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height(),
+                    marker=".",
+                    markersize=3,
+                    color="#222222",
+                )
 
     short_names = {g["name"]: g["short"] for gl in [EVAL_GRAPHS] for g in gl}
     ax.set_xticks(x)
@@ -1305,15 +1477,14 @@ def fig3_reorder_overhead(sample: bool = False) -> None:
         handles.append(Patch(
             facecolor="none",
             edgecolor="black",
-            hatch="//",
-            label="Timed out (bar = timeout bound)",
+            label="Timed out (outline + triangle)",
         ))
     if reused:
         handles.append(Patch(
-            facecolor="white",
+            facecolor="#777777",
+            alpha=0.55,
             edgecolor="black",
-            hatch="..",
-            label="Stage-02 timing (calibrated)",
+            label="Stage-02 timing (faded)",
         ))
     ax.legend(handles=handles, fontsize=6, ncol=3, loc="upper left")
     ax.grid(axis="y", alpha=0.3)
@@ -2280,6 +2451,286 @@ def table_end_to_end(sample: bool = False) -> None:
 
 
 # ============================================================================
+# Figure 9: Runs to Amortize Reordering
+# ============================================================================
+
+AMORTIZATION_PLOT_CAP = 10_000.0
+
+
+def _amortization_value(row: dict) -> tuple[float, str]:
+    break_even = row.get("break_even", {})
+    status = str(break_even.get("status", "indeterminate"))
+    point = break_even.get("point")
+    if status == "finite" and isinstance(point, int) and point > 0:
+        return float(point), status
+    if status in {"never", "indeterminate"}:
+        return math.inf, status
+    raise ValueError(
+        f"Invalid amortization record for {row.get('graph')}/"
+        f"{row.get('benchmark')}/{row.get('algorithm')}: {break_even}"
+    )
+
+
+def _plot_amortization_panel(
+    categories: list[str],
+    values_by_algorithm: dict[str, list[tuple[float, str]]],
+    algorithms: list[str],
+    styles: dict[str, tuple[str, str]],
+    title: str,
+    output: Path,
+) -> None:
+    fig, ax = plt.subplots(figsize=(TWOCOL_WIDTH_IN, 2.65))
+    x = np.arange(len(categories))
+    width = 0.84 / len(algorithms)
+    summary_candidates = []
+    for index, algorithm in enumerate(algorithms):
+        records = values_by_algorithm[algorithm]
+        plotted = [
+            min(value, AMORTIZATION_PLOT_CAP)
+            if math.isfinite(value) else AMORTIZATION_PLOT_CAP
+            for value, _status in records
+        ]
+        bars = ax.bar(
+            x + index * width - 0.42 + width / 2,
+            plotted,
+            width,
+            label=kernel_speedup_label(algorithm),
+            color=styles[algorithm][0],
+            edgecolor="black",
+            linewidth=0.4,
+        )
+        for bar, (value, status) in zip(bars, records):
+            if status == "never":
+                bar.set_fill(False)
+                bar.set_edgecolor(styles[algorithm][0])
+                bar.set_linewidth(0.9)
+                ax.plot(
+                    bar.get_x() + bar.get_width() / 2,
+                    AMORTIZATION_PLOT_CAP,
+                    marker="^",
+                    markersize=3,
+                    color=styles[algorithm][0],
+                )
+            elif status == "indeterminate":
+                bar.set_alpha(0.35)
+                ax.plot(
+                    bar.get_x() + bar.get_width() / 2,
+                    AMORTIZATION_PLOT_CAP,
+                    marker="x",
+                    markersize=3,
+                    color="#222222",
+                )
+            elif value > AMORTIZATION_PLOT_CAP:
+                ax.plot(
+                    bar.get_x() + bar.get_width() / 2,
+                    AMORTIZATION_PLOT_CAP,
+                    marker="^",
+                    markersize=3,
+                    color=styles[algorithm][0],
+                )
+        summary_candidates.append((
+            records[-1][0],
+            algorithm,
+            bars[-1],
+        ))
+
+    finite_candidates = [
+        candidate for candidate in summary_candidates
+        if math.isfinite(candidate[0])
+    ]
+    if finite_candidates:
+        winner_value, winner_algorithm, winner_bar = min(
+            finite_candidates,
+            key=lambda candidate: candidate[0],
+        )
+        ax.annotate(
+            f"{kernel_speedup_label(winner_algorithm)}\n"
+            f"{winner_value:.0f} runs",
+            xy=(
+                winner_bar.get_x() + winner_bar.get_width() / 2,
+                winner_bar.get_height(),
+            ),
+            xytext=(0, 12),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=5.5,
+            fontweight="bold",
+            arrowprops={
+                "arrowstyle": "->",
+                "color": "#222222",
+                "linewidth": 0.7,
+            },
+            annotation_clip=False,
+        )
+
+    ax.set_yscale("log")
+    ax.set_ylim(0.8, AMORTIZATION_PLOT_CAP * 1.25)
+    ax.set_xticks(x)
+    ax.set_xticklabels(
+        categories,
+        rotation=30,
+        ha="right",
+        fontsize=7,
+    )
+    ax.get_xticklabels()[-1].set_fontweight("bold")
+    ax.axvline(
+        len(categories) - 1.5,
+        color="#444444",
+        linestyle=":",
+        linewidth=0.8,
+    )
+    ax.axhline(1.0, color="#666666", linestyle="--", linewidth=0.5)
+    ax.set_ylabel("Runs to amortize reorder", fontsize=8)
+    ax.set_title(title, fontsize=8, pad=2)
+    handles, labels = ax.get_legend_handles_labels()
+    handles.extend([
+        Line2D(
+            [0], [0], marker="^", color="none",
+            markerfacecolor="none", markeredgecolor="#222222",
+            label="Never / above plot cap",
+        ),
+        Line2D(
+            [0], [0], marker="x", color="none",
+            markeredgecolor="#222222", label="Indeterminate",
+        ),
+    ])
+    labels.extend(["Never / above plot cap", "Indeterminate"])
+    fig.legend(
+        handles,
+        labels,
+        fontsize=5.5,
+        ncol=4,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.995),
+        frameon=True,
+    )
+    ax.grid(axis="y", alpha=0.25, which="both")
+    plt.tight_layout(rect=[0, 0, 1, 0.86], pad=0.3)
+    plt.savefig(output, dpi=300)
+    plt.close()
+
+
+def fig9_amortization_trials(sample: bool = False) -> None:
+    log.info("Figure 9: Runs to Amortize Reordering")
+    if not HAS_MPL or not HAS_NP:
+        return
+    payload = load_json(
+        RESULTS_DIR / "exp4_e2e" / "e2e_results.json")
+    if not isinstance(payload, dict) or not isinstance(
+        payload.get("rows"), list
+    ):
+        log.warning("  No end-to-end data available")
+        return
+    rows = payload["rows"]
+    algorithms = [
+        "DBG",
+        "RabbitOrder (CSR)",
+        "RabbitOrder (Boost)",
+        "GORDER",
+        ALL_ALGORITHMS["12:leiden"],
+        ALL_ALGORITHMS["12:rabbit"],
+        ALL_ALGORITHMS["12:hrab"],
+    ]
+    available_algorithms = {
+        str(row.get("algorithm")) for row in rows
+    }
+    algorithms = [
+        algorithm for algorithm in algorithms
+        if algorithm in available_algorithms
+    ]
+    styles = kernel_speedup_styles(algorithms)
+    graph_order = [graph["name"] for graph in EVAL_GRAPHS]
+    short_names = {
+        graph["name"]: graph["short"] for graph in EVAL_GRAPHS
+    }
+    benchmark_files = {
+        "bfs": "BFS.png",
+        "pr": "PR.png",
+        "pr_spmv": "SpMV.png",
+        "sssp": "SSSP.png",
+        "cc": "CC.png",
+        "cc_sv": "CC_SV.png",
+        "bc": "BC.png",
+    }
+
+    row_index = {
+        (
+            str(row.get("graph")),
+            str(row.get("benchmark")),
+            str(row.get("algorithm")),
+        ): row
+        for row in rows
+    }
+    benchmark_summary: dict[str, dict[str, tuple[float, str]]] = {}
+    for benchmark, filename in benchmark_files.items():
+        values_by_algorithm = {}
+        benchmark_summary[benchmark] = {}
+        for algorithm in algorithms:
+            graph_records = [
+                _amortization_value(
+                    row_index[(graph, benchmark, algorithm)])
+                for graph in graph_order
+            ]
+            median_value = statistics.median(
+                value for value, _status in graph_records)
+            median_status = (
+                "finite" if math.isfinite(median_value) else "never"
+            )
+            values_by_algorithm[algorithm] = [
+                *graph_records,
+                (median_value, median_status),
+            ]
+            benchmark_summary[benchmark][algorithm] = (
+                median_value, median_status)
+        out = FIGURES_DIR / f"fig9_{benchmark}.png"
+        _plot_amortization_panel(
+            [
+                *[short_names[graph] for graph in graph_order],
+                "Median",
+            ],
+            values_by_algorithm,
+            algorithms,
+            styles,
+            f"{benchmark.upper()} — calibrated break-even",
+            out,
+        )
+        copy_to_paper(out, "trials", filename)
+        log.info(f"  Saved: {out}")
+
+    aggregate_values = {}
+    for algorithm in algorithms:
+        per_benchmark = [
+            benchmark_summary[benchmark][algorithm]
+            for benchmark in benchmark_files
+        ]
+        overall_median = statistics.median(
+            value for value, _status in per_benchmark)
+        aggregate_values[algorithm] = [
+            *per_benchmark,
+            (
+                overall_median,
+                "finite" if math.isfinite(overall_median) else "never",
+            ),
+        ]
+    aggregate_out = FIGURES_DIR / "fig9_amortization_trials.png"
+    _plot_amortization_panel(
+        [
+            "BFS", "PR", "SpMV", "SSSP", "CC", "CC-SV", "BC",
+            "Median",
+        ],
+        aggregate_values,
+        algorithms,
+        styles,
+        "Calibrated runs to amortize reordering",
+        aggregate_out,
+    )
+    copy_to_paper(
+        aggregate_out, "trials", "aggregateTrials.png")
+    log.info(f"  Saved: {aggregate_out}")
+
+
+# ============================================================================
 # Main
 # ============================================================================
 
@@ -2292,6 +2743,7 @@ FIGURES = {
     6: ("Graph-Type Sensitivity", fig6_sensitivity),
     7: ("Chained Ordering", fig7_chained),
     8: ("Representative Reorder Scalability", fig8_scalability),
+    9: ("Runs to Amortize Reordering", fig9_amortization_trials),
 }
 
 

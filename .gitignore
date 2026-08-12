@@ -47,6 +47,10 @@ research/dataCharts/*
 !research/dataCharts/cache/
 research/dataCharts/cache/*
 !research/dataCharts/cache/cacheGM.png
+!research/dataCharts/cache/Cit-Patents.png
+!research/dataCharts/cache/Com-Orkut.png
+!research/dataCharts/cache/Hollywood.png
+!research/dataCharts/cache/road.png
 !research/dataCharts/speedup/
 research/dataCharts/speedup/*
 !research/dataCharts/speedup/aggregateSpeedups.png
@@ -58,6 +62,16 @@ research/dataCharts/speedup/*
 !research/dataCharts/speedup/CC.png
 !research/dataCharts/speedup/CC_SV.png
 !research/dataCharts/speedup/BC.png
+!research/dataCharts/trials/
+research/dataCharts/trials/*
+!research/dataCharts/trials/aggregateTrials.png
+!research/dataCharts/trials/BFS.png
+!research/dataCharts/trials/PR.png
+!research/dataCharts/trials/SpMV.png
+!research/dataCharts/trials/SSSP.png
+!research/dataCharts/trials/CC.png
+!research/dataCharts/trials/CC_SV.png
+!research/dataCharts/trials/BC.png
 !research/dataCharts/tables/
 research/dataCharts/tables/*
 !research/dataCharts/tables/table_kernel_speedup.tex

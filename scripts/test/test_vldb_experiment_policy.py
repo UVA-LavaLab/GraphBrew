@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import math
 import inspect
 import os
 import shutil
@@ -351,10 +352,17 @@ def test_kernel_speedup_figure_uses_distinct_compact_styles_and_gm():
     assert len(labels) == len(set(labels))
     assert max(map(len, labels)) <= 12
     assert len({style[0] for style in styles.values()}) == len(algorithms)
-    assert len({style[1] for style in styles.values()}) == len(algorithms)
+    assert all(style[1] == "" for style in styles.values())
     assert figures.append_graph_geomean([1.0, 4.0]) == pytest.approx(
         [1.0, 4.0, 2.0]
     )
+    assert figures._amortization_value({
+        "break_even": {"status": "finite", "point": 7},
+    }) == (7.0, "finite")
+    assert math.isinf(figures._amortization_value({
+        "break_even": {"status": "never", "point": None},
+    })[0])
+    assert figures.FIGURES[9][1] is figures.fig9_amortization_trials
 
 
 def test_compose_supergraph_requires_explicit_community_order():
