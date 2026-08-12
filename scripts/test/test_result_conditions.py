@@ -438,7 +438,16 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
 
     class _FakeCompleted:
         returncode = 0
-        stdout = "Average Time:      0.5000\n"
+        stdout = (
+            "Representation Build Time: 1.0000\n"
+            "Reorder Core Time: 0.2000\n"
+            "Reorder Time: 0.2000\n"
+            "Reorder Validation Time: 0.0100\n"
+            "Reorder Apply Time: 0.0300\n"
+            "Reorder End-to-End Time: 0.2400\n"
+            "Total Preprocessing Time: 1.3000\n"
+            "Average Time: 0.5000\n"
+        )
         stderr = ""
 
     monkeypatch.setattr(
@@ -459,6 +468,12 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
     assert res.mapping_identity_id == "map:GORDER.lo"
     assert res.attempt == 2
     assert res.run_id  # non-empty unique id
+    assert res.representation_build_time == pytest.approx(1.0)
+    assert res.reorder_core_time == pytest.approx(0.2)
+    assert res.reorder_validation_time == pytest.approx(0.01)
+    assert res.reorder_apply_time == pytest.approx(0.03)
+    assert res.reorder_time == pytest.approx(0.24)
+    assert res.total_preprocessing_time == pytest.approx(1.3)
 
 
 # =============================================================================

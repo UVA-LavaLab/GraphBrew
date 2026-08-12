@@ -675,6 +675,11 @@ class BenchmarkResult:
     mapping_identity_id: str = "direct"
     process_id: int = 0
     attempt: int = 1
+    representation_build_time: float = 0.0
+    reorder_core_time: float = 0.0
+    reorder_validation_time: float = 0.0
+    reorder_apply_time: float = 0.0
+    total_preprocessing_time: float = 0.0
 
     def __post_init__(self):
         if self.extra is None:

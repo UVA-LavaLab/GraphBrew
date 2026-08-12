@@ -233,7 +233,11 @@ from scripts.lib.pipeline.reorder import (
     generate_label_maps,
     load_label_maps_index,
 )
-from scripts.lib.pipeline.benchmark import run_benchmarks_multi_graph, run_benchmarks_with_variants
+from scripts.lib.pipeline.benchmark import (
+    parse_complete_reorder_time,
+    run_benchmarks_multi_graph,
+    run_benchmarks_with_variants,
+)
 from scripts.lib.pipeline.cache import run_cache_simulations_with_variants
 from scripts.lib.analysis.adaptive import (
     analyze_adaptive_order,
@@ -847,16 +851,20 @@ def _find_mtx_for_graph(graph_dir: str, graph_name: str) -> Optional[str]:
 
 
 def _save_reorder_time(stdout: str, time_path: str, mappings_dir: str) -> None:
-    """Extract ``Reorder Time:`` values from converter stdout and save to *time_path*.
+    """Save complete reorder cost from the shared timing parser.
 
-    Sums all occurrences (for chained orderings with multiple steps).
+    New outputs use core + validation + CSR application via
+    ``Reorder End-to-End Time``.  Legacy outputs without explicit phase
+    boundaries retain their historical ``Reorder Time`` fallback.
     """
-    reorder_times = re.findall(r'Reorder Time:\s*([\d.]+)', stdout)
-    if reorder_times:
-        total = sum(float(t) for t in reorder_times)
-        os.makedirs(mappings_dir, exist_ok=True)
-        with open(time_path, 'w') as tf:
-            tf.write(str(total))
+    total = parse_complete_reorder_time(stdout)
+    if total is None:
+        return
+    os.makedirs(mappings_dir, exist_ok=True)
+    target = Path(time_path)
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    temporary.write_text(f"{total}\n")
+    os.replace(temporary, target)
 
 
 def convert_graph_to_sg(

@@ -1136,19 +1136,25 @@ def test_mapping_sidecar_timing_reuses_named_draws():
     meta = {
         "mapping_draws": [
             {
+                "representation_build_time": 3.0,
                 "mapping_generation_time": 10.0,
                 "reorder_validation_time": 1.0,
                 "reorder_apply_time": 2.0,
+                "total_preprocessing_time": 16.0,
             },
             {
+                "representation_build_time": 3.5,
                 "mapping_generation_time": 14.0,
                 "reorder_validation_time": 1.5,
                 "reorder_apply_time": 2.5,
+                "total_preprocessing_time": 21.5,
             },
             {
+                "representation_build_time": 3.2,
                 "mapping_generation_time": 12.0,
                 "reorder_validation_time": 1.2,
                 "reorder_apply_time": 2.2,
+                "total_preprocessing_time": 18.6,
             },
         ],
     }
@@ -1157,6 +1163,9 @@ def test_mapping_sidecar_timing_reuses_named_draws():
     assert timing["timing_source"] == "stage02-sidecar"
     assert timing["mapping_generation_time"] == 10.0
     assert timing["mapping_generation_times"] == [10.0, 14.0, 12.0]
+    assert timing["reorder_core_time"] == 10.0
+    assert timing["representation_build_time"] == 3.0
+    assert timing["total_preprocessing_time"] == 16.0
     assert timing["reorder_time"] == pytest.approx(13.0)
 
 
@@ -1366,6 +1375,66 @@ def test_mapping_metadata_is_bound_to_algorithm_not_binary(tmp_path):
     assert not runner._mapping_is_valid(
         "tiny", "8:csr", other_graph, flags,
     )
+
+
+def test_mapping_metadata_v5_requires_complete_timing_contract(tmp_path):
+    artifact_root = tmp_path / "artifacts"
+    runner.configure_artifact_root(artifact_root)
+    graph = tmp_path / "tiny.sg"
+    graph.write_bytes(struct.pack("<?qq", False, 20, 10))
+    flags = ["-o", "5"]
+    lo = runner._lo_path("tiny", "5")
+    lo.parent.mkdir(parents=True)
+    lo.write_text("0\n")
+    draw_path = lo.with_name(f"{lo.stem}.draw0.lo")
+    draw_path.write_text("0\n")
+    meta_path = runner._meta_path("tiny", "5")
+    payload = {
+        "schema": "reorder_meta/v5",
+        "graph": "tiny",
+        "graph_info": runner._serialized_graph_info(graph),
+        "converter_flags": flags,
+        "lo_path": lo.name,
+        "lo_bytes": lo.stat().st_size,
+        "mapping_draw_count": 1,
+        "mapping_draws": [{
+            "draw": 0,
+            "path": draw_path.name,
+            "graphbrew_effective_configs": [],
+            "graphbrew_realized_configs": [],
+        }],
+        "cmd": [
+            str(runner.BIN_DIR / "converter"),
+            "-f",
+            str(graph),
+            "-o",
+            "5",
+            "-q",
+            str(draw_path.resolve()),
+        ],
+        "cmd_template": [
+            str(runner.BIN_DIR / "converter"),
+            "-f",
+            str(graph),
+            "-o",
+            "5",
+            "-q",
+            draw_path.name,
+        ],
+        "representation_build_time": 1.0,
+        "reorder_core_time": 2.0,
+        "reorder_validation_time": 0.1,
+        "reorder_apply_time": 0.4,
+        "total_preprocessing_time": 3.6,
+        "graphbrew_effective_configs": [],
+        "graphbrew_realized_configs": [],
+    }
+    meta_path.write_text(json.dumps(payload))
+    assert runner._mapping_is_valid("tiny", "5", graph, flags)
+
+    payload["total_preprocessing_time"] = 3.0
+    meta_path.write_text(json.dumps(payload))
+    assert not runner._mapping_is_valid("tiny", "5", graph, flags)
 
 
 def test_graph_provenance_uses_semantic_conversion_policy(tmp_path):

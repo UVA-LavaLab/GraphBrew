@@ -285,6 +285,9 @@ struct ReorderMeta {
     std::string algorithm;                ///< e.g. "GraphBrewOrder", "LeidenOrder"
     int         algorithm_id = 0;
     double      reorder_time = 0.0;       ///< total wall-clock
+    double      reorder_core_time = 0.0;  ///< mapping construction/load
+    double      validation_time = 0.0;    ///< permutation validation
+    double      apply_time = 0.0;         ///< CSR relabel/application
 
     // Leiden/GraphBrew specific
     int         num_passes = 0;           ///< Leiden coarsening passes
@@ -304,6 +307,9 @@ struct ReorderMeta {
         j["algorithm"] = algorithm;
         j["algorithm_id"] = algorithm_id;
         j["reorder_time"] = reorder_time;
+        j["reorder_core_time"] = reorder_core_time;
+        j["validation_time"] = validation_time;
+        j["apply_time"] = apply_time;
         if (num_passes > 0) j["num_passes"] = num_passes;
         if (num_communities > 0) j["num_communities"] = num_communities;
         if (resolution > 0) j["resolution"] = resolution;
@@ -328,6 +334,11 @@ struct RunReport {
     // Aggregate timing
     double      avg_time = 0.0;           ///< average across trials
     double      reorder_time = 0.0;       ///< from builder reorder step
+    double      representation_build_time = 0.0;
+    double      reorder_core_time = 0.0;
+    double      reorder_validation_time = 0.0;
+    double      reorder_apply_time = 0.0;
+    double      total_preprocessing_time = 0.0;
     int         num_trials = 0;
 
     // Per-trial details
@@ -364,6 +375,11 @@ struct RunReport {
         j["benchmark"] = benchmark;
         j["time_seconds"] = avg_time;
         j["reorder_time"] = reorder_time;
+        j["representation_build_time"] = representation_build_time;
+        j["reorder_core_time"] = reorder_core_time;
+        j["reorder_validation_time"] = reorder_validation_time;
+        j["reorder_apply_time"] = reorder_apply_time;
+        j["total_preprocessing_time"] = total_preprocessing_time;
         j["trials"] = num_trials;
         j["nodes"] = nodes;
         j["edges"] = edges;
@@ -516,6 +532,24 @@ struct GraphProperties {
 // ============================================================================
 // Global Hints for Reorder State Passing
 // ============================================================================
+
+struct PreprocessingTiming {
+    double representation_build_time = 0.0;
+    double reorder_core_time = 0.0;
+    double reorder_validation_time = 0.0;
+    double reorder_apply_time = 0.0;
+    double total_preprocessing_time = 0.0;
+    double excluded_diagnostic_time = 0.0;
+};
+
+inline PreprocessingTiming& GetPreprocessingTimingHint() {
+    static PreprocessingTiming timing;
+    return timing;
+}
+
+inline void ClearPreprocessingTimingHint() {
+    GetPreprocessingTimingHint() = PreprocessingTiming();
+}
 
 /// Global hint: reorder time (set in GenerateMapping, read in BenchmarkKernel)
 inline double& GetReorderTimeHint() {

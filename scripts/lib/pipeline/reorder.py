@@ -291,105 +291,17 @@ def expand_algorithms_with_variants(
 # =============================================================================
 
 def parse_reorder_time_from_converter(output: str) -> Optional[float]:
+    """Return complete reorder cost from the shared timing contract.
+
+    New binaries report core mapping work, permutation validation, and CSR
+    application separately; their sum is the reusable reorder cost.  Legacy
+    outputs without explicit boundaries fall back to their historical unified
+    ``Reorder Time`` value.
     """
-    Parse the actual reordering algorithm time from converter output.
-    
-    FAIR TIMING PHILOSOPHY:
-    - INCLUDE: Actual algorithm work (community detection, ordering generation)
-    - EXCLUDE: Data structure conversion overhead (library-specific preprocessing)
-    
-    Why exclude conversion overhead?
-    External libraries (RabbitOrder, GOrder, GVE-Leiden) require their own
-    data structures. If we had native CSR implementations, there would be no
-    conversion. For fair comparison, we only measure the actual ordering algorithm.
-    
-    CONVERSION OVERHEAD TO EXCLUDE:
-    - "DiGraph Build Time:"     - CSR → GVE-Leiden DiGraph (LeidenOrder)
-    - "DiGraph graph:"          - CSR → DiGraph (LeidenOrder - legacy naming)
-    - "GOrder graph:"           - CSR → GOrder internal format
-    - "Sort Map Time:" + first "Relabel Map Time:" - RabbitOrder preprocessing
-    
-    ALGORITHM TIME TO INCLUDE:
-    - "Leiden Time:" + "Ordering Time:"           - Legacy Leiden algorithm
-    - "LeidenOrder Map Time:" + "GenID Time:"     - LeidenOrder algorithm
-    - "GOrder Map Time:"                          - GOrder actual ordering
-    - "RabbitOrder Map Time:"                     - RabbitOrder actual ordering
-    - "*Map Time:" for native CSR algorithms      - HubSort, DBG, Sort, Random, etc.
-    
-    Returns the reorder time in seconds, or None if not found.
-    """
-    # =========================================================================
-    # STRATEGY: Parse detailed component times and sum only algorithm work
-    # =========================================================================
-    
-    # Helper to parse a time value from a pattern
-    def get_time(pattern: str) -> Optional[float]:
-        match = re.search(pattern, output, re.MULTILINE)
-        return float(match.group(1)) if match else None
-    
-    # -------------------------------------------------------------------------
-    # 1. Legacy Leiden: Leiden Time + Ordering Time (exclude DiGraph Build)
-    # -------------------------------------------------------------------------
-    leiden_time = get_time(r'^Leiden Time:\s*([\d.]+)')
-    ordering_time = get_time(r'^Ordering Time:\s*([\d.]+)')
-    
-    if leiden_time is not None and ordering_time is not None:
-        # Legacy Leiden detected: sum algorithm parts only
-        return leiden_time + ordering_time
-    
-    # -------------------------------------------------------------------------
-    # 2. LeidenOrder (legacy): LeidenOrder Map Time + GenID Time (exclude DiGraph graph)
-    # -------------------------------------------------------------------------
-    leiden_order_time = get_time(r'^LeidenOrder Map Time:\s*([\d.]+)')
-    genid_time = get_time(r'^GenID Time:\s*([\d.]+)')
-    
-    if leiden_order_time is not None and genid_time is not None:
-        # LeidenOrder detected: sum algorithm parts only
-        return leiden_order_time + genid_time
-    
-    # -------------------------------------------------------------------------
-    # 3. GOrder: Only GOrder Map Time (exclude "GOrder graph:" build time)
-    # -------------------------------------------------------------------------
-    gorder_map_time = get_time(r'^GOrder Map Time:\s*([\d.]+)')
-    if gorder_map_time is not None:
-        return gorder_map_time
-    
-    # -------------------------------------------------------------------------
-    # 4. RabbitOrder: Only RabbitOrder Map Time (exclude Sort + Relabel prep)
-    # -------------------------------------------------------------------------
-    rabbit_map_time = get_time(r'^RabbitOrder Map Time:\s*([\d.]+)')
-    if rabbit_map_time is not None:
-        return rabbit_map_time
-    
-    # -------------------------------------------------------------------------
-    # 5. Native CSR algorithms: Use their Map Time directly (no conversion)
-    #    HubSort, HubCluster, DBG, Sort, Random, COrder, RCMOrder, etc.
-    # -------------------------------------------------------------------------
-    # Standard Map Time pattern
-    pattern = r'^([A-Za-z]+)\s+Map Time:\s*([\d.]+)'
-    matches = re.findall(pattern, output, re.MULTILINE)
-    
-    # Filter out intermediate steps (Relabel, Sort, Total) and get actual algorithm time
-    # 'total' excluded: RabbitOrderCSR outputs "Total Map Time: 0.00000" as a statistic
-    excluded_names = {'relabel', 'sort', 'gorder', 'total'}  # Already handled above
-    valid_times = [
-        (name, float(t)) for name, t in matches 
-        if name.lower() not in excluded_names
-    ]
-    
-    if valid_times:
-        # Return the last valid algorithm time
-        return valid_times[-1][1]
-    
-    # -------------------------------------------------------------------------
-    # FALLBACK: Unified "Reorder Time:" (total wall clock - may include overhead)
-    # Only use if no detailed component parsing succeeded
-    # -------------------------------------------------------------------------
-    reorder_time_match = get_time(r'^Reorder Time:\s*([\d.]+)')
-    if reorder_time_match is not None:
-        return reorder_time_match
-    
-    return None
+    # Lazy import avoids the benchmark↔reorder compatibility import cycle.
+    from .benchmark import parse_complete_reorder_time
+
+    return parse_complete_reorder_time(output)
 
 
 # =============================================================================
@@ -559,7 +471,11 @@ def generate_reorderings(
                 if generate_maps:
                     if os.path.exists(map_file):
                         actual_reorder_time = parse_reorder_time_from_converter(output)
-                        reorder_time = actual_reorder_time if actual_reorder_time else elapsed
+                        reorder_time = (
+                            actual_reorder_time
+                            if actual_reorder_time is not None
+                            else elapsed
+                        )
                         
                         timing_file = os.path.join(graph_mappings_dir, f"{safe_name}.time")
                         with open(timing_file, 'w') as f:
@@ -975,7 +891,9 @@ def generate_reorderings_with_variants(
             
             if success and os.path.exists(map_file):
                 actual_time = parse_reorder_time_from_converter(stdout + stderr)
-                reorder_time = actual_time if actual_time else elapsed
+                reorder_time = (
+                    actual_time if actual_time is not None else elapsed
+                )
                 
                 with open(timing_file, 'w') as f:
                     f.write(f"{reorder_time:.6f}")

@@ -143,11 +143,18 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     Returns a flat dict in ``extra`` containing (when present):
       - ``trial_times``: list of per-trial wall-clock times (seconds)
       - ``average_time``: same as the tuple's first element
-      - ``preprocessing_time``, ``total_time``: standalone timings
+      - ``representation_build_time``: input-to-canonical-CSR construction
+      - ``reorder_core_time``: mapping construction/load
+      - ``reorder_validation_time``: permutation validation
+      - ``reorder_apply_time``: CSR relabel/application
+      - ``total_preprocessing_time``: direct pre-kernel wall clock
+      - ``preprocessing_time``, ``total_time``: legacy standalone timings
       - ``read_time``, ``topology_analysis_time``, ``relabel_map_time``:
         GraphBrew-specific load/topology timings
-      - ``reorder_time_passes``: list of per-pass reorder times for chained
-        orderings; the returned ``reorder_time`` is the *sum* of these
+      - ``reorder_time_passes``: complete per-pass reorder times for chained
+        orderings; the returned ``reorder_time`` is their sum
+      - ``mapping_generation_time``: compatibility alias for
+        ``reorder_core_time``
       - ``mteps``, ``iterations``: BFS / PR specific
       - weighted SSSP policy and answer fingerprints
       - topology features (degree_variance, hub_concentration, modularity, ...)
@@ -161,7 +168,8 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     avg_time = 0.0
     extra: Dict = {}
     trial_times: List[float] = []
-    mapping_passes: List[float] = []
+    legacy_core_passes: List[float] = []
+    core_passes: List[float] = []
     validation_passes: List[float] = []
     apply_passes: List[float] = []
     end_to_end_passes: List[float] = []
@@ -180,11 +188,16 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             continue
         line_lower = line.lower()
 
-        # ---- Reorder Time (may appear multiple times for chained orderings)
+        # ---- Reorder phases (may repeat for chained orderings)
+        if line.startswith("Reorder Core Time"):
+            v = _num(line)
+            if v is not None:
+                core_passes.append(v)
+            continue
         if line.startswith("Reorder Time"):
             v = _num(line)
             if v is not None:
-                mapping_passes.append(v)
+                legacy_core_passes.append(v)
             continue
         if line.startswith("Reorder Validation Time"):
             v = _num(line)
@@ -219,6 +232,7 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
 
         # ---- Other standalone timings produced by GraphBrew binaries
         for key in (
+            "Representation Build Time", "Total Preprocessing Time",
             "Preprocessing Time", "Total Time", "Read Time",
             "Topology Analysis Time", "Relabel Map Time",
             "Adaptive Feature Time", "Adaptive Model Time",
@@ -289,9 +303,18 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     if final_errors:
         extra["final_errors"] = final_errors
         extra["final_error"] = final_errors[-1]
-    if mapping_passes:
-        extra["mapping_generation_time_passes"] = mapping_passes
-        extra["mapping_generation_time"] = sum(mapping_passes)
+    if core_passes and legacy_core_passes and core_passes != legacy_core_passes:
+        raise ValueError(
+            "Reorder Core Time and legacy Reorder Time disagree"
+        )
+    effective_core_passes = core_passes or legacy_core_passes
+    if effective_core_passes:
+        extra["reorder_core_time_passes"] = effective_core_passes
+        extra["reorder_core_time"] = sum(effective_core_passes)
+        # Historical compatibility: consumers previously called the mapping
+        # construction/load phase "mapping generation".
+        extra["mapping_generation_time_passes"] = effective_core_passes
+        extra["mapping_generation_time"] = sum(effective_core_passes)
     if validation_passes:
         extra["reorder_validation_time_passes"] = validation_passes
         extra["reorder_validation_time"] = sum(validation_passes)
@@ -299,11 +322,34 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
         extra["reorder_apply_time_passes"] = apply_passes
         extra["reorder_apply_time"] = sum(apply_passes)
     if end_to_end_passes:
+        if validation_passes or apply_passes:
+            if not (
+                len(effective_core_passes)
+                == len(validation_passes)
+                == len(apply_passes)
+                == len(end_to_end_passes)
+            ):
+                raise ValueError(
+                    "Incomplete explicit reorder phase timing"
+                )
+            for core, validation, apply, complete in zip(
+                effective_core_passes,
+                validation_passes,
+                apply_passes,
+                end_to_end_passes,
+            ):
+                expected = core + validation + apply
+                if abs(complete - expected) > 1e-3:
+                    raise ValueError(
+                        "Complete reorder time disagrees with phase timings"
+                    )
         extra["reorder_time_passes"] = end_to_end_passes
-    elif mapping_passes:
-        extra["reorder_time_passes"] = mapping_passes
+        extra["complete_reorder_time"] = sum(end_to_end_passes)
+    elif effective_core_passes:
+        extra["reorder_time_passes"] = effective_core_passes
+        extra["complete_reorder_time"] = sum(effective_core_passes)
     reorder_time = sum(
-        end_to_end_passes if end_to_end_passes else mapping_passes
+        end_to_end_passes if end_to_end_passes else effective_core_passes
     )
     
     # Extract topology features for weight learning
@@ -446,6 +492,14 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     )
     
     return avg_time, reorder_time, extra
+
+
+def parse_complete_reorder_time(output: str) -> float | None:
+    """Return complete reorder cost, with a legacy core-only fallback."""
+    _average, reorder_time, timing = parse_benchmark_output(output)
+    if "reorder_time_passes" not in timing:
+        return None
+    return reorder_time
 
 
 # =============================================================================
@@ -743,6 +797,21 @@ def run_benchmark(
         return _make_result(
             time_seconds=avg_time,
             reorder_time=reorder_time,
+            representation_build_time=float(
+                extra.get("representation_build_time", 0.0)
+            ),
+            reorder_core_time=float(
+                extra.get("reorder_core_time", 0.0)
+            ),
+            reorder_validation_time=float(
+                extra.get("reorder_validation_time", 0.0)
+            ),
+            reorder_apply_time=float(
+                extra.get("reorder_apply_time", 0.0)
+            ),
+            total_preprocessing_time=float(
+                extra.get("total_preprocessing_time", 0.0)
+            ),
             trials=trials,
             success=True,
             extra=extra,
@@ -1717,14 +1786,10 @@ def run_fresh_benchmarks(
                         print("ERROR")
                         failed += 1
                         continue
-                    avg_match = re.search(r"Average Time:\s+([\d.]+)",
-                                          result.stdout)
-                    reorder_match = re.search(r"Reorder Time:\s+([\d.]+)",
-                                              result.stdout)
-                    if avg_match:
-                        avg_time = float(avg_match.group(1))
-                        reorder_time = float(reorder_match.group(1)) \
-                            if reorder_match else 0.0
+                    avg_time, reorder_time, timing = (
+                        parse_benchmark_output(result.stdout)
+                    )
+                    if avg_time > 0:
                         print(f"{avg_time}s (reorder: {reorder_time}s)")
                         entries.append({
                             "graph": graph_name,
@@ -1733,6 +1798,21 @@ def run_fresh_benchmarks(
                             "benchmark": bench,
                             "time_seconds": avg_time,
                             "reorder_time": reorder_time,
+                            "representation_build_time": timing.get(
+                                "representation_build_time", 0.0
+                            ),
+                            "reorder_core_time": timing.get(
+                                "reorder_core_time", 0.0
+                            ),
+                            "reorder_validation_time": timing.get(
+                                "reorder_validation_time", 0.0
+                            ),
+                            "reorder_apply_time": timing.get(
+                                "reorder_apply_time", 0.0
+                            ),
+                            "total_preprocessing_time": timing.get(
+                                "total_preprocessing_time", 0.0
+                            ),
                             "trials": trials,
                             "success": True,
                         })

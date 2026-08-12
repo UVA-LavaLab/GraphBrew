@@ -744,10 +744,15 @@ public:
     CSRGraph<NodeID_, DestID_, invert> MakeGraph()
     {
         using namespace graphbrew::database;
+        Timer total_preprocessing_timer;
+        Timer representation_build_timer;
+        total_preprocessing_timer.Start();
+        representation_build_timer.Start();
         SetReorderTimeHint(0.0);
         SetReorderAlgoHint("");
         SetReorderAlgoIdHint(0);
         ClearReorderMetaHints();
+        ClearPreprocessingTimingHint();
         CSRGraph<NodeID_, DestID_, invert> g;
         CSRGraph<NodeID_, DestID_, invert> g_final;
         bool gContinue_ = true; // Control variable to exit the scope
@@ -824,6 +829,13 @@ public:
             else
                 g_final = SquishGraph(g);
         }
+
+        representation_build_timer.Stop();
+        GetPreprocessingTimingHint().representation_build_time =
+            representation_build_timer.Seconds();
+        PrintTime(
+            "Representation Build Time",
+            representation_build_timer.Seconds());
         
         // Retain graph identity for metadata/self-recording only. Deployable
         // AdaptiveOrder is prohibited from consuming this hint.
@@ -845,8 +857,12 @@ public:
         for (const auto &option : cli_.reorder_options())
         {
             new_ids.fill(-1);
+            const double core_before =
+                GetPreprocessingTimingHint().reorder_core_time;
             GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(),
                             option.second);
+            const double core_time =
+                GetPreprocessingTimingHint().reorder_core_time - core_before;
 
             Timer validation_timer;
             validation_timer.Start();
@@ -865,18 +881,39 @@ public:
                     "Missing reorder metadata after mapping generation");
             ReorderMeta& meta = reorder_metas.back();
             const double mapping_time = meta.reorder_time;
-            const double end_to_end_time =
+            const double accounted_end_to_end_time =
                 mapping_time + validation_timer.Seconds()
                 + apply_timer.Seconds();
+            const double complete_reorder_time =
+                core_time + validation_timer.Seconds()
+                + apply_timer.Seconds();
+            GetPreprocessingTimingHint().reorder_validation_time +=
+                validation_timer.Seconds();
+            GetPreprocessingTimingHint().reorder_apply_time +=
+                apply_timer.Seconds();
             PrintTime(
                 "Reorder Validation Time",
                 validation_timer.Seconds());
             PrintTime("Reorder Apply Time", apply_timer.Seconds());
-            PrintTime("Reorder End-to-End Time", end_to_end_time);
+            PrintTime("Reorder End-to-End Time", complete_reorder_time);
             SetReorderTimeHint(
-                GetReorderTimeHint() - mapping_time + end_to_end_time);
-            meta.reorder_time = end_to_end_time;
+                GetReorderTimeHint() - mapping_time
+                + accounted_end_to_end_time);
+            meta.reorder_core_time = core_time;
+            meta.validation_time = validation_timer.Seconds();
+            meta.apply_time = apply_timer.Seconds();
+            meta.reorder_time = accounted_end_to_end_time;
         }
+
+        total_preprocessing_timer.Stop();
+        GetPreprocessingTimingHint().total_preprocessing_time =
+            std::max(
+                0.0,
+                total_preprocessing_timer.Seconds()
+                - GetPreprocessingTimingHint().excluded_diagnostic_time);
+        PrintTime(
+            "Total Preprocessing Time",
+            GetPreprocessingTimingHint().total_preprocessing_time);
 
         // g_final = SquishGraph(g_final);
         // g_final.PrintTopology();
@@ -1428,10 +1465,15 @@ public:
         reorder_timer.Stop();
         std::cout << "=== Reorder Summary ===" << std::endl;
         PrintLabel("Algorithm", ReorderingAlgoStr(reordering_algo));
+        PrintTime("Reorder Core Time", reorder_timer.Seconds());
         PrintTime("Reorder Time", reorder_timer.Seconds());
+        GetPreprocessingTimingHint().reorder_core_time +=
+            reorder_timer.Seconds();
         const char* quality_env =
             std::getenv("GRAPHBREW_MAPPING_QUALITY");
         if (quality_env != nullptr && std::string(quality_env) == "1") {
+            Timer quality_timer;
+            quality_timer.Start();
             auto [sampled_edge_span, sampled_edges] =
                 SampleMappingEdgeSpan(g, new_ids);
             PrintLabel(
@@ -1440,6 +1482,9 @@ public:
             PrintLabel(
                 "Mapping Sampled Edges",
                 std::to_string(sampled_edges));
+            quality_timer.Stop();
+            GetPreprocessingTimingHint().excluded_diagnostic_time +=
+                quality_timer.Seconds();
         }
 
         // ---- Self-recording: set global hints + record reorder metadata ----

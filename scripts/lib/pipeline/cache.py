@@ -681,13 +681,14 @@ def run_cache_compare_sim(graph: str, variant_opt: str, benchmark: str,
         l1_match = re.search(r"L1 Hit Rate:\s*([\d.]+)", output)
         l2_match = re.search(r"L2 Hit Rate:\s*([\d.]+)", output)
         mem_match = re.search(r"Memory Accesses:\s*(\d+)", output)
-        reorder_match = re.search(r"Reorder Time:\s*([\d.]+)", output)
+        from .benchmark import parse_complete_reorder_time
+        reorder_time = parse_complete_reorder_time(output)
         mod_match = re.search(r"[Mm]odularity[:\s]*([\d.]+)", output)
         return {
             "l1_hit": float(l1_match.group(1)) if l1_match else None,
             "l2_hit": float(l2_match.group(1)) if l2_match else None,
             "mem_access": int(mem_match.group(1)) if mem_match else None,
-            "reorder_time": float(reorder_match.group(1)) if reorder_match else None,
+            "reorder_time": reorder_time,
             "modularity": float(mod_match.group(1)) if mod_match else None,
             "output": output,
         }

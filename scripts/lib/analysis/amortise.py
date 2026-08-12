@@ -13,10 +13,17 @@ def parse(path):
     except Exception: return None
     out = {}
     m = re.search(r'Average Time:\s*([\d.]+)', txt); out['kavg'] = float(m.group(1)) if m else None
-    # Reorder Time may have several formats; grep all.
-    m = re.search(r'Reorder Time:\s*([\d.]+)', txt)
-    if not m: m = re.search(r'Reorder.*?:\s*([\d.]+)\s*s', txt)
-    out['reorder'] = float(m.group(1)) if m else 0.0
+    complete = re.findall(
+        r'Reorder End-to-End Time:\s*([\d.]+)', txt,
+    )
+    legacy = re.findall(r'Reorder Time:\s*([\d.]+)', txt)
+    if complete:
+        out['reorder'] = sum(float(value) for value in complete)
+    elif legacy:
+        out['reorder'] = sum(float(value) for value in legacy)
+    else:
+        m = re.search(r'Reorder.*?:\s*([\d.]+)\s*s', txt)
+        out['reorder'] = float(m.group(1)) if m else 0.0
     return out
 
 def amortised(reorder, kavg, base_kavg, n):

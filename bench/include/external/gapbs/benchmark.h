@@ -477,6 +477,17 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
         report.benchmark    = benchmark_name;
         report.avg_time     = avg_time;
         report.reorder_time = GetReorderTimeHint();
+        const auto& preprocessing = GetPreprocessingTimingHint();
+        report.representation_build_time =
+            preprocessing.representation_build_time;
+        report.reorder_core_time =
+            preprocessing.reorder_core_time;
+        report.reorder_validation_time =
+            preprocessing.reorder_validation_time;
+        report.reorder_apply_time =
+            preprocessing.reorder_apply_time;
+        report.total_preprocessing_time =
+            preprocessing.total_preprocessing_time;
         report.num_trials   = cli.num_trials();
         report.trials       = std::move(trial_results);
         report.reorder_metas = GetReorderMetaHints();  // accumulated reorder metadata

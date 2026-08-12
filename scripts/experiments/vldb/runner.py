@@ -932,8 +932,11 @@ def parse_timing(output: Optional[str]) -> dict:
     Captures (when present in stdout):
       - ``trial_times`` (per-trial wall-clock list)
       - ``average_time``, ``preprocessing_time``, ``total_time``
+      - ``representation_build_time``, ``reorder_core_time``
+      - ``reorder_validation_time``, ``reorder_apply_time``
+      - ``total_preprocessing_time``
       - ``read_time``, ``topology_analysis_time``, ``relabel_map_time``
-      - ``reorder_time`` (SUM of all "Reorder Time:" lines for chained orderings)
+      - ``reorder_time`` (complete core + validation + apply cost)
         + ``reorder_time_passes`` (per-pass list)
       - ``mteps`` (BFS), ``iterations`` (PR/SSSP)
       - Topology features (degree_variance, hub_concentration, modularity, ...)
@@ -1535,7 +1538,8 @@ def _mapping_is_valid(
         return False
     meta = _load_reorder_meta(graph_name, algo_key)
     try:
-        if meta.get("schema") != "reorder_meta/v4":
+        schema = meta.get("schema")
+        if schema not in {"reorder_meta/v4", "reorder_meta/v5"}:
             return False
         top_effective = meta.get("graphbrew_effective_configs", [])
         top_realized = meta.get("graphbrew_realized_configs", [])
@@ -1578,6 +1582,29 @@ def _mapping_is_valid(
             and isinstance(command_template, list)
             and command_template[-1] == draw_records[0].get("path")
         )
+        timing_valid = True
+        if schema == "reorder_meta/v5":
+            timing_valid = all(
+                isinstance(meta.get(field), (int, float))
+                and meta[field] >= 0
+                for field in (
+                    "representation_build_time",
+                    "reorder_core_time",
+                    "reorder_validation_time",
+                    "reorder_apply_time",
+                    "total_preprocessing_time",
+                )
+            )
+            if timing_valid:
+                complete = (
+                    float(meta["reorder_core_time"])
+                    + float(meta["reorder_validation_time"])
+                    + float(meta["reorder_apply_time"])
+                )
+                timing_valid = (
+                    float(meta["total_preprocessing_time"]) + 1e-4
+                    >= float(meta["representation_build_time"]) + complete
+                )
         return (
             meta.get("graph") == graph_name
             and meta.get("graph_info")
@@ -1588,6 +1615,7 @@ def _mapping_is_valid(
             and meta.get("mapping_draw_count") == draw_count
             and draws_valid
             and command_valid
+            and timing_valid
         )
     except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
         return False
@@ -1682,7 +1710,7 @@ def _pregenerate_mappings(
     """Pre-generate .lo mapping files for all (graph, algorithm) pairs.
 
     Runs the converter with ``-q {lo_path}`` to produce a vertex-permutation
-    file, and writes a reorder_meta/v4 ``.json``
+    file, and writes a reorder_meta/v5 ``.json``
     sidecar next to it with the full cmd / env / timing / stdout tail.
     Schedule-sensitive Rabbit pipelines retain multiple named draws while
     pinning draw 0 as the mapping used by measured kernels.
@@ -1835,33 +1863,27 @@ def _pregenerate_mappings(
                 validate_graphbrew_realized_configs(
                     aflags, effective_configs, realized_configs,
                 )
-                mapping_times = [
-                    float(value)
-                    for value in re.findall(
-                        r"Reorder Time:\s*([\d.]+)", output,
+                timing = parse_timing(output)
+                core_times = timing.get("reorder_core_time_passes", [])
+                validation_times = timing.get(
+                    "reorder_validation_time_passes", []
+                )
+                apply_times = timing.get("reorder_apply_time_passes", [])
+                end_to_end_times = timing.get("reorder_time_passes", [])
+                if not all(
+                    isinstance(values, list)
+                    for values in (
+                        core_times,
+                        validation_times,
+                        apply_times,
+                        end_to_end_times,
                     )
-                ]
-                validation_times = [
-                    float(value)
-                    for value in re.findall(
-                        r"Reorder Validation Time:\s*([\d.]+)",
-                        output,
-                    )
-                ]
-                apply_times = [
-                    float(value)
-                    for value in re.findall(
-                        r"Reorder Apply Time:\s*([\d.]+)", output,
-                    )
-                ]
-                end_to_end_times = [
-                    float(value)
-                    for value in re.findall(
-                        r"Reorder End-to-End Time:\s*([\d.]+)",
-                        output,
-                    )
-                ]
-                if len(end_to_end_times) != len(mapping_times):
+                ) or not (
+                    len(core_times)
+                    == len(validation_times)
+                    == len(apply_times)
+                    == len(end_to_end_times)
+                ):
                     raise RuntimeError(
                         f"Incomplete end-to-end reorder timing for "
                         f"{gname}/{algo_key}/draw{draw}"
@@ -1885,12 +1907,18 @@ def _pregenerate_mappings(
                     "cmd": cmd,
                     "reorder_time": sum(end_to_end_times),
                     "reorder_time_passes": end_to_end_times,
-                    "mapping_generation_time": sum(mapping_times),
-                    "mapping_generation_time_passes": mapping_times,
+                    "representation_build_time":
+                        timing.get("representation_build_time", 0.0),
+                    "reorder_core_time": sum(core_times),
+                    "reorder_core_time_passes": core_times,
+                    "mapping_generation_time": sum(core_times),
+                    "mapping_generation_time_passes": core_times,
                     "reorder_validation_time": sum(validation_times),
                     "reorder_validation_time_passes": validation_times,
                     "reorder_apply_time": sum(apply_times),
                     "reorder_apply_time_passes": apply_times,
+                    "total_preprocessing_time":
+                        timing.get("total_preprocessing_time", 0.0),
                     "mapping_sampled_edge_span": (
                         edge_spans[-1] if edge_spans else None
                     ),
@@ -1930,7 +1958,7 @@ def _pregenerate_mappings(
             total = draw_records[0]["reorder_time"]
             timing = parse_timing(output)
             meta = {
-                "schema": "reorder_meta/v4",
+                "schema": "reorder_meta/v5",
                 "graph": gname,
                 "graph_info": _serialized_graph_info(sg),
                 "algo_key": algo_key,
@@ -1948,6 +1976,12 @@ def _pregenerate_mappings(
                 "timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
                 "reorder_time": total,
                 "reorder_time_passes": reorder_times,
+                "representation_build_time":
+                    draw_records[0]["representation_build_time"],
+                "reorder_core_time":
+                    draw_records[0]["reorder_core_time"],
+                "reorder_core_time_passes":
+                    draw_records[0]["reorder_core_time_passes"],
                 "mapping_generation_time":
                     draw_records[0]["mapping_generation_time"],
                 "mapping_generation_time_passes":
@@ -1960,6 +1994,8 @@ def _pregenerate_mappings(
                     draw_records[0]["reorder_apply_time"],
                 "reorder_apply_time_passes":
                     draw_records[0]["reorder_apply_time_passes"],
+                "total_preprocessing_time":
+                    draw_records[0]["total_preprocessing_time"],
                 "lo_path": lo.name,
                 "lo_bytes": lo.stat().st_size,
                 "mapping_draw_count": draw_count,
@@ -4234,10 +4270,13 @@ def _measure_reorder(
         timings.append(timing)
     result = dict(timings[-1]) if timings else {}
     for metric in (
+        "representation_build_time",
+        "reorder_core_time",
         "reorder_time",
         "mapping_generation_time",
         "reorder_validation_time",
         "reorder_apply_time",
+        "total_preprocessing_time",
     ):
         values = [
             float(timing[metric])
@@ -4301,6 +4340,34 @@ def _mapping_sidecar_timing(meta: dict) -> Optional[dict]:
         ),
     }
     for metric, metric_values in values.items():
+        stem = metric.removesuffix("_time")
+        result[metric] = metric_values[0]
+        result[f"{stem}_times"] = metric_values
+        result[f"{stem}_mean_time"] = statistics.fmean(metric_values)
+        result[f"{stem}_stddev_time"] = (
+            statistics.stdev(metric_values)
+            if len(metric_values) > 1 else None
+        )
+    result["reorder_core_time"] = result["mapping_generation_time"]
+    result["reorder_core_times"] = result["mapping_generation_times"]
+    result["reorder_core_mean_time"] = result[
+        "mapping_generation_mean_time"
+    ]
+    result["reorder_core_stddev_time"] = result[
+        "mapping_generation_stddev_time"
+    ]
+    for metric in (
+        "representation_build_time",
+        "total_preprocessing_time",
+    ):
+        metric_values = [
+            float(record[metric])
+            for record in draw_records
+            if isinstance(record.get(metric), (int, float))
+            and record[metric] >= 0
+        ]
+        if len(metric_values) != len(draw_records):
+            continue
         stem = metric.removesuffix("_time")
         result[metric] = metric_values[0]
         result[f"{stem}_times"] = metric_values
