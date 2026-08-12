@@ -24,7 +24,7 @@ GraphBrew/
 
 ## Top-Level Guides
 - `README.md` — Quick start, CLI overview
-- `docs/RESEARCH_ROADMAP.md` — Cleanup-first performance and adaptive research plan
+- `docs/RESEARCH_ROADMAP.md` — Ordering-first research and evaluation SSOT
 - `wiki/` — Detailed guides (Quick Start, Command-Line Reference, Benchmarks)
 
 ## Include Structure
