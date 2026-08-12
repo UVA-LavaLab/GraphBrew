@@ -20,6 +20,11 @@ from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
 from dataclasses import dataclass, asdict
 
+from .experiment_policy import (
+    ALL_BENCHMARKS,
+    REORDER_BENCHMARKS,
+)
+
 # =============================================================================
 # Path Constants
 # =============================================================================
@@ -551,12 +556,9 @@ def enumerate_graphbrew_multilayer() -> dict[str, Any]:
         "total_discrete_configs": total_configs,
     }
 
-# Benchmark definitions (full list of all available benchmarks)
-BENCHMARKS = ["pr", "pr_spmv", "bfs", "cc", "cc_sv", "sssp", "bc", "tc"]
-
-# Experiment benchmarks (excludes TC — triangle counting is combinatorial, not
-# a traversal-style kernel that benefits from vertex reordering)
-EXPERIMENT_BENCHMARKS = [b for b in BENCHMARKS if b != "tc"]
+# Mutable compatibility views; the tuples above remain the SSOT.
+BENCHMARKS = list(ALL_BENCHMARKS)
+EXPERIMENT_BENCHMARKS = list(REORDER_BENCHMARKS)
 
 # =============================================================================
 # Graph Size Thresholds (MB) - Single Source of Truth

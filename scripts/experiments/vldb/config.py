@@ -13,6 +13,15 @@ import json
 import os
 from pathlib import Path
 
+from scripts.lib.core.experiment_policy import (
+    CACHE_PR_ITERATIONS,
+    PAPER_BENCHMARK_ORDER,
+    PAPER_CACHE_CAPACITIES_MIB,
+    PAPER_CACHE_PREVIEW_CAPACITIES_MIB,
+    PREVIEW_BENCHMARK_ORDER,
+    cache_capacities_bytes,
+)
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -187,11 +196,9 @@ ALL_ALGORITHMS = {
 # Benchmarks
 # ---------------------------------------------------------------------------
 
-# Core benchmarks (match paper Section 2.2)
-BENCHMARKS = ["bfs", "pr", "pr_spmv", "sssp", "cc", "cc_sv", "bc"]
-
-# Quick preview benchmarks
-BENCHMARKS_PREVIEW = ["pr", "bfs"]
+# Compatibility lists derived from named shared ordered policies.
+BENCHMARKS = list(PAPER_BENCHMARK_ORDER)
+BENCHMARKS_PREVIEW = list(PREVIEW_BENCHMARK_ORDER)
 
 # ---------------------------------------------------------------------------
 # Graph Datasets
@@ -319,7 +326,6 @@ else:
     SSSP_POLICY_SELECTION_RULE_ID = None
 RABBIT_MAPPING_DRAWS = 3
 PR_FIXED_ITERATIONS = 20
-CACHE_PR_ITERATIONS = 5
 PR_CONVERGENCE_MAX_ITERATIONS = 100
 PR_TOLERANCE = 1e-4
 BC_SOURCE_ITERATIONS = 1
@@ -354,20 +360,12 @@ PROMOTED_GORDER_GRAPHS = {
 
 # Final every-access cache-capacity sweep (bytes). Additional capacities remain
 # available through --cache-sizes-kib for exploratory runs.
-CACHE_SIZES = [
-    2 * 1024**2,      # 2 MB
-    8 * 1024**2,      # 8 MB
-    22 * 1024**2,     # Native 22 MB LLC on the evaluation machine
-    32 * 1024**2,     # 32 MB
-    64 * 1024**2,     # 64 MB
-]
+CACHE_SIZES = list(cache_capacities_bytes(
+    PAPER_CACHE_CAPACITIES_MIB))
 
 # Reduced sweep for rapid validation.
-CACHE_SIZES_PREVIEW = [
-    2 * 1024**2,
-    8 * 1024**2,
-    64 * 1024**2,
-]
+CACHE_SIZES_PREVIEW = list(cache_capacities_bytes(
+    PAPER_CACHE_PREVIEW_CAPACITIES_MIB))
 
 # Cache comparison focuses on the primary competition and controlled
 # GraphBrew candidates. Use --cache-all-algorithms for the full matrix.

@@ -34,9 +34,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 # Ensure project root is on PYTHONPATH
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.lib.core.experiment_policy import (
+    MODEL_ABLATION_BENCHMARK_ORDER,
+)
 from scripts.lib.core.utils import RESULTS_DIR, Logger
 from scripts.lib.ml.model_tree import (
     Criterion,
@@ -67,7 +70,7 @@ CRITERION_LABELS = {
     Criterion.BEST_AMORTIZATION: 'Amortize',
 }
 
-BENCHMARKS = ['bc', 'bfs', 'cc', 'cc_sv', 'pr', 'pr_spmv', 'sssp', 'tc']
+BENCHMARKS = list(MODEL_ABLATION_BENCHMARK_ORDER)
 
 
 # ===================================================================
