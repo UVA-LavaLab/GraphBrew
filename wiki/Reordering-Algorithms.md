@@ -43,7 +43,7 @@ the other IDs are individual primitives or baselines.
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
 | 14 | `-o 14` | AdaptiveOrder | varies | ML selector; research-only, see [AdaptiveOrder-ML](AdaptiveOrder-ML) |
-| 15 | `-o 15` | LeidenOrder | O(n log n + m) | native GVE-Leiden, no post-ordering layer |
+| 15 | `-o 15` | LeidenOrder | O(n log n + m) | GVE-Leiden communities plus an explicit post-layout policy |
 | 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; published Rabbit clustering omitted |
 
 ## When to use what
@@ -182,9 +182,13 @@ VLDB submission; see [AdaptiveOrder-ML](AdaptiveOrder-ML).
 
 ### Reference Leiden (15)
 
-**LeidenOrder** (`-o 15`) — direct GVE-Leiden ordering with no
-GraphBrew post-processing layer. Use as a community-detection
-baseline distinct from RabbitOrder's single-pass Louvain.
+**LeidenOrder** (`-o 15`) — GVE-Leiden community detection followed by a
+GraphBrew-defined vertex layout. Bare/numeric forms preserve the historical
+`hierarchy-degree` layout. The full syntax is
+`15:<resolution>:<iterations>:<passes>:<layout>`, where layout is
+`hierarchy-degree`, `final-stable`, or `final-degree`. This is not a native
+ordering defined by the Leiden paper; use the explicit layouts as controlled
+community-to-ordering policies.
 
 ### Forward-edge maximisation (16)
 

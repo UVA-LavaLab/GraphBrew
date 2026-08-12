@@ -131,18 +131,6 @@ using namespace edge_list;
 #define MAX_THREADS 16
 #endif
 
-// ============================================================================
-// UNIFIED LEIDEN DEFAULTS - For fair comparison across all Leiden algorithms
-// ============================================================================
-#ifndef LEIDEN_DEFAULT_ITERATIONS
-/** Number of iterations per Leiden pass - controls local move refinement */
-#define LEIDEN_DEFAULT_ITERATIONS 20
-#endif
-#ifndef LEIDEN_DEFAULT_PASSES
-/** Number of Leiden passes - controls coarsening depth */
-#define LEIDEN_DEFAULT_PASSES 10
-#endif
-
 #include <leiden/main.hxx>
 
 template <typename NodeID_, typename DestID_ = NodeID_,
@@ -885,6 +873,11 @@ public:
                     "Reorder Schedule Sensitive",
                     "true");
             }
+            if (option.first == LeidenOrder) {
+                PrintLabel(
+                    "Reorder Thread Policy Sensitive",
+                    "true");
+            }
 
             Timer apply_timer;
             apply_timer.Start();
@@ -920,7 +913,9 @@ public:
             meta.apply_time = apply_timer.Seconds();
             meta.mapping_fingerprint = mapping_fingerprint;
             meta.schedule_sensitive =
-                option.first == RabbitOrder;
+                meta.schedule_sensitive || option.first == RabbitOrder;
+            meta.thread_policy_sensitive =
+                meta.thread_policy_sensitive || option.first == LeidenOrder;
             meta.reorder_time = accounted_end_to_end_time;
         }
 
@@ -2367,8 +2362,10 @@ public:
         // using K = typename G::key_type;
         // using V = typename G::edge_value_type;
         Timer tm;
-        std::random_device dev;
-        std::default_random_engine rnd(dev());
+        // The selected GVE-Leiden path is greedy (RANDOM=false), but keep the
+        // RNG deterministic so future upstream changes cannot silently make
+        // identical experiment specs stochastic.
+        std::default_random_engine rnd(0);
         int repeat = REPEAT_METHOD;
         double M = edgeWeightOmp(x) / 2;
         // Follow a specific result logging format, which can be easily parsed
@@ -2588,33 +2585,76 @@ public:
         // Use auto-resolution based on graph density
         double resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         // Unified defaults across all Leiden algorithms for fair comparison
-        int maxIterations = LEIDEN_DEFAULT_ITERATIONS;
-        int maxPasses = LEIDEN_DEFAULT_PASSES;
+        int maxIterations = reorder::DEFAULT_MAX_ITERATIONS;
+        int maxPasses = reorder::DEFAULT_MAX_PASSES;
+        std::string layout = "hierarchy-degree";
+
+        auto parse_positive_int = [](
+                const std::string& token,
+                const char* field) {
+            size_t parsed = 0;
+            int value = 0;
+            try {
+                value = std::stoi(token, &parsed);
+            } catch (const std::exception&) {
+                throw std::invalid_argument(
+                    std::string("Invalid Leiden ") + field + ": " + token);
+            }
+            if (parsed != token.size() || value <= 0 || value > 10000) {
+                throw std::invalid_argument(
+                    std::string("Invalid Leiden ") + field + ": " + token);
+            }
+            return value;
+        };
 
         if (!reordering_options.empty() && !reordering_options[0].empty())
         {
             const std::string& res_opt = reordering_options[0];
-            // Handle special keywords (auto, dynamic, etc.)
-            if (res_opt == "auto" || res_opt == "0" || res_opt.rfind("dynamic", 0) == 0) {
+            if (res_opt == "auto" || res_opt == "0") {
                 // Keep auto-resolution
             } else {
+                size_t parsed = 0;
+                double value = 0.0;
                 try {
-                    double parsed = std::stod(res_opt);
-                    if (parsed > 0 && parsed <= 3) {
-                        resolution = parsed;
-                    }
-                } catch (...) {
-                    // Parse error, keep auto-resolution
+                    value = std::stod(res_opt, &parsed);
+                } catch (const std::exception&) {
+                    throw std::invalid_argument(
+                        "Invalid Leiden resolution: " + res_opt);
                 }
+                if (
+                    parsed != res_opt.size()
+                    || value <= 0.0
+                    || value > 3.0) {
+                    throw std::invalid_argument(
+                        "Invalid Leiden resolution: " + res_opt);
+                }
+                resolution = value;
             }
         }
         if (reordering_options.size() > 1 && !reordering_options[1].empty())
         {
-            try { maxIterations = std::stoi(reordering_options[1]); } catch (...) {}
+            maxIterations = parse_positive_int(
+                reordering_options[1], "max iterations");
         }
         if (reordering_options.size() > 2 && !reordering_options[2].empty())
         {
-            try { maxPasses = std::stoi(reordering_options[2]); } catch (...) {}
+            maxPasses = parse_positive_int(
+                reordering_options[2], "max passes");
+        }
+        if (reordering_options.size() > 3 && !reordering_options[3].empty())
+        {
+            layout = reordering_options[3];
+        }
+        if (reordering_options.size() > 4) {
+            throw std::invalid_argument(
+                "LeidenOrder accepts resolution, iterations, passes, layout");
+        }
+        if (
+            layout != "hierarchy-degree"
+            && layout != "final-stable"
+            && layout != "final-degree") {
+            throw std::invalid_argument(
+                "Unknown Leiden layout: " + layout);
         }
 
         int64_t num_nodes = g.num_nodes();
@@ -2703,45 +2743,42 @@ public:
             sort_indices[i] = i;
         }
         
-        /**
-         * DENDROGRAM-BASED ORDERING (Optimization inspired by RabbitOrder)
-         * 
-         * Key insight: RabbitOrder outperforms LeidenOrder because it preserves
-         * hierarchical locality through dendrogram DFS traversal.
-         * 
-         * Original LeidenOrder problem:
-         *   - Only sorts by LAST pass community
-         *   - Within a community, order is arbitrary
-         *   - Loses fine-grained locality from earlier passes
-         * 
-         * Solution: Multi-level hierarchical sort
-         *   - Sort by ALL passes in order: (pass_N, pass_N-1, ..., pass_0, degree)
-         *   - This is equivalent to DFS traversal of the community dendrogram
-         *   - Vertices in the same sub-sub-community become adjacent
-         *   - Secondary sort by degree puts hubs together (cache-friendly)
-         * 
-         * This achieves RabbitOrder-like locality while using Leiden's
-         * higher-quality community structure.
-         */
         const size_t actual_passes = num_passes - 2;  // Exclude nodeID and degree columns
-        
-        // Sort by ALL passes (coarsest to finest) then by degree
-        // This achieves dendrogram DFS-like ordering without building the tree
+
         __gnu_parallel::sort(sort_indices.begin(), sort_indices.end(),
-            [&communityDataFlat, stride, actual_passes](size_t a, size_t b) {
-                // Compare all passes from coarsest (last) to finest (first)
-                for (size_t p = actual_passes; p > 0; --p) {
-                    size_t pass_col = 2 + p - 1;  // Column index for this pass
-                    K comm_a = communityDataFlat[pass_col * stride + a];
-                    K comm_b = communityDataFlat[pass_col * stride + b];
-                    if (comm_a != comm_b) {
-                        return comm_a < comm_b;
+            [&communityDataFlat, stride, actual_passes, &layout](
+                    size_t a, size_t b) {
+                if (actual_passes > 0) {
+                    if (layout == "hierarchy-degree") {
+                        for (size_t p = actual_passes; p > 0; --p) {
+                            size_t pass_col = 2 + p - 1;
+                            K comm_a =
+                                communityDataFlat[pass_col * stride + a];
+                            K comm_b =
+                                communityDataFlat[pass_col * stride + b];
+                            if (comm_a != comm_b) {
+                                return comm_a < comm_b;
+                            }
+                        }
+                    } else {
+                        size_t pass_col = 2 + actual_passes - 1;
+                        K comm_a =
+                            communityDataFlat[pass_col * stride + a];
+                        K comm_b =
+                            communityDataFlat[pass_col * stride + b];
+                        if (comm_a != comm_b) {
+                            return comm_a < comm_b;
+                        }
                     }
                 }
-                // All passes equal - sort by degree (descending) for hub locality
-                K deg_a = communityDataFlat[stride + a];  // degree column
-                K deg_b = communityDataFlat[stride + b];
-                return deg_a > deg_b;  // High degree first (hubs together)
+                if (layout != "final-stable") {
+                    K deg_a = communityDataFlat[stride + a];
+                    K deg_b = communityDataFlat[stride + b];
+                    if (deg_a != deg_b) {
+                        return deg_a > deg_b;
+                    }
+                }
+                return a < b;
             });
 
         // Assign new IDs based on sorted order
@@ -2764,6 +2801,8 @@ public:
         PrintTime("Num Passes", x.communityMappingPerPass.size());
         PrintTime("Num Communities", num_communities);
         PrintTime("Resolution", resolution);
+        PrintLabel("Leiden Layout", layout);
+        PrintLabel("Leiden Seed", "0");
 
         // Stage reorder metadata for GenerateMapping's ReorderMeta hint
         {
@@ -2772,6 +2811,8 @@ public:
             staged.num_passes      = static_cast<int>(x.communityMappingPerPass.size());
             staged.num_communities = static_cast<int>(num_communities);
             staged.resolution      = resolution;
+            staged.layout          = layout;
+            staged.thread_policy_sensitive = true;
         }
     }
 

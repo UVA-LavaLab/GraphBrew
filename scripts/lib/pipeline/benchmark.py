@@ -268,6 +268,8 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             ),
             ("Adaptive Weight Source", "adaptive_weight_source"),
             ("Adaptive Tier0 Trained", "adaptive_tier0_trained"),
+            ("Leiden Layout", "leiden_layout"),
+            ("Leiden Seed", "leiden_seed"),
         ):
             if line.startswith(label + ":"):
                 extra[key] = line.split(":", 1)[1].strip()
@@ -465,6 +467,15 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     if schedule_sensitive:
         extra["reorder_schedule_sensitive"] = (
             schedule_sensitive[-1].lower() == "true"
+        )
+    thread_policy_sensitive = re.findall(
+        r"Reorder Thread Policy Sensitive:\s*(true|false)",
+        output,
+        flags=re.IGNORECASE,
+    )
+    if thread_policy_sensitive:
+        extra["reorder_thread_policy_sensitive"] = (
+            thread_policy_sensitive[-1].lower() == "true"
         )
 
     work_labels = {
@@ -841,6 +852,10 @@ def run_benchmark(
             ),
             reorder_schedule_sensitive=bool(
                 extra.get("reorder_schedule_sensitive", False)
+            ),
+            reorder_thread_policy_sensitive=bool(
+                extra.get(
+                    "reorder_thread_policy_sensitive", False)
             ),
             trials=trials,
             success=True,

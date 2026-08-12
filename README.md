@@ -111,7 +111,7 @@ Use `-o <id[:options]>` to select an ordering.
 | 12 | GraphBrewOrder | Configurable GraphBrew pipeline |
 | 13 | MAP | Load a pre-generated `.lo` mapping |
 | 14 | AdaptiveOrder | Load-only offline selector |
-| 15 | LeidenOrder | GVE-Leiden baseline |
+| 15 | LeidenOrder | GVE-Leiden communities plus explicit GraphBrew post-layout |
 | 16 | GoGraphOrder | M-maximizing core diagnostic; published Rabbit clustering omitted |
 
 Algorithm IDs, option parsing, C++ dispatch, Python canonical names, and

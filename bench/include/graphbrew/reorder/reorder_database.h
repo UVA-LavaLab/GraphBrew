@@ -291,6 +291,7 @@ struct ReorderMeta {
     double      apply_time = 0.0;         ///< CSR relabel/application
     std::string mapping_fingerprint;      ///< stable old->new permutation hash
     bool        schedule_sensitive = false;
+    bool        thread_policy_sensitive = false;
 
     // Leiden/GraphBrew specific
     int         num_passes = 0;           ///< Leiden coarsening passes
@@ -298,6 +299,7 @@ struct ReorderMeta {
     double      resolution = 0.0;         ///< Leiden resolution parameter
     double      modularity = 0.0;         ///< final community modularity
     std::string final_algo;               ///< per-community algo (e.g. "RabbitOrder")
+    std::string layout;                   ///< post-partition vertex layout
     int         depth = 0;                ///< recursive depth
     std::string sub_algo;                 ///< sub-community algo
 
@@ -317,11 +319,13 @@ struct ReorderMeta {
             j["mapping_fingerprint"] = mapping_fingerprint;
         }
         j["schedule_sensitive"] = schedule_sensitive;
+        j["thread_policy_sensitive"] = thread_policy_sensitive;
         if (num_passes > 0) j["num_passes"] = num_passes;
         if (num_communities > 0) j["num_communities"] = num_communities;
         if (resolution > 0) j["resolution"] = resolution;
         if (modularity > 0) j["modularity"] = modularity;
         if (!final_algo.empty()) j["final_algo"] = final_algo;
+        if (!layout.empty()) j["layout"] = layout;
         if (depth > 0) j["depth"] = depth;
         if (!sub_algo.empty()) j["sub_algo"] = sub_algo;
         if (bandwidth_before > 0) j["bandwidth_before"] = bandwidth_before;
@@ -438,6 +442,8 @@ struct RunReport {
                 reorder_metas.back().mapping_fingerprint;
             j["reorder_schedule_sensitive"] =
                 reorder_metas.back().schedule_sensitive;
+            j["reorder_thread_policy_sensitive"] =
+                reorder_metas.back().thread_policy_sensitive;
         }
 
         // Extra (backward compat placeholder)

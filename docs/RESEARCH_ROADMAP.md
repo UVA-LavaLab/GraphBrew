@@ -160,6 +160,9 @@ Baseline hygiene findings discovered by the same review:
   frontier merge are now deterministic across thread counts.
 - Every reorder pass now emits and persists an exact permutation fingerprint;
   standalone Rabbit variants are explicitly marked schedule-sensitive.
+- Algorithm 15 is GVE-Leiden community detection plus a GraphBrew post-layout,
+  not a native Leiden ordering. Historical `hierarchy-degree` and minimal
+  final-community layouts are now explicit, strictly parsed controls.
 
 The source identities are now corrected, Algorithm 10 is deterministic, and
 `10:canonical` exposes the upstream-sized baseline without changing frozen
