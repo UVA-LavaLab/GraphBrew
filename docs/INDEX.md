@@ -79,6 +79,7 @@ bench/include/
 - `scripts/test/` — Pytest suite (algorithm variants, cache sim, weights, GraphBrew experiment)
 
 ## Tooling
+- `make check` — authoritative core build, native-test, include-lint, and pytest gate
 - `make lint-includes` — check for legacy includes
 - `python3 -m scripts.lib.tools.check_includes` — same as above
 

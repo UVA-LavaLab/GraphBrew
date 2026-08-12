@@ -407,10 +407,10 @@ to the legacy build path.
 ## Testing
 ```bash
 pip install -r scripts/requirements.txt
-pytest scripts/test -q
+make check
 
-# Topology verification (ensures reordering preserves graph structure)
-make test-topology
+# Partition/shard integration remains an explicit extended suite
+make check-partition
 ```
 
 ---
@@ -418,7 +418,8 @@ make test-topology
 ## Developer Tooling
 
 ```bash
-make lint-includes              # Check for legacy include paths
+make check                      # Authoritative core verification gate
+make lint-includes              # Include-path lint only
 make help                       # Show all Make targets
 make help-pr                    # Show parameters for a specific benchmark
 ```

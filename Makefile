@@ -9,6 +9,8 @@ RABBIT_ENABLE ?= 1
 # =========================================================
 PYTHON=@python3
 PIP=@pip
+PYTEST_ARGS ?= -q
+PYTEST_SELECT = $(if $(strip $(PYTEST_FILTER)),-k "$(PYTEST_FILTER)",)
 # =========================================================
 SCRIPT_DIR  = scripts
 # Lint
@@ -124,9 +126,12 @@ UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
 	test_gas_executor test_relabel_weights test_graphbrew_config \
 	test_large_edge_indices test_refine_two_swap
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
+CORE_UNIT_TESTS = test_relabel_weights test_graphbrew_config \
+	test_large_edge_indices test_refine_two_swap
+CORE_UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(CORE_UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) $(GAS_KERNELS) converter edge_view_benchmark edge-all edge-dense edge-frontier edge-irregular gas-all all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular check-edge check-gas-runtime check-gas check-edge-gas-repeatability check-edge-gas check-edge-structure report-edge-gas-performance run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all FORCE
+.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) $(GAS_KERNELS) converter edge_view_benchmark edge-all edge-dense edge-frontier edge-irregular gas-all all check-native-core check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular check-edge check-gas-runtime check-gas check-edge-gas-repeatability check-edge-gas check-edge-structure report-edge-gas-performance run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all FORCE
 ownership_analysis: $(BIN_DIR)/ownership_analysis
 edge_view_benchmark: $(BIN_DIR)/edge_view_benchmark
 edge-all: $(EDGE_KERNELS_BIN)
@@ -177,6 +182,9 @@ check-edge-gas: check-edge check-gas check-edge-gas-repeatability check-edge-str
 
 report-edge-gas-performance: edge-all gas-all $(addprefix $(BIN_DIR)/,$(filter-out bfs_p tc_p,$(KERNELS)))
 	$(PYTHON) scripts/experiments/edge_gas_report.py
+
+check-native-core: $(CORE_UNIT_TESTS_BIN)
+	@for test in $(CORE_UNIT_TESTS_BIN); do $$test; done
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
 	@for test in $(UNIT_TESTS_BIN); do $$test; done
@@ -403,9 +411,15 @@ all-sim: $(addprefix $(BIN_SIM_DIR)/, $(KERNELS_SIM))
 clean-sim:
 	rm -rf $(BIN_SIM_DIR)
 
-.PHONY: lint-includes
+.PHONY: check check-python lint-includes
 lint-includes:
 	@$(LINT_INCLUDES)
+
+check-python:
+	$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS) $(PYTEST_SELECT)
+
+check: lint-includes check-native-core $(BIN_DIR)/pr $(BIN_SIM_DIR)/pr
+	$(PYTHON) -m pytest scripts/test $(PYTEST_ARGS) $(PYTEST_SELECT)
 
 # Run simulation with default parameters (single-core mode)
 run-sim-%: $(BIN_SIM_DIR)/%
@@ -426,6 +440,9 @@ help: help-pr
 	@echo "  run-%          - Runs the specified GAP benchmark (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  help-%         - Print the specified Help (bc bfs cc cc_sv pr pr_spmv sssp tc)"
 	@echo "  clean          - Removes all build artifacts"
+	@echo "  check          - Run the authoritative core build, native, lint, and Python gate"
+	@echo "  check-python   - Run only the Python test suite"
+	@echo "  check-partition - Run the partition/shard integration suite"
 	@echo "  lint-includes  - Check for legacy include paths"
 	@echo ""
 	@echo "Cache Simulation:"

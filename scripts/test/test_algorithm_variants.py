@@ -59,6 +59,13 @@ REAL_GRAPH = PROJECT_ROOT / "results" / "graphs" / "soc-Epinions1" / "soc-Epinio
 BINARY_TIMEOUT = 120
 
 
+def _rabbit_build_enabled() -> bool:
+    config = PROJECT_ROOT / "bench" / "obj" / ".build-config"
+    if not config.is_file():
+        return True
+    return "RABBIT_ENABLE=1" in config.read_text()
+
+
 def adaptive_weight_entry(bias=0.0, **overrides):
     entry = {
         "bias": float(bias),
@@ -165,6 +172,8 @@ TIER2_RABBIT = [
 @pytest.mark.parametrize("option,name", TIER2_RABBIT, ids=[t[1] for t in TIER2_RABBIT])
 def test_tier2_rabbitorder_variants(option, name):
     """Tier 2: RabbitOrder csr/boost variants."""
+    if option == "8:boost" and not _rabbit_build_enabled():
+        pytest.skip("Boost RabbitOrder is disabled in this build")
     result = run_pr(option)
     assert result.returncode == 0, (
         f"RabbitOrder variant {name} (-o {option}) failed.\nstderr: {result.stderr[-500:]}"
@@ -174,6 +183,11 @@ def test_tier2_rabbitorder_variants(option, name):
 @pytest.mark.parametrize("arm", DEPLOYABLE_ARM_SPECS)
 def test_adaptive_exact_deployable_arms(tmp_path, arm):
     """Algorithm 14 must apply the exact portfolio arm, not a family proxy."""
+    if (
+        not _rabbit_build_enabled()
+        and (arm == "8:csr" or "rabbit" in arm)
+    ):
+        pytest.skip("Rabbit-backed adaptive arms are disabled in this build")
     weights = tmp_path / "weights.json"
     payload = {
         spec: adaptive_weight_entry()

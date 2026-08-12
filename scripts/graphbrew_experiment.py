@@ -2323,7 +2323,7 @@ def main():
     g_paper.add_argument("--evaluate", action="store_true",
                          help="Run evaluate_all_modes.py (Model × Criterion analysis)")
     g_paper.add_argument("--test", nargs="?", const="", metavar="FILTER",
-                         help="Run pytest test suite (optional: filter pattern e.g. --test gorder)")
+                         help="Run the authoritative make check gate (optional pytest filter)")
     g_paper.add_argument("--paper-preview", action="store_true",
                          help="Use preview mode for --vldb/--ecg (fewer graphs/benchmarks)")
     g_paper.add_argument(
@@ -2653,12 +2653,12 @@ def main():
     # ── Paper Experiments & Testing (early exit) ─────────────────────
     if args.test is not None:
         import subprocess as _sp
-        cmd = ["python3", "-m", "pytest", "scripts/test/", "-v"]
-        if args.test:  # Filter pattern provided
-            cmd += ["-k", args.test]
+        cmd = ["make", "check"]
+        if args.test:
+            cmd.append(f"PYTEST_FILTER={args.test}")
         log_section(f"RUNNING TESTS: {' '.join(cmd)}")
-        _sp.run(cmd)
-        return
+        completed = _sp.run(cmd, cwd=_PROJECT_ROOT)
+        raise SystemExit(completed.returncode)
 
     if args.evaluate:
         import subprocess as _sp

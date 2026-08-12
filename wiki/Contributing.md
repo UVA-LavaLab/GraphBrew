@@ -224,6 +224,7 @@ study).
 ```bash
 make -j8 all all-sim
 ./bench/bin/mynew -f scripts/test/graphs/tiny/tiny.el -s -n 3
+make check
 ```
 
 Sanity-check that running with and without reordering produces

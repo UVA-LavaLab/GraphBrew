@@ -698,8 +698,8 @@ python3 scripts/graphbrew_experiment.py --ecg --exp B1 B7      # Policy comparis
 python3 scripts/graphbrew_experiment.py --ecg --preview        # ECG preview mode
 
 # Testing & evaluation
-python3 scripts/graphbrew_experiment.py --test                # Run all pytest tests
-python3 scripts/graphbrew_experiment.py --test gorder          # Filter: only gorder tests
+python3 scripts/graphbrew_experiment.py --test                # Run make check
+python3 scripts/graphbrew_experiment.py --test gorder          # make check with pytest filter
 python3 scripts/graphbrew_experiment.py --evaluate             # Model × Criterion analysis
 ```
 
