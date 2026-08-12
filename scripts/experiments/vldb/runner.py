@@ -85,6 +85,7 @@ from scripts.experiments.vldb.config import (
     PR_CONVERGENCE_MAX_ITERATIONS,
     PR_FIXED_ITERATIONS,
     PR_TOLERANCE,
+    RANDOM_BASELINE_SEED,
     PROMOTED_GORDER_GRAPHS,
     PAPER_ARTIFACT_ROOT,
     PAPER_GRAPH_ROOT,
@@ -1374,7 +1375,7 @@ def _graph_provenance_valid(
                 or provenance.get("graph") == graph_name
             )
             and provenance.get("random_order_algorithm") == "1"
-            and provenance.get("random_seed") == 0
+            and provenance.get("random_seed") == RANDOM_BASELINE_SEED
             and source_path.is_absolute()
             and source_path.is_file()
             and provenance.get("source_bytes")
@@ -6427,7 +6428,7 @@ def _setup_convert_graphs(
                 "directed_edges": graph_info["edges"],
                 "undirected_edges": graph_info["edges"] // 2,
                 "random_order_algorithm": "1",
-                "random_seed": 0,
+                "random_seed": RANDOM_BASELINE_SEED,
                 "omp_num_threads":
                     _effective_env().get("OMP_NUM_THREADS"),
                 "cpu_list": _RUNTIME_CPU_LIST,

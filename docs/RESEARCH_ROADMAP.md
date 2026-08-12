@@ -163,6 +163,10 @@ Baseline hygiene findings discovered by the same review:
 - Algorithm 15 is GVE-Leiden community detection plus a GraphBrew post-layout,
   not a native Leiden ordering. Historical `hierarchy-degree` and minimal
   final-community layouts are now explicit, strictly parsed controls.
+- RANDOM seed 0 is now a specified thread-independent permutation. HubSort and
+  HubCluster restore upstream non-hub ID preservation, while IDs 6/7 remain
+  the distinct compact DBG variants. Degree thresholds use stored adjacency
+  degree rather than half the symmetric edge count.
 
 The source identities are now corrected, Algorithm 10 is deterministic, and
 `10:canonical` exposes the upstream-sized baseline without changing frozen

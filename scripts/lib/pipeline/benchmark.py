@@ -270,6 +270,7 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             ("Adaptive Tier0 Trained", "adaptive_tier0_trained"),
             ("Leiden Layout", "leiden_layout"),
             ("Leiden Seed", "leiden_seed"),
+            ("Random Seed", "random_seed"),
         ):
             if line.startswith(label + ":"):
                 extra[key] = line.split(":", 1)[1].strip()

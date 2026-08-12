@@ -29,13 +29,13 @@ the other IDs are individual primitives or baselines.
 | ID | Flag | Algorithm | Complexity | Notes |
 |---|---|---|---|---|
 | 0 | `-o 0` | ORIGINAL | O(1) | input ordering, baseline |
-| 1 | `-o 1` | RANDOM | O(n) | random permutation, worst-case baseline |
+| 1 | `-o 1` | RANDOM | O(n) | thread-independent SplitMix64 shuffle, seed 0 |
 | 2 | `-o 2` | SORT | O(n log n) | degree-descending sort |
-| 3 | `-o 3` | HUBSORT | O(n log n) | hubs first (full degree sort) |
-| 4 | `-o 4` | HUBCLUSTER | O(n) | hubs first, non-hubs keep original order |
+| 3 | `-o 3` | HUBSORT | O(n log n) | sorted hubs; preserve non-hub source IDs when possible |
+| 4 | `-o 4` | HUBCLUSTER | O(n) | stable hubs; preserve non-hub source IDs when possible |
 | 5 | `-o 5` | DBG | O(n) | logarithmic degree buckets |
-| 6 | `-o 6` | HUBSORTDBG | O(n log n) | DBG buckets + degree sort within |
-| 7 | `-o 7` | HUBCLUSTERDBG | O(n) | DBG buckets + hub-cluster within |
+| 6 | `-o 6` | HUBSORTDBG | O(n log n) | compact two-bucket DBG with sorted hubs |
+| 7 | `-o 7` | HUBCLUSTERDBG | O(n) | compact two-bucket DBG with stable hubs |
 | 8 | `-o 8` | RABBITORDER | O(n log n + m) | Louvain + dendrogram DFS; variants `csr` (default), `boost` |
 | 9 | `-o 9:csr` | GORDER | O(n·w + m) | faithful CSR sliding-window greedy, w=5; `9:gograph` forces the legacy validation path and bare `9` auto-selects CSR above the 32-bit edge range |
 | 10 | `-o 10` | CORDER | O(n) | hot/cold workload segments; `10` historical 1K, `10:canonical` upstream 1 MiB |
@@ -65,9 +65,8 @@ the other IDs are individual primitives or baselines.
 **ORIGINAL** (`-o 0`) keeps the input ordering. Always run this first
 to know what you're improving over.
 
-**RANDOM** (`-o 1`) permutes vertices uniformly. Useful as a
-worst-case reference and as a starting state for evaluating
-deterministic reorderings on top of it.
+**RANDOM** (`-o 1`) uses a specified seed-0 SplitMix64/Fisher-Yates
+permutation. It is a controlled shuffled labeling, not a worst-case claim.
 
 ### Degree-based (2-7)
 
@@ -75,17 +74,18 @@ All cheap (O(n) or O(n log n)) and effective on power-law graphs
 where a small set of hubs dominates access frequency.
 
 - **SORT** (`-o 2`): sort all vertices by degree, descending.
-- **HUBSORT** (`-o 3`): same as SORT but framed around the hub idea.
+- **HUBSORT** (`-o 3`): sort only vertices above average degree, then
+  preserve non-hub source IDs whenever the permutation permits.
 - **HUBCLUSTER** (`-o 4`): split into hubs (high-degree) and non-hubs,
   reorder only the hubs, leave the rest in input order. Preserves
   non-hub spatial structure.
 - **DBG** (`-o 5`): partition vertices into logarithmic degree
   buckets, place buckets contiguously. Hub bucket goes first.
-- **HUBSORTDBG** (`-o 6`): DBG bucketing + sort by degree inside
-  each bucket.
-- **HUBCLUSTERDBG** (`-o 7`): DBG bucketing + hub-cluster inside
-  each bucket. Reasonable default for power-law graphs when you
-  want a cheap, predictable speedup.
+- **HUBSORTDBG** (`-o 6`): compact hubs first, sorted by degree; compact
+  non-hubs after them.
+- **HUBCLUSTERDBG** (`-o 7`): compact stable hubs first and stable non-hubs
+  second. Reasonable default for power-law graphs when you want a cheap,
+  predictable speedup.
 
 ### Community-based (8)
 

@@ -31,6 +31,64 @@
 // Type alias for edge counts
 using uintE = uint32_t;
 
+namespace graphbrew::hub_detail {
+
+template <typename NodeID_>
+void AssignHubOrderPreservingSourceIds(
+        const std::vector<NodeID_>& hubs,
+        int64_t num_nodes,
+        pvector<NodeID_>& new_ids) {
+    const NodeID_ unassigned = static_cast<NodeID_>(-1);
+    #pragma omp parallel for schedule(static)
+    for (int64_t vertex = 0; vertex < num_nodes; ++vertex) {
+        new_ids[vertex] = unassigned;
+    }
+
+    std::vector<uint8_t> is_hub(num_nodes, 0);
+    for (size_t position = 0; position < hubs.size(); ++position) {
+        const NodeID_ vertex = hubs[position];
+        is_hub[vertex] = 1;
+        new_ids[vertex] = static_cast<NodeID_>(position);
+    }
+
+    std::vector<NodeID_> deferred;
+    deferred.reserve(hubs.size());
+    for (int64_t old_id = static_cast<int64_t>(hubs.size());
+         old_id < num_nodes;
+         ++old_id) {
+        if (!is_hub[old_id]) {
+            new_ids[old_id] = static_cast<NodeID_>(old_id);
+            continue;
+        }
+        const NodeID_ displaced_position = new_ids[old_id];
+        if (
+            !is_hub[displaced_position]
+            && new_ids[displaced_position] == unassigned) {
+            new_ids[displaced_position] =
+                static_cast<NodeID_>(old_id);
+        } else {
+            deferred.push_back(static_cast<NodeID_>(old_id));
+        }
+    }
+
+    size_t deferred_index = 0;
+    for (size_t old_id = 0; old_id < hubs.size(); ++old_id) {
+        if (new_ids[old_id] == unassigned) {
+            if (deferred_index >= deferred.size()) {
+                throw std::runtime_error(
+                    "Hub remapping did not preserve a complete permutation");
+            }
+            new_ids[old_id] = deferred[deferred_index++];
+        }
+    }
+    if (deferred_index != deferred.size()) {
+        throw std::runtime_error(
+            "Hub remapping left deferred vertices unassigned");
+    }
+}
+
+}  // namespace graphbrew::hub_detail
+
 // ============================================================================
 // HUBSORT (Algorithm 3)
 // ============================================================================
@@ -74,7 +132,7 @@ void GenerateHubSortMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     t.Start();
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges();
+    const int64_t num_edges = g.num_edges_directed();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
@@ -103,55 +161,14 @@ void GenerateHubSortMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                  degree_id_pairs.end(),
                                  std::greater<DegreeNodePair>());
     
-    // Step 3: Assign sequential IDs to hubs (positions 0 to hubCount-1)
-    #pragma omp parallel for
-    for (size_t n = 0; n < hubCount; ++n) {
-        new_ids[degree_id_pairs[n].second] = n;
+    std::vector<NodeID_> hubs(hubCount);
+    #pragma omp parallel for schedule(static)
+    for (size_t position = 0; position < hubCount; ++position) {
+        hubs[position] = degree_id_pairs[position].second;
     }
-    
-    // Free memory from degree pairs
     pvector<DegreeNodePair>().swap(degree_id_pairs);
-    
-    // Step 4: Assign non-hub vertices to remaining positions (hubCount..num_nodes-1)
-    // Uses per-thread partitions with pre-computed offsets (race-free, parallel).
-    {
-        const int num_threads = omp_get_max_threads();
-        const int64_t slice = num_nodes / num_threads;
-        int64_t start[num_threads], end_pos[num_threads];
-        int64_t non_hub_count[num_threads];
-        int64_t new_index[num_threads];
-
-        for (int th = 0; th < num_threads; ++th) {
-            start[th] = th * slice;
-            end_pos[th] = (th == num_threads - 1) ? num_nodes : (th + 1) * slice;
-        }
-
-        // Count non-hubs per thread partition
-        #pragma omp parallel for schedule(static) num_threads(num_threads)
-        for (int th = 0; th < num_threads; ++th) {
-            int64_t cnt = 0;
-            for (int64_t v = start[th]; v < end_pos[th]; ++v) {
-                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) ++cnt;
-            }
-            non_hub_count[th] = cnt;
-        }
-
-        // Prefix-sum to get each thread's starting position
-        new_index[0] = static_cast<int64_t>(hubCount);
-        for (int th = 1; th < num_threads; ++th) {
-            new_index[th] = new_index[th - 1] + non_hub_count[th - 1];
-        }
-
-        // Each thread assigns its non-hubs independently (no cross-thread deps)
-        #pragma omp parallel for schedule(static) num_threads(num_threads)
-        for (int th = 0; th < num_threads; ++th) {
-            for (int64_t v = start[th]; v < end_pos[th]; ++v) {
-                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) {
-                    new_ids[v] = static_cast<NodeID_>(new_index[th]++);
-                }
-            }
-        }
-    }
+    graphbrew::hub_detail::AssignHubOrderPreservingSourceIds(
+        hubs, num_nodes, new_ids);
     
     t.Stop();
     PrintTime("HubSort Map Time", t.Seconds());
@@ -191,7 +208,7 @@ void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     t.Start();
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges();
+    const int64_t num_edges = g.num_edges_directed();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
@@ -202,94 +219,17 @@ void GenerateHubClusterMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     const int64_t avgDegree = num_edges / num_nodes;
     
-    // Padding to avoid false sharing
-    const int PADDING = 64 / sizeof(uintE);
-    const int num_threads = omp_get_max_threads();
-    const int64_t partitionSz = num_nodes / num_threads;
-    
-    // Per-thread hub counts with padding
-    int64_t* localOffsets = new int64_t[num_threads * PADDING]();
-    
-    // Step 1: Count hubs per partition and mark them
-    #pragma omp parallel
-    {
-        int tid = omp_get_thread_num();
-        int64_t startID = partitionSz * tid;
-        int64_t stopID = (tid == num_threads - 1) ? num_nodes : partitionSz * (tid + 1);
-        
-        for (int64_t n = startID; n < stopID; ++n) {
-            int64_t degree = useOutdeg ? g.out_degree(n) : g.in_degree(n);
-            if (degree > avgDegree) {
-                ++localOffsets[tid * PADDING];
-                new_ids[n] = 1;  // Mark as hub
-            }
+    std::vector<NodeID_> hubs;
+    hubs.reserve(num_nodes);
+    for (int64_t vertex = 0; vertex < num_nodes; ++vertex) {
+        int64_t degree =
+            useOutdeg ? g.out_degree(vertex) : g.in_degree(vertex);
+        if (degree > avgDegree) {
+            hubs.push_back(static_cast<NodeID_>(vertex));
         }
     }
-    
-    // Step 2: Compute prefix sums for hub offsets
-    int64_t sum = 0;
-    for (int tid = 0; tid < num_threads; ++tid) {
-        auto origCount = localOffsets[tid * PADDING];
-        localOffsets[tid * PADDING] = sum;
-        sum += origCount;
-    }
-    
-    // Step 3: Assign sequential IDs to hubs
-    #pragma omp parallel
-    {
-        int64_t localCtr = 0;
-        int tid = omp_get_thread_num();
-        int64_t startID = partitionSz * tid;
-        int64_t stopID = (tid == num_threads - 1) ? num_nodes : partitionSz * (tid + 1);
-        
-        for (int64_t n = startID; n < stopID; ++n) {
-            if (new_ids[n] != static_cast<NodeID_>(UINT_E_MAX)) {
-                new_ids[n] = static_cast<NodeID_>(localOffsets[tid * PADDING] + localCtr);
-                ++localCtr;
-            }
-        }
-    }
-    delete[] localOffsets;
-    
-    // Step 4: Assign non-hub vertices to remaining positions (numHubs..num_nodes-1)
-    // Uses per-thread partitions with pre-computed offsets (race-free, parallel).
-    auto numHubs = sum;
-    {
-        int64_t non_hub_count[num_threads];
-        int64_t new_index[num_threads];
-
-        int64_t start_pos[num_threads], end_pos[num_threads];
-        for (int th = 0; th < num_threads; ++th) {
-            start_pos[th] = partitionSz * th;
-            end_pos[th] = (th == num_threads - 1) ? num_nodes : partitionSz * (th + 1);
-        }
-
-        // Count non-hubs per thread partition
-        #pragma omp parallel for schedule(static) num_threads(num_threads)
-        for (int th = 0; th < num_threads; ++th) {
-            int64_t cnt = 0;
-            for (int64_t v = start_pos[th]; v < end_pos[th]; ++v) {
-                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) ++cnt;
-            }
-            non_hub_count[th] = cnt;
-        }
-
-        // Prefix-sum to get each thread's starting position
-        new_index[0] = numHubs;
-        for (int th = 1; th < num_threads; ++th) {
-            new_index[th] = new_index[th - 1] + non_hub_count[th - 1];
-        }
-
-        // Each thread assigns its non-hubs independently (no cross-thread deps)
-        #pragma omp parallel for schedule(static) num_threads(num_threads)
-        for (int th = 0; th < num_threads; ++th) {
-            for (int64_t v = start_pos[th]; v < end_pos[th]; ++v) {
-                if (new_ids[v] == static_cast<NodeID_>(UINT_E_MAX)) {
-                    new_ids[v] = static_cast<NodeID_>(new_index[th]++);
-                }
-            }
-        }
-    }
+    graphbrew::hub_detail::AssignHubOrderPreservingSourceIds(
+        hubs, num_nodes, new_ids);
     
     t.Stop();
     PrintTime("HubCluster Map Time", t.Seconds());
@@ -331,7 +271,7 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     t.Start();
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges();
+    const int64_t num_edges = g.num_edges_directed();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
@@ -340,11 +280,11 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         return;
     }
     
-    const uint32_t avg_degree = num_edges / num_nodes;
+    const uint64_t avg_degree = num_edges / num_nodes;
     
     // Define bucket thresholds (logarithmic scaling)
     const int num_buckets = 8;
-    uint32_t bucket_threshold[] = {
+    uint64_t bucket_threshold[] = {
         avg_degree / 2,
         avg_degree,
         avg_degree * 2,
@@ -352,15 +292,14 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         avg_degree * 8,
         avg_degree * 16,
         avg_degree * 32,
-        static_cast<uint32_t>(-1)  // Last bucket catches all remaining
+        std::numeric_limits<uint64_t>::max()
     };
     
     // Thread-local buckets to avoid synchronization
     const int num_threads = omp_get_max_threads();
-    std::vector<std::vector<uint32_t>> local_buckets[num_threads];
-    for (int t = 0; t < num_threads; ++t) {
-        local_buckets[t].resize(num_buckets);
-    }
+    std::vector<std::vector<std::vector<NodeID_>>> local_buckets(
+        num_threads,
+        std::vector<std::vector<NodeID_>>(num_buckets));
     
     // Step 1: Distribute vertices into thread-local buckets
     #pragma omp parallel for schedule(static)
@@ -380,7 +319,8 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // Step 2: Compute starting positions for each thread's bucket
     // Process buckets from highest degree (last) to lowest (first)
     int temp_k = 0;
-    uint32_t start_k[num_threads][num_buckets];
+    std::vector<std::vector<int64_t>> start_k(
+        num_threads, std::vector<int64_t>(num_buckets));
     
     for (int j = num_buckets - 1; j >= 0; j--) {
         for (int t = 0; t < num_threads; t++) {
@@ -394,7 +334,7 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     for (int t = 0; t < num_threads; t++) {
         for (int j = num_buckets - 1; j >= 0; j--) {
             const auto& current_bucket = local_buckets[t][j];
-            int k = start_k[t][j];
+            int64_t k = start_k[t][j];
             for (size_t i = 0; i < current_bucket.size(); i++) {
                 new_ids[current_bucket[i]] = k++;
             }
@@ -447,7 +387,7 @@ void GenerateHubSortDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     t.Start();
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges();
+    const int64_t num_edges = g.num_edges_directed();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
@@ -569,7 +509,7 @@ void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     t.Start();
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges();
+    const int64_t num_edges = g.num_edges_directed();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
@@ -578,17 +518,19 @@ void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
         return;
     }
     
-    const uint32_t avg_degree = num_edges / num_nodes;
+    const uint64_t avg_degree = num_edges / num_nodes;
     
     // Two buckets: non-hubs (degree <= avg) and hubs (degree > avg)
     const int num_buckets = 2;
-    uint32_t bucket_threshold[] = {avg_degree, static_cast<uint32_t>(-1)};
+    uint64_t bucket_threshold[] = {
+        avg_degree,
+        std::numeric_limits<uint64_t>::max(),
+    };
     
     const int num_threads = omp_get_max_threads();
-    std::vector<std::vector<uint32_t>> local_buckets[num_threads];
-    for (int t = 0; t < num_threads; ++t) {
-        local_buckets[t].resize(num_buckets);
-    }
+    std::vector<std::vector<std::vector<NodeID_>>> local_buckets(
+        num_threads,
+        std::vector<std::vector<NodeID_>>(num_buckets));
     
     // Step 1: Distribute vertices into buckets
     #pragma omp parallel for schedule(static)
@@ -606,7 +548,8 @@ void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     
     // Step 2: Compute starting positions (high-degree bucket first)
     int temp_k = 0;
-    uint32_t start_k[num_threads][num_buckets];
+    std::vector<std::vector<int64_t>> start_k(
+        num_threads, std::vector<int64_t>(num_buckets));
     
     for (int j = num_buckets - 1; j >= 0; j--) {
         for (int th = 0; th < num_threads; th++) {
@@ -620,7 +563,7 @@ void GenerateHubClusterDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     for (int th = 0; th < num_threads; th++) {
         for (int j = num_buckets - 1; j >= 0; j--) {
             const auto& current_bucket = local_buckets[th][j];
-            int k = start_k[th][j];
+            int64_t k = start_k[th][j];
             for (size_t i = 0; i < current_bucket.size(); i++) {
                 new_ids[current_bucket[i]] = k++;
             }

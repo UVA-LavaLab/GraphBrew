@@ -19,6 +19,7 @@ from scripts.lib.core.experiment_policy import (
     PAPER_CACHE_PREVIEW_CAPACITIES_MIB,
     PREVIEW_BENCHMARK_ORDER,
     REORDER_BENCHMARKS,
+    SHUFFLED_LABEL_SEED,
     cache_capacities_bytes,
     mib_to_bytes,
 )
@@ -67,6 +68,7 @@ def test_cache_policies_use_mib_ssot_and_byte_boundaries():
         CACHE_CAPACITY_CANDIDATES_MIB)
     assert adaptive_runner.CACHE_PR_ITERATIONS == CACHE_PR_ITERATIONS == 5
     assert vldb_config.CACHE_PR_ITERATIONS == CACHE_PR_ITERATIONS
+    assert vldb_config.RANDOM_BASELINE_SEED == SHUFFLED_LABEL_SEED == 0
     assert vldb_config.CACHE_SIZES == list(
         cache_capacities_bytes(PAPER_CACHE_CAPACITIES_MIB))
     assert vldb_config.CACHE_SIZES_PREVIEW == list(

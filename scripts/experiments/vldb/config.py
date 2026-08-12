@@ -19,8 +19,11 @@ from scripts.lib.core.experiment_policy import (
     PAPER_CACHE_CAPACITIES_MIB,
     PAPER_CACHE_PREVIEW_CAPACITIES_MIB,
     PREVIEW_BENCHMARK_ORDER,
+    SHUFFLED_LABEL_SEED,
     cache_capacities_bytes,
 )
+
+RANDOM_BASELINE_SEED = SHUFFLED_LABEL_SEED
 
 # ---------------------------------------------------------------------------
 # Paths

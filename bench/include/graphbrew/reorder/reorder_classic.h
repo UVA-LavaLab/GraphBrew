@@ -378,12 +378,15 @@ template <typename NodeID_, typename DestID_, bool invert>
 void GenerateCOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                            pvector<NodeID_>& new_ids,
                            unsigned partition_size = 1024,
-                           const char* timing_label = "COrder Map Time") {
+                           const char* timing_label = "COrder Map Time",
+                           bool directed_average = false) {
     Timer t;
     t.Start();
     
     const auto num_nodes = g.num_nodes();
-    const auto num_edges = g.num_edges();
+    const auto num_edges = directed_average
+        ? g.num_edges_directed()
+        : g.num_edges();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
@@ -482,7 +485,8 @@ void GenerateCOrderCanonicalMapping(
         g,
         new_ids,
         kL2Bytes / kPropertyBytes,
-        "COrder Canonical Map Time");
+        "COrder Canonical Map Time",
+        true);
 }
 
 /**
@@ -504,7 +508,7 @@ void GenerateCOrderMapping_v2(const CSRGraph<NodeID_, DestID_, invert>& g,
     t.Start();
     
     const auto num_nodes = g.num_nodes();
-    const auto num_edges = g.num_edges();
+    const auto num_edges = g.num_edges_directed();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {

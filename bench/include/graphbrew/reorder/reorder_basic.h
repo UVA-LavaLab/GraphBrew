@@ -17,6 +17,27 @@
 
 #include "reorder_types.h"
 
+namespace graphbrew::random_detail {
+
+inline uint64_t SplitMix64(uint64_t& state) {
+    uint64_t value = (state += UINT64_C(0x9e3779b97f4a7c15));
+    value = (value ^ (value >> 30))
+        * UINT64_C(0xbf58476d1ce4e5b9);
+    value = (value ^ (value >> 27))
+        * UINT64_C(0x94d049bb133111eb);
+    return value ^ (value >> 31);
+}
+
+inline uint64_t UniformBounded(uint64_t& state, uint64_t bound) {
+    const uint64_t threshold = -bound % bound;
+    while (true) {
+        const uint64_t value = SplitMix64(state);
+        if (value >= threshold) return value % bound;
+    }
+}
+
+}  // namespace graphbrew::random_detail
+
 // ============================================================================
 // ORIGINAL ORDERING (Algorithm 0)
 // ============================================================================
@@ -66,8 +87,7 @@ void GenerateOriginalMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
  * @brief Generate a random permutation of vertices
  * 
  * Shuffles vertices randomly. Uses a fixed seed (0) for reproducibility.
- * This serves as a worst-case baseline - random ordering typically has
- * poor cache locality.
+ * This is a controlled shuffled labeling, not a worst-case claim.
  * 
  * Complexity: O(n) - parallel shuffle with granularity-based slicing
  * 
@@ -77,8 +97,8 @@ void GenerateOriginalMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
  * @param g Input graph (CSR format)
  * @param new_ids Output permutation: new_ids[old_id] = new_id
  * 
- * @note Uses GNU parallel random_shuffle for efficiency
- * @note Reproducible: always uses seed=0
+ * @note Uses a specified SplitMix64/Fisher-Yates permutation.
+ * @note Reproducible across OpenMP thread counts: seed=0.
  */
 template <typename NodeID_, typename DestID_, bool invert>
 void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
@@ -86,47 +106,30 @@ void GenerateRandomMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     Timer t;
     t.Start();
     
-    // Fixed seed for reproducibility
-    std::srand(0);
-    
     const int64_t num_nodes = g.num_nodes();
-    
-    // Use slice-based shuffling for parallelization
-    // granularity=1 means we shuffle individual vertices
-    const NodeID_ granularity = 1;
-    const NodeID_ slice = (num_nodes - granularity + 1) / granularity;
-    const NodeID_ artificial_num_nodes = slice * granularity;
-    
-    assert(artificial_num_nodes <= num_nodes);
-    
-    // Create slice indices
-    pvector<NodeID_> slice_index(slice);
+    pvector<NodeID_> permutation(num_nodes);
     #pragma omp parallel for
-    for (NodeID_ i = 0; i < slice; i++) {
-        slice_index[i] = i;
+    for (int64_t i = 0; i < num_nodes; ++i) {
+        permutation[i] = static_cast<NodeID_>(i);
     }
-    
-    // Parallel random shuffle
-    __gnu_parallel::random_shuffle(slice_index.begin(), slice_index.end());
-    
-    // Apply the shuffled mapping
+
+    uint64_t state = 0;
+    for (uint64_t remaining = static_cast<uint64_t>(num_nodes);
+         remaining > 1;
+         --remaining) {
+        uint64_t selected =
+            graphbrew::random_detail::UniformBounded(state, remaining);
+        std::swap(
+            permutation[remaining - 1],
+            permutation[selected]);
+    }
+
     #pragma omp parallel for
-    for (NodeID_ i = 0; i < slice; i++) {
-        NodeID_ new_index = slice_index[i] * granularity;
-        for (NodeID_ j = 0; j < granularity; j++) {
-            NodeID_ v = (i * granularity) + j;
-            if (v < artificial_num_nodes) {
-                new_ids[v] = new_index + j;
-            }
-        }
+    for (int64_t old_id = 0; old_id < num_nodes; ++old_id) {
+        new_ids[old_id] = permutation[old_id];
     }
-    
-    // Handle any remaining vertices (keep original IDs)
-    for (NodeID_ i = artificial_num_nodes; i < num_nodes; i++) {
-        new_ids[i] = i;
-    }
-    
-    slice_index.clear();
+
+    PrintLabel("Random Seed", "0");
     t.Stop();
     PrintTime("Random Map Time", t.Seconds());
 }

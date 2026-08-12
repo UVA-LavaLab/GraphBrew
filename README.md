@@ -97,13 +97,13 @@ Use `-o <id[:options]>` to select an ordering.
 | ID | Algorithm | Role |
 |---:|---|---|
 | 0 | ORIGINAL | Input-label baseline |
-| 1 | RANDOM | Fixed seeded shuffled control |
+| 1 | RANDOM | Thread-independent SplitMix64 shuffled control, seed 0 |
 | 2 | SORT | Degree sort |
-| 3 | HUBSORT | Hub-based sort |
-| 4 | HUBCLUSTER | Hub clustering |
+| 3 | HUBSORT | Upstream-style hub sort with non-hub ID preservation |
+| 4 | HUBCLUSTER | Upstream-style hub cluster with non-hub ID preservation |
 | 5 | DBG | Degree-based grouping |
-| 6 | HUBSORTDBG | HubSort + DBG |
-| 7 | HUBCLUSTERDBG | HubCluster + DBG |
+| 6 | HUBSORTDBG | Compact two-bucket DBG with sorted hubs |
+| 7 | HUBCLUSTERDBG | Compact two-bucket DBG with stable hubs |
 | 8 | RABBITORDER | Rabbit CSR/Boost baseline |
 | 9 | GORDER | Exact `gograph`/`csr` baselines plus deterministic relaxed `fast` |
 | 10 | CORDER | Historical 1K baseline; `10:canonical` uses upstream 1 MiB segments |
