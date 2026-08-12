@@ -47,6 +47,7 @@ from scripts.experiments.vldb.config import (
     algorithm_exclusion_reason,
 )
 from scripts.experiments.vldb.stages import _common
+from scripts.lib.pipeline import reorder_config
 
 
 def test_rabbitorder_implementations_are_explicit():
@@ -328,6 +329,60 @@ def test_structured_graphbrew_realization_is_validated():
         runner.validate_graphbrew_realized_configs(
             ["-o", spec], [effective], parsed,
         )
+
+
+def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
+    spec = (
+        "12:rabbit:compose:sg_super_rabbit:"
+        "comm_identity:intra_hubsort"
+    )
+    assert runner._expected_graphbrew_config is reorder_config.expected_graphbrew_config
+    assert runner.parse_graphbrew_effective_configs is reorder_config.parse_graphbrew_effective_configs
+    assert runner.parse_graphbrew_realized_configs is reorder_config.parse_graphbrew_realized_configs
+    assert runner.validate_graphbrew_effective_configs is reorder_config.validate_graphbrew_effective_configs
+    assert runner.validate_graphbrew_realized_configs is reorder_config.validate_graphbrew_realized_configs
+    assert (
+        runner._expected_graphbrew_config(spec)
+        == reorder_config.expected_graphbrew_config(spec)
+    )
+
+    effective = {
+        "schema": "graphbrew_config/v1",
+        **reorder_config.expected_graphbrew_config(spec),
+    }
+    realized = {
+        "schema": "graphbrew_realized/v1",
+        "algorithm": "rabbit",
+        "aggregation": "rabbit-incremental",
+        "ordering": "compose",
+        "super_graph": "super-rabbit",
+        "community_order": "identity",
+        "intra_community_order": "hubsort",
+        "refinement_pass": "none",
+        "resolution": None,
+        "recursive_depth": None,
+        "schedule_sensitive": True,
+        "final_algo_id": -1,
+        "sub_algo_id": 8,
+        "num_passes": 1,
+        "num_communities": 12,
+        "fallbacks": [],
+        "block_algorithms": {},
+    }
+    output = "\n".join([
+        reorder_config.GRAPHBREW_EFFECTIVE_CONFIG_PREFIX
+        + json.dumps(effective, separators=(",", ":")),
+        reorder_config.GRAPHBREW_REALIZED_CONFIG_PREFIX
+        + json.dumps(realized, separators=(",", ":")),
+    ])
+    effective_configs = runner.parse_graphbrew_effective_configs(output)
+    realized_configs = runner.parse_graphbrew_realized_configs(output)
+    assert effective_configs == [effective]
+    assert realized_configs == [realized]
+    runner.validate_graphbrew_effective_configs(["-o", spec], effective_configs)
+    runner.validate_graphbrew_realized_configs(
+        ["-o", spec], effective_configs, realized_configs,
+    )
 
 
 def test_kernel_speedup_figure_uses_distinct_compact_styles_and_gm():

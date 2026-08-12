@@ -2,10 +2,12 @@
 
 ## Objective
 
-Build a generic, reproducible graph-reordering research platform that can
-deliver Gorder/Leiden-class kernel quality with Rabbit/DBG-class preprocessing
-cost, then select the appropriate Pareto-optimal ordering from lightweight
-graph and workload features.
+Build a generic, reproducible graph-reordering research platform around a
+GraphBrew-native ordering algorithm that is not a RabbitOrder, Gorder, or
+Leiden derivative. The new algorithm must beat RabbitOrder on controlled
+kernel performance while retaining lightweight preprocessing, and must beat
+Gorder on both kernel performance and reorder cost. Adaptive selection follows
+only after independent GraphBrew-native Pareto points exist.
 
 The normal experiment entry point is `scripts/graphbrew_experiment.py`.
 Reusable experiment, parsing, storage, and analysis logic belongs under
@@ -31,6 +33,39 @@ order inside coarse degree buckets, so labeling remains a controlled factor.
 The full GraphBrew Leiden pipeline is kernel-competitive with Rabbit but pays
 for global Leiden partitioning, block construction, per-block layout,
 validation, and CSR relocation.
+
+## Novelty Boundary
+
+RabbitOrder, Gorder, and Leiden remain external baselines, diagnostic anchors,
+and controlled ablations. They are not the implementation substrate of the
+headline algorithm.
+
+The new GraphBrew-native ordering must not use:
+
+- Rabbit community assignments, aggregation, or dendrogram traversal;
+- Gorder's window objective or a restricted approximation of its scoring loop;
+- Leiden communities as the primary partitioning decision;
+- an adaptive selector over existing algorithms as a substitute for a new
+  ordering contribution.
+
+Generic graph primitives such as CSR scans, degree statistics, sampling,
+prefix sums, stable compaction, and BFS are allowed, but the algorithmic
+objective and placement decisions must be independently specified.
+
+Before implementation, freeze a novelty matrix comparing the proposed method
+against RabbitOrder, Gorder, Leiden-based ordering, DBG/HubSort, Corder,
+GoGraph, and recent learned/partitioner-selection work. The matrix records:
+
+- information consumed;
+- objective optimized;
+- preprocessing complexity and memory;
+- partition/block/vertex decisions;
+- deterministic behavior;
+- whether decisions are global, block-local, or sampled;
+- the exact source-code/paper mechanism that overlaps.
+
+If the core mechanism reduces to an existing method under renamed stages, the
+proposal is rejected before performance work.
 
 ## Phase 0: Data-Integrity and SSOT Cleanup
 
@@ -61,15 +96,21 @@ work, iteration, and peak-RSS phases separately.
 Required controls:
 
 - ORIGINAL and DBG cost floors;
-- RabbitOrder CSR and Rabbit-Dendrogram-DFS;
-- Rabbit-Blocks-DBG and Rabbit-Identity-HubSort;
+- RabbitOrder CSR as the primary performance/cost baseline;
+- Rabbit-Dendrogram-DFS and Rabbit-Blocks-DBG as diagnostic derivatives only;
 - Gorder as the expensive locality reference;
 - LeidenGVE-Blocks-Rabbit as the expensive quality reference.
+- independently specified GraphBrew-native candidate(s).
 
 Initial success targets:
 
-- controlled kernel GM at least 1.78x;
-- reorder GM at most 12 seconds;
+- controlled kernel GM at least 1.80x;
+- all-kernel GM at least 1.73x;
+- paired new-method/Rabbit-CSR controlled-work ratio above 1.03x with the
+  graph-bootstrap 95% interval excluding one;
+- paired new-method/Gorder kernel ratio above one with the 95% interval
+  excluding one;
+- reorder GM at most 10 seconds;
 - median reorder time at most 8 seconds;
 - no graph with more than a 5% kernel regression versus Rabbit CSR;
 - deterministic source and mapping contracts;
@@ -77,21 +118,30 @@ Initial success targets:
 
 ## Phase 2: Fast Reordering Research
 
-Prioritize changes that attack measured critical paths rather than adding
-another broad variant matrix:
+Design one independent algorithm family rather than another composition matrix.
+The initial proposal is a bounded-cost topology-sketch and block-packing
+framework:
 
-1. **Rabbit critical path:** reduce aggregation and dendrogram/layout overhead
-   while preserving the current 1.78x controlled speedup.
-2. **Selective block refinement:** apply HubSort, DBG, RCM, or small-window
-   Gorder only to blocks whose degree/locality features justify the cost.
-3. **Budgeted community detection:** test deterministic sampled or pass-limited
-   community discovery with explicit quality-versus-cost curves.
-4. **Reusable primitives:** share degree buckets, block metadata, and CSR
-   relocation buffers across partition and layout stages.
-5. **Fast Gorder approximation:** restrict window scoring to sampled hot
-   vertices or selected blocks instead of scanning the full graph.
-6. **Memory discipline:** release intermediate community/supergraph state
-   before CSR relocation and preserve one-base-plus-one-derived-arm residency.
+1. **Topology sketch:** deterministic sampled edge-span, degree-distribution,
+   hub concentration, and local neighbor-overlap summaries.
+2. **Native block formation:** create bounded-size blocks directly from the
+   sketch and CSR neighborhoods, without community labels from Rabbit or
+   Leiden.
+3. **Placement objective:** explicitly minimize a GraphBrew-defined estimate
+   of property-line dispersion and cross-block traffic under a fixed
+   preprocessing budget.
+4. **Stable vertex placement:** order vertices inside blocks with an
+   independently specified degree/locality rule; retain stable original-ID
+   tie breaks for determinism.
+5. **Budget enforcement:** cap sampled edges, block-growth work, passes, and
+   auxiliary memory before running the algorithm.
+6. **Reusable primitives:** share degree buckets, sketch storage, prefix sums,
+   and CSR relocation buffers without importing baseline algorithm state.
+7. **Memory discipline:** release sketch/block state before CSR relocation and
+   preserve one-base-plus-one-derived-arm residency.
+
+Rabbit-derived and Gorder-derived experiments may diagnose why the independent
+candidate wins or loses, but they cannot become the claimed method.
 
 Each optimization must report complexity, mapping determinism, kernel speedup,
 reorder cost, apply cost, peak RSS, and amortization. A faster implementation
@@ -104,10 +154,11 @@ The initial candidate set is:
 
 - ORIGINAL;
 - DBG;
-- RabbitOrder CSR;
-- Rabbit-Dendrogram-DFS;
-- Rabbit-Blocks-DBG;
-- the best new fast-quality candidate(s).
+- the best independent GraphBrew-native candidate(s).
+
+RabbitOrder CSR, Gorder, and Leiden remain mandatory evaluation baselines and
+oracle references, but they are not deployable selector arms in the headline
+GraphBrew-native portfolio.
 
 Before model work, require the cross-fitted portfolio oracle to beat the best
 static policy by at least 6% overall and not only on road/mesh graphs. If the
@@ -127,7 +178,8 @@ After the cleanup and headroom gates:
 
 The selector must never consume graph identity or exact-name oracle data.
 Report a no-abstention selector, an abstaining selector, the best static
-policy, Rabbit CSR, and the cross-fitted portfolio oracle.
+GraphBrew-native policy, Rabbit CSR, Gorder, and the cross-fitted portfolio
+oracle.
 
 ## Phase 5: Full Evaluation
 

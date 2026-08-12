@@ -31,7 +31,7 @@ from scripts.experiments.vldb.config import (
     PR_TOLERANCE,
     SSSP_POLICY,
 )
-from scripts.experiments.vldb.runner import (
+from scripts.lib.pipeline.reorder_config import (
     parse_graphbrew_effective_configs,
     parse_graphbrew_realized_configs,
     validate_graphbrew_effective_configs,
