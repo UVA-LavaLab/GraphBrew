@@ -96,7 +96,7 @@ from .core.utils import (
     # COrder variants (historical 1K default, canonical 1 MiB)
     CORDER_VARIANTS,
     CORDER_DEFAULT_VARIANT,
-    # RCM variants (default=GoGraph, bnf=CSR-native BNF)
+    # RCM variants (historical double-pass, single-pass MIND, CSR-native BNF)
     RCM_VARIANTS,
     RCM_DEFAULT_VARIANT,
     # GraphBrewOrder variants

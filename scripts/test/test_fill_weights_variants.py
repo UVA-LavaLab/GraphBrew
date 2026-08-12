@@ -499,16 +499,16 @@ class TestDefaultWeights:
         """Sanity: variant count matches expected total."""
         # 17 base algos - ORIGINAL - RANDOM - MAP - AdaptiveOrder = 13 base IDs
         # Algo 8 (RABBITORDER) → 2 variants, CORDER → legacy + canonical,
-        # algo 11 (RCM) → 2,
+        # algo 11 (RCM) → 3,
         # algo 12 (GraphBrew) → 7, algo 16 (GoGraph) → 3
         # Plus LeidenOrder (single, non-variant)
-        # So: 23 prior single variants + canonical CORDER = 24
+        # So: 24 prior single variants + RCM_mind = 25
         # Plus chained orderings
         single = [n for n in ALL_VARIANTS if not is_chained_ordering_name(n)]
         chained = [n for n in ALL_VARIANTS if is_chained_ordering_name(n)]
-        assert len(single) == 24, f"Expected 24 single variants, got {len(single)}: {single}"
+        assert len(single) == 25, f"Expected 25 single variants, got {len(single)}: {single}"
         assert len(chained) == 5, f"Expected 5 chained orderings, got {len(chained)}: {chained}"
-        assert len(ALL_VARIANTS) == 29
+        assert len(ALL_VARIANTS) == 30
 
 
 # ---------------------------------------------------------------------------

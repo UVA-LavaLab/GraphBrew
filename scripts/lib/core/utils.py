@@ -272,7 +272,7 @@ GOGRAPH_VARIANTS = ("default", "fast", "naive")
 GOGRAPH_DEFAULT_VARIANT = "default"
 
 # RCM variants: -o 11:variant
-RCM_VARIANTS = ("default", "bnf")
+RCM_VARIANTS = ("default", "mind", "bnf")
 RCM_DEFAULT_VARIANT = "default"
 
 # GraphBrewOrder variants: -o 12:variant

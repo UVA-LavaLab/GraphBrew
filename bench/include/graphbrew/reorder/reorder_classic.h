@@ -216,15 +216,21 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 }
 
 // ============================================================================
-// RCMORDER (Algorithm 11) — Original GoGraph-based MIND-start RCM
+// RCMORDER (Algorithm 11) — Historical GoGraph-based double RCM
 // ============================================================================
 
 /**
- * @brief Reverse Cuthill-McKee ordering for bandwidth reduction (baseline)
+ * @brief Historical double-pass Reverse Cuthill-McKee ordering.
  * 
- * Original RCM implementation using GoGraph. Uses MIND starting-node
- * strategy (global min-degree). Default variant for -o 11.
- * BNF variant (-o 11:bnf) is in reorder_rcm.h.
+ * The historical GraphBrew default calls GoGraph::Transform(), which applies
+ * one MIND-start RCM and rebuilds the graph, then applies RCM a second time
+ * and composes the two permutations. This is frozen compatibility behavior,
+ * not a standard single-pass RCM baseline.
+ *
+ * Variants:
+ *   -o 11       historical double-pass composition
+ *   -o 11:mind  explicit single-pass GoGraph MIND-start RCM
+ *   -o 11:bnf   CSR-native George-Liu/BNF RCM (reorder_rcm.h)
  * 
  * @tparam NodeID_ Node ID type
  * @tparam DestID_ Destination ID type
@@ -280,12 +286,50 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     }
 }
 
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateRCMMindOrderMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        const std::string& filename) {
+    const int64_t num_nodes = g.num_nodes();
+    if (num_nodes > std::numeric_limits<int>::max()) {
+        throw std::overflow_error(
+            "RCM MIND requires vertex IDs representable as int32");
+    }
+
+    Gorder::GoGraph go;
+    std::vector<int> order;
+    Timer tm;
+
+    std::string name = GorderUtil::extractFilename(filename.c_str());
+    go.setFilename(name);
+
+    tm.Start();
+    graphbrew::classic_detail::InitializeGoGraphFromCSR<
+        NodeID_, DestID_, WeightT_, invert>(g, go);
+    tm.Stop();
+    PrintTime("RCM_MIND graph", tm.Seconds());
+
+    tm.Start();
+    go.RCMOrder(order);
+    tm.Stop();
+    PrintTime("RCM_MIND Map Time", tm.Seconds());
+
+    if (new_ids.size() < static_cast<size_t>(go.vsize)) {
+        new_ids.resize(go.vsize);
+    }
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < go.vsize; ++i) {
+        new_ids[i] = static_cast<NodeID_>(order[i]);
+    }
+}
+
 // ============================================================================
 // RCM BNF variant (-o 11:bnf) — Modern CSR-native BNF-start RCM
 // ============================================================================
 // Improved RCM variant using George-Liu + BNF starting node selection and
 // level-parallel BFS, operating directly on the CSR graph.
-// Accessed via: -o 11:bnf  (default -o 11 uses GoGraph above)
+// Accessed via: -o 11:bnf
 // See agent/optimizing-rcm/ for design rationale and literature.
 #include "reorder_rcm.h"
 

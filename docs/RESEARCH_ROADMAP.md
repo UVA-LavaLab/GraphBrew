@@ -152,6 +152,9 @@ Baseline hygiene findings discovered by the same review:
 - Algorithm 16 omits the published GoGraph Rabbit-clustering/supernode stage;
   on symmetric graphs its M objective is constant, so it is a core diagnostic
   rather than a faithful standalone baseline.
+- Bare Algorithm 11 composes two MIND-start RCM passes. It is frozen historical
+  evidence, not a canonical single-pass baseline; `11:mind` and `11:bnf`
+  provide explicit future controls.
 
 The source identities are now corrected, Algorithm 10 is deterministic, and
 `10:canonical` exposes the upstream-sized baseline without changing frozen

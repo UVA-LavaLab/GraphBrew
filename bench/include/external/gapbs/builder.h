@@ -1434,13 +1434,19 @@ public:
         break;
         case RCMOrder:
         {
-            // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
-            // Format: -o 11:variant (e.g., -o 11:bnf)
-            std::string rcm_variant = resolveVariant(reordering_options);
+            // RCM variants: historical double-pass default, single-pass MIND,
+            // and CSR-native George-Liu/BNF.
+            std::string rcm_variant =
+                resolveVariant(reordering_options, "default");
             if (rcm_variant == "bnf") {
                 GenerateRCMBNFOrderMapping(g, new_ids);
+            } else if (rcm_variant == "mind") {
+                GenerateRCMMindOrderMapping(g, new_ids);
             } else {
-                warnUnknownVariant(rcm_variant, "RCMOrder", {"bnf"});
+                warnUnknownVariant(
+                    rcm_variant,
+                    "RCMOrder",
+                    {"default", "mind", "bnf"});
                 GenerateRCMOrderMapping(g, new_ids);
             }
         }
@@ -1527,6 +1533,10 @@ public:
             }
             if (reordering_algo == GoGraphOrder) {
                 algo_name = "GOGRAPHORDER_"
+                    + resolveVariant(reordering_options, "default");
+            }
+            if (reordering_algo == RCMOrder) {
+                algo_name = "RCM_"
                     + resolveVariant(reordering_options, "default");
             }
 
@@ -1754,12 +1764,17 @@ public:
         break;
         case RCMOrder:
         {
-            // RCM with variants: default (GoGraph baseline), bnf (CSR-native BNF)
-            std::string rcm_variant = resolveVariant(reordering_options);
+            std::string rcm_variant =
+                resolveVariant(reordering_options, "default");
             if (rcm_variant == "bnf") {
                 GenerateRCMBNFOrderMapping(g, new_ids);
+            } else if (rcm_variant == "mind") {
+                GenerateRCMMindOrderMapping(g, new_ids);
             } else {
-                warnUnknownVariant(rcm_variant, "RCMOrder", {"bnf"});
+                warnUnknownVariant(
+                    rcm_variant,
+                    "RCMOrder",
+                    {"default", "mind", "bnf"});
                 GenerateRCMOrderMapping(g, new_ids);
             }
         }
@@ -2252,6 +2267,14 @@ public:
     void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids) {
         ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
+    }
+
+    void GenerateRCMMindOrderMapping(
+            const CSRGraph<NodeID_, DestID_, invert> &g,
+            pvector<NodeID_> &new_ids) {
+        ::GenerateRCMMindOrderMapping<
+            NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, cli_.filename());
     }
 
     /**

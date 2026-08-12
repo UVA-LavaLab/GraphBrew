@@ -39,7 +39,7 @@ the other IDs are individual primitives or baselines.
 | 8 | `-o 8` | RABBITORDER | O(n log n + m) | Louvain + dendrogram DFS; variants `csr` (default), `boost` |
 | 9 | `-o 9:csr` | GORDER | O(n·w + m) | faithful CSR sliding-window greedy, w=5; `9:gograph` forces the legacy validation path and bare `9` auto-selects CSR above the 32-bit edge range |
 | 10 | `-o 10` | CORDER | O(n) | hot/cold workload segments; `10` historical 1K, `10:canonical` upstream 1 MiB |
-| 11 | `-o 11` | RCM | O(n log n + m) | Reverse Cuthill–McKee; variants `default`, `bnf` |
+| 11 | `-o 11` | RCM | O(n log n + m) | historical double-pass; variants `mind`, `bnf` expose explicit single-pass methods |
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
 | 14 | `-o 14` | AdaptiveOrder | varies | ML selector; research-only, see [AdaptiveOrder-ML](AdaptiveOrder-ML) |
@@ -120,18 +120,18 @@ legacy validation path; bare `-o 9` is compatibility auto mode.
 
 ### Bandwidth-based (11)
 
-**RCM** (`-o 11`) — Reverse Cuthill–McKee. BFS from a peripheral
-vertex with neighbours visited in ascending-degree order, then
-reverse the result. Bandwidth reduction translates directly to
-sequential cache access on sparse, near-planar graphs (road
-networks, finite-element meshes).
+**RCM** — bandwidth-oriented BFS ordering for sparse, near-planar graphs.
+Bare `-o 11` is retained only for historical compatibility: it applies a
+MIND-start RCM, rebuilds the graph, then applies a second RCM. Use an explicit
+single-pass variant for new comparisons.
 
 Variants:
 
 | Flag | Description |
 |---|---|
-| `-o 11` | GoGraph-baseline RCM |
-| `-o 11:bnf` | CSR-native George–Liu pseudoperipheral BFS |
+| `-o 11` | Historical double-pass MIND composition |
+| `-o 11:mind` | Single-pass GoGraph MIND-start RCM |
+| `-o 11:bnf` | CSR-native George–Liu/BNF pseudoperipheral RCM |
 
 ### Composable (12 — the GraphBrew framework)
 

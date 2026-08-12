@@ -746,6 +746,7 @@ def test_sssp_single_source_repeat_contract():
 
 TIER2B_RCM = [
     ("11",     "RCM_default"),
+    ("11:mind", "RCM_mind"),
     ("11:bnf", "RCM_bnf"),
 ]
 

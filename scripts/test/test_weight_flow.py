@@ -323,6 +323,7 @@ class TestVariantRegistrySSOT:
         assert "RABBITORDER_csr" in names
         assert "RABBITORDER_boost" in names
         assert "RCM_default" in names
+        assert "RCM_mind" in names
         assert "RCM_bnf" in names
         assert "GraphBrewOrder_leiden" in names
         assert "GraphBrewOrder_rabbit" in names
