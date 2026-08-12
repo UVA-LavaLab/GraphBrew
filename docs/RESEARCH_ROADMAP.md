@@ -82,17 +82,14 @@ Highest-risk prior art:
 | [Gorder](https://github.com/datourat/Gorder) | Greedy maximization of a sibling/neighbor locality score inside a sliding window | Any pairwise or windowed neighbor-co-location objective is derivative |
 | [DON-RL](https://arxiv.org/abs/2001.06631) | Learns a policy that maximizes the Gorder locality objective | Learning or approximating the same score does not escape the Gorder boundary |
 | [Recursive Graph Bisection](https://arxiv.org/abs/1602.08820) | Recursive balanced bisection for minimum-logarithmic-arrangement-style compression/locality | A recursive cross-block or log-gap objective is already occupied |
+| [Hypergraph communication-volume partitioning](https://faculty.cc.gatech.edu/~umit/assets/pdf/Catalyurek99.pdf) | Row/column neighborhoods are hyperedges; connectivity `lambda(net)-1` counts distinct parts touched | A sum of distinct cache-line groups per neighborhood is this standard connectivity metric |
 | [Corder](https://github.com/yuang-chen/Corder-TPDS-21) | Degree hot/cold classification and workload-balanced cache-sized segments | Hot/cold cache-segment block packing is already occupied |
 | [Lightweight reordering](https://github.com/CMUAbstract/Graph-Reordering-IISWC18) and [DBG](https://github.com/faldupriyank/dbg) | Packing-factor analysis, HubSort/HubCluster, stable degree grouping | Degree placement and packing-factor rationale are components, not novelty |
 | [RabbitOrder](https://github.com/araij/rabbit_order) / [Leiden](https://doi.org/10.1038/s41598-019-41695-z) | Modularity communities, aggregation, and hierarchy/refinement | Community-derived blocks remain forbidden |
 | [GoGraph](https://arxiv.org/abs/2407.14544) | Maximizes forward edges to reduce asynchronous convergence rounds | Must remain a convergence baseline, not a cache-locality building block |
 
-The remaining possible white space is narrower: a deterministic, analytic,
-strictly budgeted optimizer for a cache-line **set-cardinality** objective that
-does not reduce to Gorder's pairwise window score, modularity, edge cut, or
-minimum logarithmic arrangement.
-
-Candidate objective for proof review:
+The follow-up proof review also rejects the proposed cache-line
+set-cardinality objective:
 
 ```text
 J_line(sigma) =
@@ -100,39 +97,52 @@ J_line(sigma) =
   + lambda * sum_b overfill(b)
 ```
 
-`S(v)` is a deterministic capped sample of `v`'s adjacency, `L` is the number
-of property elements per cache line, and the first term counts distinct
-property lines touched by a sampled neighborhood. It is a set-cardinality
-cost, not a pairwise reward over a fixed ID window. The capacity penalty is a
-budget constraint, not an edge-cut objective.
+Treat each sampled neighborhood `S(v)` as a hyperedge and each cache-line group
+as a part. Then the first term, minus the constant `sum_v w_v`, is exactly the
+weighted hypergraph connectivity (`lambda-1`) metric used to model
+communication volume. Sampling and hard budgets change cost, not the
+underlying objective. Implementing this under a GraphBrew name would therefore
+be a bounded hypergraph-partitioning approximation, not an independent
+ordering objective.
 
-This objective is only a **research hypothesis** until all of the following
-hold:
+**No Phase-2 objective is currently frozen. Implementation remains blocked.**
+The next landscape pass must examine cache-line transition, reuse-distance,
+cache-oblivious layout, hypergraph ordering, and multi-kernel property-access
+objectives. A candidate advances only after:
 
-1. provide a counterexample/proof that `J_line` is not a monotone transform of
-   Gorder's score, edge cut, or minimum log-gap;
-2. show that optimizing `J_line` produces different mappings from those three
-   substitute objectives on controlled graph families;
-3. exclude BFS-frontier traces, learned embeddings/K-means, modularity
-   communities, recursive bisection, and hot/cold dense-sparse splitting;
-4. keep sampled work `O(n + |S|)`, sampled edges at most `c*n`, auxiliary
-   memory `O(n)`, and passes at a frozen constant;
-5. use fixed deterministic sampling and original-ID final tie breaks;
-6. treat cache blocks as an implementation/budget device, not the claimed
-   novelty.
+1. its objective is written mathematically;
+2. reductions to Gorder, graph/hypergraph partitioning, minimum linear/log
+   arrangement, FrontOrder, Rebo, and Corder are explicitly attempted;
+3. a concrete counterexample demonstrates non-equivalence to each closest
+   objective;
+4. the novelty-bearing mechanism is algorithmic, not only deterministic
+   sampling, work caps, or engineering integration;
+5. a domain expert reviews the full closest papers and source.
 
-Minimum independence ablations:
+The second objective-family pass found the single-kernel locality space
+saturated by Gorder, MinLA/MLogA, bandwidth/profile, graph/hypergraph
+cut/connectivity, community, degree/hub, and direct reuse-distance objectives.
+A minimax layout across kernel-specific access graphs does not collapse to a
+weighted single graph, but it overlaps robust/multi-objective hypergraph and
+multilayer partitioning (for example,
+[Deveci et al.](https://research.sabanciuniv.edu/27693/1/paper.pdf)) and is not
+yet a defensible headline contribution.
 
-- `J_line` versus Gorder score, edge cut, and minimum log-gap on identical
-  candidate sets;
-- sampled versus exact neighborhoods;
-- fixed cache geometry versus per-graph tuned capacity;
-- bit-identical mappings across thread counts and repeated runs;
-- head-to-head comparison with FrontOrder, Rebo, canonical Corder, Recursive
-  Graph Bisection, Rabbit CSR, Gorder, Leiden, DBG, GoGraph, and RCM whenever
-  runnable source/artifacts are available.
+The next contribution gate must choose one of these routes:
 
-Baseline hygiene blockers discovered by the same review:
+1. a genuinely new deterministic near-linear optimizer or approximation
+   guarantee for a known hard layout objective;
+2. a mathematically new joint locality/convergence objective whose reductions
+   and closest multi-objective prior art survive review;
+3. an explicit pivot to a systems/characterization/adaptive contribution,
+   acknowledging that it no longer satisfies the current independent-ordering
+   headline.
+
+Route 1 or 2 requires a theorem-level or algorithm-mechanism contribution, not
+only a faster implementation. Route 3 requires a deliberate scope decision;
+the selector cannot silently substitute for the rejected ordering objective.
+
+Baseline hygiene findings discovered by the same review:
 
 - Algorithm 10 is a historical 1K-vertex Corder-style approximation, not the
   canonical 1 MiB/L2-sized Corder configuration;
@@ -140,10 +150,11 @@ Baseline hygiene blockers discovered by the same review:
 - DON-Lite cites ICDE 2024, while the identifiable DON-RL paper is WISE 2021,
   and the fixed-weight heuristic is not a faithful DON-RL implementation.
 
-These identities must be corrected and canonical Corder exposed as an explicit
-future baseline before the Phase-1 pilot. Rebo and FrontOrder require a final
-full-paper/source review by a domain expert before any novelty claim. This is
-technical prior-art analysis, not legal advice.
+The source identities are now corrected, Algorithm 10 is deterministic, and
+`10:canonical` exposes the upstream-sized baseline without changing frozen
+bare-`10` evidence. Rebo and FrontOrder still require a final domain-expert
+review before any novelty claim. This is technical prior-art analysis, not
+legal advice.
 
 ## Phase 0: Data-Integrity and SSOT Cleanup
 
@@ -197,26 +208,22 @@ Initial success targets:
 ## Phase 2: Fast Reordering Research
 
 Design one independent algorithm family rather than another composition matrix.
-The former generic sketch-and-block proposal is rejected by the novelty gate.
-The revised candidate must center on the `J_line` cache-line set-cardinality
-objective:
+Both the generic sketch/block proposal and `J_line` are rejected by the
+novelty gate. Phase 2 is a research-definition phase before it is an
+implementation phase:
 
-1. **Deterministic bounded sample:** fixed-stride/hash adjacency samples only;
-   no BFS-frontier traces, stochastic draws, or learned embeddings.
-2. **Line-set sketch:** for each sampled neighborhood, maintain the distinct
-   candidate property-line set needed to evaluate `J_line`.
-3. **Independent optimizer:** use a frozen constant-pass placement rule that
-   reduces `J_line`; no Gorder window score, recursive bisection, modularity,
-   hot/cold dense-sparse split, or K-means.
-4. **Capacity as a constraint:** bounded line groups may limit search and
-   working memory, but cross-block edge cut is reported only as a diagnostic
-   and is not the optimized contribution.
-5. **Stable placement:** every tie ends in original source ID; mapping output
-   must be bit-identical across supported thread counts.
-6. **Budget enforcement:** sampled edges, candidate moves, passes, and
-   auxiliary memory are hard-capped before execution.
-7. **Memory discipline:** release sketch/search state before CSR relocation
-   and preserve one-base-plus-one-derived-arm residency.
+1. survey cache-line transition, reuse-distance, cache-oblivious graph layout,
+   hypergraph ordering, and multi-kernel property-access objectives;
+2. write each candidate objective and optimizer as a minimal mathematical
+   specification;
+3. attempt explicit reductions to the closest prior objectives and construct
+   non-equivalence counterexamples;
+4. reject candidates whose novelty is only sampling, determinism, bounded
+   work, or a composition of known stages;
+5. freeze one independently reviewed objective/optimizer pair before adding a
+   C++ algorithm ID or experiment cell;
+6. then enforce stable source-ID tie breaks, hard work/memory/pass caps, and
+   one-base-plus-one-derived-arm residency.
 
 Rabbit-derived and Gorder-derived experiments may diagnose why the independent
 candidate wins or loses, but they cannot become the claimed method.
