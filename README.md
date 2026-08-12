@@ -136,7 +136,8 @@ experiments.
 ## Measurement Contract
 
 New observations are immutable, versioned raw attempts keyed by graph,
-algorithm, benchmark, labeling, measurement mode, thread policy, mapping
+algorithm family, exact ordered `-o` specification, benchmark, labeling,
+measurement mode, thread policy, mapping
 identity, exact permutation fingerprint, and attempt. Failures and timeouts
 are retained.
 

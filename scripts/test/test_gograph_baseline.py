@@ -176,5 +176,6 @@ def test_cpp_self_recording_preserves_variant_identity(
 
     rows = json.loads((db_dir / "benchmarks.json").read_text())
     assert rows[0]["algorithm"] == expected
+    assert rows[0]["algorithm_spec"] == option
     store = BenchmarkStore(db_dir / "benchmarks.json")
     assert store.observations()[0]["algorithm"] == expected

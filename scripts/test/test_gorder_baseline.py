@@ -212,3 +212,4 @@ def test_cpp_self_recording_preserves_gorder_implementation(
 
     rows = json.loads((db_dir / "benchmarks.json").read_text())
     assert rows[0]["algorithm"] == expected
+    assert rows[0]["algorithm_spec"] == option

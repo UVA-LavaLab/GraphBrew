@@ -136,3 +136,4 @@ def test_cpp_self_recording_keeps_canonical_corder_identity(tmp_path):
     rows = json.loads((db_dir / "benchmarks.json").read_text())
     assert len(rows) == 1
     assert rows[0]["algorithm"] == "CORDER_canonical"
+    assert rows[0]["algorithm_spec"] == "10:canonical"

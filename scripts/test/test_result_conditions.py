@@ -217,25 +217,54 @@ def test_perf_matrix_filter_still_refuses_to_mix(tmp_path):
     assert pm["g"]["ORIGINAL"]["pr"] == 1.0
 
 
+def test_perf_matrix_never_mixes_algorithm_specs(tmp_path):
+    store = BenchmarkStore(tmp_path / "benchmarks.json")
+    store.append([
+        _result(
+            algorithm="LeidenOrder",
+            algorithm_id=15,
+            algorithm_spec="15:0.5",
+            time_seconds=1.0,
+        ),
+        _result(
+            algorithm="LeidenOrder",
+            algorithm_id=15,
+            algorithm_spec="15:2.0",
+            time_seconds=2.0,
+        ),
+    ])
+
+    with pytest.raises(ValueError, match="multiple measurement conditions"):
+        store.perf_matrix()
+    assert store.perf_matrix(
+        algorithm_spec="15:0.5"
+    )["g"]["LeidenOrder"]["pr"] == 1.0
+
+
 # =============================================================================
 # Condition key: order, fields, direct vs MAP
 # =============================================================================
 
 def test_condition_key_field_order():
-    """The key is (graph, algorithm, benchmark, ...) — algorithm before bench."""
-    assert CONDITION_FIELDS[:3] == ("graph", "algorithm", "benchmark")
+    """The key includes exact algorithm spec before benchmark."""
+    assert CONDITION_FIELDS[:4] == (
+        "graph", "algorithm", "algorithm_spec", "benchmark")
     key = benchmark_condition_key({
-        "graph": "gA", "algorithm": "GORDER", "benchmark": "pr",
+        "graph": "gA", "algorithm": "GORDER",
+        "algorithm_spec": "9:csr", "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,
         "mapping_identity_id": "direct", "attempt": 1,
     })
     # Positional order must match CONDITION_FIELDS, catching any regression to
     # the old (graph, benchmark, algorithm) tuple ordering.
-    assert key == ("gA", "GORDER", "pr", "natural", "process", 16, "direct", 1)
+    assert key == (
+        "gA", "GORDER", "9:csr", "pr",
+        "natural", "process", 16, "direct", 1)
 
 
 def test_condition_key_distinguishes_direct_vs_map_and_modes():
-    common = dict(graph="gA", algorithm="GORDER", benchmark="pr",
+    common = dict(graph="gA", algorithm="GORDER",
+                  algorithm_spec="9:csr", benchmark="pr",
                   labeling="natural", measurement_mode="process", threads=16,
                   attempt=1)
     k_direct = benchmark_condition_key({**common, "mapping_identity_id": "direct"})
@@ -251,7 +280,20 @@ def test_condition_key_distinguishes_direct_vs_map_and_modes():
 
     # The perf-aggregation discriminator excludes graph/algo/bench/attempt.
     assert condition_discriminator({**common, "mapping_identity_id": "direct"}) == (
-        "natural", "process", 16, "direct")
+        "9:csr", "natural", "process", 16, "direct")
+
+
+def test_condition_key_distinguishes_algorithm_specs():
+    common = {
+        "graph": "g",
+        "algorithm": "LeidenOrder",
+        "benchmark": "pr",
+    }
+    assert benchmark_condition_key({
+        **common, "algorithm_spec": "15:0.5",
+    }) != benchmark_condition_key({
+        **common, "algorithm_spec": "15:2.0",
+    })
 
 
 def test_resume_key_matches_store_existing_key(tmp_path):
@@ -260,13 +302,15 @@ def test_resume_key_matches_store_existing_key(tmp_path):
     store = BenchmarkStore(path)
     store.append([
         _result(algorithm="GORDER", algorithm_id=8, time_seconds=1.0,
+                algorithm_spec="9:csr",
                 labeling="natural", measurement_mode="process", threads=16,
                 mapping_identity_id="direct", attempt=1),
     ])
     existing = store.get_existing_keys()
 
     resume_direct = benchmark_condition_key({
-        "graph": "g", "algorithm": "GORDER", "benchmark": "pr",
+        "graph": "g", "algorithm": "GORDER",
+        "algorithm_spec": "9:csr", "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,
         "mapping_identity_id": "direct", "attempt": 1,
     })
@@ -275,7 +319,8 @@ def test_resume_key_matches_store_existing_key(tmp_path):
     # A MAP-mode run of the same algorithm is a *different* condition, so a
     # direct-only record must NOT satisfy its resume check.
     resume_map = benchmark_condition_key({
-        "graph": "g", "algorithm": "GORDER", "benchmark": "pr",
+        "graph": "g", "algorithm": "GORDER",
+        "algorithm_spec": "13:GORDER.lo", "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,
         "mapping_identity_id": "map:GORDER.lo", "attempt": 1,
     })
@@ -301,6 +346,7 @@ def test_legacy_row_gets_in_memory_defaults_without_rewriting(tmp_path):
     assert obs[0]["run_id"] == "legacy-00000001"
     assert obs[0]["labeling"] == "legacy-unspecified"
     assert obs[0]["measurement_mode"] == "legacy"
+    assert obs[0]["algorithm_spec"] == "ORIGINAL"
     # Display name normalized to the canonical training name.
     assert obs[0]["algorithm"] == "ORIGINAL"
 
@@ -354,6 +400,7 @@ def test_single_cpp_style_record_reads_compatibly(tmp_path):
     """A single C++-written record (already carrying condition fields) loads."""
     path = tmp_path / "benchmarks.json"
     cpp_row = [{
+        "schema": "benchmark-observation/v1",
         "graph": "tiny", "algorithm": "Original", "algorithm_id": 0,
         "benchmark": "pr", "time_seconds": 0.25, "reorder_time": 0.0,
         "trials": 1, "nodes": 4, "edges": 6, "success": True, "error": "",
@@ -369,6 +416,7 @@ def test_single_cpp_style_record_reads_compatibly(tmp_path):
     records = store.query(graph="tiny")
     assert len(records) == 1
     assert records[0]["benchmark"] == "pr"
+    assert records[0]["algorithm_spec"] == "ORIGINAL"
     assert records[0]["time_seconds"] == 0.25
     assert store.perf_matrix()["tiny"]["ORIGINAL"]["pr"] == 0.25
 
@@ -467,6 +515,7 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
     assert res.measurement_mode == "process"
     assert res.threads == 16
     assert res.mapping_identity_id == "map:GORDER.lo"
+    assert res.algorithm_spec == "0"
     assert res.attempt == 2
     assert res.run_id  # non-empty unique id
     assert res.representation_build_time == pytest.approx(1.0)

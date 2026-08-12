@@ -659,6 +659,7 @@ def run_benchmark(
     labeling: str = "natural",
     threads: int = 0,
     mapping_identity_id: str = "direct",
+    algorithm_spec: str = None,
     attempt: int = 1,
     self_record: bool = False,
 ) -> BenchmarkResult:
@@ -689,6 +690,8 @@ def run_benchmark(
         mapping_identity_id: Mapping identity for this run (``direct`` for a
             runtime reorder, or a ``map:<file>`` identity for a pre-generated
             mapping) so direct and MAP inputs never collide.
+        algorithm_spec: Exact ordered reordering specification. Defaults to
+            the literal ``algorithm`` argument.
         attempt: Attempt index for repeated draws of the same condition.
         self_record: When False (default) the C++ subprocess is launched with
             ``GRAPHBREW_DB_DIR=''`` so no ambient data-dir writer is inherited
@@ -717,6 +720,7 @@ def run_benchmark(
             benchmark=benchmark,
             time_seconds=0.0,
             run_id=uuid.uuid4().hex,
+            algorithm_spec=algorithm_spec or algorithm,
             labeling=labeling,
             measurement_mode=resolved_mode,
             threads=threads,
@@ -976,12 +980,14 @@ def run_benchmarks_multi_graph(
     results = []
     skip_existing = skip_existing or set()
 
-    def _condition_key(algo_name: str, bench: str, graph_name: str,
-                       mapping_identity_id: str, attempt: int = 1):
+    def _condition_key(algo_name: str, algorithm_spec: str, bench: str,
+                       graph_name: str, mapping_identity_id: str,
+                       attempt: int = 1):
         """Compute the shared condition key for resume comparison."""
         return benchmark_condition_key({
             "graph": graph_name,
             "algorithm": algo_name,
+            "algorithm_spec": algorithm_spec,
             "benchmark": bench,
             "labeling": labeling,
             "measurement_mode": measurement_mode,
@@ -1057,7 +1063,7 @@ def run_benchmarks_multi_graph(
                 # Resume: skip runs already in the database.  The key is the
                 # shared benchmark_condition_key computed *after* the mapping
                 # mode is known, so direct and MAP inputs resume independently.
-                if _condition_key(algo_name, bench, graph_name,
+                if _condition_key(algo_name, algo_opt, bench, graph_name,
                                   mapping_identity_id) in skip_existing:
                     completed += 1
                     skipped_existing += 1
@@ -1074,6 +1080,7 @@ def run_benchmarks_multi_graph(
                         time_seconds=0.0,
                         success=False,
                         error="SKIPPED: prior algorithm timed out on this graph+benchmark",
+                        algorithm_spec=algo_opt,
                         labeling=labeling,
                         measurement_mode=measurement_mode,
                         threads=threads,
@@ -1202,14 +1209,15 @@ def run_benchmarks_multi_graph(
                     if combo_key in timed_out_combos:
                         continue
                     # Resume: chained orderings resume on the same shared key.
-                    if _condition_key(canonical, bench, graph_name,
+                    map_spec = f"13:{pregen_lo}"
+                    if _condition_key(canonical, map_spec, bench, graph_name,
                                       mapping_identity_id) in skip_existing:
                         skipped_existing += 1
                         continue
                     result = run_benchmark(
                         benchmark=bench,
                         graph_path=graph.path,
-                        algorithm=f"13:{pregen_lo}",  # MAP mode with .lo
+                        algorithm=map_spec,  # MAP mode with .lo
                         trials=num_trials,
                         timeout=graph_timeout,
                         bin_dir=bin_dir,

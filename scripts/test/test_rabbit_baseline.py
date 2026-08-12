@@ -149,6 +149,7 @@ def test_cpp_self_recording_preserves_rabbit_variant_and_fingerprint(
     row = rows[0]
     detail = row["reorder_details"][0]
     assert row["algorithm"] == expected
+    assert row["algorithm_spec"] == option
     assert re.fullmatch(r"[0-9a-f]{16}", row["mapping_fingerprint"])
     assert row["reorder_schedule_sensitive"] is True
     assert detail["mapping_fingerprint"] == row["mapping_fingerprint"]

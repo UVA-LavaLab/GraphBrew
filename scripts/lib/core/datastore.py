@@ -309,6 +309,7 @@ class BenchmarkStore:
             rec['run_id'] = f"{_LEGACY_RUN_ID_PREFIX}{self._legacy_counter:08d}"
             rec.setdefault('labeling', _LEGACY_LABELING)
             rec.setdefault('measurement_mode', _LEGACY_MEASUREMENT_MODE)
+        rec.setdefault('algorithm_spec', rec.get('algorithm', ''))
         rec.setdefault('schema', 'benchmark-observation/legacy')
         return rec
 
@@ -325,11 +326,14 @@ class BenchmarkStore:
         canonical = self._normalize_algorithm(algo)
         if canonical != algo:
             rec['algorithm'] = canonical
-        rec.setdefault('schema', BENCHMARK_OBSERVATION_SCHEMA)
-        if rec['schema'] != BENCHMARK_OBSERVATION_SCHEMA:
+        schema = rec.get('schema')
+        if schema in (None, '', 'benchmark-observation/v1'):
+            rec['schema'] = BENCHMARK_OBSERVATION_SCHEMA
+        elif schema != BENCHMARK_OBSERVATION_SCHEMA:
             raise ValueError(
-                f"Unsupported benchmark observation schema: {rec['schema']!r}"
+                f"Unsupported benchmark observation schema: {schema!r}"
             )
+        rec.setdefault('algorithm_spec', rec.get('algorithm', ''))
         if not rec.get('run_id'):
             rec['run_id'] = uuid.uuid4().hex
         return rec
@@ -464,7 +468,8 @@ class BenchmarkStore:
         return out
 
     def query(self, graph: str = None, algorithm: str = None,
-              benchmark: str = None, include_failed: bool = False) -> List[dict]:
+              benchmark: str = None, algorithm_spec: str = None,
+              include_failed: bool = False) -> List[dict]:
         """Filter records by any combination of fields (successful-only default)."""
         source = self._observations if include_failed else self._successful()
         out = []
@@ -472,6 +477,8 @@ class BenchmarkStore:
             if graph and r.get('graph') != graph:
                 continue
             if algorithm and r.get('algorithm') != algorithm:
+                continue
+            if algorithm_spec and r.get('algorithm_spec') != algorithm_spec:
                 continue
             if benchmark and r.get('benchmark') != benchmark:
                 continue
@@ -492,6 +499,7 @@ class BenchmarkStore:
 
     def perf_matrix(
         self,
+        algorithm_spec: str = None,
         labeling: str = None,
         measurement_mode: str = None,
         threads: int = None,
@@ -511,7 +519,13 @@ class BenchmarkStore:
         """
         explicit_filter = any(
             v is not None
-            for v in (labeling, measurement_mode, threads, mapping_identity_id)
+            for v in (
+                algorithm_spec,
+                labeling,
+                measurement_mode,
+                threads,
+                mapping_identity_id,
+            )
         )
 
         # group[(graph, algo, bench)][discriminator] = [times...]
@@ -520,6 +534,9 @@ class BenchmarkStore:
                         lambda: defaultdict(list))
         for r in self._observations:
             if not r.get('success', True):
+                continue
+            if algorithm_spec is not None and \
+                    r.get('algorithm_spec') != algorithm_spec:
                 continue
             t = r.get('time_seconds', 0.0)
             if not (isinstance(t, (int, float)) and t > 0):
@@ -551,7 +568,8 @@ class BenchmarkStore:
                         "perf_matrix: multiple measurement conditions for "
                         f"{g!r}/{a!r}/{b!r}: {sorted(by_condition.keys())}. "
                         "Supply a condition filter (labeling / measurement_mode "
-                        "/ threads / mapping_identity_id) to disambiguate."
+                        "/ algorithm_spec / threads / mapping_identity_id) "
+                        "to disambiguate."
                     )
                 # Even with a filter, refuse to mix conditions.
                 raise ValueError(

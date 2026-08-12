@@ -652,7 +652,7 @@ def get_graph_dimensions(path: str) -> Tuple[int, int]:
 # Data Classes
 # =============================================================================
 
-BENCHMARK_OBSERVATION_SCHEMA = "benchmark-observation/v1"
+BENCHMARK_OBSERVATION_SCHEMA = "benchmark-observation/v2"
 
 
 @dataclass
@@ -681,6 +681,7 @@ class BenchmarkResult:
     # ── Observation-condition identity (immutable raw-observation model) ──
     schema: str = BENCHMARK_OBSERVATION_SCHEMA
     run_id: str = ""
+    algorithm_spec: str = ""
     labeling: str = "natural"
     measurement_mode: str = "process"
     threads: int = 0
@@ -698,6 +699,8 @@ class BenchmarkResult:
     def __post_init__(self):
         if self.extra is None:
             self.extra = {}
+        if not self.algorithm_spec:
+            self.algorithm_spec = self.algorithm
 
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -719,6 +722,7 @@ class BenchmarkResult:
 CONDITION_FIELDS: Tuple[str, ...] = (
     "graph",
     "algorithm",
+    "algorithm_spec",
     "benchmark",
     "labeling",
     "measurement_mode",
@@ -732,6 +736,7 @@ CONDITION_FIELDS: Tuple[str, ...] = (
 #: index, so ``perf_matrix`` can median repeated attempts of one condition while
 #: still refusing to mix e.g. ``natural`` and ``shuffled`` labelings.
 CONDITION_DISCRIMINATORS: Tuple[str, ...] = (
+    "algorithm_spec",
     "labeling",
     "measurement_mode",
     "threads",
@@ -745,6 +750,7 @@ CONDITION_DISCRIMINATORS: Tuple[str, ...] = (
 _CONDITION_DEFAULTS: Dict[str, Any] = {
     "graph": "",
     "algorithm": "",
+    "algorithm_spec": "",
     "benchmark": "",
     "labeling": "natural",
     "measurement_mode": "process",
@@ -761,6 +767,11 @@ def _condition_field_value(record: Any, field: str) -> Any:
         value = record.get(field, default)
     else:
         value = getattr(record, field, default)
+    if field == "algorithm_spec" and not value:
+        if isinstance(record, dict):
+            value = record.get("algorithm", "")
+        else:
+            value = getattr(record, "algorithm", "")
     if value is None:
         value = default
     return value

@@ -12,6 +12,7 @@
 #include <memory>
 #include <parallel/algorithm>
 #include <random>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -399,6 +400,20 @@ inline std::string ExtractGraphName(const std::string& filepath) {
     return base;
 }
 
+inline std::string ReorderSpec(const CLApp& cli) {
+    std::ostringstream spec;
+    const auto& options = cli.reorder_options();
+    if (options.empty()) return "0";
+    for (size_t index = 0; index < options.size(); ++index) {
+        if (index > 0) spec << "+";
+        spec << static_cast<int>(options[index].first);
+        for (const auto& token : options[index].second) {
+            spec << ":" << token;
+        }
+    }
+    return spec.str();
+}
+
 /// Self-recording BenchmarkKernel overload.
 ///
 /// In addition to timing and verifying, this overload:
@@ -473,6 +488,7 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
         RunReport report;
         report.graph_name   = ExtractGraphName(cli.filename());
         report.algorithm    = GetReorderAlgoHint();
+        report.algorithm_spec = ReorderSpec(cli);
         report.algorithm_id = GetReorderAlgoIdHint();
         report.benchmark    = benchmark_name;
         report.avg_time     = avg_time;

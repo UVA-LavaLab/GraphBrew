@@ -64,7 +64,7 @@ namespace database {
 /// Default directory containing the centralized data files
 inline constexpr const char* DEFAULT_DATA_DIR = "results/data/";
 inline constexpr const char* BENCHMARK_OBSERVATION_SCHEMA =
-    "benchmark-observation/v1";
+    "benchmark-observation/v2";
 
 /// Number of nearest neighbors for kNN selection
 inline constexpr int KNN_K = 5;
@@ -239,6 +239,7 @@ struct AlgoKNNScore {
 struct BenchRecord {
     std::string graph;
     std::string algorithm;
+    std::string algorithm_spec;
     int algorithm_id = 0;
     std::string benchmark;
     double time_seconds = 0.0;
@@ -334,6 +335,7 @@ struct RunReport {
     // Identity
     std::string graph_name;               ///< from filename or --graph-name
     std::string algorithm;                ///< from -o flag (e.g. "GraphBrewOrder")
+    std::string algorithm_spec;           ///< exact ordered numeric -o chain
     int         algorithm_id = 0;         ///< numeric algo ID
     std::string benchmark;                ///< "pr", "bfs", "cc", etc.
 
@@ -377,6 +379,8 @@ struct RunReport {
         j["graph"] = graph_name;
         j["schema"] = BENCHMARK_OBSERVATION_SCHEMA;
         j["algorithm"] = algorithm;
+        j["algorithm_spec"] =
+            algorithm_spec.empty() ? algorithm : algorithm_spec;
         j["algorithm_id"] = algorithm_id;
         j["benchmark"] = benchmark;
         j["time_seconds"] = avg_time;
@@ -446,6 +450,7 @@ struct RunReport {
         RunReport rr;
         rr.graph_name = r.graph;
         rr.algorithm = r.algorithm;
+        rr.algorithm_spec = r.algorithm_spec;
         rr.algorithm_id = r.algorithm_id;
         rr.benchmark = r.benchmark;
         rr.avg_time = r.time_seconds;
@@ -462,6 +467,8 @@ struct RunReport {
         BenchRecord r;
         r.graph = graph_name;
         r.algorithm = algorithm;
+        r.algorithm_spec =
+            algorithm_spec.empty() ? algorithm : algorithm_spec;
         r.algorithm_id = algorithm_id;
         r.benchmark = benchmark;
         r.time_seconds = avg_time;
@@ -1179,14 +1186,15 @@ public:
     /**
      * @brief Append a new benchmark record to the database and save to disk.
      *
-     * Deduplicates by (graph, algorithm, benchmark) key, keeping the
+     * Deduplicates by (graph, algorithm, spec, benchmark) key, keeping the
      * record with the lowest time_seconds.
      *
      * Thread-safe.
      */
     void append(const BenchRecord& rec) {
         std::lock_guard<std::mutex> lock(mutex_);
-        auto key = rec.graph + "|" + rec.algorithm + "|" + rec.benchmark;
+        auto key = rec.graph + "|" + rec.algorithm + "|"
+            + rec.algorithm_spec + "|" + rec.benchmark;
 
         auto it = dedup_.find(key);
         if (it != dedup_.end()) {
@@ -1215,7 +1223,8 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         // --- inline append logic under the same lock ---
         {
-            auto key = rec.graph + "|" + rec.algorithm + "|" + rec.benchmark;
+            auto key = rec.graph + "|" + rec.algorithm + "|"
+                + rec.algorithm_spec + "|" + rec.benchmark;
             auto it = dedup_.find(key);
             if (it != dedup_.end()) {
                 auto& existing = records_[it->second];
@@ -1287,7 +1296,8 @@ public:
 
         // Insert into in-memory store
         BenchRecord rec = report.to_bench_record();
-        auto key = rec.graph + "|" + rec.algorithm + "|" + rec.benchmark;
+        auto key = rec.graph + "|" + rec.algorithm + "|"
+            + rec.algorithm_spec + "|" + rec.benchmark;
         auto it = dedup_.find(key);
         if (it != dedup_.end()) {
             auto& existing = records_[it->second];
@@ -1540,6 +1550,8 @@ private:
                 BenchRecord rec;
                 rec.graph = entry.value("graph", "");
                 rec.algorithm = entry.value("algorithm", "");
+                rec.algorithm_spec = entry.value(
+                    "algorithm_spec", rec.algorithm);
                 rec.algorithm_id = entry.value("algorithm_id", 0);
                 rec.benchmark = entry.value("benchmark", "");
                 rec.time_seconds = entry.value("time_seconds", 0.0);
@@ -1553,7 +1565,8 @@ private:
                     continue;
 
                 // Dedup by (graph, algorithm, benchmark), keep lowest time
-                auto key = rec.graph + "|" + rec.algorithm + "|" + rec.benchmark;
+                auto key = rec.graph + "|" + rec.algorithm + "|"
+                    + rec.algorithm_spec + "|" + rec.benchmark;
                 auto it = dedup_.find(key);
                 if (it != dedup_.end()) {
                     if (rec.time_seconds < records_[it->second].time_seconds) {
@@ -1717,6 +1730,8 @@ private:
             nlohmann::json entry;
             entry["graph"] = r.graph;
             entry["algorithm"] = r.algorithm;
+            entry["algorithm_spec"] =
+                r.algorithm_spec.empty() ? r.algorithm : r.algorithm_spec;
             entry["algorithm_id"] = r.algorithm_id;
             entry["benchmark"] = r.benchmark;
             entry["time_seconds"] = r.time_seconds;
