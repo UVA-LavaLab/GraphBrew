@@ -288,6 +288,8 @@ struct ReorderMeta {
     double      reorder_core_time = 0.0;  ///< mapping construction/load
     double      validation_time = 0.0;    ///< permutation validation
     double      apply_time = 0.0;         ///< CSR relabel/application
+    std::string mapping_fingerprint;      ///< stable old->new permutation hash
+    bool        schedule_sensitive = false;
 
     // Leiden/GraphBrew specific
     int         num_passes = 0;           ///< Leiden coarsening passes
@@ -310,6 +312,10 @@ struct ReorderMeta {
         j["reorder_core_time"] = reorder_core_time;
         j["validation_time"] = validation_time;
         j["apply_time"] = apply_time;
+        if (!mapping_fingerprint.empty()) {
+            j["mapping_fingerprint"] = mapping_fingerprint;
+        }
+        j["schedule_sensitive"] = schedule_sensitive;
         if (num_passes > 0) j["num_passes"] = num_passes;
         if (num_communities > 0) j["num_communities"] = num_communities;
         if (resolution > 0) j["resolution"] = resolution;
@@ -424,6 +430,10 @@ struct RunReport {
                 reorder_arr.push_back(rm.to_json());
             }
             j["reorder_details"] = reorder_arr;
+            j["mapping_fingerprint"] =
+                reorder_metas.back().mapping_fingerprint;
+            j["reorder_schedule_sensitive"] =
+                reorder_metas.back().schedule_sensitive;
         }
 
         // Extra (backward compat placeholder)

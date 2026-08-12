@@ -93,7 +93,9 @@ where a small set of hubs dominates access frequency.
 a dendrogram of community merges, then orders vertices by DFS of that
 dendrogram. Fast (~2-10× slower than degree-based, much faster than
 Gorder) and produces high-quality cache locality on graphs with clear
-community structure.
+community structure. Standalone Rabbit mappings are schedule-sensitive;
+GraphBrew records a stable permutation fingerprint for every draw, and final
+studies use explicitly versioned repeated draws rather than cherry-picking.
 
 Variants:
 

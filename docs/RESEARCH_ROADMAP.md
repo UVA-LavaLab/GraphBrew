@@ -158,6 +158,8 @@ Baseline hygiene findings discovered by the same review:
 - Gorder `9:gograph` and `9:csr` are exact mapping-equivalent implementations;
   `9:fast` is a distinct relaxed mapping. Its batch/window semantics and
   frontier merge are now deterministic across thread counts.
+- Every reorder pass now emits and persists an exact permutation fingerprint;
+  standalone Rabbit variants are explicitly marked schedule-sensitive.
 
 The source identities are now corrected, Algorithm 10 is deterministic, and
 `10:canonical` exposes the upstream-sized baseline without changing frozen

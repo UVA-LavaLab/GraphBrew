@@ -442,6 +442,7 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
             "Representation Build Time: 1.0000\n"
             "Reorder Core Time: 0.2000\n"
             "Reorder Time: 0.2000\n"
+            "Mapping Fingerprint: abcdef0123456789\n"
             "Reorder Validation Time: 0.0100\n"
             "Reorder Apply Time: 0.0300\n"
             "Reorder End-to-End Time: 0.2400\n"
@@ -474,6 +475,7 @@ def test_generic_run_benchmark_populates_condition(monkeypatch, tmp_path):
     assert res.reorder_apply_time == pytest.approx(0.03)
     assert res.reorder_time == pytest.approx(0.24)
     assert res.total_preprocessing_time == pytest.approx(1.3)
+    assert res.mapping_fingerprint == "abcdef0123456789"
 
 
 # =============================================================================

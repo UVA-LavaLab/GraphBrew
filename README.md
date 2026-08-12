@@ -137,7 +137,8 @@ experiments.
 
 New observations are immutable, versioned raw attempts keyed by graph,
 algorithm, benchmark, labeling, measurement mode, thread policy, mapping
-identity, and attempt. Failures and timeouts are retained.
+identity, exact permutation fingerprint, and attempt. Failures and timeouts
+are retained.
 
 Preprocessing timing is explicit:
 

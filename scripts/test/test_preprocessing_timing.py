@@ -23,6 +23,7 @@ def test_parser_exposes_explicit_preprocessing_boundaries():
 Representation Build Time: 1.00000
 Reorder Core Time: 0.20000
 Reorder Time: 0.20000
+Mapping Fingerprint: abcdef0123456789
 Reorder Validation Time: 0.01000
 Reorder Apply Time: 0.03000
 Reorder End-to-End Time: 0.24000
@@ -36,6 +37,7 @@ Average Time: 0.50000
     assert timing["representation_build_time"] == pytest.approx(1.0)
     assert timing["reorder_core_time"] == pytest.approx(0.2)
     assert timing["mapping_generation_time"] == pytest.approx(0.2)
+    assert timing["mapping_fingerprint"] == "abcdef0123456789"
     assert timing["reorder_validation_time"] == pytest.approx(0.01)
     assert timing["reorder_apply_time"] == pytest.approx(0.03)
     assert timing["complete_reorder_time"] == pytest.approx(0.24)

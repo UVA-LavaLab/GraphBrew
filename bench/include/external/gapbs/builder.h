@@ -870,6 +870,22 @@ public:
                 new_ids, g_final.num_nodes(), "generated mapping");
             validation_timer.Stop();
 
+            Timer fingerprint_timer;
+            fingerprint_timer.Start();
+            const std::string mapping_fingerprint =
+                MappingFingerprint(new_ids);
+            fingerprint_timer.Stop();
+            GetPreprocessingTimingHint().excluded_diagnostic_time +=
+                fingerprint_timer.Seconds();
+            PrintLabel(
+                "Mapping Fingerprint",
+                mapping_fingerprint);
+            if (option.first == RabbitOrder) {
+                PrintLabel(
+                    "Reorder Schedule Sensitive",
+                    "true");
+            }
+
             Timer apply_timer;
             apply_timer.Start();
             g_final = RelabelByMapping(g_final, new_ids);
@@ -902,6 +918,9 @@ public:
             meta.reorder_core_time = core_time;
             meta.validation_time = validation_timer.Seconds();
             meta.apply_time = apply_timer.Seconds();
+            meta.mapping_fingerprint = mapping_fingerprint;
+            meta.schedule_sensitive =
+                option.first == RabbitOrder;
             meta.reorder_time = accounted_end_to_end_time;
         }
 
@@ -1315,6 +1334,21 @@ public:
         };
     }
 
+    std::string MappingFingerprint(
+            const pvector<NodeID_>& new_ids) const {
+        uint64_t hash = UINT64_C(1469598103934665603);
+        for (size_t old_id = 0; old_id < new_ids.size(); ++old_id) {
+            hash ^= static_cast<uint64_t>(old_id);
+            hash *= UINT64_C(1099511628211);
+            hash ^= static_cast<uint64_t>(new_ids[old_id]);
+            hash *= UINT64_C(1099511628211);
+        }
+        std::ostringstream output;
+        output << std::hex << std::setfill('0')
+               << std::setw(16) << hash;
+        return output.str();
+    }
+
     void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                          pvector<NodeID_> &new_ids,
                          ReorderingAlgo reordering_algo, bool useOutdeg,
@@ -1546,6 +1580,10 @@ public:
                 algo_name = variant == "default"
                     ? "GORDER"
                     : "GORDER_" + variant;
+            }
+            if (reordering_algo == RabbitOrder) {
+                algo_name = "RABBITORDER_"
+                    + resolveVariant(reordering_options, "csr");
             }
 
             // ── MAP mode: derive real algorithm identity from .lo filename ──

@@ -447,6 +447,26 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     if distance_fingerprints:
         extra["distance_fingerprints"] = distance_fingerprints
 
+    mapping_fingerprints = [
+        value.lower()
+        for value in re.findall(
+            r"Mapping Fingerprint:\s*([0-9a-fA-F]+)", output,
+        )
+    ]
+    if mapping_fingerprints:
+        extra["mapping_fingerprints"] = mapping_fingerprints
+        extra["mapping_fingerprint"] = mapping_fingerprints[-1]
+
+    schedule_sensitive = re.findall(
+        r"Reorder Schedule Sensitive:\s*(true|false)",
+        output,
+        flags=re.IGNORECASE,
+    )
+    if schedule_sensitive:
+        extra["reorder_schedule_sensitive"] = (
+            schedule_sensitive[-1].lower() == "true"
+        )
+
     work_labels = {
         "bfs_td_edges": "BFS TD Edges",
         "bfs_bu_edges": "BFS BU Edges",
@@ -811,6 +831,12 @@ def run_benchmark(
             ),
             total_preprocessing_time=float(
                 extra.get("total_preprocessing_time", 0.0)
+            ),
+            mapping_fingerprint=str(
+                extra.get("mapping_fingerprint", "")
+            ),
+            reorder_schedule_sensitive=bool(
+                extra.get("reorder_schedule_sensitive", False)
             ),
             trials=trials,
             success=True,

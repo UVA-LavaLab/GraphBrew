@@ -692,6 +692,8 @@ class BenchmarkResult:
     reorder_validation_time: float = 0.0
     reorder_apply_time: float = 0.0
     total_preprocessing_time: float = 0.0
+    mapping_fingerprint: str = ""
+    reorder_schedule_sensitive: bool = False
 
     def __post_init__(self):
         if self.extra is None:
