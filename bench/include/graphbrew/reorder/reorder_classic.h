@@ -76,6 +76,97 @@ namespace corder_params {
  * 
  * @note Requires GoGraph.h and GoUtil.h from gorder include
  */
+namespace graphbrew::classic_detail {
+
+using EdgeIndex = std::int64_t;
+
+constexpr std::size_t EdgePosition(
+    EdgeIndex row_offset, EdgeIndex local_offset) {
+    return static_cast<std::size_t>(row_offset + local_offset);
+}
+
+constexpr bool PreferGOrderCSR(EdgeIndex directed_edges) {
+    return directed_edges > std::numeric_limits<std::int32_t>::max();
+}
+
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void InitializeGoGraphFromCSR(
+    const CSRGraph<NodeID_, DestID_, invert>& graph,
+    Gorder::GoGraph& output) {
+    const int nodes = static_cast<int>(graph.num_nodes());
+    const EdgeIndex edges = graph.num_edges_directed();
+    output.vsize = nodes;
+    output.edgenum = edges;
+    output.graph.assign(nodes + 1, Gorder::Vertex());
+    output.outedge.resize(edges);
+
+    #pragma omp parallel for schedule(dynamic, 1024)
+    for (NodeID_ source = 0; source < nodes; ++source) {
+        EdgeIndex start = graph.out_offset(source);
+        output.graph[source].outstart = start;
+        output.graph[source].outdegree =
+            static_cast<int>(graph.out_degree(source));
+        if (!graph.directed()) {
+            output.graph[source].instart = start;
+            output.graph[source].indegree =
+                output.graph[source].outdegree;
+        } else if constexpr (invert) {
+            output.graph[source].instart = graph.in_offset(source);
+            output.graph[source].indegree =
+                static_cast<int>(graph.in_degree(source));
+        }
+
+        EdgeIndex local = 0;
+        for (DestID_ neighbor : graph.out_neigh(source)) {
+            NodeID_ destination;
+            if (graph.is_weighted()) {
+                destination =
+                    static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
+            } else {
+                destination = static_cast<NodeID_>(neighbor);
+            }
+            output.outedge[EdgePosition(start, local++)] =
+                static_cast<int>(destination);
+            if (graph.directed()) {
+                if constexpr (!invert) {
+                    #pragma omp atomic update
+                    output.graph[destination].indegree++;
+                }
+            }
+        }
+        std::sort(
+            output.outedge.begin() + start,
+            output.outedge.begin() + start
+                + output.graph[source].outdegree);
+    }
+    if (graph.directed()) {
+        if constexpr (!invert) {
+            output.graph[0].instart = 0;
+            for (int node = 1; node < nodes; ++node) {
+                output.graph[node].instart =
+                    output.graph[node - 1].instart
+                    + output.graph[node - 1].indegree;
+            }
+        }
+    }
+    output.graph[nodes].outstart = edges;
+    output.graph[nodes].instart = edges;
+#ifndef Release
+    std::vector<EdgeIndex> in_positions(nodes);
+    for (int node = 0; node < nodes; ++node)
+        in_positions[node] = output.graph[node].instart;
+    output.inedge.resize(edges);
+    for (int source = 0; source < nodes; ++source) {
+        for (EdgeIndex edge = output.graph[source].outstart;
+             edge < output.graph[source + 1].outstart; ++edge) {
+            output.inedge[in_positions[output.outedge[edge]]++] = source;
+        }
+    }
+#endif
+}
+
+}  // namespace graphbrew::classic_detail
+
 template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                            pvector<NodeID_>& new_ids,
@@ -84,27 +175,9 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     const int window = 5;  // Default window size (w=5 per SIGMOD'16 paper)
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges_directed();
-    
-    // Build edge list for GOrder
-    std::vector<std::pair<int, int>> edges(num_edges);
-    
-    #pragma omp parallel for
-    for (NodeID_ i = 0; i < num_nodes; ++i) {
-        NodeID_ out_start = g.out_offset(i);
-        NodeID_ j = 0;
-        
-        for (DestID_ neighbor : g.out_neigh(i)) {
-            NodeID_ dest;
-            if (g.is_weighted()) {
-                dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-            } else {
-                dest = static_cast<NodeID_>(neighbor);
-            }
-            edges[out_start + j] = std::make_pair(static_cast<int>(i), 
-                                                   static_cast<int>(dest));
-            ++j;
-        }
+    if (num_nodes > std::numeric_limits<int>::max()) {
+        throw std::overflow_error(
+            "GOrder requires vertex IDs representable as int32");
     }
     
     // Initialize GOrder graph structure
@@ -115,10 +188,10 @@ void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     std::string name = GorderUtil::extractFilename(filename.c_str());
     go.setFilename(name);
     
-    // Read and transform graph
+    // Initialize directly from the sorted CSR and transform the graph.
     tm.Start();
-    go.readGraphEdgelist(edges, g.num_nodes());
-    edges.clear();
+    graphbrew::classic_detail::InitializeGoGraphFromCSR<
+        NodeID_, DestID_, WeightT_, invert>(g, go);
     go.Transform();
     tm.Stop();
     PrintTime("GOrder graph", tm.Seconds());
@@ -167,27 +240,9 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                              const std::string& filename) {
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges_directed();
-    
-    // Build edge list
-    std::vector<std::pair<int, int>> edges(num_edges);
-    
-    #pragma omp parallel for
-    for (NodeID_ i = 0; i < num_nodes; ++i) {
-        NodeID_ out_start = g.out_offset(i);
-        NodeID_ j = 0;
-        
-        for (DestID_ neighbor : g.out_neigh(i)) {
-            NodeID_ dest;
-            if (g.is_weighted()) {
-                dest = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-            } else {
-                dest = static_cast<NodeID_>(neighbor);
-            }
-            edges[out_start + j] = std::make_pair(static_cast<int>(i),
-                                                   static_cast<int>(dest));
-            ++j;
-        }
+    if (num_nodes > std::numeric_limits<int>::max()) {
+        throw std::overflow_error(
+            "RCM requires vertex IDs representable as int32");
     }
     
     // Initialize GoGraph (RCM is implemented in GoGraph)
@@ -198,10 +253,10 @@ void GenerateRCMOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     std::string name = GorderUtil::extractFilename(filename.c_str());
     go.setFilename(name);
     
-    // Read and transform graph
+    // Initialize directly from the sorted CSR and transform the graph.
     tm.Start();
-    go.readGraphEdgelist(edges, g.num_nodes());
-    edges.clear();
+    graphbrew::classic_detail::InitializeGoGraphFromCSR<
+        NodeID_, DestID_, WeightT_, invert>(g, go);
     go.Transform();
     tm.Stop();
     PrintTime("RCMOrder graph", tm.Seconds());

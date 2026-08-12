@@ -1959,53 +1959,38 @@ def run_experiment(args):
                 save_results=False,
             )
         
-        # Phase 4–6: DEPRECATED
-        # C++ now trains perceptron, decision tree, and hybrid models directly
-        # from benchmarks.json + graph_properties.json at load time.
-        # No need for Python-side weight computation, zero-weight updates,
-        # or type assignment — the data IS the model.
-        log_section("Phase 4–6: Skipped (C++ trains from DB at runtime)")
-        log("  C++ BenchmarkDatabase::train_all_models() trains:")
-        log("    - Multi-class averaged perceptron (Jimenez margin, 5 restarts)")
-        log("    - CART decision tree (Gini, depth 6)")
-        log("    - Hybrid DT + per-leaf perceptron")
-        log("  All models are views over benchmarks.json + graph_properties.json.")
-        log("  No adaptive_models.json or results/models/ directory needed.")
+        log_section("Phase 4–6: Offline adaptive model training")
+        from scripts.lib.ml.eval_weights import train_and_evaluate
+        from scripts.lib.ml.model_tree import Criterion, train_all_models
+        from scripts.lib.core.datastore import (
+            ADAPTIVE_MODELS_FILE,
+            get_benchmark_store,
+            get_props_store,
+        )
+
+        train_and_evaluate(
+            results_dir=args.results_dir,
+            sg_only=True,
+            logo=False,
+        )
+        train_all_models(
+            get_benchmark_store().to_list(),
+            get_props_store().all(),
+            criterion=Criterion.FASTEST_EXECUTION,
+            save_path=ADAPTIVE_MODELS_FILE,
+        )
+        log(f"  Exported load-only artifact: {ADAPTIVE_MODELS_FILE}")
         
         log_section("Fill Weights Complete")
-        log("Benchmark data recorded to DB. C++ trains models at runtime.")
+        log("Benchmark data recorded; C++ runtime is model-load only.")
         
-        # Phase 7: ML Evaluation (auto-eval unless --skip-eval)
+        # Phase 7: retired until Sprint-3 nested fold-local evaluation.
         if not getattr(args, 'skip_eval', False):
-            log_section("Phase 7: ML Model Evaluation (LOGO Cross-Validation)")
-            try:
-                from scripts.evaluate_all_modes import load_data, eval_logo_all_models, print_final_summary
-                bench_results, reorder_results, graph_props, raw_records = load_data()
-                if len(graph_props) >= 3:
-                    logo_matrix = eval_logo_all_models(
-                        bench_results, raw_records, graph_props, reorder_results)
-                    print_final_summary({}, logo_matrix)
-                    # Save evaluation summary
-                    eval_summary_path = os.path.join(args.results_dir, "data", "evaluation_summary.json")
-                    summary = {}
-                    for model, results in logo_matrix.items():
-                        summary[model] = {}
-                        for crit, d in results.items():
-                            summary[model][crit.value] = {
-                                'top1': d['top1'],
-                                'avg_regret': d['avg_regret'],
-                                'within_5pct': d.get('within_5pct', 0),
-                                'correct': d['correct'],
-                                'total': d['total'],
-                            }
-                    with open(eval_summary_path, 'w') as f:
-                        json.dump(summary, f, indent=2)
-                    log(f"Evaluation summary saved to: {eval_summary_path}")
-                else:
-                    log(f"Only {len(graph_props)} graphs with properties — skipping ML eval (need ≥3)", "WARN")
-            except Exception as e:
-                log(f"ML evaluation failed (non-fatal): {e}", "WARN")
-                traceback.print_exc()
+            log_section("Phase 7: Retired legacy LOGO")
+            log(
+                "  Sprint 3 will run fold-local portfolio/model/OOD tuning; "
+                "the old non-nested path is intentionally disabled."
+            )
         else:
             log_section("Phase 7: ML Evaluation — SKIPPED (--skip-eval)")
     
@@ -2190,8 +2175,8 @@ def main():
                         default=None, choices=["csr", "boost"],
                         help="RabbitOrder variants: csr (default), boost (requires libboost)")
     g_algo.add_argument("--gorder-variants", nargs="+",
-                        default=None, choices=["default", "csr", "fast"],
-                        help="GOrder implementation variants: default, csr, fast")
+                        default=None, choices=GORDER_VARIANTS,
+                        help="GOrder implementation variants: " + ", ".join(GORDER_VARIANTS))
     g_algo.add_argument("--graphbrew-variants", nargs="+", dest="graphbrew_variants",
                         default=None, choices=["leiden", "rabbit", "hubcluster"],
                         help="GraphBrewOrder variants: leiden (default), rabbit, hubcluster")
@@ -2307,8 +2292,115 @@ def main():
                          help="Run pytest test suite (optional: filter pattern e.g. --test gorder)")
     g_paper.add_argument("--paper-preview", action="store_true",
                          help="Use preview mode for --vldb/--ecg (fewer graphs/benchmarks)")
-    g_paper.add_argument("--paper-graph-dir", default=".", metavar="DIR",
-                         help="Graph directory for --vldb/--ecg experiments")
+    g_paper.add_argument(
+        "--paper-tune-sssp-delta",
+        action="store_true",
+        help="Tune weighted SSSP delta on ORIGINAL through the VLDB runner",
+    )
+    g_paper.add_argument(
+        "--paper-freeze-sssp-policy",
+        action="store_true",
+        help="Freeze layered-reviewed SSSP tuning recommendations",
+    )
+    g_paper.add_argument(
+        "--paper-verify-gate",
+        action="store_true",
+        help="Run the untimed VLDB semantic verification gate",
+    )
+    g_paper.add_argument(
+        "--paper-graph-dir",
+        default=os.environ.get(
+            "GRAPHBREW_PAPER_GRAPH_ROOT",
+            "/media/Data/00_GraphDatasets/GraphBrew",
+        ),
+        metavar="DIR",
+        help="Graph directory for --vldb/--ecg experiments",
+    )
+    g_paper.add_argument("--paper-algorithms", nargs="+",
+                         help="Restrict VLDB runs to exact canonical algorithm keys")
+    g_paper.add_argument("--paper-artifact-root",
+                         default=os.environ.get(
+                             "GRAPHBREW_VLDB_ROOT",
+                             "/media/Data/00_GraphDatasets/GraphBrew/artifacts",
+                         ),
+                         metavar="DIR",
+                         help="Root for VLDB results, mappings, and run sidecars")
+    g_paper.add_argument(
+        "--paper-measurement-generation",
+        help="Shared generation ID for distributed VLDB stage workers",
+    )
+    g_paper.add_argument("--paper-threads", type=int,
+                         help="Base OpenMP threads for VLDB runs")
+    g_paper.add_argument("--paper-cpu-list", type=str,
+                         help="taskset CPU list for VLDB timing isolation")
+    g_paper.add_argument("--paper-cache-mode",
+                         choices=["accurate", "fast", "ultrafast", "sampled"],
+                         help="Cache simulator mode for VLDB experiment 1")
+    g_paper.add_argument("--paper-cache-sample-rate", type=int, default=64,
+                         help="Sampling interval for sampled VLDB cache simulation")
+    g_paper.add_argument("--paper-cache-sizes-kib", nargs="+", type=int,
+                         help="Override VLDB cache-capacity sweep in KiB")
+    g_paper.add_argument("--paper-cache-all-algorithms", action="store_true",
+                         help="Sweep the full VLDB algorithm matrix in cache experiment 1")
+    g_paper.add_argument("--paper-publish-figures", action="store_true",
+                         help="Copy generated VLDB figures into research/dataCharts/generated/")
+    g_paper.add_argument(
+        "--adaptive-sprint1-plan",
+        action="store_true",
+        help="Emit the pre-data adaptive Sprint-1 node-hour projection",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-sources",
+        action="store_true",
+        help="Generate frozen source manifests for the adaptive pilot",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-natural",
+        action="store_true",
+        help="Materialize and validate natural-label adaptive pilot graphs",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-pilot-dry-run",
+        action="store_true",
+        help="Prepare the reviewed adaptive pilot command manifest",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-executor-check",
+        action="store_true",
+        help="Validate the adaptive pilot executor without running timing",
+    )
+    g_paper.add_argument(
+        "--adaptive-force-sources",
+        action="store_true",
+        help="Regenerate existing adaptive Sprint-1 source manifests",
+    )
+    g_paper.add_argument(
+        "--adaptive-refreeze-sources",
+        action="store_true",
+        help="Replace a frozen adaptive source bundle after review",
+    )
+    g_paper.add_argument(
+        "--adaptive-refreeze-budget",
+        action="store_true",
+        help="Replace frozen adaptive budget authorization after review",
+    )
+    g_paper.add_argument(
+        "--adaptive-refreeze-pilot-manifest",
+        action="store_true",
+        help="Replace a reviewed adaptive pilot command manifest",
+    )
+    g_paper.add_argument(
+        "--adaptive-budget-hours",
+        type=float,
+        default=168.0,
+        help="Dedicated-node-hour cap for the adaptive Sprint-1 plan",
+    )
+    g_paper.add_argument(
+        "--adaptive-safety-factor",
+        type=float,
+        default=1.25,
+        help="Multiplicative uncertainty buffer for the Sprint-1 plan",
+    )
 
     # ── Standalone Sub-workflows ─────────────────────────────────────
     g_sub = parser.add_argument_group("Sub-workflows", "Standalone analysis tasks (early exit)")
@@ -2319,7 +2411,7 @@ def main():
     g_sub.add_argument("--eval-weights", action="store_true",
                        help="Train perceptron weights and evaluate accuracy")
     g_sub.add_argument("--logo", action="store_true",
-                       help="[eval-weights] LOGO cross-validation for generalization")
+                       help="[retired] use Sprint-3 nested fold-local LOGO")
     g_sub.add_argument("--sg-only", action="store_true",
                        help="[eval-weights] Only use .sg benchmark data")
     g_sub.add_argument("--benchmark-file", default=None,
@@ -2345,6 +2437,14 @@ def main():
                         help="Compare Leiden/RabbitOrder/GraphBrew community detection")
 
     args = parser.parse_args()
+    if (
+        args.paper_freeze_sssp_policy
+        and not args.paper_tune_sssp_delta
+    ):
+        parser.error(
+            "--paper-freeze-sssp-policy requires "
+            "--paper-tune-sssp-delta"
+        )
     
     # ==========================================================================
     # Parameter Resolution: Unify related flags
@@ -2534,19 +2634,155 @@ def main():
         _sp.run(["python3", "scripts/lib/tools/evaluate_all_modes.py", "--all"])
         return
 
-    if args.vldb is not None:
+    if args.adaptive_sprint1_plan:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--plan-sprint1",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--budget-hours",
+            str(args.adaptive_budget_hours),
+            "--safety-factor",
+            str(args.adaptive_safety_factor),
+        ]
+        if args.adaptive_refreeze_budget:
+            cmd += ["--refreeze-budget"]
+        log_section(f"ADAPTIVE SPRINT 1 PLAN: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_sources:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--generate-sprint1-sources",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--threads",
+            str(args.paper_threads or 16),
+        ]
+        if args.paper_cpu_list:
+            cmd += ["--cpu-list", args.paper_cpu_list]
+        if args.adaptive_force_sources:
+            cmd += ["--force-sources"]
+        if args.adaptive_refreeze_sources:
+            cmd += ["--refreeze-sources"]
+        log_section(f"ADAPTIVE SPRINT 1 SOURCES: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_natural:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--materialize-sprint1-natural",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--threads",
+            str(args.paper_threads or 16),
+        ]
+        if args.paper_cpu_list:
+            cmd += ["--cpu-list", args.paper_cpu_list]
+        if args.adaptive_force_sources:
+            cmd += ["--force-sources"]
+        log_section(f"ADAPTIVE SPRINT 1 NATURAL: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_pilot_dry_run:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--prepare-sprint1-pilot",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--threads",
+            str(args.paper_threads or 16),
+        ]
+        if args.paper_cpu_list:
+            cmd += ["--cpu-list", args.paper_cpu_list]
+        if args.adaptive_refreeze_pilot_manifest:
+            cmd += ["--refreeze-pilot-manifest"]
+        log_section(f"ADAPTIVE SPRINT 1 PILOT DRY RUN: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_executor_check:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--validate-sprint1-executor",
+            "--artifact-root",
+            args.paper_artifact_root,
+        ]
+        log_section(f"ADAPTIVE SPRINT 1 EXECUTOR CHECK: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if (
+        args.vldb is not None
+        or args.paper_tune_sssp_delta
+        or args.paper_verify_gate
+    ):
         import subprocess as _sp
         cmd = ["python3", "scripts/experiments/vldb/runner.py"]
-        if args.vldb:  # Specific experiments
+        if args.paper_tune_sssp_delta:
+            cmd += ["--tune-sssp-delta"]
+        elif args.paper_verify_gate:
+            cmd += ["--verify-gate"]
+        elif args.vldb:  # Specific experiments
             cmd += ["--exp"] + [str(e) for e in args.vldb]
         else:  # No numbers = all
             cmd += ["--all"]
         if args.paper_preview:
             cmd += ["--preview"]
-        cmd += ["--graph-dir", args.paper_graph_dir]
+        if args.paper_freeze_sssp_policy:
+            cmd += ["--freeze-sssp-policy"]
+        if args.paper_algorithms:
+            cmd += ["--algorithms", *args.paper_algorithms]
+        cmd += [
+            "--graph-dir", args.paper_graph_dir,
+            "--artifact-root", args.paper_artifact_root,
+        ]
+        if args.paper_threads is not None:
+            cmd += ["--threads", str(args.paper_threads)]
+        if args.paper_measurement_generation:
+            cmd += [
+                "--measurement-generation",
+                args.paper_measurement_generation,
+            ]
+        if args.paper_cpu_list:
+            cmd += ["--cpu-list", args.paper_cpu_list]
+        if args.paper_cache_mode:
+            cmd += ["--cache-mode", args.paper_cache_mode]
+        if args.paper_cache_sample_rate:
+            cmd += ["--cache-sample-rate", str(args.paper_cache_sample_rate)]
+        if args.paper_cache_sizes_kib:
+            cmd += [
+                "--cache-sizes-kib",
+                *(str(size) for size in args.paper_cache_sizes_kib),
+            ]
+        if args.paper_cache_all_algorithms:
+            cmd += ["--cache-all-algorithms"]
+        if args.paper_publish_figures:
+            cmd += ["--publish-paper-figures"]
         log_section(f"VLDB EXPERIMENTS: {' '.join(cmd)}")
-        _sp.run(cmd)
-        return
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
 
     if args.ecg is not None:
         import subprocess as _sp

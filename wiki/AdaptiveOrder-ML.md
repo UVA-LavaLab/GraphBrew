@@ -1,80 +1,90 @@
 # AdaptiveOrder (research-only)
 
-> **Not part of the VLDB 2026 submission.** This page describes the
-> ML-based runtime algorithm selector kept in-tree for future work.
-> Skip if you only care about reproducing the paper.
+> **Not part of the frozen VLDB 2026 result matrix.** Algorithm 14 is being
+> rebuilt under the Adaptive Selector Sprint and must not be presented as a
+> validated deployment result yet.
 
-AdaptiveOrder is reordering algorithm ID **14**. Instead of picking a
-fixed reordering, it extracts structural features from the input graph
-(degree skew, modularity, clustering coefficient, etc.) and uses a
-trained model to predict which fixed algorithm will perform best on
-that graph + benchmark combination.
+AdaptiveOrder selects a reordering from graph, kernel, cache-context, and reuse
+features using an offline-produced deterministic model. Deployable selection
+must improve end-to-end cost, including mapping generation and CSR relocation,
+not merely predict the fastest reordered kernel.
 
-## Quick use
+## Deployable boundary
 
-```bash
-# Let AdaptiveOrder pick a reordering for PR
-./bench/bin/pr -f your_graph.el -s -o 14 -n 3
-```
+The runtime selector may use:
 
-The chosen algorithm is printed at the start of the run. If no trained
-model is available the selector falls back to a heuristic default
-(currently HUBCLUSTERDBG).
+- a perceptron, decision tree, or hybrid artifact produced offline;
+- measured graph features;
+- kernel identity/access class;
+- cache capacities and expected reuse count.
 
-## Where the models live
+It may not use:
 
-| File | Contents |
-|---|---|
-| `results/data/benchmark.json` | feature/performance training data, populated by the standard benchmark pipeline |
-| `results/data/adaptive_models.json` | trained perceptron / decision-tree / hybrid / kNN weights |
+- graph filenames or canonical graph names;
+- exact-name benchmark lookup;
+- runtime kNN over the benchmark database;
+- runtime model training;
+- trial execution of multiple reorderers.
 
-Both are auto-created by `ensure_prerequisites()` in `scripts/lib/`
-on the first run that needs them.
+Exact-name comparisons remain available only through the explicitly labeled
+offline `OracleUpperBound` analysis.
 
-## Training
-
-Models are trained at runtime inside the C++ binary the first time
-algorithm 14 is invoked with sufficient training data in
-`benchmark.json`. Manual retraining is unnecessary for normal use.
-
-To force a retrain from scratch:
+## Current CLI
 
 ```bash
-python3 scripts/graphbrew_experiment.py --train --size small
+# Default: perceptron + fastest-execution criterion
+./bench/bin/pr -f graph.el -s -o 14 -n 3
+
+# Model and criterion are independent
+./bench/bin/pr -f graph.el -s \
+  -o 14::::perceptron:best-endtoend -n 3
+
 ```
 
-## Selection modes
+Sprint-0 deployable model:
 
-`-o 14:<mode>` chooses the selector. Default is `0` (perceptron).
-
-| Mode | Selector |
+| Model | CLI |
 |---|---|
-| `0` | linear perceptron |
-| `1` | decision tree |
-| `2` | hybrid (perceptron + DT vote) |
-| `3` | weighted kNN |
-| `4` | database lookup (exact-match by graph name) |
-| `5` | round-robin (debug only) |
-| `6` | oracle (cheats — picks the actual best from benchmark.json) |
+| Perceptron | `perceptron` |
 
-Mode 6 is useful as an upper bound when measuring how close the
-trained selectors come to perfect prediction.
+Decision-tree and hybrid artifacts remain offline-only until Sprint 3 retrains
+them on the Tier-0 schema; the runtime rejects their legacy 24-feature models.
 
-## Feature set
+Criteria:
 
-16 linear features + 5 quadratic cross-terms are extracted from each
-graph: vertex count, edge count, average degree, max degree, degree
-variance, Gini coefficient, clustering coefficient, modularity (from
-a single Leiden pass), reciprocity, density, and a few others.
-Definitions live in `bench/include/adaptive/features.h`.
+| Criterion | CLI |
+|---|---|
+| Mapping cost | `fastest-reorder` |
+| Kernel time | `fastest-execution` |
+| Complete one-use cost | `best-endtoend` |
+| Reuse break-even | `best-amortization` |
 
-## Why this is research-only
+Unknown models/criteria, graph-name fields, `knn`, and `database` fail closed.
 
-The VLDB submission's contribution is the **composable multilayered
-reordering pipeline** (variants 12:*), not learned selection.
-AdaptiveOrder is a natural follow-up but adds training overhead and
-generalisation concerns that warrant a separate publication.
+## Offline artifacts
 
-For details of the historical training pipeline, perceptron weights,
-and cross-validation scaffolding, see git history before May 2026 or
-the source files under `bench/include/adaptive/`.
+`results/data/adaptive_models.json` is historical model storage. Sprint 0 is
+using it as a load-only artifact. Its perceptron section must contain all five
+exact portfolio arms and Tier-0 weights; missing arms fail closed.
+
+`results/data/benchmarks.json` and `graph_properties.json` remain measurement
+and training inputs. They are never a deployable runtime oracle.
+
+The deployable perceptron consumes only the ten shared Tier-0 fields from
+`adaptive_feature_schema.def`. Legacy 24-feature decision trees/hybrids are
+offline-only until Sprint 3 retrains them.
+
+## Frozen first portfolio
+
+The first selector study uses exact canonical arms:
+
+```text
+0
+5
+8:csr
+12:rabbit:compose:sg_none:comm_identity:intra_hubsort
+12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort
+```
+
+See `research/ADAPTIVE_SELECTOR_SPRINT.md` for the cost function, LOGO
+protocol, OOD abstention, feature budget, and acceptance gates.

@@ -1,0 +1,5 @@
+GRAPHBREW_ADAPTIVE_ARM(ORIGINAL, "0", "ORIGINAL")
+GRAPHBREW_ADAPTIVE_ARM(DBG, "5", "DBG")
+GRAPHBREW_ADAPTIVE_ARM(RABBIT_CSR, "8:csr", "RABBITORDER_csr")
+GRAPHBREW_ADAPTIVE_ARM(RABBIT_HUBSORT, "12:rabbit:compose:sg_none:comm_identity:intra_hubsort", "GraphBrewOrder_rabbit_compose_sg_none_comm_identity_intra_hubsort")
+GRAPHBREW_ADAPTIVE_ARM(SUPER_RABBIT_HUBSORT, "12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort", "GraphBrewOrder_rabbit_compose_sg_super_rabbit_comm_identity_intra_hubsort")

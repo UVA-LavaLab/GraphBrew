@@ -35,12 +35,24 @@ def main() -> None:
     cfg = resolve_config(args)
     banner("01_prep", cfg)
 
+    if cfg["dry_run"]:
+        print("DRY RUN — would download requested graphs and convert them with RANDOM labels.")
+        return
+
     graphs_path = Path(cfg["graph_dir"])
     graphs_path.mkdir(parents=True, exist_ok=True)
+    V._setup_build_binaries(
+        benchmarks=[],
+        include_standard=False,
+        include_sim=False,
+        include_converter=True,
+    )
 
     if not args.skip_download:
         V._setup_download_graphs(cfg["graphs"], graphs_path)
-    V._setup_convert_graphs(cfg["graphs"], graphs_path)
+    V._setup_convert_graphs(
+        cfg["graphs"], graphs_path, timeout=cfg["timeout"],
+    )
     print("STAGE 01 COMPLETE.")
 
 

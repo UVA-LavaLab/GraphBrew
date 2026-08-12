@@ -23,7 +23,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 from ..core.utils import (
     BIN_DIR, ALGORITHMS, ALGORITHM_IDS, BENCHMARKS,
@@ -31,6 +31,7 @@ from ..core.utils import (
     get_results_file, save_json, get_algorithm_name, parse_algorithm_option,
     ENABLE_RUN_LOGGING, canonical_algo_key, algo_converter_opt,
     ELIGIBLE_ALGORITHMS, GRAPHS_DIR, RESULTS_DIR, TIMEOUT_BENCHMARK,
+    normalize_graph_name,
 )
 from .reorder import get_algorithm_name_with_variant  # deprecated; kept for compat
 from ..ml.features import update_graph_properties, save_graph_properties_cache
@@ -114,6 +115,7 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
       - ``reorder_time_passes``: list of per-pass reorder times for chained
         orderings; the returned ``reorder_time`` is the *sum* of these
       - ``mteps``, ``iterations``: BFS / PR specific
+      - weighted SSSP policy and answer fingerprints
       - topology features (degree_variance, hub_concentration, modularity, ...)
 
     Args:
@@ -125,7 +127,12 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     avg_time = 0.0
     extra: Dict = {}
     trial_times: List[float] = []
-    reorder_passes: List[float] = []
+    mapping_passes: List[float] = []
+    validation_passes: List[float] = []
+    apply_passes: List[float] = []
+    end_to_end_passes: List[float] = []
+    iteration_counts: List[int] = []
+    final_errors: List[float] = []
 
     def _num(line: str) -> float | None:
         try:
@@ -143,7 +150,22 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
         if line.startswith("Reorder Time"):
             v = _num(line)
             if v is not None:
-                reorder_passes.append(v)
+                mapping_passes.append(v)
+            continue
+        if line.startswith("Reorder Validation Time"):
+            v = _num(line)
+            if v is not None:
+                validation_passes.append(v)
+            continue
+        if line.startswith("Reorder Apply Time"):
+            v = _num(line)
+            if v is not None:
+                apply_passes.append(v)
+            continue
+        if line.startswith("Reorder End-to-End Time"):
+            v = _num(line)
+            if v is not None:
+                end_to_end_passes.append(v)
             continue
 
         # ---- Trial Time:   <secs>     (one per trial, ordered)
@@ -162,12 +184,45 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             continue
 
         # ---- Other standalone timings produced by GraphBrew binaries
-        for key in ("Preprocessing Time", "Total Time", "Read Time",
-                    "Topology Analysis Time", "Relabel Map Time"):
+        for key in (
+            "Preprocessing Time", "Total Time", "Read Time",
+            "Topology Analysis Time", "Relabel Map Time",
+            "Adaptive Feature Time", "Adaptive Model Time",
+            "Adaptive Selection Time", "Adaptive Arm Map Time",
+            "Adaptive Confidence",
+            "Property Working Set Bytes", "LLC Capacity Bytes",
+            "Property WSR LLC",
+        ):
             if line.startswith(key):
                 v = _num(line)
                 if v is not None:
                     extra[key.lower().replace(" ", "_")] = v
+                break
+
+        if line.startswith("Adaptive Tier0 Features:"):
+            _, payload = line.split(":", 1)
+            try:
+                extra["adaptive_tier0_features"] = json.loads(
+                    payload.strip()
+                )
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    "Malformed Adaptive Tier0 feature record"
+                ) from error
+            continue
+
+        for label, key in (
+            ("Adaptive Predicted", "adaptive_predicted"),
+            ("Adaptive Applied", "adaptive_applied"),
+            (
+                "Adaptive Override Reason",
+                "adaptive_override_reason",
+            ),
+            ("Adaptive Weight Source", "adaptive_weight_source"),
+            ("Adaptive Tier0 Trained", "adaptive_tier0_trained"),
+        ):
+            if line.startswith(label + ":"):
+                extra[key] = line.split(":", 1)[1].strip()
                 break
 
         # ---- MTEPS (BFS)
@@ -177,6 +232,16 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
                 extra["mteps"] = float(m.group())
 
         # ---- PageRank / SSSP iteration count
+        if line.startswith("Iterations"):
+            v = _num(line)
+            if v is not None:
+                iteration_counts.append(int(v))
+            continue
+        if line.startswith("Final Error"):
+            v = _num(line)
+            if v is not None:
+                final_errors.append(v)
+            continue
         if "iteration" in line_lower:
             m = re.search(r"(\d+)\s*iteration", line_lower)
             if m:
@@ -184,9 +249,28 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
 
     if trial_times:
         extra["trial_times"] = trial_times
-    if reorder_passes:
-        extra["reorder_time_passes"] = reorder_passes
-    reorder_time = sum(reorder_passes) if reorder_passes else 0.0
+    if iteration_counts:
+        extra["iteration_counts"] = iteration_counts
+        extra["iterations"] = iteration_counts[-1]
+    if final_errors:
+        extra["final_errors"] = final_errors
+        extra["final_error"] = final_errors[-1]
+    if mapping_passes:
+        extra["mapping_generation_time_passes"] = mapping_passes
+        extra["mapping_generation_time"] = sum(mapping_passes)
+    if validation_passes:
+        extra["reorder_validation_time_passes"] = validation_passes
+        extra["reorder_validation_time"] = sum(validation_passes)
+    if apply_passes:
+        extra["reorder_apply_time_passes"] = apply_passes
+        extra["reorder_apply_time"] = sum(apply_passes)
+    if end_to_end_passes:
+        extra["reorder_time_passes"] = end_to_end_passes
+    elif mapping_passes:
+        extra["reorder_time_passes"] = mapping_passes
+    reorder_time = sum(
+        end_to_end_passes if end_to_end_passes else mapping_passes
+    )
     
     # Extract topology features for weight learning
     # These are printed by the C++ code during graph loading
@@ -221,6 +305,111 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     mod_match = re.search(r'Modularity:\s*([\d.]+)', output)
     if mod_match:
         extra['modularity'] = float(mod_match.group(1))
+
+    sampled_span = re.search(
+        r"Mapping Sampled Edge Span:\s*([\d.]+)",
+        output,
+    )
+    if sampled_span:
+        extra["mapping_sampled_edge_span"] = float(
+            sampled_span.group(1)
+        )
+
+    sampled_edges = re.search(
+        r"Mapping Sampled Edges:\s*(\d+)",
+        output,
+    )
+    if sampled_edges:
+        extra["mapping_sampled_edges"] = int(sampled_edges.group(1))
+
+    weight_scheme = re.search(r"Weight Scheme:\s*(\S+)", output)
+    if weight_scheme:
+        extra["weight_scheme"] = weight_scheme.group(1)
+
+    weight_checksum = re.search(r"Weight Checksum:\s*([0-9a-fA-F]+)", output)
+    if weight_checksum:
+        extra["weight_checksum"] = weight_checksum.group(1).lower()
+
+    delta = re.search(r"Delta:\s*(\d+)", output)
+    if delta:
+        extra["delta"] = int(delta.group(1))
+
+    source_originals = [
+        int(value)
+        for value in re.findall(r"Source Original:\s*(-?\d+)", output)
+    ]
+    if source_originals:
+        extra["source_originals"] = source_originals
+
+    source_internals = [
+        int(value)
+        for value in re.findall(r"Source Internal:\s*(-?\d+)", output)
+    ]
+    if source_internals:
+        extra["source_internals"] = source_internals
+
+    source_out_degrees = [
+        int(value)
+        for value in re.findall(
+            r"Source Out Degree:\s*(-?\d+)",
+            output,
+        )
+    ]
+    if source_out_degrees:
+        extra["source_out_degrees"] = source_out_degrees
+
+    distance_fingerprints = [
+        value.lower()
+        for value in re.findall(
+            r"Distance Fingerprint:\s*([0-9a-fA-F]+)", output,
+        )
+    ]
+    if distance_fingerprints:
+        extra["distance_fingerprints"] = distance_fingerprints
+
+    work_labels = {
+        "bfs_td_edges": "BFS TD Edges",
+        "bfs_bu_edges": "BFS BU Edges",
+        "bfs_edges_examined": "BFS Edges Examined",
+        "bfs_steps": "BFS Steps",
+        "sssp_edges_examined": "SSSP Edges Examined",
+        "sssp_relax_successes": "SSSP Relax Successes",
+        "sssp_frontier_entries": "SSSP Frontier Entries",
+        "sssp_bucket_iterations": "SSSP Bucket Iterations",
+        "cc_sampled_edges": "CC Sampled Edges",
+        "cc_final_edges": "CC Final Edges",
+        "cc_compress_steps": "CC Compress Steps",
+        "cc_skipped_vertices": "CC Skipped Vertices",
+        "cc_sv_iterations": "CC-SV Iterations",
+        "cc_sv_edges_examined": "CC-SV Edges Examined",
+        "cc_sv_compress_steps": "CC-SV Compress Steps",
+        "bc_bfs_edges": "BC BFS Edges",
+        "bc_backprop_edges": "BC Backprop Edges",
+        "bc_max_depth": "BC Max Depth",
+    }
+    for key, label in work_labels.items():
+        values = [
+            int(value)
+            for value in re.findall(
+                rf"{re.escape(label)}:\s*(\d+)", output,
+            )
+        ]
+        if values:
+            extra[key] = values
+
+    pr_mode = re.search(r"PR Mode:\s*(\S+)", output)
+    if pr_mode:
+        extra["pr_mode"] = pr_mode.group(1)
+
+    verification = re.findall(
+        r"Verification:\s*(PASS|FAIL)", output,
+    )
+    extra["verification"] = verification
+    extra["verification_state"] = (
+        "fail" if "FAIL" in verification
+        else "pass" if verification
+        else "not-run"
+    )
     
     return avg_time, reorder_time, extra
 
@@ -228,6 +417,117 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
 # =============================================================================
 # Benchmark Execution
 # =============================================================================
+
+def format_source_list(source_originals: Sequence[int]) -> str:
+    sources = [int(source) for source in source_originals]
+    if not sources:
+        raise ValueError("Source list cannot be empty")
+    if any(source < 0 for source in sources):
+        raise ValueError("Source IDs must be non-negative")
+    if len(sources) != len(set(sources)):
+        raise ValueError("Source IDs must be unique")
+    return ",".join(str(source) for source in sources)
+
+
+class SourceContractError(RuntimeError):
+    """A frozen adaptive source contract was violated."""
+
+
+def attach_source_trial_metadata(
+    extra: Dict,
+    *,
+    process_id: int,
+    measurement_mode: str,
+    source_policy_id: str,
+    source_repeats: int,
+    expected_sources: Sequence[int] = None,
+    expected_internals: Sequence[int] = None,
+    expected_out_degrees: Sequence[int] = None,
+) -> None:
+    """Normalize parsed source output into the adaptive trial contract."""
+    if process_id < 0:
+        raise ValueError("process_id must be non-negative")
+    if measurement_mode not in {"cold-process", "warm-block"}:
+        raise ValueError("Unknown source measurement mode")
+    if not source_policy_id:
+        raise ValueError("source_policy_id is required")
+    if source_repeats <= 0:
+        raise ValueError("source_repeats must be positive")
+
+    times = extra.get("trial_times", [])
+    originals = extra.get("source_originals", [])
+    internals = extra.get("source_internals", [])
+    degrees = extra.get("source_out_degrees", [])
+    lengths = {
+        len(times),
+        len(originals),
+        len(internals),
+        len(degrees),
+    }
+    if len(lengths) != 1 or not times:
+        raise SourceContractError(
+            "Source trial times and source metadata must be aligned")
+
+    repetitions: Dict[int, int] = {}
+    source_trials = []
+    for trial_time, source, internal, degree in zip(
+        times,
+        originals,
+        internals,
+        degrees,
+    ):
+        source = int(source)
+        repetition = repetitions.get(source, 0)
+        repetitions[source] = repetition + 1
+        source_trials.append({
+            "process_id": process_id,
+            "source_id": source,
+            "source_internal": int(internal),
+            "source_out_degree": int(degree),
+            "repetition_index": repetition,
+            "measurement_mode": measurement_mode,
+            "trial_time": float(trial_time),
+        })
+    if any(count != source_repeats for count in repetitions.values()):
+        raise SourceContractError(
+            "Source trial repetitions do not match source_repeats")
+    if expected_sources is not None:
+        expected = [
+            int(source)
+            for source in expected_sources
+            for _ in range(source_repeats)
+        ]
+        observed = [trial["source_id"] for trial in source_trials]
+        if observed != expected:
+            raise SourceContractError(
+                "Observed sources do not match the frozen source manifest")
+    if expected_out_degrees is not None:
+        expected_degrees = [
+            int(degree)
+            for degree in expected_out_degrees
+            for _ in range(source_repeats)
+        ]
+        observed_degrees = [
+            trial["source_out_degree"] for trial in source_trials
+        ]
+        if observed_degrees != expected_degrees:
+            raise SourceContractError(
+                "Observed source degrees do not match the frozen manifest")
+    if expected_internals is not None:
+        expected_internal_values = [
+            int(internal)
+            for internal in expected_internals
+            for _ in range(source_repeats)
+        ]
+        observed_internals = [
+            trial["source_internal"] for trial in source_trials
+        ]
+        if observed_internals != expected_internal_values:
+            raise SourceContractError(
+                "Observed source internals do not match the frozen labeling")
+    extra["source_policy_id"] = source_policy_id
+    extra["source_trials"] = source_trials
+
 
 def run_benchmark(
     benchmark: str,
@@ -240,6 +540,14 @@ def run_benchmark(
     bin_dir: str = None,
     log_algorithm: str = None,
     log_graph_name: str = None,
+    result_graph_name: str = None,
+    source_originals: Sequence[int] = None,
+    source_repeats: int = 1,
+    source_policy_id: str = None,
+    process_id: int = None,
+    measurement_mode: str = None,
+    expected_source_out_degrees: Sequence[int] = None,
+    expected_source_internals: Sequence[int] = None,
 ) -> BenchmarkResult:
     """
     Run a single benchmark with specified algorithm.
@@ -262,12 +570,13 @@ def run_benchmark(
             benchmarking a pre-generated .sg file (e.g. ca-GrQc_GORDER.sg),
             pass the base graph name ("ca-GrQc") so logs are grouped
             correctly.
+        result_graph_name: Explicit graph key stored in the result record.
         
     Returns:
         BenchmarkResult with timing information
     """
     graph_path = Path(graph_path)
-    graph_name = graph_path.stem
+    graph_name = result_graph_name or normalize_graph_name(graph_path)
     bin_dir_path = Path(bin_dir) if bin_dir else BIN_DIR
     
     algo_id, _ = parse_algorithm_option(algorithm)
@@ -283,10 +592,25 @@ def run_benchmark(
             benchmark=benchmark,
             time_seconds=0.0,
             success=False,
-            error=f"Binary not found: {binary}"
+            error=f"Binary not found: {binary}",
+            error_kind="missing-binary",
         )
     
+    if source_repeats <= 0:
+        raise ValueError("source_repeats must be positive")
+    if source_originals and len(source_originals) > 1:
+        expected_trials = len(source_originals) * source_repeats
+        if trials != expected_trials:
+            raise ValueError(
+                "trials must equal source_count * source_repeats"
+            )
     cmd = [str(binary), "-f", str(graph_path), "-o", algorithm, "-n", str(trials)]
+    if source_originals:
+        cmd.extend(["-r", format_source_list(source_originals)])
+        if source_repeats != 1:
+            cmd.extend(["-R", str(source_repeats)])
+        if benchmark == "bc":
+            cmd.extend(["-i", "1"])
     
     if symmetric:
         cmd.append("-s")
@@ -326,11 +650,27 @@ def run_benchmark(
                 benchmark=benchmark,
                 time_seconds=0.0,
                 success=False,
-                error=error_msg
+                error=error_msg,
+                error_kind="process-failure",
             )
         
         # Parse output
         avg_time, reorder_time, extra = parse_benchmark_output(result.stdout)
+        if source_policy_id is not None:
+            if process_id is None or measurement_mode is None:
+                raise ValueError(
+                    "Adaptive source metadata requires policy, process, "
+                    "and measurement mode")
+            attach_source_trial_metadata(
+                extra,
+                process_id=process_id,
+                measurement_mode=measurement_mode,
+                source_policy_id=source_policy_id,
+                source_repeats=source_repeats,
+                expected_sources=source_originals,
+                expected_internals=expected_source_internals,
+                expected_out_degrees=expected_source_out_degrees,
+            )
         
         return BenchmarkResult(
             graph=graph_name,
@@ -344,6 +684,19 @@ def run_benchmark(
             extra=extra
         )
         
+    except SourceContractError:
+        raise
+    except subprocess.TimeoutExpired as error:
+        return BenchmarkResult(
+            graph=graph_name,
+            algorithm=algo_name,
+            algorithm_id=algo_id,
+            benchmark=benchmark,
+            time_seconds=0.0,
+            success=False,
+            error=str(error),
+            error_kind="timeout",
+        )
     except Exception as e:
         return BenchmarkResult(
             graph=graph_name,
@@ -352,7 +705,8 @@ def run_benchmark(
             benchmark=benchmark,
             time_seconds=0.0,
             success=False,
-            error=str(e)
+            error=str(e),
+            error_kind="process-failure",
         )
 
 

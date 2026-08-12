@@ -92,8 +92,8 @@ private:
 // ECG: Read with mask + prefetch hint.
 // After the primary access, resolves the prefetch target from the mask
 // and issues a prefetch if the target is not in the runtime dedup window.
-// Prefetch uses cache.prefetch() which fills the cache WITHOUT counting
-// as a demand access — prefetch misses don't inflate the miss rate.
+// Prefetch accounting is cache-implementation-specific. The VLDB Exp1 policy
+// disables this path so its counters contain demand accesses only.
 #define SIM_CACHE_READ_MASKED_PREFETCH(cache, arr, idx, graph_ctx, mask_val) \
     do { \
         (graph_ctx).hints_for_thread().mask = static_cast<uint32_t>(mask_val); \

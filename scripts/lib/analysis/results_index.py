@@ -173,7 +173,10 @@ def load_aggregates_df(root: Path = DEFAULT_RESULTS):
 # Hierarchical manifest (INDEX.json)
 # ---------------------------------------------------------------------------
 
-def build_index(root: Path = DEFAULT_RESULTS) -> Dict[str, Any]:
+def build_index(
+    root: Path = DEFAULT_RESULTS,
+    graph_root: Optional[Path] = None,
+) -> Dict[str, Any]:
     """Build a compact manifest of everything under ``results/``.
 
     Returns a dict with keys ``graphs``, ``mappings``, ``runs``,
@@ -191,7 +194,8 @@ def build_index(root: Path = DEFAULT_RESULTS) -> Dict[str, Any]:
     }
 
     # ---- graphs/
-    g_dir = root / "graphs"
+    g_dir = Path(graph_root) if graph_root is not None else (root / "graphs")
+    idx["graph_root"] = str(g_dir)
     if g_dir.is_dir():
         for gd in sorted(g_dir.iterdir()):
             if gd.is_dir():
@@ -249,11 +253,15 @@ def build_index(root: Path = DEFAULT_RESULTS) -> Dict[str, Any]:
     return idx
 
 
-def write_index(root: Path = DEFAULT_RESULTS, path: Optional[Path] = None) -> Path:
+def write_index(
+    root: Path = DEFAULT_RESULTS,
+    path: Optional[Path] = None,
+    graph_root: Optional[Path] = None,
+) -> Path:
     """Build the manifest and write it to ``<root>/INDEX.json`` (default)."""
     root = Path(root)
     out = Path(path) if path else (root / "INDEX.json")
-    idx = build_index(root)
+    idx = build_index(root, graph_root=graph_root)
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".json.tmp")
     with tmp.open("w") as f:

@@ -1,8 +1,10 @@
 # exp2 — Kernel Speedup
 
-**What it measures:** End-to-end wall-clock per (graph, kernel, algorithm).
+**What it measures:** Kernel-only wall-clock per (graph, kernel, algorithm)
+using pre-generated mappings; reorder overhead is reported separately in
+Experiment 3 and combined in Experiment 4.
 Speedup is computed by [stage 05](../stages/05_aggregate.py) against the
-identity-order baseline.
+fixed seeded-SHUFFLED baseline.
 
 **Output:** `results/vldb_paper/exp2_speedup/speedup_results.json`
 

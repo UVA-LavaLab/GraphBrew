@@ -1,7 +1,7 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------
 # Chained SLURM launcher — one job per stage with proper dependencies.
-# Submits 01 -> 02 -> 03 -> [04 cache, optional] -> 05 figures.
+# Submits 01 -> 02 -> verify -> 03 -> [04 cache, optional] -> 05 figures.
 #
 # Usage:
 #   bash scripts/experiments/vldb/stages/slurm/run_all.sh                  # full sweep
@@ -30,17 +30,20 @@ DEP_J1=${J1:+--dependency=afterok:$J1}
 J2=$(submit 02_reorder.sbatch $DEP_J1 --export=ALL,EXTRA_ARGS="$EXTRA")
 echo "02_reorder -> $J2"
 
-J3=$(submit 03_cpu_perf.sbatch --dependency=afterok:$J2 --export=ALL,EXTRA_ARGS="$EXTRA")
+JG=$(submit 03_cpu_perf.sbatch --dependency=afterok:$J2 --export=ALL,EXTRA_ARGS="$EXTRA --verify-gate")
+echo "03_verify -> $JG"
+
+J3=$(submit 03_cpu_perf.sbatch --dependency=afterok:$JG --export=ALL,EXTRA_ARGS="$EXTRA")
 echo "03_cpu    -> $J3"
 
 DEP="afterok:$J3"
 if [[ -z "${SKIP_CACHE:-}" ]]; then
-    J4=$(submit 04_cache_sim.sbatch --dependency=afterok:$J2 --export=ALL,EXTRA_ARGS="$EXTRA")
+    J4=$(submit 04_cache_sim.sbatch --dependency=afterok:$JG --export=ALL,EXTRA_ARGS="$EXTRA")
     echo "04_cache  -> $J4"
     DEP="afterok:$J3:$J4"
 fi
 
-J5=$(submit 05_aggregate.sbatch --dependency=$DEP)
+J5=$(submit 05_aggregate.sbatch --dependency=$DEP --export=ALL,EXTRA_ARGS="$EXTRA")
 echo "05_aggreg -> $J5"
 
 echo

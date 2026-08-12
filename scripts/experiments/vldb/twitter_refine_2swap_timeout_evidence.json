@@ -1,0 +1,65 @@
+{
+  "schema": "reorder_timeout_evidence/v1",
+  "graph": "twitter7",
+  "algorithm_key": "12:rabbit:compose:sg_none:comm_identity:intra_hubsort:refine_2swap",
+  "policy": "optional_refinement_applicability",
+  "applicability_timeout_seconds": 21600,
+  "optimized_timeout_run": {
+    "shell_id": "validate-twitter-refine-filtered-v2",
+    "command": "GRAPHBREW_MAPPING_QUALITY=1 GRAPHBREW_TOPOLOGY_ANALYSIS=0 GRAPHBREW_DB_DIR= OMP_NUM_THREADS=16 OMP_PROC_BIND=close OMP_PLACES=cores OMP_DYNAMIC=FALSE taskset -c 0-15 timeout --signal=TERM 21600 /usr/bin/time -v ./bench/bin/converter -f /media/Data/00_GraphDatasets/GraphBrew/twitter7/twitter7.sg -s -o 12:rabbit:compose:sg_none:comm_identity:intra_hubsort:refine_2swap -q /media/Data/00_GraphDatasets/GraphBrew/artifacts/pre_stage3_validation/twitter-refine-2swap-filtered-v2.lo",
+    "started_at_utc": "2026-08-05T02:01:49.740Z",
+    "last_observed_running_at_utc": "2026-08-05T06:13:08.343Z",
+    "first_observed_complete_at_utc": "2026-08-05T08:02:17.611Z",
+    "observed_start_to_completion_check_seconds": 21627.871,
+    "exit_code": 124,
+    "result": "timeout",
+    "mapping_output_present": false,
+    "stdout_log_bytes": 0,
+    "build_identity": {
+      "captured": false,
+      "rabbit_enable": "unknown",
+      "note": "This run predates the final paper-binary rebuild. Its refiner source identity is exact, but the converter/build-config fingerprint was not captured."
+    },
+    "runtime_evidence": {
+      "session_id": "8c24ddde-d923-467c-a890-bdd8d60c6be5",
+      "start_tool_call_id": "call_fDVI31gYbAYmMy4vWEmYMdDR",
+      "note": "The detached shell remained live under the same shell ID and was first observed complete with GNU timeout exit code 124 after the configured 21600-second cap."
+    },
+    "source_identity": {
+      "path": "bench/include/graphbrew/reorder/reorder_graphbrew.h",
+      "mtime": "2026-08-04T21:58:37.873132146-04:00",
+      "note": "The refiner header predates this run."
+    }
+  },
+  "baseline_no_refinement": {
+    "algorithm_key": "12:rabbit:compose:sg_none:comm_identity:intra_hubsort",
+    "artifact": "vldb_mappings/twitter7/12_rabbit_compose_sg_none_comm_identity_intra_hubsort.json",
+    "schema": "reorder_meta/v4",
+    "reorder_time_seconds": 70.47742,
+    "mapping_generation_time_seconds": 60.19181,
+    "compose_seconds": 3.7707,
+    "num_communities": 19926196,
+    "isolated_communities": 19926185,
+    "non_isolated_communities": 11,
+    "structural_rationale": "Without refinement, COMPOSE finishes in 3.7707 seconds. Only 11 communities are non-isolated, so per-community two-swap exposes little parallelism while repeatedly scanning concentrated intra-community edges and random local-position lookups for up to refineMaxPasses passes."
+  },
+  "final_binary_crash_regression": {
+    "command": "timeout --signal=TERM --kill-after=30 300 taskset -c 0-15 stdbuf -oL -eL ./bench/bin/converter -f /media/Data/00_GraphDatasets/GraphBrew/twitter7/twitter7.sg -s -o 12:rabbit:compose:sg_none:comm_identity:intra_hubsort:refine_2swap -q /media/Data/00_GraphDatasets/GraphBrew/artifacts/pre_stage3_validation/twitter-refine-2swap-final-crash-check.lo",
+    "started_at_utc": "2026-08-05T09:19:56Z",
+    "ended_at_utc": "2026-08-05T09:25:00Z",
+    "timeout_seconds": 300,
+    "elapsed_seconds": 303.68,
+    "exit_code": 124,
+    "result": "timeout_after_entering_ordering",
+    "maximum_resident_set_kbytes": 64932168,
+    "mapping_output_present": false,
+    "rabbit_enable": true,
+    "converter": "bench/bin/converter",
+    "refiner_source": "bench/include/graphbrew/reorder/reorder_graphbrew.h",
+    "stdout_log": "pre_stage3_validation/twitter-refine-2swap-final-crash-check.log",
+    "time_log": "pre_stage3_validation/twitter-refine-2swap-final-crash-check.time",
+    "status_log": "pre_stage3_validation/twitter-refine-2swap-final-crash-check.status",
+    "note": "The final converter ran more than four times beyond the superseded 70-second crash and reached GraphBrew ordering before the deliberate timeout."
+  },
+  "conclusion": "The corrected memory-optimized implementation has no retained crash at the old failure point and exceeded the fixed six-hour optional-refinement applicability budget. The no-refinement comparator completes in 70.47742 seconds, including a 3.7707-second COMPOSE phase, so the excess is attributable to the structurally serial two-swap pass rather than the base pipeline. The optional Twitter7 refinement cell is excluded; core mapping generation uses a separate twelve-hour timeout."
+}

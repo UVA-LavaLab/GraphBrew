@@ -195,11 +195,15 @@ int main(int argc, char *argv[]) {
     if (multicore) {
         MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
         
-        SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<WGraph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
             return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
         };
-        SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<WGraph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
             return SSSPVerifier(g, vsp.PickNext(), dist);
         };
@@ -221,11 +225,15 @@ int main(int argc, char *argv[]) {
         // FAST single-core cache simulation (no locks, ~10x faster)
         FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
         
-        SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<WGraph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
             return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
         };
-        SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<WGraph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
             return SSSPVerifier(g, vsp.PickNext(), dist);
         };
@@ -246,11 +254,15 @@ int main(int argc, char *argv[]) {
     } else {
         CacheHierarchy cache = CacheHierarchy::fromEnvironment();
         
-        SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<WGraph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
             return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
         };
-        SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<WGraph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
             return SSSPVerifier(g, vsp.PickNext(), dist);
         };

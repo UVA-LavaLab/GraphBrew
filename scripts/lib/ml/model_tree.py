@@ -291,13 +291,16 @@ class ModelTree:
                     best_score = -1e30
                     best_family = node.leaf_class
                     for fam, weights in node.leaf_weights.items():
+                        if len(weights) != MODEL_TREE_N_FEATURES + 1:
+                            raise ValueError(
+                                "Hybrid leaf weight length does not match "
+                                "the model feature schema"
+                            )
                         score = 0.0
-                        n_w = len(weights)
-                        # weights = [w0, w1, ..., w_{n-2}, bias]
-                        for i in range(min(n_w - 1, MODEL_TREE_N_FEATURES)):
+                        # weights = [w0, w1, ..., w23, bias]
+                        for i in range(MODEL_TREE_N_FEATURES):
                             score += weights[i] * features[i]
-                        if n_w > 0:
-                            score += weights[-1]  # bias
+                        score += weights[-1]
                         if score > best_score:
                             best_score = score
                             best_family = fam
@@ -306,8 +309,18 @@ class ModelTree:
                 return node.leaf_class
 
             # Split node
-            feat_val = (features[node.feature_idx]
-                        if 0 <= node.feature_idx < len(features) else 0.0)
+            if not 0 <= node.feature_idx < len(features):
+                raise ValueError(
+                    "Adaptive model references an out-of-range feature index"
+                )
+            if (
+                not 0 <= node.left < len(self.nodes)
+                or not 0 <= node.right < len(self.nodes)
+            ):
+                raise ValueError(
+                    "Adaptive model references an out-of-range child node"
+                )
+            feat_val = features[node.feature_idx]
             if feat_val <= node.threshold:
                 idx = node.left
             else:
@@ -326,12 +339,16 @@ class ModelTree:
             'model_type': self.model_type,
             'benchmark': self.benchmark,
             'families': self.families,
+            'features': DT_FEATURE_NAMES,
             'nodes': [n.to_dict() for n in self.nodes],
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> 'ModelTree':
         """Deserialize from C++ JSON format."""
+        features = d.get('features')
+        if features is not None and list(features) != DT_FEATURE_NAMES:
+            raise ValueError("Model tree feature schema mismatch")
         mt = cls(
             model_type=d.get('model_type', 'decision_tree'),
             benchmark=d.get('benchmark', ''),
@@ -943,6 +960,11 @@ def save_adaptive_models(
         path = Path(RESULTS_DIR) / 'data' / 'adaptive_models.json'
 
     data = {}
+    if path.is_file():
+        with open(path) as stream:
+            existing = json.load(stream)
+        if isinstance(existing, dict):
+            data = existing
     for subdir in ('decision_tree', 'hybrid'):
         data[subdir] = {}
         for bench, tree in models.get(subdir, {}).items():
@@ -957,8 +979,11 @@ def save_adaptive_models(
             data['random_forest'][bench] = [trees.to_dict()]
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, 'w') as f:
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    with open(temporary, 'w') as f:
         json.dump(data, f, indent=2)
+        f.write('\n')
+    temporary.replace(path)
 
 
 def train_all_models(

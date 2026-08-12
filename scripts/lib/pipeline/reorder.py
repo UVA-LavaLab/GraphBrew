@@ -143,7 +143,7 @@ def expand_algorithms_with_variants(
     """
     Expand algorithm IDs into AlgorithmConfig objects.
     
-    For GOrder (9), optionally expand into default/csr/fast implementation variants.
+    For GOrder (9), optionally expand into default/gograph/csr/fast variants.
     For RabbitOrder (8), optionally expand into csr/boost variants.
     For GraphBrewOrder (12), optionally expand into all preset/strategy variants.
     For GoGraphOrder (16), optionally expand into default/fast/naive variants.
@@ -179,9 +179,10 @@ def expand_algorithms_with_variants(
         base_name = ALGORITHMS.get(algo_id, f"ALGO_{algo_id}")
         
         if algo_id == 9 and gorder_variants and len(gorder_variants) > 1:
-            # GOrder: expand into implementation variants (differ in speed, same ordering)
+            # GOrder: expand into implementation variants. The faithful
+            # gograph/csr paths are equivalent; fast is a relaxed heuristic.
             # NOTE: GOrder is intentionally NOT in _VARIANT_ALGO_REGISTRY— its variants
-            # produce equivalent orderings and share one perceptron weight.
+            # share one perceptron weight.
             # We use f"GORDER_{variant}" for filename differentiation only.
             for variant in gorder_variants:
                 if variant == "default":
@@ -825,7 +826,8 @@ def generate_reorderings_with_variants(
         leiden_resolution: Resolution parameter
         leiden_passes: Number of passes
         graphbrew_variants: Which GraphBrewOrder variants
-        gorder_variants: Which GOrder implementation variants (default/csr/fast)
+        gorder_variants: Which GOrder implementation variants
+            (default/gograph/csr/fast)
         timeout: Timeout for each reordering
         skip_slow: Skip slow algorithms on large graphs
         force_reorder: Regenerate even if files exist

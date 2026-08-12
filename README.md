@@ -19,8 +19,8 @@ git clone https://github.com/UVA-LavaLab/GraphBrew.git
 cd GraphBrew
 make all
 
-# Run PageRank with AdaptiveOrder (ML-selected best algorithm)
-./bench/bin/pr -g 20 -o 14
+# Run PageRank with the standalone RabbitOrder CSR baseline
+./bench/bin/pr -g 20 -o 8:csr
 
 # Run BFS with GraphBrewOrder (community-based reordering)
 ./bench/bin/bfs -f graph.mtx -o 12
@@ -61,7 +61,7 @@ GraphBrew provides 17 algorithm IDs (0-16). IDs 0-1 are baselines, IDs 2-12, 15-
 | 11 | RCM | Reverse Cuthill-McKee |
 | 12 | GRAPHBREWORDER | Leiden clustering + configurable per-community order |
 | 13 | MAP | Load ordering from file (`-o 13:mapping.lo`) |
-| 14 | **ADAPTIVEORDER** | ML perceptron — automatically picks the best algorithm ⭐ |
+| 14 | ADAPTIVEORDER | Research-only offline-trained selector; no runtime graph-name oracle |
 | 15 | LEIDENORDER | Leiden via GVE-Leiden library (`15:resolution`) — baseline reference |
 | 16 | GOGRAPHORDER | Flow-edge ordering (variants: `default` / `fast` / `naive`) |
 
@@ -69,10 +69,10 @@ GraphBrew provides 17 algorithm IDs (0-16). IDs 0-1 are baselines, IDs 2-12, 15-
 
 | Graph Type | Recommended | Why |
 |------------|-------------|-----|
-| Social networks | `12` or `14` | Best community detection + cache locality |
-| Web graphs | `12:hrab` or `12` | Hybrid Leiden+Rabbit for best locality |
-| Road networks | `11` or `9` | BFS-based approaches for sparse graphs |
-| Unknown / mixed | `14` | Let the ML perceptron decide |
+| Low reuse / uncertain input | `0` or `5` | Avoid expensive preprocessing |
+| Reused general graph | `8:csr` or measured GraphBrew candidate | Lightweight community locality |
+| Road / mesh evaluation | `11:bnf` | Explicit bandwidth-oriented anchor |
+| Unknown / mixed | benchmark `0`, `5`, and `8:csr` first | No fixed method is universally best |
 
 ---
 
@@ -90,7 +90,7 @@ python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --a
 
 | Parameter | Description |
 |-----------|-------------|
-| `--train` | Run the complete pipeline (benchmark + store results for C++ runtime training) |
+| `--train` | Run the offline benchmark/model-training pipeline |
 | `--full` | Run full evaluation pipeline (no training) |
 | `--all-variants` | Test all algorithm variants |
 | `--size SIZE` | Graph category: `small` (62 MB), `medium` (1.1 GB), `large` (25 GB), `xlarge` (63 GB), `all` (89 GB) |
@@ -100,7 +100,8 @@ python3 scripts/graphbrew_experiment.py --train --all-variants --size medium --a
 | `--brute-force` | Compare adaptive selection vs all eligible algorithms |
 | `--download-only` | Download graphs without running benchmarks |
 
-Results are saved to `./results/`. Benchmark data goes to `./results/data/` — C++ trains ML models (perceptron, DT, hybrid) at runtime from this data.
+Results are saved to `./results/`. Benchmark data under `results/data/` is an
+offline training input; benchmark binaries only load exported model artifacts.
 
 ```bash
 # See all options
@@ -183,8 +184,6 @@ Use `RABBIT_ENABLE=0 make all` to build without these dependencies.
 ```
 bench/
 ├── src/          # Canonical baseline sources (bc.cc, bfs.cc, pr.cc, ...)
-├── src_edge/     # Edge-centric variants
-├── src_gas/      # Natural GAS variants
 ├── src_sim/      # Cache simulation variants
 ├── bin/          # Compiled binaries
 └── include/

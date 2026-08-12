@@ -12,6 +12,7 @@
 #include "builder.h"
 #include "command_line.h"
 #include "graph.h"
+#include "graphbrew/analysis/adaptive_source_policy.h"
 #include "pvector.h"
 
 
@@ -36,33 +37,90 @@ which restructures and extends the Shiloach-Vishkin algorithm [2].
 
 using namespace std;
 
+class CLConnectedComponents : public CLApp {
+  string source_manifest_;
+
+ public:
+  CLConnectedComponents(int argc, char** argv, string name)
+      : CLApp(argc, argv, std::move(name)) {
+    get_args_ += "Y:";
+    AddHelpLine(
+        'Y', "file",
+        "write deterministic adaptive source manifest and exit");
+  }
+
+  void HandleArg(signed char opt, char* opt_arg) override {
+    if (opt == 'Y') {
+      source_manifest_ = opt_arg;
+      return;
+    }
+    CLApp::HandleArg(opt, opt_arg);
+  }
+
+  const string& source_manifest() const {
+    return source_manifest_;
+  }
+};
+
+#ifdef GRAPHBREW_COUNT_WORK
+static int64_t g_cc_sampled_edges = 0;
+static int64_t g_cc_final_edges = 0;
+static int64_t g_cc_compress_steps = 0;
+static int64_t g_cc_skipped_vertices = 0;
+#endif
+
+inline NodeID LoadComp(const pvector<NodeID>& comp, NodeID node) {
+  return __atomic_load_n(&comp[node], __ATOMIC_RELAXED);
+}
+
+inline void StoreComp(
+    pvector<NodeID>& comp, NodeID node, NodeID value) {
+  __atomic_store_n(&comp[node], value, __ATOMIC_RELAXED);
+}
 
 // Place nodes u and v in same component of lower component ID
 void Link(NodeID u, NodeID v, pvector<NodeID>& comp) {
-  NodeID p1 = comp[u];
-  NodeID p2 = comp[v];
+  NodeID p1 = LoadComp(comp, u);
+  NodeID p2 = LoadComp(comp, v);
   while (p1 != p2) {
     NodeID high = p1 > p2 ? p1 : p2;
     NodeID low = p1 + (p2 - high);
-    NodeID p_high = comp[high];
+    NodeID p_high = LoadComp(comp, high);
     // Was already 'low' or succeeded in writing 'low'
     if ((p_high == low) ||
         (p_high == high && compare_and_swap(comp[high], high, low)))
       break;
-    p1 = comp[comp[high]];
-    p2 = comp[low];
+    p1 = LoadComp(comp, LoadComp(comp, high));
+    p2 = LoadComp(comp, low);
   }
 }
 
 
 // Reduce depth of tree for each component to 1 by crawling up parents
-void Compress(const Graph &g, pvector<NodeID>& comp) {
+int64_t Compress(const Graph &g, pvector<NodeID>& comp) {
+#ifdef GRAPHBREW_COUNT_WORK
+  int64_t steps = 0;
+  #pragma omp parallel for reduction(+ : steps) schedule(dynamic, 16384)
+#else
   #pragma omp parallel for schedule(dynamic, 16384)
+#endif
   for (NodeID n = 0; n < g.num_nodes(); n++) {
-    while (comp[n] != comp[comp[n]]) {
-      comp[n] = comp[comp[n]];
+    NodeID parent = LoadComp(comp, n);
+    NodeID grandparent = LoadComp(comp, parent);
+    while (parent != grandparent) {
+      StoreComp(comp, n, grandparent);
+#ifdef GRAPHBREW_COUNT_WORK
+      steps++;
+#endif
+      parent = grandparent;
+      grandparent = LoadComp(comp, parent);
     }
   }
+#ifdef GRAPHBREW_COUNT_WORK
+  return steps;
+#else
+  return 0;
+#endif
 }
 
 
@@ -96,6 +154,12 @@ pvector<NodeID> Afforest(const Graph &g, bool logging_enabled = false,
                          int32_t neighbor_rounds = 2) {
   using graphbrew::database::AppendBenchmarkIterationEntry;
   pvector<NodeID> comp(g.num_nodes());
+#ifdef GRAPHBREW_COUNT_WORK
+  int64_t sampled_edges = 0;
+  int64_t final_edges = 0;
+  int64_t compress_steps = 0;
+  int64_t skipped_vertices = 0;
+#endif
 
   // Initialize each node to a single-node self-pointing tree
   #pragma omp parallel for
@@ -105,16 +169,28 @@ pvector<NodeID> Afforest(const Graph &g, bool logging_enabled = false,
   // Process a sparse sampled subgraph first for approximating components.
   // Sample by processing a fixed number of neighbors for each node (see paper)
   for (int r = 0; r < neighbor_rounds; ++r) {
+#ifdef GRAPHBREW_COUNT_WORK
+  #pragma omp parallel for reduction(+ : sampled_edges) schedule(dynamic,16384)
+#else
   #pragma omp parallel for schedule(dynamic,16384)
+#endif
     for (NodeID u = 0; u < g.num_nodes(); u++) {
       for (NodeID v : g.out_neigh(u, r)) {
+#ifdef GRAPHBREW_COUNT_WORK
+        sampled_edges++;
+#endif
         // Link at most one time if neighbor available at offset r
         Link(u, v, comp);
         break;
       }
     }
+#ifdef GRAPHBREW_COUNT_WORK
+    compress_steps += Compress(g, comp);
+#else
     Compress(g, comp);
-    AppendBenchmarkIterationEntry({{"phase", "neighbor_round"}, {"round", r}});
+#endif
+    if (graphbrew::database::SelfRecordingEnabled())
+      AppendBenchmarkIterationEntry({{"phase", "neighbor_round"}, {"round", r}});
   }
 
   // Sample 'comp' to find the most frequent element -- due to prior
@@ -123,33 +199,67 @@ pvector<NodeID> Afforest(const Graph &g, bool logging_enabled = false,
 
   // Final 'link' phase over remaining edges (excluding the largest component)
   if (!g.directed()) {
+#ifdef GRAPHBREW_COUNT_WORK
+    #pragma omp parallel for reduction(+ : final_edges, skipped_vertices) schedule(dynamic, 16384)
+#else
     #pragma omp parallel for schedule(dynamic, 16384)
+#endif
     for (NodeID u = 0; u < g.num_nodes(); u++) {
       // Skip processing nodes in the largest component
-      if (comp[u] == c)
+      if (LoadComp(comp, u) == c) {
+#ifdef GRAPHBREW_COUNT_WORK
+        skipped_vertices++;
+#endif
         continue;
+      }
       // Skip over part of neighborhood (determined by neighbor_rounds)
       for (NodeID v : g.out_neigh(u, neighbor_rounds)) {
+#ifdef GRAPHBREW_COUNT_WORK
+        final_edges++;
+#endif
         Link(u, v, comp);
       }
     }
   } else {
+#ifdef GRAPHBREW_COUNT_WORK
+    #pragma omp parallel for reduction(+ : final_edges, skipped_vertices) schedule(dynamic, 16384)
+#else
     #pragma omp parallel for schedule(dynamic, 16384)
+#endif
     for (NodeID u = 0; u < g.num_nodes(); u++) {
-      if (comp[u] == c)
+      if (LoadComp(comp, u) == c) {
+#ifdef GRAPHBREW_COUNT_WORK
+        skipped_vertices++;
+#endif
         continue;
+      }
       for (NodeID v : g.out_neigh(u, neighbor_rounds)) {
+#ifdef GRAPHBREW_COUNT_WORK
+        final_edges++;
+#endif
         Link(u, v, comp);
       }
       // To support directed graphs, process reverse graph completely
       for (NodeID v : g.in_neigh(u)) {
+#ifdef GRAPHBREW_COUNT_WORK
+        final_edges++;
+#endif
         Link(u, v, comp);
       }
     }
   }
   // Finally, 'compress' for final convergence
+#ifdef GRAPHBREW_COUNT_WORK
+  compress_steps += Compress(g, comp);
+  g_cc_sampled_edges = sampled_edges;
+  g_cc_final_edges = final_edges;
+  g_cc_compress_steps = compress_steps;
+  g_cc_skipped_vertices = skipped_vertices;
+#else
   Compress(g, comp);
-  AppendBenchmarkIterationEntry({{"phase", "final_compress"}, {"neighbor_rounds", neighbor_rounds}});
+#endif
+  if (graphbrew::database::SelfRecordingEnabled())
+    AppendBenchmarkIterationEntry({{"phase", "final_compress"}, {"neighbor_rounds", neighbor_rounds}});
   return comp;
 }
 
@@ -221,13 +331,63 @@ bool CCVerifier(const Graph &g, const pvector<NodeID> &comp) {
 
 
 int main(int argc, char* argv[]) {
-  CLApp cli(argc, argv, "connected-components-afforest");
+  CLConnectedComponents cli(
+      argc, argv, "connected-components-afforest");
   if (!cli.ParseArgs())
     return -1;
   SetBenchmarkTypeHint(BENCH_CC);
   graphbrew::database::InitSelfRecording(cli.db_dir());
   Builder b(cli);
   Graph g = b.MakeGraph();
+  if (!cli.source_manifest().empty()) {
+    auto comp = Afforest(g, false);
+    if (!CCVerifier(g, comp))
+      throw runtime_error(
+          "Adaptive source policy component verification failed");
+    const auto labeling_features =
+        ComputeTier0SampledGraphFeatures(g);
+    const size_t labeling_sample_size = std::min<size_t>(
+        8192,
+        std::max<size_t>(
+            1024,
+            static_cast<size_t>(
+                std::sqrt(static_cast<double>(g.num_nodes())))));
+    const nlohmann::json labeling_feature_json = {
+        {"normalized_edge_span",
+         labeling_features.avg_reuse_distance},
+        {"window_neighbor_overlap",
+         labeling_features.window_neighbor_overlap},
+        {"sample_size", labeling_sample_size},
+        {"sample_policy", "sqrt-clamped-1024-8192/v1"},
+    };
+    const string graph_path = cli.filename();
+    string graph_name = (
+        graph_path.empty()
+        ? "synthetic-scale-" + to_string(cli.scale())
+        : ExtractGraphNameFromPath(graph_path));
+    const string natural_suffix = ".natural";
+    if (
+        graph_name.size() > natural_suffix.size()
+        && graph_name.compare(
+            graph_name.size() - natural_suffix.size(),
+            natural_suffix.size(),
+            natural_suffix) == 0
+    ) {
+      graph_name.resize(graph_name.size() - natural_suffix.size());
+    }
+    graphbrew::analysis::WriteAdaptiveSourceManifest(
+        g,
+        comp,
+        graph_name,
+        graph_path,
+        cli.source_manifest(),
+        true,
+        "CCVerifier/v1",
+        labeling_feature_json);
+    cout << "Adaptive Source Manifest: "
+         << cli.source_manifest() << "\n";
+    return 0;
+  }
   auto CCBound = [&cli](const Graph& gr){ return Afforest(gr, cli.logging_en()); };
   BenchmarkKernel(cli, g, CCBound, PrintCompStats, CCVerifier,
     "cc",
@@ -240,6 +400,21 @@ int main(int argc, char* argv[]) {
       NodeID largest = 0;
       for (auto& kv : count) if (kv.second > largest) largest = kv.second;
       ans["largest_component"] = largest;
+#ifdef GRAPHBREW_COUNT_WORK
+      ans["sampled_edges_examined"] = g_cc_sampled_edges;
+      ans["final_edges_examined"] = g_cc_final_edges;
+      ans["compress_steps"] = g_cc_compress_steps;
+      ans["skipped_vertices"] = g_cc_skipped_vertices;
+      PrintLabel(
+          "CC Sampled Edges", std::to_string(g_cc_sampled_edges));
+      PrintLabel(
+          "CC Final Edges", std::to_string(g_cc_final_edges));
+      PrintLabel(
+          "CC Compress Steps", std::to_string(g_cc_compress_steps));
+      PrintLabel(
+          "CC Skipped Vertices",
+          std::to_string(g_cc_skipped_vertices));
+#endif
       return ans;
     });
   return 0;

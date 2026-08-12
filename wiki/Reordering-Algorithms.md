@@ -37,7 +37,7 @@ the other IDs are individual primitives or baselines.
 | 6 | `-o 6` | HUBSORTDBG | O(n log n) | DBG buckets + degree sort within |
 | 7 | `-o 7` | HUBCLUSTERDBG | O(n) | DBG buckets + hub-cluster within |
 | 8 | `-o 8` | RABBITORDER | O(n log n + m) | Louvain + dendrogram DFS; variants `csr` (default), `boost` |
-| 9 | `-o 9` | GORDER | O(n·w + m) | sliding-window greedy, w=5; high cache quality, slow reorder |
+| 9 | `-o 9:csr` | GORDER | O(n·w + m) | faithful CSR sliding-window greedy, w=5; `9:gograph` forces the legacy validation path and bare `9` auto-selects CSR above the 32-bit edge range |
 | 10 | `-o 10` | CORDER | O(n log n) | cache-aware bandwidth reduction |
 | 11 | `-o 11` | RCM | O(n log n + m) | Reverse Cuthill–McKee; variants `default`, `bnf` |
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
@@ -107,11 +107,12 @@ benchmarks slightly faster.
 
 ### Heavyweight (9, 10)
 
-**GORDER** (`-o 9`) — Wei et al. (2016). Sliding window of width 5
+**GORDER** (`-o 9:csr` for paper runs) — Wei et al. (2016). Sliding window of width 5
 greedy vertex placement maximising a local cache-locality score
 (Gscore). Produces best-in-class cache hits but is serial and
 NP-hard in the limit; reorder time is typically 10-100× a community
-method on the same graph. Use for paper comparisons.
+method on the same graph. `-o 9:gograph` forces the mapping-equivalent
+legacy validation path; bare `-o 9` is compatibility auto mode.
 
 **CORDER** (`-o 10`) — cache-aware bandwidth reduction. Less common;
 included for completeness.

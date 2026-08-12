@@ -609,13 +609,13 @@ DegSort(const CSRGraph<NodeID_, DestID_, invert> &g, bool outDegree,
             SGOffset pos = offsets[new_ids[u]];
             if (outDegree == true)
             {
-                for (NodeID_ v : g.in_neigh(u))
-                    neighs[pos++] = new_ids[v];
+                for (DestID_ v : g.in_neigh(u))
+                    neighs[pos++] = RemapDestination(v, new_ids);
             }
             else
             {
-                for (NodeID_ v : g.out_neigh(u))
-                    neighs[pos++] = new_ids[v];
+                for (DestID_ v : g.out_neigh(u))
+                    neighs[pos++] = RemapDestination(v, new_ids);
             }
             std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
         }
@@ -640,13 +640,13 @@ DegSort(const CSRGraph<NodeID_, DestID_, invert> &g, bool outDegree,
                     SGOffset pos = inv_offsets[new_ids[u]];
                     if (outDegree == true)
                     {
-                        for (NodeID_ v : g.out_neigh(u))
-                            inv_neighs[pos++] = new_ids[v];
+                        for (DestID_ v : g.out_neigh(u))
+                            inv_neighs[pos++] = RemapDestination(v, new_ids);
                     }
                     else
                     {
-                        for (NodeID_ v : g.in_neigh(u))
-                            inv_neighs[pos++] = new_ids[v];
+                        for (DestID_ v : g.in_neigh(u))
+                            inv_neighs[pos++] = RemapDestination(v, new_ids);
                     }
                     std::sort(inv_index[new_ids[u]], inv_index[new_ids[u] + 1]);
                 }
@@ -700,8 +700,8 @@ DegSort(const CSRGraph<NodeID_, DestID_, invert> &g, bool outDegree,
         for (NodeID_ u = 0; u < g.num_nodes(); u++)
         {
             SGOffset pos = offsets[new_ids[u]];
-            for (NodeID_ v : g.out_neigh(u))
-                neighs[pos++] = new_ids[v];
+            for (DestID_ v : g.out_neigh(u))
+                neighs[pos++] = RemapDestination(v, new_ids);
             std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
         }
         
@@ -803,13 +803,13 @@ RandOrder(const CSRGraph<NodeID_, DestID_, invert> &g,
             SGOffset pos = offsets[new_ids[u]];
             if (outDegree == true)
             {
-                for (NodeID_ v : g.in_neigh(u))
-                    neighs[pos++] = new_ids[v];
+                for (DestID_ v : g.in_neigh(u))
+                    neighs[pos++] = RemapDestination(v, new_ids);
             }
             else
             {
-                for (NodeID_ v : g.out_neigh(u))
-                    neighs[pos++] = new_ids[v];
+                for (DestID_ v : g.out_neigh(u))
+                    neighs[pos++] = RemapDestination(v, new_ids);
             }
             std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
         }
@@ -834,13 +834,13 @@ RandOrder(const CSRGraph<NodeID_, DestID_, invert> &g,
                     SGOffset pos = inv_offsets[new_ids[u]];
                     if (outDegree == true)
                     {
-                        for (NodeID_ v : g.out_neigh(u))
-                            inv_neighs[pos++] = new_ids[v];
+                        for (DestID_ v : g.out_neigh(u))
+                            inv_neighs[pos++] = RemapDestination(v, new_ids);
                     }
                     else
                     {
-                        for (NodeID_ v : g.in_neigh(u))
-                            inv_neighs[pos++] = new_ids[v];
+                        for (DestID_ v : g.in_neigh(u))
+                            inv_neighs[pos++] = RemapDestination(v, new_ids);
                     }
                     std::sort(inv_index[new_ids[u]], inv_index[new_ids[u] + 1]);
                 }
@@ -901,8 +901,8 @@ RandOrder(const CSRGraph<NodeID_, DestID_, invert> &g,
         for (NodeID_ u = 0; u < g.num_nodes(); u++)
         {
             SGOffset pos = offsets[new_ids[u]];
-            for (NodeID_ v : g.out_neigh(u))
-                neighs[pos++] = new_ids[v];
+            for (DestID_ v : g.out_neigh(u))
+                neighs[pos++] = RemapDestination(v, new_ids);
             std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
         }
         

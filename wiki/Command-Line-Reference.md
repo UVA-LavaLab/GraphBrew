@@ -82,7 +82,7 @@ You can run each phase independently. Later phases automatically load results fr
 | **Phase 1** | `--phase reorder` | Generate reordered graphs (.lo label maps) |
 | **Phase 2** | `--phase benchmark` | Run graph algorithm benchmarks (BFS, PR, etc.) |
 | **Phase 3** | `--phase cache` | Run cache simulation |
-| **Phase 4** | `--phase weights` | _(deprecated)_ Generate perceptron weights — C++ now trains at runtime |
+| **Phase 4** | `--phase weights` | _(legacy)_ Generate/export offline selector weights |
 | **Phase 5** | `--phase adaptive` | _(deprecated)_ Adaptive order analysis — use `--eval-weights` instead |
 
 ```bash
@@ -99,7 +99,7 @@ python3 scripts/graphbrew_experiment.py --phase cache --size small
 
 **Note:** Results are saved to `results/` directory after each phase. Later phases automatically load:
 - Phase 2 & 3: Load `.lo` label maps from Phase 1
-- C++ runtime: Trains perceptron, decision tree, and hybrid models automatically from benchmark data when ≥3 graphs are available
+- Adaptive runtime: Loads the offline `adaptive_models.json` artifact
 
 ---
 
@@ -219,17 +219,24 @@ Use with `-o <id>`:
 
 ### GOrder Variants (Algorithm 9)
 
-GOrder supports three variants:
+GOrder supports four variants:
 
 | Variant | Example | Description |
 |---------|---------|-------------|
-| (default) | `-o 9` | GoGraph baseline — converts to GoGraph adjacency format |
-| `csr` | `-o 9:csr` | CSR-native — direct CSRGraph iterator access, lightweight BFS-RCM, faster reorder |
+| (default) | `-o 9` | Compatibility auto mode — legacy GoGraph below the 32-bit edge-position limit, faithful CSR above it |
+| `gograph` | `-o 9:gograph` | Force the legacy GoGraph path for reproducibility checks |
+| `csr` | `-o 9:csr` | Faithful CSR-native implementation used by the paper |
 | `fast` | `-o 9:fast` | Parallel batch — atomic score updates, fan-out cap, scales across threads |
 
-The CSR variant uses a lightweight GoGraph-matching BFS-CM pre-ordering and `RelabelByMappingStandalone` to rebuild the CSR in RCM order, then runs the GOrder greedy directly on sorted CSRGraph neighbor iterators. Default window size w=5 (matching the original SIGMOD'16 paper). Deterministic with single thread. Override with `GORDER_WINDOW=N` environment variable.
+The `gograph` and `csr` variants use the same RCM warm start and faithful
+serial greedy semantics; validation found byte-identical mappings on the paper
+graph families. The CSR path avoids the legacy edge-list materialization and
+32-bit edge-position limit. Default window size w=5 (matching the original
+SIGMOD'16 paper). Override with `GORDER_WINDOW=N`.
 
-The fast variant replaces the serial UnitHeap with a score array + active frontier for thread safety. It auto-tunes batch size and window to the available thread count (W=max(5, 2×batch)). Recommended for graphs with high degree variance (power-law, social networks).
+The fast variant replaces the serial UnitHeap with a score array + active
+frontier. It is a relaxed parallel heuristic and is not assumed to be
+mapping-equivalent to the faithful variants.
 
 ### GoGraphOrder Variants (Algorithm 16)
 
@@ -392,12 +399,15 @@ See [[Reordering-Algorithms#chained-orderings]] for all defined chains.
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-r <root>` | Starting vertex | Random |
+| `-r <id[,id...]>` | Original source ID or ordered source list | Random |
 
 **Examples:**
 ```bash
 # BFS from vertex 0
 ./bench/bin/bfs -f graph.el -s -r 0 -n 5
+
+# One timed trial per listed original source
+./bench/bin/bfs -f graph.el -s -r 4,27,103
 
 # BFS from random roots
 ./bench/bin/bfs -f graph.el -s -n 5
@@ -431,7 +441,7 @@ No additional options.
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-r <root>` | Source vertex | 0 |
+| `-r <id[,id...]>` | Original source ID or ordered source list; list size sets trials | Random |
 | `-d <delta>` | Delta for delta-stepping | 1 |
 
 **Examples:**
@@ -441,6 +451,9 @@ No additional options.
 
 # With custom delta
 ./bench/bin/sssp -f graph.wel -s -r 0 -d 2 -n 5
+
+# One timed trial for each original source ID
+./bench/bin/sssp -f graph.wel -s -r 4,27,103 -d 2
 ```
 
 **Note:** SSSP requires weighted edges (`.wel` format).
@@ -453,7 +466,7 @@ No additional options.
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-r <root>` | Source vertex | Random |
+| `-r <id[,id...]>` | Original source ID or ordered source list | Random |
 | `-i <iterations>` | Number of source iterations | 1 |
 
 **Examples:**
@@ -463,7 +476,14 @@ No additional options.
 
 # BC with multiple iterations (more accurate)
 ./bench/bin/bc -f graph.el -s -i 4 -n 5
+
+# Explicit-list BC is single-source Brandes: one trial per source
+./bench/bin/bc -f graph.el -s -r 4,27,103 -i 1
 ```
+
+Source lists are fully resolved through the graph's original-to-internal ID
+permutation before timing. Invalid, duplicate, unmapped, or isolated sources
+fail closed; the runtime never falls back to the numeric ID or a random source.
 
 ### Triangle Counting (tc)
 
@@ -531,7 +551,9 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-**Note:** If not set, AdaptiveOrder loads weights from `adaptive_models.json` via the DB hook (see [[AdaptiveOrder-ML#where-the-models-live]]).
+**Note:** AdaptiveOrder is research-only and loads an offline-produced model
+artifact. Deployable `-o 14` rejects graph names, exact-name oracle lookup, and
+runtime kNN/database selection. See [[AdaptiveOrder-ML]].
 
 ### NUMA Binding
 
@@ -696,7 +718,7 @@ python3 scripts/graphbrew_experiment.py --eval-weights  # No arguments needed
 1. **Always use `-s`** for undirected graphs
 2. **Use `-n 5` or more** for reliable timing
 3. **Start with `-o 0`** as baseline
-4. **Use `-o 14`** (AdaptiveOrder) for unknown graphs
+4. **Benchmark `-o 0`, `-o 5`, and `-o 8:csr`** before choosing a policy
 5. **Verify first run** with `-v` to check correctness
 
 ---

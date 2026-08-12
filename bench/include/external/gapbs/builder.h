@@ -643,10 +643,10 @@ public:
         #pragma omp parallel for
         for (NodeID_ i = 0; i < num_nodes; ++i)
         {
-            NodeID_ out_start = g.out_offset(i);
-            NodeID_ in_start = out_start + num_edges;
+            int64_t out_start = g.out_offset(i);
+            int64_t in_start = out_start + num_edges;
 
-            NodeID_ j = 0;
+            int64_t j = 0;
             for (DestID_ neighbor : g.out_neigh(i))
             {
                 if (g.is_weighted())
@@ -743,6 +743,11 @@ public:
 
     CSRGraph<NodeID_, DestID_, invert> MakeGraph()
     {
+        using namespace graphbrew::database;
+        SetReorderTimeHint(0.0);
+        SetReorderAlgoHint("");
+        SetReorderAlgoIdHint(0);
+        ClearReorderMetaHints();
         CSRGraph<NodeID_, DestID_, invert> g;
         CSRGraph<NodeID_, DestID_, invert> g_final;
         bool gContinue_ = true; // Control variable to exit the scope
@@ -754,8 +759,47 @@ public:
                 Reader<NodeID_, DestID_, WeightT_, invert> r(cli_.filename());
                 if ((r.GetSuffix() == ".sg") || (r.GetSuffix() == ".wsg"))
                 {
-                    g_final = r.ReadSerializedGraph();
-                    gContinue_ = false; // Control variable to exit the scope
+                    auto serialized =
+                        r.ReadSerializedGraph(cli_.weight_scheme());
+                    if (symmetrize_ && serialized.directed())
+                    {
+                        if constexpr (!std::is_same<NodeID_, DestID_>::value)
+                        {
+                            throw std::runtime_error(
+                                "Symmetrizing weighted serialized graphs is unsupported");
+                        }
+                        NodeID_ *source_org_ids = serialized.get_org_ids();
+                        if (source_org_ids == nullptr)
+                        {
+                            throw std::runtime_error(
+                                "Serialized graph is missing original IDs");
+                        }
+                        for (NodeID_ i = 0; i < serialized.num_nodes(); ++i)
+                        {
+                            if (source_org_ids[i] != i)
+                            {
+                                throw std::runtime_error(
+                                    "Cannot symmetrize a serialized graph "
+                                    "with non-identity original IDs");
+                            }
+                        }
+                        num_nodes_ = serialized.num_nodes();
+                        el.resize(serialized.num_edges_directed());
+                        #pragma omp parallel for schedule(dynamic, 1024)
+                        for (NodeID_ u = 0; u < serialized.num_nodes(); ++u)
+                        {
+                            int64_t offset = serialized.out_offset(u);
+                            for (DestID_ v : serialized.out_neigh(u))
+                            {
+                                el[offset++] = Edge(u, v);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        g_final = std::move(serialized);
+                        gContinue_ = false;
+                    }
                 }
                 else
                 {
@@ -781,15 +825,20 @@ public:
                 g_final = SquishGraph(g);
         }
         
-        // Auto-set graph name hint from input filename for database/oracle modes
+        // Retain graph identity for metadata/self-recording only. Deployable
+        // AdaptiveOrder is prohibited from consuming this hint.
         if (!cli_.filename().empty()) {
             SetGraphNameHint(ExtractGraphNameFromPath(cli_.filename()));
         }
         
-        // Compute and print global graph topology features ONCE before any reordering
-        // This provides clustering_coeff, avg_path_length, diameter, community_count
-        // for the Python training scripts to use
-        ComputeAndPrintGlobalTopologyFeatures(g_final);
+        const char* topology_env =
+            std::getenv("GRAPHBREW_TOPOLOGY_ANALYSIS");
+        const bool topology_analysis_enabled =
+            topology_env == nullptr || std::string(topology_env) != "0";
+        if (topology_analysis_enabled)
+            ComputeAndPrintGlobalTopologyFeatures(g_final);
+        else
+            PrintLabel("Topology Analysis", "disabled");
         
         // g_final.PrintTopology();
         pvector<NodeID_> new_ids(g_final.num_nodes(), -1);
@@ -799,21 +848,34 @@ public:
             GenerateMapping(g_final, new_ids, option.first, cli_.use_out_degree(),
                             option.second);
 
-            // Debug-mode bijection check: verify mapping is a valid permutation
-            #ifndef NDEBUG
-            {
-                std::vector<bool> seen(g_final.num_nodes(), false);
-                for (NodeID_ v = 0; v < g_final.num_nodes(); ++v) {
-                    assert(new_ids[v] >= 0 && new_ids[v] < g_final.num_nodes()
-                           && "Mapping ID out of range");
-                    assert(!seen[new_ids[v]]
-                           && "Duplicate mapping ID — not a permutation");
-                    seen[new_ids[v]] = true;
-                }
-            }
-            #endif
+            Timer validation_timer;
+            validation_timer.Start();
+            ValidatePermutationOrThrow(
+                new_ids, g_final.num_nodes(), "generated mapping");
+            validation_timer.Stop();
 
+            Timer apply_timer;
+            apply_timer.Start();
             g_final = RelabelByMapping(g_final, new_ids);
+            apply_timer.Stop();
+
+            auto& reorder_metas = GetReorderMetaHints();
+            if (reorder_metas.empty())
+                throw std::runtime_error(
+                    "Missing reorder metadata after mapping generation");
+            ReorderMeta& meta = reorder_metas.back();
+            const double mapping_time = meta.reorder_time;
+            const double end_to_end_time =
+                mapping_time + validation_timer.Seconds()
+                + apply_timer.Seconds();
+            PrintTime(
+                "Reorder Validation Time",
+                validation_timer.Seconds());
+            PrintTime("Reorder Apply Time", apply_timer.Seconds());
+            PrintTime("Reorder End-to-End Time", end_to_end_time);
+            SetReorderTimeHint(
+                GetReorderTimeHint() - mapping_time + end_to_end_time);
+            meta.reorder_time = end_to_end_time;
         }
 
         // g_final = SquishGraph(g_final);
@@ -854,8 +916,9 @@ public:
         #pragma omp parallel for
         for (NodeID_ u = 0; u < g.num_nodes(); u++)
         {
-            for (NodeID_ v : g.out_neigh(u))
-                neighs[offsets[new_ids[u]]++] = new_ids[v];
+            for (DestID_ v : g.out_neigh(u))
+                neighs[offsets[new_ids[u]]++] =
+                    RemapDestination(v, new_ids);
             std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
         }
         t.Stop();
@@ -926,13 +989,15 @@ public:
             {
                 if (outDegree == true)
                 {
-                    for (NodeID_ v : g.in_neigh(u))
-                        neighs[offsets[new_ids[u]]++] = new_ids[v];
+                    for (DestID_ v : g.in_neigh(u))
+                        neighs[offsets[new_ids[u]]++] =
+                            RemapDestination(v, new_ids);
                 }
                 else
                 {
-                    for (NodeID_ v : g.out_neigh(u))
-                        neighs[offsets[new_ids[u]]++] = new_ids[v];
+                    for (DestID_ v : g.out_neigh(u))
+                        neighs[offsets[new_ids[u]]++] =
+                            RemapDestination(v, new_ids);
                 }
                 std::sort(index[new_ids[u]],
                           index[new_ids[u] + 1]); // sort neighbors of each vertex
@@ -953,13 +1018,15 @@ public:
                     {
                         if (outDegree == true)
                         {
-                            for (NodeID_ v : g.out_neigh(u))
-                                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+                            for (DestID_ v : g.out_neigh(u))
+                                inv_neighs[inv_offsets[new_ids[u]]++] =
+                                    RemapDestination(v, new_ids);
                         }
                         else
                         {
-                            for (NodeID_ v : g.in_neigh(u))
-                                inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+                            for (DestID_ v : g.in_neigh(u))
+                                inv_neighs[inv_offsets[new_ids[u]]++] =
+                                    RemapDestination(v, new_ids);
                         }
                         std::sort(
                             inv_index[new_ids[u]],
@@ -1005,8 +1072,9 @@ public:
             #pragma omp parallel for schedule(dynamic, 1024)
             for (NodeID_ u = 0; u < g.num_nodes(); u++)
             {
-                for (NodeID_ v : g.out_neigh(u))
-                    neighs[offsets[new_ids[u]]++] = new_ids[v];
+                for (DestID_ v : g.out_neigh(u))
+                    neighs[offsets[new_ids[u]]++] =
+                        RemapDestination(v, new_ids);
                 std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
             }
             t.Stop();
@@ -1061,11 +1129,12 @@ public:
         #pragma omp parallel for
         for (NodeID_ u = 0; u < g.num_nodes(); u++)
         {
-            for (NodeID_ v : g.out_neigh(u))
+            for (DestID_ v : g.out_neigh(u))
             {
                 SGOffset out_offsets_local =
                     __sync_fetch_and_add(&(out_offsets[new_ids[u]]), 1);
-                out_neighs[out_offsets_local] = new_ids[v];
+                out_neighs[out_offsets_local] =
+                    RemapDestination(v, new_ids);
             }
             std::sort(out_index[new_ids[u]], out_index[new_ids[u] + 1]);
         }
@@ -1084,11 +1153,12 @@ public:
             #pragma omp parallel for
             for (NodeID_ u = 0; u < g.num_nodes(); u++)
             {
-                for (NodeID_ v : g.in_neigh(u))
+                for (DestID_ v : g.in_neigh(u))
                 {
                     SGOffset in_offsets_local =
                         __sync_fetch_and_add(&(in_offsets[new_ids[u]]), 1);
-                    in_neighs[in_offsets_local] = new_ids[v];
+                    in_neighs[in_offsets_local] =
+                        RemapDestination(v, new_ids);
                 }
                 std::sort(in_index[new_ids[u]], in_index[new_ids[u] + 1]);
             }
@@ -1172,6 +1242,42 @@ public:
             g, nodes, node_set, algo, useOutdeg, new_ids, current_id);
     }
 
+    std::pair<double, size_t> SampleMappingEdgeSpan(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        const pvector<NodeID_>& new_ids,
+        size_t sample_limit = 1U << 20) const
+    {
+        long double span_sum = 0.0;
+        size_t sampled = 0;
+        for (
+            NodeID_ source = 0;
+            source < g.num_nodes() && sampled < sample_limit;
+            ++source)
+        {
+            for (auto neighbor : g.out_neigh(source))
+            {
+                NodeID_ destination;
+                if constexpr (std::is_same<NodeID_, DestID_>::value)
+                    destination = neighbor;
+                else
+                    destination = neighbor.v;
+                uint64_t mapped_source =
+                    static_cast<uint64_t>(new_ids[source]);
+                uint64_t mapped_destination =
+                    static_cast<uint64_t>(new_ids[destination]);
+                span_sum += mapped_source > mapped_destination
+                    ? mapped_source - mapped_destination
+                    : mapped_destination - mapped_source;
+                if (++sampled == sample_limit)
+                    break;
+            }
+        }
+        return {
+            sampled ? static_cast<double>(span_sum / sampled) : 0.0,
+            sampled,
+        };
+    }
+
     void GenerateMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                          pvector<NodeID_> &new_ids,
                          ReorderingAlgo reordering_algo, bool useOutdeg,
@@ -1214,7 +1320,13 @@ public:
             // RabbitOrder with variants: csr (default), boost
             // Format: -o 8:variant (e.g., -o 8:boost for original Boost-based)
             std::string variant = resolveVariant(reordering_options, "csr");
-            
+#ifndef RABBIT_ENABLE
+            if (variant == "boost") {
+                throw std::runtime_error(
+                    "RabbitOrder Boost variant requested, but this binary "
+                    "was built with RABBIT_ENABLE=0");
+            }
+#endif
 #ifdef RABBIT_ENABLE
             if (variant == "boost") {
                 // Original Boost-based RabbitOrder needs preprocessing
@@ -1251,15 +1363,19 @@ public:
         break;
         case GOrder:
         {
-            // GOrder with variants: default (GoGraph), csr (CSR serial), fast (parallel batch)
-            // Format: -o 9:variant (e.g., -o 9:csr, -o 9:fast)
+            // GOrder variants: default (auto), gograph (forced legacy),
+            // csr (faithful CSR), fast (parallel relaxed).
             std::string gorder_variant = resolveVariant(reordering_options);
             if (gorder_variant == "csr" || gorder_variant == "sym") {
                 GenerateGOrderCSRMapping(g, new_ids);
             } else if (gorder_variant == "fast") {
                 GenerateGOrderFastMapping(g, new_ids);
+            } else if (gorder_variant == "gograph") {
+                GenerateGOrderLegacyMapping(g, new_ids);
             } else {
-                warnUnknownVariant(gorder_variant, "GOrder", {"csr", "sym", "fast"});
+                warnUnknownVariant(
+                    gorder_variant, "GOrder",
+                    {"gograph", "csr", "sym", "fast"});
                 GenerateGOrderMapping(g, new_ids);
             }
         }
@@ -1313,6 +1429,18 @@ public:
         std::cout << "=== Reorder Summary ===" << std::endl;
         PrintLabel("Algorithm", ReorderingAlgoStr(reordering_algo));
         PrintTime("Reorder Time", reorder_timer.Seconds());
+        const char* quality_env =
+            std::getenv("GRAPHBREW_MAPPING_QUALITY");
+        if (quality_env != nullptr && std::string(quality_env) == "1") {
+            auto [sampled_edge_span, sampled_edges] =
+                SampleMappingEdgeSpan(g, new_ids);
+            PrintLabel(
+                "Mapping Sampled Edge Span",
+                std::to_string(sampled_edge_span));
+            PrintLabel(
+                "Mapping Sampled Edges",
+                std::to_string(sampled_edges));
+        }
 
         // ---- Self-recording: set global hints + record reorder metadata ----
         {
@@ -1340,8 +1468,14 @@ public:
                 if (found) {
                     algo_id = static_cast<int>(real_algo);
                 }
-                // Load actual reorder time from .time file (not the .lo load time)
-                if (lo_path.size() > 3) {
+                // Legacy .time files are opt-in; paper experiments use the
+                // provenance sidecar and Experiment 3 as the overhead SSOT.
+                const char* legacy_time =
+                    std::getenv("GRAPHBREW_ALLOW_LEGACY_TIME");
+                if (
+                    legacy_time != nullptr &&
+                    std::string(legacy_time) == "1" &&
+                    lo_path.size() > 3) {
                     std::string time_path = lo_path.substr(0, lo_path.size() - 3) + ".time";
                     std::ifstream tf(time_path);
                     if (tf.is_open()) {
@@ -1353,10 +1487,15 @@ public:
                 }
             }
 
-            // Set global hints for BenchmarkKernel's RunReport
-            SetReorderTimeHint(reorder_secs);
-            SetReorderAlgoHint(algo_name);
-            SetReorderAlgoIdHint(algo_id);
+            // Accumulate complete direct-chain identity and cost.
+            SetReorderTimeHint(GetReorderTimeHint() + reorder_secs);
+            std::string chain_name = GetReorderAlgoHint();
+            if (!chain_name.empty())
+                chain_name += "+";
+            chain_name += algo_name;
+            SetReorderAlgoHint(chain_name);
+            SetReorderAlgoIdHint(
+                GetReorderMetaHints().empty() ? algo_id : -1);
 
             // Build ReorderMeta hint, merging any staged algorithm-specific details
             ReorderMeta meta = GetStagedReorderMeta();
@@ -1436,7 +1575,13 @@ public:
         {
             // RabbitOrder with variants: csr (default), boost
             std::string variant = resolveVariant(reordering_options, "csr");
-            
+#ifndef RABBIT_ENABLE
+            if (variant == "boost") {
+                throw std::runtime_error(
+                    "RabbitOrder Boost variant requested, but this binary "
+                    "was built with RABBIT_ENABLE=0");
+            }
+#endif
 #ifdef RABBIT_ENABLE
             if (variant == "boost") {
                 // Original Boost-based RabbitOrder needs preprocessing
@@ -1494,15 +1639,19 @@ public:
         break;
         case GOrder:
         {
-            // GOrder with variants: default (GoGraph), csr (CSR serial), fast (parallel batch)
-            // Format: -o 9:csr or -o 9:fast
+            // GOrder variants: default (auto), gograph (forced legacy),
+            // csr (faithful CSR), fast (parallel relaxed).
             std::string gorder_variant = resolveVariant(reordering_options);
             if (gorder_variant == "csr" || gorder_variant == "sym") {
                 GenerateGOrderCSRMapping(g, new_ids);
             } else if (gorder_variant == "fast") {
                 GenerateGOrderFastMapping(g, new_ids);
+            } else if (gorder_variant == "gograph") {
+                GenerateGOrderLegacyMapping(g, new_ids);
             } else {
-                warnUnknownVariant(gorder_variant, "GOrder", {"csr", "sym", "fast"});
+                warnUnknownVariant(
+                    gorder_variant, "GOrder",
+                    {"gograph", "csr", "sym", "fast"});
                 GenerateGOrderMapping(g, new_ids);
             }
         }
@@ -1567,42 +1716,51 @@ public:
         return ::getReorderingAlgo(arg);
     }
 
+    void ValidatePermutationOrThrow(
+        const pvector<NodeID_> &ids,
+        int64_t num_nodes,
+        const char *context) const
+    {
+        if (static_cast<int64_t>(ids.size()) != num_nodes)
+        {
+            throw std::runtime_error(
+                std::string(context) + " has the wrong number of entries");
+        }
+        ValidatePermutationOrThrow(ids.data(), num_nodes, context);
+    }
+
+    void ValidatePermutationOrThrow(
+        const NodeID_ *ids,
+        int64_t num_nodes,
+        const char *context) const
+    {
+        if (ids == nullptr)
+        {
+            throw std::runtime_error(
+                std::string(context) + " is missing");
+        }
+        std::vector<uint8_t> seen(static_cast<size_t>(num_nodes), 0);
+        for (int64_t i = 0; i < num_nodes; i++)
+        {
+            const int64_t value = static_cast<int64_t>(ids[i]);
+            if (value < 0 || value >= num_nodes)
+            {
+                throw std::runtime_error(
+                    std::string(context) + " contains an out-of-range ID");
+            }
+            if (seen[static_cast<size_t>(value)] != 0)
+            {
+                throw std::runtime_error(
+                    std::string(context) + " contains a duplicate ID");
+            }
+            seen[static_cast<size_t>(value)] = 1;
+        }
+    }
+
     void VerifyMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                        const pvector<NodeID_> &new_ids)
     {
-        NodeID_ *hist = alloc_align_4k<NodeID_>(g.num_nodes());
-        int64_t num_nodes = g.num_nodes();
-
-        #pragma omp parallel for
-        for (long i = 0; i < num_nodes; i++)
-        {
-            hist[i] = new_ids[i];
-        }
-
-        __gnu_parallel::stable_sort(&hist[0], &hist[num_nodes]);
-
-        NodeID_ count = 0;
-
-        #pragma omp parallel for
-        for (int64_t i = 0; i < num_nodes; i++)
-        {
-            if (hist[i] != i)
-            {
-                __sync_fetch_and_add(&count, 1);
-            }
-        }
-
-        if (count != 0)
-        {
-            std::cout << "Num of vertices did not match: " << count << std::endl;
-            std::cout << "Mapping is invalid.!" << std::endl;
-            std::abort();
-        }
-        else
-        {
-            std::cout << "Mapping is valid.!" << std::endl;
-        }
-        std::free(hist);
+        ValidatePermutationOrThrow(new_ids, g.num_nodes(), "mapping");
     }
 
     void printReorderingMethods(const std::string &filename, Timer t)
@@ -1702,6 +1860,12 @@ public:
         {
             ifs.read(reinterpret_cast<char *>(label_ids),
                      g.num_nodes() * sizeof(NodeID_));
+            if (ifs.gcount() !=
+                static_cast<std::streamsize>(g.num_nodes() * sizeof(NodeID_)))
+            {
+                delete[] label_ids;
+                throw std::runtime_error("Binary mapping file is truncated");
+            }
             #pragma omp parallel for
             for (int64_t i = 0; i < num_nodes; i++)
             {
@@ -1712,11 +1876,17 @@ public:
         {
             for (int64_t i = 0; i < num_nodes; i++)
             {
-                ifs >> inverse_ids[i];
+                if (!(ifs >> inverse_ids[i]))
+                {
+                    delete[] label_ids;
+                    throw std::runtime_error("Text mapping file is truncated");
+                }
             }
         }
         delete[] label_ids;
         ifs.close();
+        ValidatePermutationOrThrow(
+            inverse_ids, num_nodes, "mapping file");
 
         // Step 2: Invert  inverse_ids[new_id] = org_id  →  org_to_new[org_id] = new_id
         pvector<NodeID_> org_to_new(num_nodes);
@@ -1728,6 +1898,8 @@ public:
 
         // Step 3: Compose with graph's org_ids to map sg_id → new_id
         NodeID_ *org_ids = g.get_org_ids();
+        ValidatePermutationOrThrow(
+            org_ids, num_nodes, "serialized graph original IDs");
         #pragma omp parallel for
         for (int64_t i = 0; i < num_nodes; i++)
         {
@@ -1922,7 +2094,28 @@ public:
      */
     void GenerateGOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                                pvector<NodeID_> &new_ids) {
-        ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
+        if (graphbrew::classic_detail::PreferGOrderCSR(
+                g.num_edges_directed())) {
+            std::cout
+                << "GOrder: using mapping-equivalent CSR implementation "
+                << "for 64-bit edge-index graph\n";
+            ::GenerateGOrderCSRMapping<
+                NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, cli_.filename());
+            return;
+        }
+        GenerateGOrderLegacyMapping(g, new_ids);
+    }
+
+    /**
+     * @brief Force the legacy GoGraph implementation.
+     * Accessed via: -o 9:gograph
+     */
+    void GenerateGOrderLegacyMapping(
+        const CSRGraph<NodeID_, DestID_, invert> &g,
+        pvector<NodeID_> &new_ids) {
+        ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(
+            g, new_ids, cli_.filename());
     }
 
     /**
@@ -2257,9 +2450,9 @@ public:
         #pragma omp parallel for
         for (NodeID_ i = 0; i < num_nodes; ++i)
         {
-            NodeID_ out_start = g.out_offset(i);
+            int64_t out_start = g.out_offset(i);
 
-            NodeID_ j = 0;
+            int64_t j = 0;
             for (DestID_ neighbor : g.out_neigh(i))
             {
                 if (g.is_weighted())
@@ -2730,17 +2923,13 @@ public:
      * 
      * Format: {"AlgorithmName": {"bias": X, "w_modularity": X, ...}, ...}
      * 
-     * AUTO-CLUSTERING TYPE SYSTEM (DEPRECATED — see reorder_database.h):
-     * Weights are now loaded from results/data/adaptive_models.json via
-     * LoadPerceptronWeightsFromDB() in reorder_database.h.  C++ trains
-     * perceptron, DT, and hybrid models at runtime from benchmarks.json +
-     * graph_properties.json.  The legacy type_N/ directory structure is
-     * no longer generated.
+     * Weights are loaded from the offline-produced
+     * results/data/adaptive_models.json artifact. Benchmark binaries never
+     * train selector models at runtime.
      *
      * At runtime, the system:
-     * 1. Queries the streaming database for oracle/kNN predictions
-     * 2. Falls back to adaptive_models.json if the database has <3 graphs
-     * 3. Falls back to hardcoded defaults if no model file exists
+     * 1. Loads the requested compiled model from adaptive_models.json
+     * 2. Falls back to hardcoded perceptron defaults if no artifact exists
      */
     
     /**
@@ -2947,7 +3136,7 @@ public:
 
     /**
      * Select best reordering algorithm based on community features.
-     * Delegates to the global ::SelectBestReorderingForCommunity in reorder_types.h.
+     * Delegates to the deployable model/criterion selector.
      */
     PerceptronSelection SelectBestReorderingForCommunity(CommunityFeatures feat, 
                                                      double global_modularity,
@@ -2955,15 +3144,18 @@ public:
                                                      double global_hub_concentration,
                                                      double global_avg_degree,
                                                      size_t num_nodes, size_t num_edges,
+                                                     SelectionModel model =
+                                                         SELECTION_MODEL_PERCEPTRON,
+                                                     SelectionCriterion criterion =
+                                                         CRITERION_FASTEST_EXECUTION,
                                                      BenchmarkType bench = BENCH_GENERIC,
                                                      GraphType graph_type = GRAPH_GENERIC,
-                                                     SelectionMode mode = MODE_FASTEST_EXECUTION,
-                                                     const std::string& graph_name = "",
                                                      size_t dynamic_min_size = 0) {
-        return ::SelectBestReorderingForCommunity(feat, global_modularity, global_degree_variance,
-                                                   global_hub_concentration, global_avg_degree,
-                                                   num_nodes, num_edges, bench, graph_type,
-                                                   mode, graph_name, dynamic_min_size);
+        return ::SelectBestReorderingForCommunityWithModelCriterion(
+            feat, global_modularity, global_degree_variance,
+            global_hub_concentration, global_avg_degree,
+            num_nodes, num_edges, model, criterion, bench, graph_type,
+            dynamic_min_size);
     }
 
     // ========================================================================
@@ -2974,10 +3166,10 @@ public:
     
     /**
      * Main entry point for Adaptive reordering - delegates to standalone.
-     * Format: -o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]
+     * Format: -o 14[:_[:_[:model[:criterion]]]]
      *   Positions 0-2: reserved (unused)
-     *   Position 3: selection_mode (0-3)
-     *   Position 4: graph_name (string)
+     *   Position 3: deployable model
+     *   Position 4: independent optimization criterion
      */
     void GenerateAdaptiveMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids, bool useOutdeg,
@@ -3006,10 +3198,12 @@ public:
         std::vector<std::string> reordering_options,
         int depth = 0,
         bool verbose = true,
-        SelectionMode selection_mode = MODE_FASTEST_EXECUTION,
-        const std::string& graph_name = "") {
+        SelectionModel selection_model = SELECTION_MODEL_PERCEPTRON,
+        SelectionCriterion selection_criterion =
+            CRITERION_FASTEST_EXECUTION) {
         ::GenerateAdaptiveMappingRecursiveStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, new_ids, useOutdeg, reordering_options, depth, verbose, selection_mode, graph_name);
+            g, new_ids, useOutdeg, reordering_options, depth, verbose,
+            selection_model, selection_criterion);
     }
 
 
@@ -3078,7 +3272,7 @@ public:
         // ── Default (no options) → leiden preset ────────────────────────
         if (options.empty() || options[0].empty()) {
             graphbrew::GraphBrewConfig config = graphbrew::parseGraphBrewConfig(
-                {"gvecsr", "totalm", "refine0", "graphbrew"});
+                {"gvecsr", "totalm", "refine0", "graphbrew"}, true);
             config.resolution = auto_resolution;
             return config;
         }
@@ -3099,13 +3293,72 @@ public:
         
         auto preset_it = PRESETS.find(first);
         graphbrew::GraphBrewConfig config;
+        auto isNumeric = [](const std::string& token) {
+            try {
+                size_t parsed = 0;
+                double value = std::stod(token, &parsed);
+                return parsed == token.size() && std::isfinite(value);
+            } catch (...) {
+                return false;
+            }
+        };
+        auto dynamicInitial = [&](const std::string& token, double& initial) {
+            if (token == "dynamic") {
+                initial = auto_resolution;
+                return true;
+            }
+            if (token.rfind("dynamic_", 0) != 0 ||
+                !isNumeric(token.substr(8))) {
+                return false;
+            }
+            initial = std::stod(token.substr(8));
+            return initial > 0.0 && initial <= 3.0;
+        };
+        auto isInteger = [](const std::string& token) {
+            try {
+                size_t parsed = 0;
+                std::stoi(token, &parsed);
+                return parsed == token.size();
+            } catch (...) {
+                return false;
+            }
+        };
         
         if (preset_it != PRESETS.end()) {
-            // ── Known preset → expand tokens, then parse positional tail ─
-            config = graphbrew::parseGraphBrewConfig(preset_it->second.tokens);
+            // Parse preset expansion and every named tail token together.
+            // Numeric legacy positional fields are applied below.
+            std::vector<std::string> tokens = preset_it->second.tokens;
+            for (size_t i = 1; i < options.size(); ++i) {
+                const std::string& token = options[i];
+                if (token.empty()) continue;
+                bool positional = false;
+                const bool numeric = isNumeric(token);
+                double dynamic_initial = 0.0;
+                if (
+                    ((i == 1 || i == 3 || i == 4 || i == 5) && numeric)
+                    && !isInteger(token))
+                {
+                    throw std::invalid_argument(
+                        "GraphBrew positional integer is malformed: "
+                        + token);
+                }
+                if (i == 1 && isInteger(token)) positional = true;  // final algo
+                if (i == 2 &&
+                    (numeric || token == "auto" ||
+                     dynamicInitial(token, dynamic_initial)))
+                    positional = true;  // resolution
+                if ((i == 3 || i == 4) && isInteger(token))
+                    positional = true;  // passes / depth
+                if (i == 5 &&
+                    (isInteger(token) || token == "auto" || token == "adaptive"))
+                    positional = true;  // sub-algo
+                if (!positional) tokens.push_back(token);
+            }
+            config = graphbrew::parseGraphBrewConfig(tokens, true);
             
             // Apply LAYER-mode defaults (only if the preset didn't set another ordering)
-            if (config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
+            if (config.algorithm != graphbrew::GraphBrewAlgorithm::RABBIT_ORDER &&
+                config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
                 config.ordering = graphbrew::OrderingStrategy::LAYER;
             }
             if (config.ordering == graphbrew::OrderingStrategy::LAYER) {
@@ -3119,112 +3372,74 @@ public:
             }
             
             // Positional overrides: final_algo, resolution, passes, depth, sub
-            if (options.size() > 1 && !options[1].empty()) {
-                try { config.finalAlgoId = std::stoi(options[1]); } catch (...) {}
+            if (options.size() > 1 && isInteger(options[1])) {
+                int final_algo = std::stoi(options[1]);
+                if (final_algo < 0 || final_algo > 11) {
+                    throw std::invalid_argument(
+                        "Invalid GraphBrew final algorithm: " + options[1]);
+                }
+                config.finalAlgoId = final_algo;
             }
             if (options.size() > 2 && !options[2].empty()) {
                 const std::string& res = options[2];
                 if (res == "auto" || res == "0") {
                     // keep auto_resolution
-                } else if (res.rfind("dynamic", 0) == 0) {
-                    config.useDynamicResolution = true;
                 } else {
-                    try {
+                    double dynamic_initial = 0.0;
+                    if (dynamicInitial(res, dynamic_initial)) {
+                        config.resolution = dynamic_initial;
+                        config.useDynamicResolution = true;
+                    } else if (isNumeric(res)) {
                         double r = std::stod(res);
-                        if (r > 0 && r <= 3) config.resolution = r;
-                    } catch (...) {}
+                        if (r <= 0 || r > 3) {
+                            throw std::invalid_argument(
+                                "Invalid GraphBrew resolution: " + res);
+                        }
+                        config.resolution = r;
+                    }
                 }
             }
-            if (options.size() > 3 && !options[3].empty()) {
-                try {
-                    int passes = std::stoi(options[3]);
-                    if (passes > 0 && passes <= 50) config.maxPasses = passes;
-                } catch (...) {}
+            if (options.size() > 3 && isInteger(options[3])) {
+                int passes = std::stoi(options[3]);
+                if (passes <= 0 || passes > 50) {
+                    throw std::invalid_argument(
+                        "Invalid GraphBrew pass count: " + options[3]);
+                }
+                config.maxPasses = passes;
             }
             if (options.size() > 4 && !options[4].empty()) {
                 const std::string& depthStr = options[4];
                 if (depthStr == "recursive" || depthStr == "recurse") {
                     config.recursiveDepth = std::max(config.recursiveDepth, 1);
-                } else {
-                    try {
-                        int d = std::stoi(depthStr);
-                        if (d >= 0 && d <= 10) config.recursiveDepth = d;
-                    } catch (...) {}
+                } else if (isInteger(depthStr)) {
+                    int d = std::stoi(depthStr);
+                    if (d < 0 || d > 10) {
+                        throw std::invalid_argument(
+                            "Invalid GraphBrew recursion depth: " + depthStr);
+                    }
+                    config.recursiveDepth = d;
                 }
             }
             if (options.size() > 5 && !options[5].empty()) {
                 const std::string& subStr = options[5];
                 if (subStr == "auto" || subStr == "adaptive") {
                     config.subAlgoId = -1;
-                } else {
-                    try {
-                        int a = std::stoi(subStr);
-                        if (a >= 0 && a <= 11) config.subAlgoId = a;
-                    } catch (...) {}
+                } else if (isInteger(subStr)) {
+                    int a = std::stoi(subStr);
+                    if (a < 0 || a > 11) {
+                        throw std::invalid_argument(
+                            "Invalid GraphBrew sub-algorithm: " + subStr);
+                    }
+                    config.subAlgoId = a;
                 }
             }
             
-            // Named-token fallback: non-numeric tail tokens parsed as named
-            // options.  Allows e.g. "12:leiden:recursive" or "12:leiden:hubx"
-            // where "recursive" / "hubx" land at positional slots but are
-            // actually named tokens that parseGraphBrewConfig understands.
-            for (size_t i = 1; i < options.size(); ++i) {
-                const auto& tok = options[i];
-                if (tok.empty()) continue;
-                // Skip tokens already handled positionally (numbers, "auto", "dynamic", etc.)
-                if (tok == "auto" || tok == "adaptive" || tok == "dynamic") continue;
-                bool is_numeric = false;
-                try { std::stod(tok); is_numeric = true; } catch (...) {}
-                if (is_numeric) continue;
-                // Parse as a named GraphBrew token and merge flags
-                auto extra = graphbrew::parseGraphBrewConfig({tok});
-                if (extra.recursiveDepth > 0 && config.recursiveDepth < extra.recursiveDepth)
-                    config.recursiveDepth = extra.recursiveDepth;
-                if (extra.recursiveDepth == 0 && (tok == "flat" || tok == "norecurse"))
-                    config.recursiveDepth = 0;  // explicit flat override
-                if (extra.useHubExtraction) config.useHubExtraction = true;
-                if (extra.useGorderIntra) config.useGorderIntra = true;
-                if (extra.useHubSort) config.useHubSort = true;
-                if (extra.useRCMSuper) config.useRCMSuper = true;
-                if (extra.useCommunityMerging) config.useCommunityMerging = true;
-                // Named ordering overrides LAYER only when explicitly set
-                if (extra.ordering != graphbrew::OrderingStrategy::CONNECTIVITY_BFS &&
-                    extra.ordering != graphbrew::OrderingStrategy::LAYER) {
-                    config.ordering = extra.ordering;
-                }
-                if (extra.hasExplicitOrdering) config.hasExplicitOrdering = true;
-                // COMPOSE-axis tokens (sg_*, comm_*, intra_*, sgresN.N, cd_*).
-                // Each compose token sets exactly one axis from default; merging
-                // any non-default value from `extra` is safe because the parser
-                // never sets these axes implicitly.
-                if (extra.superGraphOrder != graphbrew::SuperGraphOrder::None)
-                    config.superGraphOrder = extra.superGraphOrder;
-                if (extra.communityOrder != graphbrew::CommunityOrder::SizeDesc)
-                    config.communityOrder = extra.communityOrder;
-                if (extra.intraCommunityOrder != graphbrew::IntraCommunityOrder::BFSFromHub)
-                    config.intraCommunityOrder = extra.intraCommunityOrder;
-                if (extra.refinementPass != graphbrew::RefinementPass::None)
-                    config.refinementPass = extra.refinementPass;
-                if (extra.superGraphResolution != 0.10)
-                    config.superGraphResolution = extra.superGraphResolution;
-                // cd_rabbit / cd_leiden after a preset must override the preset's CD
-                if (tok == "cd_rabbit" || tok == "cd:rabbit" || tok == "cdrabbit" ||
-                    tok == "rabbit" || tok == "rabbitorder")
-                    config.algorithm = graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
-                if (tok == "cd_leiden" || tok == "cd:leiden" || tok == "cdleiden")
-                    config.algorithm = graphbrew::GraphBrewAlgorithm::LEIDEN;
-                if (tok == "cd_parallel" || tok == "cd:parallel" ||
-                    tok == "community_parallel")
-                    config.deterministicCommunityDetection = false;
-                if (tok == "cd_serial" || tok == "cd:serial" ||
-                    tok == "community_serial")
-                    config.deterministicCommunityDetection = true;
-            }
         } else {
             // ── Direct token mode (hrab, dfs, conn, graphbrew:hrab, etc.) ─
-            config = graphbrew::parseGraphBrewConfig(options);
+            config = graphbrew::parseGraphBrewConfig(options, true);
             
-            if (config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
+            if (config.algorithm != graphbrew::GraphBrewAlgorithm::RABBIT_ORDER &&
+                config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
                 config.ordering = graphbrew::OrderingStrategy::LAYER;
             }
             if (config.ordering == graphbrew::OrderingStrategy::LAYER) {
@@ -3265,6 +3480,10 @@ public:
         // Parse options to GraphBrew config
         double auto_resolution = LeidenAutoResolution<NodeID_, DestID_>(g);
         graphbrew::GraphBrewConfig config = ParseGraphBrewConfig(reordering_options, auto_resolution);
+        config.rabbitDegreeSortPreprocess =
+            config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
+        graphbrew::printGraphBrewEffectiveConfig(config);
+        auto realized = graphbrew::makeGraphBrewRealizedConfig(config);
         
         ReorderingAlgo finalAlgo = static_cast<ReorderingAlgo>(
             (config.finalAlgoId >= 0 && config.finalAlgoId <= 11) 
@@ -3276,6 +3495,35 @@ public:
                config.recursiveDepth < 0 ? "auto" : std::to_string(config.recursiveDepth).c_str(),
                config.subAlgoId < 0 ? "auto" : ReorderingAlgoStr(static_cast<ReorderingAlgo>(config.subAlgoId)).c_str());
         
+        // Rabbit community detection always uses the same physical degree-sort
+        // preprocessing as standalone RabbitOrder, including COMPOSE paths.
+        if (config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER) {
+            printf("GraphBrew: using GraphBrew RabbitOrder pipeline (with degree-sort preprocessing)\n");
+            
+            pvector<NodeID_> sort_ids(N, -1);
+            GenerateSortMappingRabbit(g, sort_ids, true, true);
+            CSRGraph<NodeID_, DestID_, invert> g_sorted = RelabelByMapping(g, sort_ids);
+            
+            pvector<NodeID_> rabbit_ids(N);
+            graphbrew::generateGraphBrewMapping<K>(g_sorted, rabbit_ids, config);
+            
+            new_ids.resize(N);
+            #pragma omp parallel for
+            for (int64_t n = 0; n < N; n++) {
+                new_ids[n] = rabbit_ids[sort_ids[n]];
+            }
+            
+            totalTimer.Stop();
+            PrintTime("GraphBrew Total Time", totalTimer.Seconds());
+            {
+                using namespace graphbrew::database;
+                auto& staged = GetStagedReorderMeta();
+                staged.resolution = config.resolution;
+                staged.final_algo = "RabbitOrder";
+            }
+            return;
+        }
+
         // If hubcluster variant or no external dispatch needed, delegate directly to GraphBrew
         if (config.ordering != graphbrew::OrderingStrategy::LAYER) {
             printf("GraphBrew: delegating to GraphBrew native ordering\n");
@@ -3290,41 +3538,6 @@ public:
                 staged.resolution = config.resolution;
                 staged.final_algo = ReorderingAlgoStr(finalAlgo);
                 staged.depth      = config.recursiveDepth;
-            }
-            return;
-        }
-        
-        // If RabbitOrder algorithm, use GraphBrew's native RabbitOrder pipeline
-        // with degree-sort preprocessing to match standalone RABBITORDER_csr quality.
-        // Without physical CSR relabeling, community detection accesses scattered
-        // memory locations which degrades BFS ordering quality by 5-30x.
-        if (config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER) {
-            printf("GraphBrew: using GraphBrew RabbitOrder pipeline (with degree-sort preprocessing)\n");
-            
-            // Step 1: Degree-sort preprocessing (same as RABBITORDER_csr)
-            pvector<NodeID_> sort_ids(N, -1);
-            GenerateSortMappingRabbit(g, sort_ids, true, true);
-            CSRGraph<NodeID_, DestID_, invert> g_sorted = RelabelByMapping(g, sort_ids);
-            
-            // Step 2: Run GraphBrew RabbitOrder on degree-sorted graph
-            pvector<NodeID_> rabbit_ids(N);
-            graphbrew::generateGraphBrewMapping<K>(g_sorted, rabbit_ids, config);
-            
-            // Step 3: Compose permutations: new_ids[orig] = rabbit_ids[sort_ids[orig]]
-            new_ids.resize(N);
-            #pragma omp parallel for
-            for (int64_t n = 0; n < N; n++) {
-                new_ids[n] = rabbit_ids[sort_ids[n]];
-            }
-            
-            totalTimer.Stop();
-            PrintTime("GraphBrew Total Time", totalTimer.Seconds());
-            // Stage config-level metadata for GenerateMapping's ReorderMeta hint
-            {
-                using namespace graphbrew::database;
-                auto& staged = GetStagedReorderMeta();
-                staged.resolution = config.resolution;
-                staged.final_algo = "RabbitOrder";
             }
             return;
         }
@@ -3349,6 +3562,8 @@ public:
             result.numCommunities = finalComms;
             printf("GraphBrew: community merge: %zu communities, %.4fs\n", finalComms, mergeTimer.Seconds());
         }
+        realized.numPasses = result.totalPasses;
+        realized.numCommunities = result.numCommunities;
 
         // Stage reorder metadata for GenerateMapping's ReorderMeta hint
         {
@@ -3435,6 +3650,8 @@ public:
                 // Compute features for merged small communities and select algorithm
                 auto merged_feat = ComputeMergedCommunityFeatures(g, small_nodes, small_node_set);
                 ReorderingAlgo small_algo = SelectAlgorithmForSmallGroup(merged_feat);
+                realized.blockAlgorithms[
+                    ReorderingAlgoStr(small_algo)]++;
                 
                 printf("GraphBrew: %zu small-community nodes -> %s\n",
                        small_nodes.size(), ReorderingAlgoStr(small_algo).c_str());
@@ -3444,6 +3661,7 @@ public:
                     new_ids, current_id);
             } else {
                 // Simple degree-sorted assignment for tiny groups
+                realized.blockAlgorithms["degree-desc"]++;
                 std::vector<std::pair<int64_t, NodeID_>> degree_nodes;
                 degree_nodes.reserve(small_nodes.size());
                 for (NodeID_ v : small_nodes) {
@@ -3494,6 +3712,7 @@ public:
                        max_comm_size, auto_depth_threshold);
             }
         }
+        realized.recursiveDepth = config.recursiveDepth;
         
         // 3b. Handle large communities
         Timer perCommTimer;
@@ -3829,6 +4048,8 @@ public:
                     // Select algorithm: adaptive or fixed
                     ReorderingAlgo sc_algo = selectSubAlgo(sc_local_nodes, sub_g, sc_size);
                     algo_distribution[static_cast<int>(sc_algo)]++;
+                    realized.blockAlgorithms[
+                        ReorderingAlgoStr(sc_algo)]++;
                     reorderFromLocalSubgraph(sc_local_nodes, sub_g, l2g, sc_algo, sc_map);
                 }
                 
@@ -3847,8 +4068,11 @@ public:
                 if (!sub_small_nodes.empty()) {
                     if (sub_small_nodes.size() >= 100) {
                         ReorderingAlgo small_algo = selectSubAlgo(sub_small_nodes, sub_g, sub_small_nodes.size());
+                        realized.blockAlgorithms[
+                            ReorderingAlgoStr(small_algo)]++;
                         reorderFromLocalSubgraph(sub_small_nodes, sub_g, l2g, small_algo, sc_map);
                     } else {
+                        realized.blockAlgorithms["degree-desc"]++;
                         std::vector<std::pair<int64_t, NodeID_>> deg_nodes;
                         for (NodeID_ lv : sub_small_nodes) {
                             NodeID_ gv = (static_cast<size_t>(lv) < l2g.size()) ? l2g[lv] : lv;
@@ -3921,6 +4145,8 @@ public:
                 ::ReorderCommunitySubgraphStandalone<NodeID_, DestID_, WeightT_, invert>(
                     g, nodes, node_set, finalAlgo, useOutdeg,
                     new_ids, current_id);
+                realized.blockAlgorithms[
+                    ReorderingAlgoStr(finalAlgo)]++;
             }
         }
         
@@ -3936,6 +4162,15 @@ public:
         
         totalTimer.Stop();
         PrintTime("GraphBrew Total Time", totalTimer.Seconds());
+        {
+            using namespace graphbrew::database;
+            auto& staged = GetStagedReorderMeta();
+            staged.depth = config.recursiveDepth;
+        }
+        if (realized.blockAlgorithms.count("RabbitOrder") > 0) {
+            realized.scheduleSensitive = true;
+        }
+        graphbrew::printGraphBrewRealizedConfig(realized);
     }
     
 };

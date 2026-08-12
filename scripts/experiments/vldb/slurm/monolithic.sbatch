@@ -39,14 +39,21 @@
 #SBATCH --partition=standard                # `qlist` to see partitions; `standard` is single-node serial/threaded
 #SBATCH --account=YOUR_ALLOC                # CHANGE ME — see `sacctmgr -p show user $USER`
 #SBATCH --nodes=1
+#SBATCH --nodelist=jaguar
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32                  # OMP threads; tune to partition core count
 #SBATCH --mem=128G                          # bump to 256G for twitter/webbase; do NOT also set --mem-per-cpu
-#SBATCH --time=24:00:00                     # standard partition cap; ResultsStore makes restarts cheap
+#SBATCH --time=7-00:00:00                   # supports censored 12 h cells plus resumable sweeps
 #SBATCH --output=results/slurm_logs/%x-%j.out
 #SBATCH --error=results/slurm_logs/%x-%j.err
 
 set -euo pipefail
+
+EXPECTED_HOST="${EXPECTED_HOST:-jaguar}"
+if [[ "$(hostname -s)" != "$EXPECTED_HOST" ]]; then
+  echo "ERROR: final timing requires host $EXPECTED_HOST" >&2
+  exit 2
+fi
 
 # ---- required env vars (passed via --export=ALL,EXP=...,GRAPH=...) ----
 : "${EXP:?must set EXP=<1-8>}"
@@ -135,6 +142,8 @@ fi
 python3 scripts/experiments/vldb/runner.py \
     --exp "$EXP" \
     --graphs "$GRAPH" \
+    --threads 16 \
+    --cpu-list 0-15 \
     $GRAPHSET_FLAG \
     $SKIP_FLAGS --no-figures \
     $EXTRA_ARGS

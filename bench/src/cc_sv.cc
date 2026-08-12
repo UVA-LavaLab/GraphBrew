@@ -2,6 +2,7 @@
 // See LICENSE.txt for license details
 
 #include <algorithm>
+#include <atomic>
 #include <cinttypes>
 #include <iostream>
 #include <unordered_map>
@@ -42,6 +43,20 @@ more consistent performance for undirected graphs.
 
 using namespace std;
 
+#ifdef GRAPHBREW_COUNT_WORK
+static int64_t g_cc_sv_iterations = 0;
+static int64_t g_cc_sv_edges_examined = 0;
+static int64_t g_cc_sv_compress_steps = 0;
+#endif
+
+inline NodeID LoadComp(const pvector<NodeID>& comp, NodeID node) {
+  return __atomic_load_n(&comp[node], __ATOMIC_RELAXED);
+}
+
+inline void StoreComp(
+    pvector<NodeID>& comp, NodeID node, NodeID value) {
+  __atomic_store_n(&comp[node], value, __ATOMIC_RELAXED);
+}
 
 // The hooking condition (comp_u < comp_v) may not coincide with the edge's
 // direction, so we use a min-max swap such that lower component IDs propagate
@@ -51,35 +66,72 @@ pvector<NodeID> ShiloachVishkin(const Graph &g) {
   #pragma omp parallel for
   for (NodeID n=0; n < g.num_nodes(); n++)
     comp[n] = n;
-  bool change = true;
+  std::atomic<bool> change(true);
+#ifdef GRAPHBREW_COUNT_WORK
   int num_iter = 0;
-  while (change) {
-    change = false;
+#endif
+#ifdef GRAPHBREW_COUNT_WORK
+  int64_t edges_examined = 0;
+  int64_t compress_steps = 0;
+#endif
+  while (change.load(std::memory_order_relaxed)) {
+    change.store(false, std::memory_order_relaxed);
+#ifdef GRAPHBREW_COUNT_WORK
     num_iter++;
+#endif
+#ifdef GRAPHBREW_COUNT_WORK
+    int64_t iteration_edges = 0;
+    #pragma omp parallel for reduction(+ : iteration_edges)
+#else
     #pragma omp parallel for
+#endif
     for (NodeID u=0; u < g.num_nodes(); u++) {
       for (NodeID v : g.out_neigh(u)) {
-        NodeID comp_u = comp[u];
-        NodeID comp_v = comp[v];
+#ifdef GRAPHBREW_COUNT_WORK
+        iteration_edges++;
+#endif
+        NodeID comp_u = LoadComp(comp, u);
+        NodeID comp_v = LoadComp(comp, v);
         if (comp_u == comp_v) continue;
         // Hooking condition so lower component ID wins independent of direction
         NodeID high_comp = comp_u > comp_v ? comp_u : comp_v;
         NodeID low_comp = comp_u + (comp_v - high_comp);
-        if (high_comp == comp[high_comp]) {
-          change = true;
-          comp[high_comp] = low_comp;
+        if (
+            high_comp == LoadComp(comp, high_comp) &&
+            compare_and_swap(
+                comp[high_comp], high_comp, low_comp)) {
+          change.store(true, std::memory_order_relaxed);
         }
       }
     }
+#ifdef GRAPHBREW_COUNT_WORK
+    edges_examined += iteration_edges;
+    int64_t iteration_compress_steps = 0;
+    #pragma omp parallel for reduction(+ : iteration_compress_steps)
+#else
     #pragma omp parallel for
+#endif
     for (NodeID n=0; n < g.num_nodes(); n++) {
-      while (comp[n] != comp[comp[n]]) {
-        comp[n] = comp[comp[n]];
+      NodeID parent = LoadComp(comp, n);
+      NodeID grandparent = LoadComp(comp, parent);
+      while (parent != grandparent) {
+        StoreComp(comp, n, grandparent);
+#ifdef GRAPHBREW_COUNT_WORK
+        iteration_compress_steps++;
+#endif
+        parent = grandparent;
+        grandparent = LoadComp(comp, parent);
       }
     }
+#ifdef GRAPHBREW_COUNT_WORK
+    compress_steps += iteration_compress_steps;
+#endif
   }
-  cout << "Shiloach-Vishkin took " << num_iter << " iterations" << endl;
-  graphbrew::database::AppendBenchmarkIterationEntry({{"num_iterations", num_iter}});
+#ifdef GRAPHBREW_COUNT_WORK
+  g_cc_sv_iterations = num_iter;
+  g_cc_sv_edges_examined = edges_examined;
+  g_cc_sv_compress_steps = compress_steps;
+#endif
   return comp;
 }
 
@@ -168,6 +220,20 @@ int main(int argc, char* argv[]) {
       NodeID largest = 0;
       for (auto& kv : count) if (kv.second > largest) largest = kv.second;
       ans["largest_component"] = largest;
+#ifdef GRAPHBREW_COUNT_WORK
+      ans["iterations"] = g_cc_sv_iterations;
+      ans["edges_examined"] = g_cc_sv_edges_examined;
+      ans["compress_steps"] = g_cc_sv_compress_steps;
+      PrintLabel(
+          "CC-SV Iterations",
+          std::to_string(g_cc_sv_iterations));
+      PrintLabel(
+          "CC-SV Edges Examined",
+          std::to_string(g_cc_sv_edges_examined));
+      PrintLabel(
+          "CC-SV Compress Steps",
+          std::to_string(g_cc_sv_compress_steps));
+#endif
       return ans;
     });
   return 0;

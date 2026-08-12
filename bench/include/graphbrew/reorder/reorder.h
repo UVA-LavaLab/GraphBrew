@@ -253,9 +253,34 @@ inline void ApplyBasicReorderingStandalone(
                 ::GenerateGOrderCSRMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             } else if (variant == "fast") {
                 ::GenerateGOrderFastMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+            } else if (variant == "gograph") {
+                ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(
+                    g, new_ids, filename);
+            } else if (
+                variant.empty()
+                && graphbrew::classic_detail::PreferGOrderCSR(
+                    g.num_edges_directed())
+            ) {
+                std::cout
+                    << "GOrder: using mapping-equivalent CSR implementation "
+                    << "for 64-bit edge-index graph\n";
+                ::GenerateGOrderCSRMapping<
+                    NodeID_, DestID_, WeightT_, invert>(
+                    g, new_ids, filename);
             } else {
-                warnUnknownVariant(variant, "GOrder", {"csr", "sym", "fast"});
-                ::GenerateGOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
+                warnUnknownVariant(
+                    variant, "GOrder",
+                    {"gograph", "csr", "sym", "fast"});
+                if (graphbrew::classic_detail::PreferGOrderCSR(
+                        g.num_edges_directed())) {
+                    ::GenerateGOrderCSRMapping<
+                        NodeID_, DestID_, WeightT_, invert>(
+                        g, new_ids, filename);
+                } else {
+                    ::GenerateGOrderMapping<
+                        NodeID_, DestID_, WeightT_, invert>(
+                        g, new_ids, filename);
+                }
             }
             break;
         }

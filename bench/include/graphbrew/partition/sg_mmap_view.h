@@ -139,14 +139,14 @@ public:
         }
         catch (...)
         {
-            Release();
+            ReleaseResources();
             throw;
         }
     }
 
     ~SerializedGraphView()
     {
-        Release();
+        ReleaseResources();
     }
 
     SerializedGraphView(const SerializedGraphView &) = delete;
@@ -161,7 +161,7 @@ public:
     {
         if (this != &other)
         {
-            Release();
+            ReleaseResources();
             MoveFrom(std::move(other));
         }
         return *this;
@@ -267,7 +267,7 @@ private:
         base_ = static_cast<const std::uint8_t *>(mapping);
     }
 
-    void Release()
+    void ReleaseResources()
     {
         if (base_ != nullptr)
         {

@@ -255,6 +255,62 @@ class TestModelTree:
         )
         assert tree.predict_from_props(SAMPLE_PROPS['graph_A']) == 'SORT'
 
+    def test_invalid_feature_index_fails_closed(self):
+        tree = ModelTree(
+            model_type='decision_tree',
+            benchmark='pr',
+            nodes=[
+                ModelTreeNode(
+                    feature_idx=MODEL_TREE_N_FEATURES,
+                    threshold=0.0,
+                    left=1,
+                    right=1,
+                ),
+                ModelTreeNode(feature_idx=-1, leaf_class='ORIGINAL'),
+            ],
+        )
+        with pytest.raises(ValueError, match="feature index"):
+            tree.predict([0.0] * MODEL_TREE_N_FEATURES)
+
+    def test_invalid_child_index_fails_closed(self):
+        tree = ModelTree(
+            model_type='decision_tree',
+            benchmark='pr',
+            nodes=[
+                ModelTreeNode(
+                    feature_idx=0,
+                    threshold=0.0,
+                    left=1,
+                    right=99,
+                ),
+                ModelTreeNode(feature_idx=-1, leaf_class='ORIGINAL'),
+            ],
+        )
+        with pytest.raises(ValueError, match="child node"):
+            tree.predict([1.0] * MODEL_TREE_N_FEATURES)
+
+    def test_model_schema_mismatch_fails_closed(self):
+        with pytest.raises(ValueError, match="schema mismatch"):
+            ModelTree.from_dict({
+                "model_type": "decision_tree",
+                "features": ["wrong"],
+                "nodes": [{"leaf_class": "ORIGINAL"}],
+            })
+
+    def test_hybrid_weight_length_fails_closed(self):
+        tree = ModelTree(
+            model_type='hybrid',
+            nodes=[
+                ModelTreeNode(
+                    feature_idx=-1,
+                    leaf_class='ORIGINAL',
+                    leaf_weights={'ORIGINAL': [0.0, 0.0]},
+                ),
+            ],
+        )
+        with pytest.raises(ValueError, match="weight length"):
+            tree.predict([0.0] * MODEL_TREE_N_FEATURES)
+
     def test_to_dict_roundtrip(self):
         node = ModelTreeNode(
             feature_idx=-1, threshold=0.0,
@@ -280,8 +336,8 @@ class TestModelTree:
             left=-1, right=-1,
             leaf_class='GORDER', samples=10,
             leaf_weights={
-                'GORDER': [1.0] * 12,
-                'RABBIT': [-1.0] * 12,
+                'GORDER': [1.0] * MODEL_TREE_N_FEATURES + [0.0],
+                'RABBIT': [-1.0] * MODEL_TREE_N_FEATURES + [0.0],
             },
         )
         tree = ModelTree(
@@ -290,7 +346,7 @@ class TestModelTree:
             families=['GORDER', 'RABBIT'],
             nodes=[node],
         )
-        feats = [0.5] * 12  # all positive → dot with [1.0]*12 > dot with [-1.0]*12
+        feats = [0.5] * MODEL_TREE_N_FEATURES
         assert tree.predict(feats) == 'GORDER'
 
 
@@ -352,6 +408,19 @@ class TestSaveLoad:
                         assert isinstance(t, ModelTree)
                 else:
                     assert isinstance(tree_or_list, ModelTree)
+
+    def test_save_preserves_perceptron_section(self, tmp_path):
+        path = tmp_path / "models.json"
+        path.write_text(json.dumps({
+            "perceptron": {"weights": {"0": {"bias": 1.0}}},
+        }))
+        save_adaptive_models(
+            {"decision_tree": {}, "hybrid": {}, "random_forest": {}},
+            path,
+        )
+        assert json.loads(path.read_text())["perceptron"]["weights"][
+            "0"
+        ]["bias"] == 1.0
 
 
 # ===================================================================

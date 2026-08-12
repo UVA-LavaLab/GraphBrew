@@ -20,9 +20,19 @@ source .venv/bin/activate 2>/dev/null || true
 EXP="${EXP:-1}"
 GRAPHS="${GRAPHS:-}"
 EXTRA="${EXTRA_ARGS:-}"
+GRAPH_DIR="${GRAPH_DIR:-/media/Data/00_GraphDatasets/GraphBrew}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-/media/Data/00_GraphDatasets/GraphBrew/artifacts}"
+THREADS="${THREADS:-16}"
+CPU_LIST="${CPU_LIST:-0-15}"
 
 GRAPH_FLAG=""
 if [[ -n "$GRAPHS" ]]; then GRAPH_FLAG="--graphs $GRAPHS"; fi
 
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-${SLURM_CPUS_PER_TASK:-8}}"
-python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp "$EXP" $GRAPH_FLAG $EXTRA
+python3 scripts/experiments/vldb/stages/04_cache_sim.py \
+  --exp "$EXP" \
+  --graph-dir "$GRAPH_DIR" \
+  --artifact-root "$ARTIFACT_ROOT" \
+  --threads "$THREADS" \
+  --cpu-list "$CPU_LIST" \
+  $GRAPH_FLAG $EXTRA

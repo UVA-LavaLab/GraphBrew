@@ -7,6 +7,7 @@
 #include <cinttypes>
 #include <iostream>
 #include <map>
+#include <stdexcept>
 
 #include <mutex>
 #include <stdio.h>
@@ -170,6 +171,23 @@ std::istream &operator>>(std::istream &is, NodeWeight<NodeID_, WeightT_> &nw)
     return is;
 }
 
+template <typename NodeID_, typename MappingT>
+std::enable_if_t<std::is_integral<NodeID_>::value, NodeID_>
+RemapDestination(const NodeID_ &destination, const MappingT &new_ids)
+{
+    return new_ids[destination];
+}
+
+template <typename NodeID_, typename WeightT_, typename MappingT>
+NodeWeight<NodeID_, WeightT_>
+RemapDestination(
+    const NodeWeight<NodeID_, WeightT_> &destination,
+    const MappingT &new_ids)
+{
+    return NodeWeight<NodeID_, WeightT_>(
+        new_ids[destination.v], destination.w);
+}
+
 // Syntactic sugar for an edge
 template <typename SrcT, typename DstT = SrcT> struct EdgePair
 {
@@ -294,7 +312,8 @@ public:
         : directed_(other.directed_), num_nodes_(other.num_nodes_),
           num_edges_(other.num_edges_), out_index_(other.out_index_),
           out_neighbors_(other.out_neighbors_), in_index_(other.in_index_),
-          in_neighbors_(other.in_neighbors_), org_ids_(other.org_ids_)
+          in_neighbors_(other.in_neighbors_), org_ids_(other.org_ids_),
+          internal_ids_(std::move(other.internal_ids_))
     {
         other.num_edges_ = -1;
         other.num_nodes_ = -1;
@@ -323,6 +342,7 @@ public:
             in_index_ = other.in_index_;
             in_neighbors_ = other.in_neighbors_;
             org_ids_ = other.org_ids_;
+            internal_ids_ = std::move(other.internal_ids_);
             other.num_edges_ = -1;
             other.num_nodes_ = -1;
             other.out_index_ = nullptr;
@@ -496,15 +516,19 @@ public:
             if (org_ids_ != nullptr)
                 delete[] org_ids_;
             org_ids_ = nullptr;
+            internal_ids_.clear();
         }
         else
         {
+            if (org_ids_ != nullptr)
+                delete[] org_ids_;
             org_ids_ = new NodeID_[num_nodes_];
             #pragma omp parallel for
             for (NodeID_ n = 0; n < num_nodes_; n++)
             {
                 org_ids_[n] = n;
             }
+            internal_ids_.clear();
         }
     }
 
@@ -512,7 +536,10 @@ public:
     {
         if (num_nodes_ == -1)
         {
+            if (org_ids_ != nullptr)
+                delete[] org_ids_;
             org_ids_ = nullptr;
+            internal_ids_.clear();
         }
         else
         {
@@ -532,11 +559,15 @@ public:
                 org_ids_[n] = temp[n];
             }
             delete[] temp;
+            internal_ids_.clear();
         }
     }
 
     void copy_org_ids(const NodeID_ *new_org_ids)
     {
+        if (num_nodes_ < 0 || new_org_ids == nullptr)
+            throw std::invalid_argument(
+                "Cannot copy an unavailable original-ID mapping");
         if (org_ids_ != nullptr)
             delete[] org_ids_;
         org_ids_ = new NodeID_[num_nodes_];
@@ -545,12 +576,15 @@ public:
         {
             org_ids_[n] = new_org_ids[n];
         }
+        internal_ids_.clear();
     }
 
     NodeID_ get_org_id(const NodeID_ ref_id) const
     {
         NodeID_ org_id = 0;
-        if (num_nodes_ == -1 || ref_id > num_nodes_)
+        if (
+            num_nodes_ == -1 || ref_id < 0 ||
+            ref_id >= num_nodes_ || org_ids_ == nullptr)
         {
             return ref_id;
         }
@@ -561,24 +595,17 @@ public:
         return org_id;
     }
 
-    // Get internal ID from original ID (inverse of get_org_id)
-    // Searches for which internal ID maps to the given original ID
+    // Get internal ID from original ID (inverse of get_org_id), O(1).
     NodeID_ get_internal_id(const NodeID_ orig_id) const
     {
-        if (num_nodes_ == -1 || orig_id >= num_nodes_ || org_ids_ == nullptr)
-        {
-            return orig_id;
-        }
-        // Linear search for the internal ID that maps to orig_id
-        for (NodeID_ n = 0; n < num_nodes_; n++)
-        {
-            if (org_ids_[n] == orig_id)
-            {
-                return n;
-            }
-        }
-        // Not found - return original (shouldn't happen for valid IDs)
-        return orig_id;
+        if (
+            num_nodes_ < 0 || orig_id < 0 || orig_id >= num_nodes_
+        )
+            throw std::out_of_range(
+                "Original vertex ID is outside the graph mapping");
+        if (internal_ids_.size() != static_cast<size_t>(num_nodes_))
+            rebuild_internal_ids();
+        return internal_ids_[orig_id];
     }
 
     void PrintTopologyOriginal() const
@@ -716,6 +743,29 @@ public:
     }
 
 private:
+    void rebuild_internal_ids() const
+    {
+        if (num_nodes_ < 0 || org_ids_ == nullptr)
+        {
+            internal_ids_.clear();
+            return;
+        }
+        internal_ids_.assign(
+            static_cast<size_t>(num_nodes_), NodeID_(-1));
+        for (NodeID_ internal = 0; internal < num_nodes_; ++internal)
+        {
+            const NodeID_ original = org_ids_[internal];
+            if (
+                original < 0 || original >= num_nodes_
+                || internal_ids_[original] != NodeID_(-1)
+            ) {
+                throw std::runtime_error(
+                    "Graph original-ID mapping is not a permutation");
+            }
+            internal_ids_[original] = internal;
+        }
+    }
+
     bool directed_;
     int64_t num_nodes_;
     int64_t num_edges_;
@@ -724,6 +774,7 @@ private:
     DestID_ **in_index_;
     DestID_ *in_neighbors_;
     NodeID_ *org_ids_ = nullptr;
+    mutable std::vector<NodeID_> internal_ids_;
     std::vector<NodeID_> top_100_nodes_;
 };
 

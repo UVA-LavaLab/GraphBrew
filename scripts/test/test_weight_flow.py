@@ -5,7 +5,7 @@ Test Weight Flow - Verify weights are generated and read from correct locations.
 This test verifies:
 1. Python stages weights to results/models/perceptron/ (legacy staging dir)
 2. export_unified_models() merges into results/data/adaptive_models.json
-3. C++ loads from adaptive_models.json or trains at runtime from benchmarks.json
+3. C++ loads adaptive_models.json without runtime training
 4. Weight files are valid JSON with required fields (bias, w_modularity, etc.)
 5. Directory structure and constants are consistent
 
@@ -669,6 +669,17 @@ import math
 # Order matches C++ PerceptronWeights struct in reorder_types.h.
 CPP_WEIGHT_KEYS = [
     "bias",
+    # Deployable Tier-0 weights use a disjoint namespace.
+    "w_t0_log10_nodes",
+    "w_t0_log10_edges",
+    "w_t0_avg_degree",
+    "w_t0_degree_cv",
+    "w_t0_hub_concentration",
+    "w_t0_normalized_edge_span",
+    "w_t0_window_neighbor_overlap",
+    "w_t0_property_wsr_llc",
+    "w_t0_kernel_class",
+    "w_t0_reuse_bucket",
     "w_modularity",
     "w_log_nodes",
     "w_log_edges",
@@ -1083,18 +1094,36 @@ class TestFieldParity:
         assert hasattr(SelectionMode, "DATABASE")
         assert SelectionMode.DATABASE.value == "database"
 
-    def test_emulator_default_mode_database(self):
-        """AdaptiveOrderEmulator default mode should be DATABASE."""
-        from scripts.lib.ml.adaptive_emulator import AdaptiveOrderEmulator, SelectionMode
+    def test_emulator_default_mode_is_deployable(self):
+        """AdaptiveOrderEmulator defaults must not query the benchmark DB."""
+        from scripts.lib.ml.adaptive_emulator import (
+            AdaptiveOrderEmulator,
+            SelectionModel,
+            SelectionMode,
+        )
 
         emu = AdaptiveOrderEmulator()
-        assert emu.selection_mode == SelectionMode.DATABASE, (
-            f"Default mode is {emu.selection_mode}, expected DATABASE"
+        assert emu.selection_mode == SelectionMode.FASTEST_EXECUTION
+        assert emu.selection_model == SelectionModel.PERCEPTRON
+
+    def test_database_mode_requires_explicit_offline_upper_bound(self):
+        from scripts.lib.ml.adaptive_emulator import (
+            AdaptiveOrderEmulator,
+            GraphFeatures,
+            SelectionModel,
         )
+
+        emu = AdaptiveOrderEmulator()
+        features = GraphFeatures(name="known", path="")
+        with pytest.raises(ValueError, match="offline-only"):
+            emu.emulate(
+                features,
+                model=SelectionModel.KNN_DATABASE,
+            )
 
 
 # =============================================================================
-# B8-B12: C++ DB Training format parity tests
+# B8-B12: Legacy trainer/export format parity tests
 # =============================================================================
 
 # The C++ WEIGHT_KEYS array in BenchmarkDatabase::train_perceptron() must
@@ -1252,11 +1281,46 @@ class TestDBTraining:
             assert isinstance(wv, list), f"Weights for {fam} must be a list"
             assert len(wv) == 25, f"Weights for {fam} must have 25 elements (24 features + bias)"
 
-    def test_export_unified_models_deprecated(self):
-        """export_unified_models should be marked as deprecated."""
-        from scripts.lib.core.datastore import export_unified_models
-        assert export_unified_models.__doc__ is not None
-        assert "DEPRECATED" in export_unified_models.__doc__
+    def test_export_unified_models_is_load_only_artifact(
+        self, tmp_path, monkeypatch,
+    ):
+        from scripts.lib.core import datastore
+        from scripts.lib.ml.portfolio import DEPLOYABLE_ARM_SPECS
+        from scripts.lib.ml.feature_schema import TIER0_FEATURE_NAMES
+
+        weights_dir = tmp_path / "models" / "perceptron"
+        active = weights_dir / "type_0"
+        active.mkdir(parents=True, exist_ok=True)
+        def entry(bias):
+            return {
+                "bias": bias,
+                **{
+                    f"w_t0_{name}": 0.0
+                    for name in TIER0_FEATURE_NAMES
+                },
+            }
+
+        (active / "weights.json").write_text(json.dumps({
+            spec: entry(1.0) for spec in DEPLOYABLE_ARM_SPECS
+        }))
+        (active / "pr.json").write_text(json.dumps({
+            spec: entry(2.0) for spec in DEPLOYABLE_ARM_SPECS
+        }))
+        output = tmp_path / "data" / "adaptive_models.json"
+        output.parent.mkdir(parents=True)
+        output.write_text(json.dumps({
+            "decision_tree": {"pr": {"nodes": []}},
+        }))
+        monkeypatch.setattr(datastore, "WEIGHTS_DIR", weights_dir)
+
+        datastore.export_unified_models(output)
+        payload = json.loads(output.read_text())
+        assert payload["perceptron"]["weights"]["0"]["bias"] == 1.0
+        assert payload["perceptron"]["tier0_trained"] is False
+        assert payload["perceptron"]["per_benchmark"]["pr"]["0"][
+            "bias"
+        ] == 2.0
+        assert "decision_tree" in payload
 
 
 def main():

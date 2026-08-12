@@ -51,12 +51,14 @@ using namespace std;
 using namespace GorderUtil;
 using namespace GorderUnitHeap;
 
+using EdgeIndex = std::int64_t;
+
 class Vertex
 {
 public:
-int outstart;
+EdgeIndex outstart;
 int outdegree;
-int instart;
+EdgeIndex instart;
 int indegree;
 
 Vertex()
@@ -157,7 +159,7 @@ void readGraph(const string &fullname) {
                     return false;
                 else {
 
-                    if (a.second <= b.second)
+                    if (a.second < b.second)
                         return true;
                     else
                         return false;
@@ -170,13 +172,13 @@ void readGraph(const string &fullname) {
 
     vector<pair<int, int> >().swap(edges);
 #ifndef Release
-    vector<int> inpos(vsize);
+    vector<EdgeIndex> inpos(vsize);
     for (int i = 0; i < vsize; i++) {
         inpos[i] = graph[i].instart;
     }
     inedge.resize(edgenum);
     for (int u = 0; u < vsize; u++) {
-        for (int j = graph[u].outstart; j < graph[u].outstart + graph[u].outdegree;
+        for (EdgeIndex j = graph[u].outstart; j < graph[u].outstart + graph[u].outdegree;
              j++) {
             inedge[inpos[outedge[j]]] = u;
             inpos[outedge[j]]++;
@@ -214,7 +216,7 @@ void readGraphEdgelist(vector<pair<int, int>> &edges, int vsize_par) {
                     return false;
                 else {
 
-                    if (a.second <= b.second)
+                    if (a.second < b.second)
                         return true;
                     else
                         return false;
@@ -227,13 +229,13 @@ void readGraphEdgelist(vector<pair<int, int>> &edges, int vsize_par) {
 
     vector<pair<int, int> >().swap(edges);
 #ifndef Release
-    vector<int> inpos(vsize);
+    vector<EdgeIndex> inpos(vsize);
     for (int i = 0; i < vsize; i++) {
         inpos[i] = graph[i].instart;
     }
     inedge.resize(edgenum);
     for (int u = 0; u < vsize; u++) {
-        for (int j = graph[u].outstart; j < graph[u].outstart + graph[u].outdegree;
+        for (EdgeIndex j = graph[u].outstart; j < graph[u].outstart + graph[u].outdegree;
              j++) {
             inedge[inpos[outedge[j]]] = u;
             inpos[outedge[j]]++;
@@ -259,75 +261,103 @@ void Transform() {
         cout << "graph.size()!=(vsize+1)" <<graph.size()<< " " << vsize + 1 <<  endl;
         quit();
     }
-
-    vector<int>().swap(inedge);
-    vector<pair<int, int> > edges;
-    edges.reserve(edgenum);
-    for (int i = 0; i < vsize; i++) {
-        order_l1[i] = order[i];
-        for (int j = graph[i].outstart, limit = graph[i + 1].outstart; j < limit;
-             j++)
-            edges.push_back(make_pair(order[i], order[outedge[j]]));
-    }
-    if (edges.size() != (size_t)edgenum) {
-        cout << "edges.size()!=edgenum" << endl;
+    if (edgenum < 0 || outedge.size() != static_cast<size_t>(edgenum)) {
+        cout << "outedge.size()!=edgenum" << outedge.size()
+             << " " << edgenum << endl;
         quit();
     }
+    vector<char> order_seen(vsize, 0);
+    for (int i = 0; i < vsize; ++i) {
+        int ordered_vertex = order[i];
+        if (ordered_vertex < 0 || ordered_vertex >= vsize
+            || order_seen[ordered_vertex]) {
+            cout << "invalid RCM permutation at position " << i
+                 << ": " << ordered_vertex << endl;
+            quit();
+        }
+        order_seen[ordered_vertex] = 1;
 
-    for (int i = 0; i < vsize; i++) {
-        graph[i].outdegree = graph[i].indegree = 0;
+        EdgeIndex out_begin = graph[i].outstart;
+        EdgeIndex out_end = graph[i + 1].outstart;
+        if (out_begin < 0 || out_end < out_begin || out_end > edgenum
+            || out_end - out_begin
+                != static_cast<EdgeIndex>(graph[i].outdegree)) {
+            cout << "invalid CSR row " << i << ": "
+                 << out_begin << " " << out_end << " "
+                 << graph[i].outdegree << endl;
+            quit();
+        }
+
+        EdgeIndex in_begin = graph[i].instart;
+        EdgeIndex in_end = graph[i + 1].instart;
+        if (in_begin < 0 || in_end < in_begin || in_end > edgenum
+            || in_end - in_begin
+                != static_cast<EdgeIndex>(graph[i].indegree)) {
+            cout << "invalid inverse CSR row " << i << ": "
+                 << in_begin << " " << in_end << " "
+                 << graph[i].indegree << endl;
+            quit();
+        }
     }
-    for (size_t i = 0; i < edges.size(); i++) {
-        graph[edges[i].first].outdegree++;
-        graph[edges[i].second].indegree++;
+
+    vector<int>().swap(inedge);
+    vector<Vertex> transformed_graph(vsize + 1);
+    for (int i = 0; i < vsize; ++i) {
+        order_l1[i] = order[i];
+        transformed_graph[order[i]].outdegree = graph[i].outdegree;
+        transformed_graph[order[i]].indegree = graph[i].indegree;
     }
-
-    graph[0].outstart = 0;
-    graph[0].instart = 0;
-    for (int i = 1; i < vsize; i++) {
-        graph[i].outstart = graph[i - 1].outstart + graph[i - 1].outdegree;
-        graph[i].instart = graph[i - 1].instart + graph[i - 1].indegree;
+    transformed_graph[0].outstart = 0;
+    transformed_graph[0].instart = 0;
+    for (int i = 1; i < vsize; ++i) {
+        transformed_graph[i].outstart =
+            transformed_graph[i - 1].outstart
+            + transformed_graph[i - 1].outdegree;
+        transformed_graph[i].instart =
+            transformed_graph[i - 1].instart
+            + transformed_graph[i - 1].indegree;
     }
-    graph[vsize].outstart = edgenum;
-    graph[vsize].instart = edgenum;
+    transformed_graph[vsize].outstart = edgenum;
+    transformed_graph[vsize].instart = edgenum;
 
-    __gnu_parallel::stable_sort(edges.begin(), edges.end(),
-         [](const pair<int, int> &a, const pair<int, int> &b) -> bool {
-                if (a.first < b.first)
-                    return true;
-                else if (a.first > b.first)
-                    return false;
-                else {
-
-                    if (a.second <= b.second)
-                        return true;
-                    else
-                        return false;
-                }
-            });
-
-    outedge.resize(edgenum);
-    for (size_t i = 0; i < edges.size(); i++) {
-        outedge[i] = edges[i].second;
+    vector<int> transformed_outedge(edgenum);
+    #pragma omp parallel for schedule(dynamic, 1024)
+    for (int i = 0; i < vsize; ++i) {
+        int new_source = order[i];
+        EdgeIndex write = transformed_graph[new_source].outstart;
+        EdgeIndex row_edges =
+            graph[i + 1].outstart - graph[i].outstart;
+        for (EdgeIndex j = graph[i].outstart;
+             j < graph[i].outstart + row_edges; ++j) {
+            transformed_outedge[write++] = order[outedge[j]];
+        }
+        std::sort(
+            transformed_outedge.begin()
+                + transformed_graph[new_source].outstart,
+            transformed_outedge.begin()
+                + transformed_graph[new_source].outstart
+                + row_edges);
     }
-    vector<pair<int, int> >().swap(edges);
-    vector<int> inpos(vsize);
-    for (int i = 0; i < vsize; i++) {
+    graph.swap(transformed_graph);
+    outedge.swap(transformed_outedge);
+    vector<int>().swap(transformed_outedge);
+    vector<Vertex>().swap(transformed_graph);
+
+    vector<EdgeIndex> inpos(vsize);
+    for (int i = 0; i < vsize; ++i)
         inpos[i] = graph[i].instart;
-    }
     inedge.resize(edgenum);
-    for (int u = 0; u < vsize; u++) {
-        for (int j = graph[u].outstart; j < graph[u].outstart + graph[u].outdegree;
-             j++) {
-            inedge[inpos[outedge[j]]] = u;
-            inpos[outedge[j]]++;
+    for (int u = 0; u < vsize; ++u) {
+        for (EdgeIndex j = graph[u].outstart;
+             j < graph[u + 1].outstart; ++j) {
+            inedge[inpos[outedge[j]]++] = u;
         }
     }
 }
 
 void writeGraph(ostream &out) {
     for (int u = 0; u < vsize; u++) {
-        for (int j = graph[u].outstart; j < graph[u].outdegree + graph[u].outstart;
+        for (EdgeIndex j = graph[u].outstart; j < graph[u].outdegree + graph[u].outstart;
              j++) {
             int v = outedge[j];
             out << u << '\t' << v << endl;
@@ -338,7 +368,7 @@ void writeGraph(ostream &out) {
 void printGraph() {
     std::cout << "Print graph (v)" << vsize << std::endl;
     for (int u = 0; u < vsize; u++) {
-        for (int j = graph[u].outstart; j < graph[u].outdegree + graph[u].outstart; j++) {
+        for (EdgeIndex j = graph[u].outstart; j < graph[u].outdegree + graph[u].outstart; j++) {
             int v = outedge[j];
             std::cout << u << '\t' << v << std::endl;
         }
@@ -355,7 +385,7 @@ void PrintReOrderedGraph(const vector<int> &order) {
     for (int i = 0; i < vsize; i++) {
         u = order[i];
         ReOrderedGraph[u].reserve(graph[i + 1].outstart - graph[i].outstart);
-        for (int j = graph[i].outstart; j < graph[i].outstart + graph[i].outdegree;
+        for (EdgeIndex j = graph[i].outstart; j < graph[i].outstart + graph[i].outdegree;
              j++) {
             v = order[outedge[j]];
             ReOrderedGraph[u].push_back(v);
@@ -497,7 +527,7 @@ void GapCount() {
     memset(gap, 0, sizeof(int) * vsize);
 
     for (int i = 0; i < vsize; i++) {
-        for (int j = graph[i].outstart + 1;
+        for (EdgeIndex j = graph[i].outstart + 1;
              j < graph[i].outdegree + graph[i].outstart; j++) {
             gap[outedge[j] - outedge[j - 1]]++;
         }
@@ -522,13 +552,13 @@ double GapCost(vector<int> &order) {
     vector<int> edgelist;
     edgelist.reserve(100000);
     for (int i = 0; i < vsize; i++) {
-        for (int j = graph[i].outstart + 1;
+        for (EdgeIndex j = graph[i].outstart + 1;
              j < graph[i].outdegree + graph[i].outstart; j++) {
             if (outedge[j] - outedge[j - 1])
                 gaplog += log(double(outedge[j] - outedge[j - 1])) / log(double(2));
         }
         edgelist.clear();
-        for (int j = graph[i].outstart; j < graph[i].outstart + graph[i].outdegree;
+        for (EdgeIndex j = graph[i].outstart; j < graph[i].outstart + graph[i].outdegree;
              j++) {
             edgelist.push_back(order[outedge[j]]);
         }
@@ -577,7 +607,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
     order.push_back(tmpindex);
     unitheap.update[tmpindex] = INT_MAX / 2;
     unitheap.DeleteElement(tmpindex);
-    for (int i = graph[tmpindex].instart, limit1 = graph[tmpindex + 1].instart;
+    for (EdgeIndex i = graph[tmpindex].instart, limit1 = graph[tmpindex + 1].instart;
          i < limit1; i++) {
         int u = inedge[i];
         if (graph[u].outdegree <= hugevertex) {
@@ -592,7 +622,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
             }
 
             if (graph[u].outdegree > 1)
-                for (int j = graph[u].outstart, limit2 = graph[u + 1].outstart;
+                for (EdgeIndex j = graph[u].outstart, limit2 = graph[u + 1].outstart;
                      j < limit2; j++) {
                     int w = outedge[j];
                     if (unitheap.update[w] == 0) {
@@ -608,7 +638,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
         }
     }
     if (graph[tmpindex].outdegree <= hugevertex) {
-        for (int i = graph[tmpindex].outstart,
+        for (EdgeIndex i = graph[tmpindex].outstart,
              limit1 = graph[tmpindex + 1].outstart;
              i < limit1; i++) {
             int w = outedge[i];
@@ -659,7 +689,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
 
         if (popv >= 0) {
             if (graph[popv].outdegree <= hugevertex) {
-                for (int i = graph[popv].outstart, limit1 = graph[popv + 1].outstart;
+                for (EdgeIndex i = graph[popv].outstart, limit1 = graph[popv + 1].outstart;
                      i < limit1; i++) {
                     int w = outedge[i];
                     unitheap.update[w]--;
@@ -670,7 +700,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
                 }
             }
 
-            for (int i = graph[popv].instart, limit1 = graph[popv + 1].instart;
+            for (EdgeIndex i = graph[popv].instart, limit1 = graph[popv + 1].instart;
                  i < limit1; i++) {
                 int u = inedge[i];
                 if (graph[u].outdegree <= hugevertex) {
@@ -683,7 +713,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
                         if (binary_search(outedge.data() + graph[u].outstart,
                                           outedge.data() + graph[u + 1].outstart,
                                           v) == false) {
-                            for (int j = graph[u].outstart, limit2 = graph[u + 1].outstart;
+                            for (EdgeIndex j = graph[u].outstart, limit2 = graph[u + 1].outstart;
                                  j < limit2; j++) {
                                 int w = outedge[j];
                                 unitheap.update[w]--;
@@ -705,7 +735,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
         time3 = clock();
 #endif
         if (graph[v].outdegree <= hugevertex) {
-            for (int i = graph[v].outstart, limit1 = graph[v + 1].outstart;
+            for (EdgeIndex i = graph[v].outstart, limit1 = graph[v + 1].outstart;
                  i < limit1; i++) {
                 int w = outedge[i];
                 if (unlikely(unitheap.update[w] == 0)) {
@@ -720,7 +750,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
             }
         }
 
-        for (int i = graph[v].instart, limit1 = graph[v + 1].instart; i < limit1;
+        for (EdgeIndex i = graph[v].instart, limit1 = graph[v + 1].instart; i < limit1;
              i++) {
             int u = inedge[i];
             if (graph[u].outdegree <= hugevertex) {
@@ -736,7 +766,7 @@ void GorderGreedy(vector<int> &retorder, int window) {
 
                 if (popvexist[u] == false) {
                     if (graph[u].outdegree > 1)
-                        for (int j = graph[u].outstart, limit2 = graph[u + 1].outstart;
+                        for (EdgeIndex j = graph[u].outstart, limit2 = graph[u + 1].outstart;
                              j < limit2; j++) {
                             int w = outedge[j];
                             if (unlikely(unitheap.update[w] == 0)) {
@@ -828,7 +858,7 @@ void RCMOrder(vector<int> &retorder) {
 
                 //              BFSflag[now]=true;
                 tmp.clear();
-                for (int it = graph[now].outstart, limit = graph[now + 1].outstart;
+                for (EdgeIndex it = graph[now].outstart, limit = graph[now + 1].outstart;
                      it < limit; it++) {
                     tmp.push_back(outedge[it]);
                 }
@@ -890,7 +920,7 @@ unsigned long long LocalityScore(const int w) {
 
 public:
 int vsize;
-long long edgenum;
+EdgeIndex edgenum;
 string name;
 
 vector<Vertex> graph;
@@ -930,4 +960,3 @@ vector<int> order_l1;
 }
 
 #endif
-

@@ -187,6 +187,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <cassert>
@@ -197,6 +198,9 @@
 #include <queue>
 #include <atomic>
 #include <functional>
+#include <map>
+#include <stdexcept>
+#include <string>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -469,6 +473,7 @@ struct GraphBrewConfig {
     
     // Pipeline control
     bool hasExplicitOrdering = false;  ///< True when user specified an ordering token (e.g. :dbg, :hrab). Used to distinguish 12:rabbit (native DFS) from 12:rabbit:conn (explicit ordering override).
+    bool rabbitDegreeSortPreprocess = false; ///< Physical CSR degree sort applied by the builder before Rabbit community detection.
     
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
@@ -585,6 +590,290 @@ struct GraphBrewConfig {
         return cfg;
     }
 };
+
+inline const char* graphBrewAlgorithmName(GraphBrewAlgorithm value) {
+    return value == GraphBrewAlgorithm::RABBIT_ORDER ? "rabbit" : "leiden";
+}
+
+inline const char* graphBrewAggregationName(AggregationStrategy value) {
+    switch (value) {
+        case AggregationStrategy::LEIDEN_CSR: return "leiden-csr";
+        case AggregationStrategy::RABBIT_LAZY: return "streaming";
+        case AggregationStrategy::HYBRID: return "hybrid";
+        case AggregationStrategy::GVE_CSR: return "gve-csr";
+    }
+    return "unknown";
+}
+
+inline const char* graphBrewOrderingName(OrderingStrategy value) {
+    switch (value) {
+        case OrderingStrategy::HIERARCHICAL: return "hierarchical";
+        case OrderingStrategy::CONNECTIVITY_BFS: return "connectivity-bfs";
+        case OrderingStrategy::DENDROGRAM_DFS: return "dendrogram-dfs";
+        case OrderingStrategy::DENDROGRAM_BFS: return "dendrogram-bfs";
+        case OrderingStrategy::COMMUNITY_SORT: return "community-sort";
+        case OrderingStrategy::HUB_CLUSTER: return "hubcluster";
+        case OrderingStrategy::DBG: return "dbg";
+        case OrderingStrategy::CORDER: return "corder";
+        case OrderingStrategy::DBG_GLOBAL: return "dbg-global";
+        case OrderingStrategy::CORDER_GLOBAL: return "corder-global";
+        case OrderingStrategy::HIERARCHICAL_CACHE_AWARE: return "hcache";
+        case OrderingStrategy::HYBRID_LEIDEN_RABBIT: return "hrab";
+        case OrderingStrategy::HIERARCHICAL_LEIDEN_RABBIT: return "hlr";
+        case OrderingStrategy::TILE_QUANTIZED_RABBIT: return "tqr";
+        case OrderingStrategy::COMPOSE: return "compose";
+        case OrderingStrategy::LAYER: return "layer";
+    }
+    return "unknown";
+}
+
+inline const char* graphBrewCommunityModeName(CommunityMode value) {
+    switch (value) {
+        case CommunityMode::FULL_LEIDEN: return "full-leiden";
+        case CommunityMode::FAST_LP: return "fast-lp";
+        case CommunityMode::HYBRID: return "hybrid";
+    }
+    return "unknown";
+}
+
+inline const char* graphBrewSuperGraphName(SuperGraphOrder value) {
+    switch (value) {
+        case SuperGraphOrder::None: return "none";
+        case SuperGraphOrder::SuperRabbit: return "super-rabbit";
+        case SuperGraphOrder::SuperRCM: return "super-rcm";
+        case SuperGraphOrder::TileRabbit: return "tile-rabbit";
+        case SuperGraphOrder::Hilbert: return "hilbert";
+    }
+    return "unknown";
+}
+
+inline const char* graphBrewCommunityOrderName(CommunityOrder value) {
+    switch (value) {
+        case CommunityOrder::SizeDesc: return "size-desc";
+        case CommunityOrder::SizeAsc: return "size-asc";
+        case CommunityOrder::DegreeDesc: return "degree-desc";
+        case CommunityOrder::DegreeAsc: return "degree-asc";
+        case CommunityOrder::CutMin: return "cut-min";
+        case CommunityOrder::Identity: return "identity";
+    }
+    return "unknown";
+}
+
+inline const char* graphBrewIntraOrderName(IntraCommunityOrder value) {
+    switch (value) {
+        case IntraCommunityOrder::BFSFromHub: return "bfs";
+        case IntraCommunityOrder::RCM: return "rcm";
+        case IntraCommunityOrder::RCMpp: return "rcmpp";
+        case IntraCommunityOrder::Dendrogram: return "dendrogram";
+        case IntraCommunityOrder::Gorder: return "gorder";
+        case IntraCommunityOrder::HubSort: return "hubsort";
+        case IntraCommunityOrder::DegreeAsc: return "degree-asc";
+        case IntraCommunityOrder::Hub2: return "hub2";
+        case IntraCommunityOrder::Alternate: return "alternate";
+        case IntraCommunityOrder::Random: return "random";
+        case IntraCommunityOrder::BoundaryLast: return "boundary-last";
+        case IntraCommunityOrder::CoreOrder: return "core";
+    }
+    return "unknown";
+}
+
+inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
+    const char* effective_ordering =
+        config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER &&
+        !config.hasExplicitOrdering
+            ? "rabbit-native-dfs"
+            : graphBrewOrderingName(config.ordering);
+    char resolution_json[64];
+    if (config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER) {
+        std::strcpy(resolution_json, "null");
+    } else {
+        std::snprintf(
+            resolution_json, sizeof(resolution_json),
+            "%.17g", config.resolution);
+    }
+    printf(
+        "GraphBrew Effective Config: "
+        "{\"schema\":\"graphbrew_config/v1\","
+        "\"algorithm\":\"%s\",\"community_mode\":\"%s\","
+        "\"aggregation\":\"%s\",\"ordering\":\"%s\","
+        "\"super_graph\":\"%s\",\"community_order\":\"%s\","
+        "\"intra_community_order\":\"%s\",\"refinement_pass\":\"%s\","
+        "\"resolution\":%s,\"super_graph_resolution\":%.17g,"
+        "\"max_iterations\":%d,\"max_passes\":%d,"
+        "\"refinement_depth\":%d,\"m_computation\":\"%s\","
+        "\"deterministic_community_detection\":%s,"
+        "\"gorder_window\":%d,\"final_algo_id\":%d,"
+        "\"recursive_depth\":%d,\"sub_algo_id\":%d,"
+        "\"rabbit_degree_sort_preprocess\":%s,"
+        "\"use_refinement\":%s,\"dynamic_resolution\":%s,"
+        "\"degree_sorting\":%s,\"community_merging\":%s,"
+        "\"hub_extraction\":%s,\"hub_extraction_pct\":%.17g,"
+        "\"gorder_intra\":%s,\"hub_sort\":%s,"
+        "\"rcm_super\":%s,\"rcm_intra\":%s,"
+        "\"small_community_merging\":%s,"
+        "\"has_explicit_ordering\":%s}\n",
+        graphBrewAlgorithmName(config.algorithm),
+        graphBrewCommunityModeName(config.communityMode),
+        graphBrewAggregationName(config.aggregation),
+        effective_ordering,
+        graphBrewSuperGraphName(config.superGraphOrder),
+        graphBrewCommunityOrderName(config.communityOrder),
+        graphBrewIntraOrderName(config.intraCommunityOrder),
+        config.refinementPass == RefinementPass::TwoSwap ? "two-swap" : "none",
+        resolution_json,
+        config.superGraphResolution,
+        config.maxIterations,
+        config.maxPasses,
+        config.refinementDepth,
+        config.mComputation == MComputation::TOTAL_EDGES
+            ? "total-edges" : "half-edges",
+        config.deterministicCommunityDetection ? "true" : "false",
+        config.gorderWindow,
+        config.finalAlgoId,
+        config.recursiveDepth,
+        config.subAlgoId,
+        config.rabbitDegreeSortPreprocess ? "true" : "false",
+        config.useRefinement ? "true" : "false",
+        config.useDynamicResolution ? "true" : "false",
+        config.useDegreeSorting ? "true" : "false",
+        config.useCommunityMerging ? "true" : "false",
+        config.useHubExtraction ? "true" : "false",
+        config.hubExtractionPct,
+        config.useGorderIntra ? "true" : "false",
+        config.useHubSort ? "true" : "false",
+        config.useRCMSuper ? "true" : "false",
+        config.useRCMIntra ? "true" : "false",
+        config.useSmallCommunityMerging ? "true" : "false",
+        config.hasExplicitOrdering ? "true" : "false");
+}
+
+struct GraphBrewRealizedConfig {
+    struct Fallback {
+        std::string reason;
+        std::string requested;
+        std::string realized;
+    };
+
+    std::string algorithm;
+    std::string aggregation;
+    std::string ordering;
+    std::string superGraph;
+    std::string communityOrder;
+    std::string intraCommunityOrder;
+    std::string refinementPass;
+    bool resolutionApplicable = true;
+    double resolution = 0.0;
+    bool recursiveDepthApplicable = false;
+    int recursiveDepth = -1;
+    bool scheduleSensitive = false;
+    int finalAlgoId = -1;
+    int subAlgoId = -1;
+    int numPasses = 0;
+    size_t numCommunities = 0;
+    std::vector<Fallback> fallbacks;
+    std::map<std::string, size_t> blockAlgorithms;
+};
+
+inline GraphBrewRealizedConfig makeGraphBrewRealizedConfig(
+    const GraphBrewConfig& config) {
+    GraphBrewRealizedConfig realized;
+    realized.algorithm = graphBrewAlgorithmName(config.algorithm);
+    realized.aggregation =
+        config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER
+            ? "rabbit-incremental"
+            : graphBrewAggregationName(config.aggregation);
+    realized.ordering =
+        config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER &&
+        !config.hasExplicitOrdering
+            ? "rabbit-native-dfs"
+            : graphBrewOrderingName(config.ordering);
+    realized.superGraph = graphBrewSuperGraphName(config.superGraphOrder);
+    realized.communityOrder =
+        graphBrewCommunityOrderName(config.communityOrder);
+    realized.intraCommunityOrder =
+        graphBrewIntraOrderName(config.intraCommunityOrder);
+    realized.refinementPass =
+        config.refinementPass == RefinementPass::TwoSwap
+            ? "two-swap" : "none";
+    realized.resolutionApplicable =
+        config.algorithm != GraphBrewAlgorithm::RABBIT_ORDER;
+    realized.resolution = config.resolution;
+    realized.recursiveDepthApplicable =
+        config.ordering == OrderingStrategy::LAYER;
+    realized.recursiveDepth = config.recursiveDepth;
+    realized.scheduleSensitive =
+        config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER ||
+        config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ||
+        config.ordering == OrderingStrategy::HIERARCHICAL_LEIDEN_RABBIT ||
+        config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ||
+        (
+            config.ordering == OrderingStrategy::LAYER &&
+            config.finalAlgoId == 8
+        ) ||
+        config.superGraphOrder == SuperGraphOrder::SuperRabbit ||
+        config.superGraphOrder == SuperGraphOrder::TileRabbit;
+    realized.finalAlgoId = config.finalAlgoId;
+    realized.subAlgoId = config.subAlgoId;
+    return realized;
+}
+
+inline void printGraphBrewRealizedConfig(
+    const GraphBrewRealizedConfig& realized) {
+    printf(
+        "GraphBrew Realized Config: "
+        "{\"schema\":\"graphbrew_realized/v1\","
+        "\"algorithm\":\"%s\",\"aggregation\":\"%s\","
+        "\"ordering\":\"%s\",\"super_graph\":\"%s\","
+        "\"community_order\":\"%s\",\"intra_community_order\":\"%s\","
+        "\"refinement_pass\":\"%s\",\"resolution\":",
+        realized.algorithm.c_str(),
+        realized.aggregation.c_str(),
+        realized.ordering.c_str(),
+        realized.superGraph.c_str(),
+        realized.communityOrder.c_str(),
+        realized.intraCommunityOrder.c_str(),
+        realized.refinementPass.c_str());
+    if (realized.resolutionApplicable) {
+        printf("%.17g", realized.resolution);
+    } else {
+        printf("null");
+    }
+    printf(",\"recursive_depth\":");
+    if (realized.recursiveDepthApplicable) {
+        printf("%d", realized.recursiveDepth);
+    } else {
+        printf("null");
+    }
+    printf(
+        ",\"schedule_sensitive\":%s,"
+        "\"final_algo_id\":%d,\"sub_algo_id\":%d,"
+        "\"num_passes\":%d,\"num_communities\":%zu,\"fallbacks\":[",
+        realized.scheduleSensitive ? "true" : "false",
+        realized.finalAlgoId,
+        realized.subAlgoId,
+        realized.numPasses,
+        realized.numCommunities);
+    for (size_t i = 0; i < realized.fallbacks.size(); ++i) {
+        const auto& fallback = realized.fallbacks[i];
+        printf(
+            "%s{\"reason\":\"%s\",\"requested\":\"%s\","
+            "\"realized\":\"%s\"}",
+            i == 0 ? "" : ",",
+            fallback.reason.c_str(),
+            fallback.requested.c_str(),
+            fallback.realized.c_str());
+    }
+    printf("],\"block_algorithms\":{");
+    size_t index = 0;
+    for (const auto& [name, count] : realized.blockAlgorithms) {
+        printf(
+            "%s\"%s\":%zu",
+            index++ == 0 ? "" : ",",
+            name.c_str(),
+            count);
+    }
+    printf("}}\n");
+}
 
 class ScopedCommunityThreadLimit {
 public:
@@ -1139,8 +1428,9 @@ std::pair<K, W> chooseCommunityGreedy(
     const std::vector<W>& ctot,
     W M, W R) {
     
-    K best_c = K(0);
+    K best_c = current_comm;
     W best_delta = W(0);
+    bool found_move = false;
     W k_u = vtot[u];
     W k_u_d = scanner.get(current_comm);
     W sigma_d = ctot[current_comm];
@@ -1153,9 +1443,11 @@ std::pair<K, W> chooseCommunityGreedy(
         
         W delta = deltaModularity<W>(k_u_c, k_u_d, k_u, sigma_c, sigma_d, M, R);
         
-        if (delta > best_delta) {
+        if (delta > best_delta ||
+            (found_move && delta == best_delta && c < best_c)) {
             best_delta = delta;
             best_c = c;
+            found_move = true;
         }
     }
     
@@ -1259,12 +1551,16 @@ int localMovingPhase(
             // Parallel sort by degree
             __gnu_parallel::sort(vertexOrder.begin(), vertexOrder.end(),
                 [&](NodeID_T a, NodeID_T b) {
-                    return g.out_degree(a) < g.out_degree(b);
+                    const auto degree_a = g.out_degree(a);
+                    const auto degree_b = g.out_degree(b);
+                    return degree_a != degree_b ? degree_a < degree_b : a < b;
                 });
         } else {
             std::sort(vertexOrder.begin(), vertexOrder.end(),
                 [&](NodeID_T a, NodeID_T b) {
-                    return g.out_degree(a) < g.out_degree(b);
+                    const auto degree_a = g.out_degree(a);
+                    const auto degree_b = g.out_degree(b);
+                    return degree_a != degree_b ? degree_a < degree_b : a < b;
                 });
         }
         GRAPHBREW_TRACE("localMovingPhase: using degree-sorted order");
@@ -1316,7 +1612,7 @@ int localMovingPhase(
                 auto [best_c, delta] = chooseCommunityGreedy<K, Weight>(
                     static_cast<K>(u), d, scanner, vtot, ctot, M, R);
                 
-                if (best_c != K(0)) {
+                if (best_c != d) {
                     bool moved = false;
                     
                     if (useLazy) {
@@ -1423,7 +1719,7 @@ int localMovingPhaseSuperGraph(
                 auto [best_c, delta] = chooseCommunityGreedy<K, Weight>(
                     static_cast<K>(u), d, scanner, vtot, ctot, M, R);
                 
-                if (best_c != K(0)) {
+                if (best_c != d) {
                     bool moved = false;
                     
                     if (useLazy) {
@@ -2549,7 +2845,8 @@ void runRabbitOrder(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     pvector<NodeID_T>& mapping,
     const GraphBrewConfig& config,
-    GraphBrewResult<K>* resultOut = nullptr) {
+    GraphBrewResult<K>* resultOut = nullptr,
+    bool communityDetectionOnly = true) {
     
     const size_t N = g.num_nodes();
     
@@ -2586,7 +2883,11 @@ void runRabbitOrder(
     {
         #pragma omp single
         __gnu_parallel::sort(vertexOrder.begin(), vertexOrder.end(),
-            [&](K a, K b) { return degrees[a] < degrees[b]; });
+            [&](K a, K b) {
+                return degrees[a] != degrees[b]
+                    ? degrees[a] < degrees[b]
+                    : a < b;
+            });
     }
     
     // Step 3: Initialize consolidated per-vertex data (RabbitNode)
@@ -2619,12 +2920,13 @@ void runRabbitOrder(
     
     // If caller wants community detection results only (for generic ordering pipeline),
     // extract membership and return without generating native DFS ordering.
-    if (resultOut) {
+    if (resultOut && communityDetectionOnly) {
         Timer memberTimer;
         memberTimer.Start();
         
         size_t ncom = rabbitExtractMembership(resultOut->membership, nodes, toplevel, degrees, N);
         resultOut->numCommunities = ncom;
+        resultOut->totalPasses = 1;
         // No multi-level hierarchy for Rabbit — membershipPerPass stays empty
         // (buildSyntheticDendrogram will be used if dendrogram orderings are requested)
         
@@ -2676,6 +2978,10 @@ void runRabbitOrder(
     printf("RabbitOrder: %zu communities, time=%.4fs\n", numComm, timer.Seconds());
     printf("  community-detection: %.4fs, ordering: %.4fs\n", 
            cdTimer.Seconds(), orderTimer.Seconds());
+    if (resultOut) {
+        resultOut->numCommunities = numComm;
+        resultOut->totalPasses = 1;
+    }
 }
 
 //=============================================================================
@@ -4148,7 +4454,8 @@ inline void intraGorderGreedy(
  *   - maxPasses:    max passes (caller passes config.refineMaxPasses)
  *
  * SCRATCH (caller-owned, reused across communities to avoid alloc churn):
- *   - adjScratch:   per-verts-index intra-community neighbor list (cleared)
+ *   - adjOffsets:   per-verts-index offsets into adjVertices
+ *   - adjVertices:  flat intra-community neighbor list
  *   - orderScratch: position -> vertex (rebuilt)
  *
  * Notes on neighbor enumeration:
@@ -4156,6 +4463,20 @@ inline void intraGorderGreedy(
  *   in_neigh return identical sets so a single pass suffices. For directed
  *   graphs we still get a meaningful locality metric (push-side neighbors).
  */
+template <typename K>
+inline bool refineVertexIndex(
+    const std::vector<K>& verts,
+    const std::vector<size_t>& vertToLocal,
+    K vertex,
+    size_t& index)
+{
+    size_t vertex_index = static_cast<size_t>(vertex);
+    if (vertex_index >= vertToLocal.size())
+        return false;
+    index = vertToLocal[vertex_index];
+    return index < verts.size() && verts[index] == vertex;
+}
+
 template <typename K, typename NodeID_T, typename DestID_T>
 inline void refineTwoSwap(
     const std::vector<K>& verts,
@@ -4163,8 +4484,10 @@ inline void refineTwoSwap(
     const std::vector<K>& membership,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     std::vector<K>& localIds,
+    const std::vector<size_t>& vertToLocal,
     int maxPasses,
-    std::vector<std::vector<K>>& adjScratch,
+    std::vector<size_t>& adjOffsets,
+    std::vector<K>& adjVertices,
     std::vector<K>& orderScratch)
 {
     const size_t sz = verts.size();
@@ -4177,82 +4500,44 @@ inline void refineTwoSwap(
         if (p < sz) orderScratch[p] = v;
     }
 
-    // adjacency by verts-index — stable identifier (verts[] is fixed)
-    adjScratch.assign(sz, {});
+    // Flat adjacency by verts-index. Reusing one contiguous buffer avoids
+    // retaining millions of per-vertex vector capacities across communities.
+    adjOffsets.resize(sz + 1);
+    adjVertices.clear();
     for (size_t i = 0; i < sz; ++i) {
+        adjOffsets[i] = adjVertices.size();
         K v = verts[i];
-        auto& adj = adjScratch[i];
         for (auto u : g.out_neigh(v)) {
             K w = static_cast<K>(u);
             if (w == v) continue;
             if (static_cast<size_t>(w) >= membership.size()) continue;
             if (membership[w] != c) continue;
-            adj.push_back(w);
+            adjVertices.push_back(w);
         }
     }
+    adjOffsets[sz] = adjVertices.size();
 
-    // vertex -> verts-index map (O(1) lookup during swap loop).
-    // For small communities (sz<=64) a linear scan is faster than hashing.
-    // For large ones, we use unordered_map.
-    if (sz <= 64) {
-        for (int pass = 0; pass < maxPasses; ++pass) {
-            size_t swapped = 0;
-            for (size_t p = 0; p + 1 < sz; ++p) {
-                K va = orderScratch[p];
-                K vb = orderScratch[p + 1];
-                // find ia, ib in verts[] by linear scan
-                size_t ia = 0, ib = 0;
-                for (size_t i = 0; i < sz; ++i) {
-                    if (verts[i] == va) ia = i;
-                    if (verts[i] == vb) ib = i;
-                }
-                int delta = 0;
-                for (K w : adjScratch[ia]) {
-                    if (w == vb) continue;
-                    size_t pn = static_cast<size_t>(localIds[w]);
-                    if (pn < p) delta += 1;
-                    else if (pn > p + 1) delta -= 1;
-                }
-                for (K w : adjScratch[ib]) {
-                    if (w == va) continue;
-                    size_t pn = static_cast<size_t>(localIds[w]);
-                    if (pn < p) delta -= 1;
-                    else if (pn > p + 1) delta += 1;
-                }
-                if (delta < 0) {
-                    std::swap(orderScratch[p], orderScratch[p + 1]);
-                    std::swap(localIds[va], localIds[vb]);
-                    ++swapped;
-                }
-            }
-            if (!swapped) break;
-        }
-        return;
-    }
-
-    std::unordered_map<K, K> vertToIdx;
-    vertToIdx.reserve(sz * 2);
-    for (size_t i = 0; i < sz; ++i) {
-        vertToIdx[verts[i]] = static_cast<K>(i);
-    }
     for (int pass = 0; pass < maxPasses; ++pass) {
         size_t swapped = 0;
         for (size_t p = 0; p + 1 < sz; ++p) {
             K va = orderScratch[p];
             K vb = orderScratch[p + 1];
-            auto ita = vertToIdx.find(va);
-            auto itb = vertToIdx.find(vb);
-            if (ita == vertToIdx.end() || itb == vertToIdx.end()) continue;
-            size_t ia = static_cast<size_t>(ita->second);
-            size_t ib = static_cast<size_t>(itb->second);
+            size_t ia;
+            size_t ib;
+            if (
+                !refineVertexIndex(verts, vertToLocal, va, ia) ||
+                !refineVertexIndex(verts, vertToLocal, vb, ib)
+            ) continue;
             int delta = 0;
-            for (K w : adjScratch[ia]) {
+            for (size_t j = adjOffsets[ia]; j < adjOffsets[ia + 1]; ++j) {
+                K w = adjVertices[j];
                 if (w == vb) continue;
                 size_t pn = static_cast<size_t>(localIds[w]);
                 if (pn < p) delta += 1;
                 else if (pn > p + 1) delta -= 1;
             }
-            for (K w : adjScratch[ib]) {
+            for (size_t j = adjOffsets[ib]; j < adjOffsets[ib + 1]; ++j) {
+                K w = adjVertices[j];
                 if (w == va) continue;
                 size_t pn = static_cast<size_t>(localIds[w]);
                 if (pn < p) delta -= 1;
@@ -4450,7 +4735,11 @@ std::vector<K> runRabbitOnSuperCSR(
     std::vector<K> commOrder(C);
     std::iota(commOrder.begin(), commOrder.end(), K(0));
     std::sort(commOrder.begin(), commOrder.end(),
-              [&](K a, K b) { return sg.degrees[a] < sg.degrees[b]; });
+              [&](K a, K b) {
+                  return sg.degrees[a] != sg.degrees[b]
+                      ? sg.degrees[a] < sg.degrees[b]
+                      : a < b;
+              });
 
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, float>> scanners;
@@ -4526,7 +4815,12 @@ std::vector<K> runRabbitOnSuperCSR(
                 auto [str_d, _] = atom[d].load();
                 if (str_d == RabbitAtom::INVALID_STR) continue;
                 float dq = deltaQ(w_ud, str_u, str_d);
-                if (dq > bestDeltaQ) { bestDeltaQ = dq; bestDest = d; }
+                if (dq > bestDeltaQ ||
+                    (dq == bestDeltaQ &&
+                     (bestDest == INVALID || d < bestDest))) {
+                    bestDeltaQ = dq;
+                    bestDest = d;
+                }
             }
             if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
                 atom[u].restore(str_u);
@@ -4858,7 +5152,11 @@ std::pair<std::vector<K>, std::vector<K>> runRabbitOnTileGraph(
     std::vector<K> tileOrder(numTiles);
     std::iota(tileOrder.begin(), tileOrder.end(), K(0));
     std::sort(tileOrder.begin(), tileOrder.end(),
-        [&](K a, K b) { return tileSG.degrees[a] < tileSG.degrees[b]; });
+        [&](K a, K b) {
+            return tileSG.degrees[a] != tileSG.degrees[b]
+                ? tileSG.degrees[a] < tileSG.degrees[b]
+                : a < b;
+        });
 
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, float>> scanners;
@@ -4935,7 +5233,12 @@ std::pair<std::vector<K>, std::vector<K>> runRabbitOnTileGraph(
                 auto [str_d, _] = atom[d].load();
                 if (str_d == RabbitAtom::INVALID_STR) continue;
                 float dq = w_ud * inv2M - str_u * str_d * inv4M2;
-                if (dq > bestDeltaQ) { bestDeltaQ = dq; bestDest = d; }
+                if (dq > bestDeltaQ ||
+                    (dq == bestDeltaQ &&
+                     (bestDest == INVALID || d < bestDest))) {
+                    bestDeltaQ = dq;
+                    bestDest = d;
+                }
             }
             if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
                 atom[u].restore(str_u);
@@ -4976,7 +5279,12 @@ std::pair<std::vector<K>, std::vector<K>> runRabbitOnTileGraph(
                 auto [str_d, _] = atom[d].load();
                 if (str_d == RabbitAtom::INVALID_STR) continue;
                 float dq = w_ud * inv2M - str_u * str_d * inv4M2;
-                if (dq > bestDeltaQ) { bestDeltaQ = dq; bestDest = d; }
+                if (dq > bestDeltaQ ||
+                    (dq == bestDeltaQ &&
+                     (bestDest == INVALID || d < bestDest))) {
+                    bestDeltaQ = dq;
+                    bestDest = d;
+                }
             }
             if (bestDest == INVALID || bestDeltaQ <= 0.0f) {
                 atom[u].restore(str_u);
@@ -5255,8 +5563,8 @@ void orderCompose(
     std::iota(commOrder.begin(), commOrder.end(), K(0));
 
     // -------- Super-graph order (optional) --------
-    // Produces a base community permutation that Stage 2 either keeps
-    // (Identity) or overrides (SizeDesc / DegreeDesc).
+    // Produces the base community order. Stage 2 is the primary key but
+    // preserves this order as its deterministic tie-break.
     std::vector<K> stage1Perm;
     if (config.superGraphOrder != SuperGraphOrder::None) {
         // Per-community vertex count (used to flag empty/active for Stage 1)
@@ -5325,14 +5633,15 @@ void orderCompose(
                   [&](K a, K b) { return stage1Perm[a] < stage1Perm[b]; });
     }
 
-    // Stage 2 reorders the Stage 1 result (or sorts from identity if Stage 1=None)
+    // Stage 2 refines the Stage 1 result. Stable sorting makes the selected
+    // community metric primary while retaining Stage 1 order for equal keys.
     bool cutMinFallback = false;
     if (config.communityOrder == CommunityOrder::SizeDesc) {
-        std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+        std::stable_sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commVertices[a].size() > commVertices[b].size();
         });
     } else if (config.communityOrder == CommunityOrder::SizeAsc) {
-        std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+        std::stable_sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commVertices[a].size() < commVertices[b].size();
         });
     } else if (config.communityOrder == CommunityOrder::DegreeDesc) {
@@ -5343,7 +5652,7 @@ void orderCompose(
             for (K v : commVertices[c]) s += degrees[v];
             commTotalDeg[c] = s;
         }
-        std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+        std::stable_sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commTotalDeg[a] > commTotalDeg[b];
         });
     } else if (config.communityOrder == CommunityOrder::DegreeAsc) {
@@ -5354,7 +5663,7 @@ void orderCompose(
             for (K v : commVertices[c]) s += degrees[v];
             commTotalDeg[c] = s;
         }
-        std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+        std::stable_sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commTotalDeg[a] < commTotalDeg[b];
         });
     } else if (config.communityOrder == CommunityOrder::CutMin) {
@@ -5370,7 +5679,7 @@ void orderCompose(
                 for (K v : commVertices[c]) s += degrees[v];
                 commTotalDeg[c] = s;
             }
-            std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
+            std::stable_sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
                 return commTotalDeg[a] > commTotalDeg[b];
             });
         } else {
@@ -5388,20 +5697,28 @@ void orderCompose(
             // with maximum crossing weight.  Ties broken by community ID.
             std::vector<char> visited(C, 0);
             std::vector<K> tour; tour.reserve(C);
-            K start = 0; size_t bestSz = 0;
-            for (K c = 0; c < numComm; ++c)
-                if (commVertices[c].size() > bestSz) { bestSz = commVertices[c].size(); start = c; }
+            K start = commOrder.empty() ? K(0) : commOrder.front();
+            size_t bestSz = 0;
+            for (K c : commOrder) {
+                if (commVertices[c].size() > bestSz) {
+                    bestSz = commVertices[c].size();
+                    start = c;
+                }
+            }
             K cur = start; tour.push_back(cur); visited[cur] = 1;
             for (size_t step = 1; step < C; ++step) {
                 uint64_t bestW = 0; K bestC = (K)-1;
-                for (K c = 0; c < numComm; ++c) {
+                for (K c : commOrder) {
                     if (visited[c]) continue;
                     uint64_t w = cross[(size_t)cur * C + (size_t)c];
-                    if (w > bestW || bestC == (K)-1) { bestW = w; bestC = c; }
+                    if (w > bestW || bestC == (K)-1) {
+                        bestW = w;
+                        bestC = c;
+                    }
                 }
                 if (bestC == (K)-1) {
-                    // Disconnected: pick smallest unvisited ID
-                    for (K c = 0; c < numComm; ++c)
+                    // Disconnected: preserve the Stage 1 base order.
+                    for (K c : commOrder)
                         if (!visited[c]) { bestC = c; break; }
                 }
                 visited[bestC] = 1; tour.push_back(bestC); cur = bestC;
@@ -5438,7 +5755,10 @@ void orderCompose(
     // pointer chains and never touches it.  Skip the 8*N-byte allocation +
     // init when the dendrogram path will be taken.
     std::vector<size_t> vertToLocal;
-    if (!useDendrogram) {
+    const bool needsVertToLocal =
+        !useDendrogram ||
+        config.refinementPass == RefinementPass::TwoSwap;
+    if (needsVertToLocal) {
         vertToLocal.assign(N, static_cast<size_t>(-1));
         #pragma omp parallel for schedule(dynamic, 256)
         for (size_t i = 0; i < (size_t)numComm; ++i) {
@@ -5611,9 +5931,8 @@ void orderCompose(
                 if (sz == 0) { /* nothing */ }
                 else if (sz == 1) { localIds[verts[0]] = 0; }
                 else {
-                    // Build vertex->local-index map for this community.
-                    // Reuse vertToLocal scratch (already sized N).
-                    for (size_t j = 0; j < sz; ++j) vertToLocal[verts[j]] = static_cast<K>(j);
+                    // vertToLocal was populated for every community before
+                    // entering the parallel region and remains read-only.
                     // Compute INTERNAL degree (edges to same-community vertices).
                     std::vector<uint32_t> intDeg(sz, 0);
                     for (size_t idx = 0; idx < sz; ++idx) {
@@ -5676,8 +5995,6 @@ void orderCompose(
                             return degrees[verts[a]] > degrees[verts[b]];
                         });
                     for (size_t j = 0; j < sz; ++j) localIds[verts[idxs[j]]] = static_cast<K>(j);
-                    // Reset vertToLocal scratch for next community.
-                    for (size_t j = 0; j < sz; ++j) vertToLocal[verts[j]] = static_cast<K>(-1);
                 }
             } else { // BFSFromHub (also the fallback path)
                 intraBFSFromHub<K, NodeID_T, DestID_T>(
@@ -5690,21 +6007,38 @@ void orderCompose(
     // -------- Optional post-pass refinement (per-community independent) --------
     if (config.refinementPass == RefinementPass::TwoSwap) {
         Timer refineTimer; refineTimer.Start();
+        std::vector<size_t> refineOrder;
+        refineOrder.reserve(numComm);
+        for (size_t i = 0; i < static_cast<size_t>(numComm); ++i) {
+            if (commVertices[commOrder[i]].size() >= 3)
+                refineOrder.push_back(i);
+        }
+        std::stable_sort(
+            refineOrder.begin(), refineOrder.end(),
+            [&](size_t a, size_t b) {
+                return commVertices[commOrder[a]].size()
+                    > commVertices[commOrder[b]].size();
+            });
         #pragma omp parallel
         {
-            std::vector<std::vector<K>> adjScratch;
+            std::vector<size_t> adjOffsets;
+            std::vector<K> adjVertices;
             std::vector<K> orderScratch;
             #pragma omp for schedule(dynamic, 1)
-            for (size_t i = 0; i < (size_t)numComm; ++i) {
+            for (size_t ri = 0; ri < refineOrder.size(); ++ri) {
+                size_t i = refineOrder[ri];
                 K c = commOrder[i];
                 refineTwoSwap<K, NodeID_T, DestID_T>(
                     commVertices[c], c, membership, g, localIds,
-                    config.refineMaxPasses, adjScratch, orderScratch);
+                    vertToLocal, config.refineMaxPasses,
+                    adjOffsets, adjVertices, orderScratch);
             }
         }
         refineTimer.Stop();
-        printf("  compose: refine=2swap maxPasses=%d, %.4fs\n",
-               config.refineMaxPasses, refineTimer.Seconds());
+        printf(
+            "  compose: refine=2swap maxPasses=%d, eligible=%zu/%u, %.4fs\n",
+            config.refineMaxPasses, refineOrder.size(),
+            static_cast<unsigned>(numComm), refineTimer.Seconds());
     }
 
     // Compose final newIds = community-offset + local id within community
@@ -8320,7 +8654,8 @@ void applyOrderingStrategy(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     pvector<NodeID_T>& newIds,
     GraphBrewResult<K>& result,
-    const GraphBrewConfig& config) {
+    const GraphBrewConfig& config,
+    GraphBrewRealizedConfig* realized = nullptr) {
     
     const int64_t N = g.num_nodes();
     
@@ -8332,6 +8667,10 @@ void applyOrderingStrategy(
         mergeTimer.Stop();
         result.numCommunities = finalComms;
         printf("  community merge: %.4fs\n", mergeTimer.Seconds());
+    }
+    if (realized) {
+        realized->numPasses = result.totalPasses;
+        realized->numCommunities = result.numCommunities;
     }
     
     // Build dendrogram if needed by the ordering strategy
@@ -8408,18 +8747,61 @@ void applyOrderingStrategy(
             orderCorderGlobal<K, NodeID_T>(newIds, result.membership, degrees, N, config);
             break;
         case OrderingStrategy::HIERARCHICAL_CACHE_AWARE:
+            if (realized && result.membershipPerPass.size() < 2) {
+                realized->ordering = "hierarchical";
+                realized->fallbacks.push_back({
+                    "hcache-requires-two-passes",
+                    "hcache",
+                    "hierarchical",
+                });
+            }
             orderHierarchicalCacheAware<K, NodeID_T, DestID_T>(newIds, result, degrees, g, N, config);
             break;
         case OrderingStrategy::HYBRID_LEIDEN_RABBIT:
             orderHybridLeidenRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
         case OrderingStrategy::HIERARCHICAL_LEIDEN_RABBIT:
+            if (realized && result.membershipPerPass.size() <= 1) {
+                realized->ordering = "hrab";
+                realized->fallbacks.push_back({
+                    "hierarchical-rabbit-requires-two-passes",
+                    "hlr",
+                    "hrab",
+                });
+            }
             orderHierarchicalLeidenRabbit<K, NodeID_T, DestID_T>(newIds, result, degrees, g, N, config);
             break;
         case OrderingStrategy::TILE_QUANTIZED_RABBIT:
             orderTileQuantizedRabbit<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
         case OrderingStrategy::COMPOSE:
+            if (
+                realized &&
+                config.communityOrder == CommunityOrder::CutMin &&
+                result.numCommunities > 4096
+            ) {
+                realized->communityOrder = "degree-desc";
+                realized->fallbacks.push_back({
+                    "cut-min-community-limit",
+                    "cut-min",
+                    "degree-desc",
+                });
+            }
+            if (
+                realized &&
+                config.intraCommunityOrder == IntraCommunityOrder::Dendrogram &&
+                (
+                    !result.hasRabbitDendrogram ||
+                    result.rabbitToplevel.size() < result.numCommunities
+                )
+            ) {
+                realized->intraCommunityOrder = "bfs";
+                realized->fallbacks.push_back({
+                    "rabbit-dendrogram-unavailable",
+                    "dendrogram",
+                    "bfs",
+                });
+            }
             orderCompose<K, NodeID_T, DestID_T>(newIds, result, degrees, g, N, config);
             break;
         case OrderingStrategy::LAYER:
@@ -8513,21 +8895,25 @@ void generateGraphBrewMapping(
     const GraphBrewConfig& config) {
     
     const int64_t N = g.num_nodes();
+    auto realized = makeGraphBrewRealizedConfig(config);
     
     // Branch based on main algorithm choice
     if (config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER) {
-        printf("RabbitOrder: resolution=%.4f\n", config.resolution);
+        printf("RabbitOrder: modularity resolution=n/a (fixed gamma=1)\n");
         
         if (config.hasExplicitOrdering) {
             // Generic pipeline: Rabbit community detection → shared ordering strategy
             // e.g., -o 12:rabbit:dbg, -o 12:rabbit:hubcluster, -o 12:rabbit:dfs
             GraphBrewResult<K> result;
             runRabbitOrder<K>(g, newIds, config, &result);
-            applyOrderingStrategy<K>(g, newIds, result, config);
+            applyOrderingStrategy<K>(g, newIds, result, config, &realized);
         } else {
             // Native path: Rabbit's built-in DFS ordering (backward compat)
             // e.g., -o 12:rabbit (no ordering token)
-            runRabbitOrder<K>(g, newIds, config);
+            GraphBrewResult<K> result;
+            runRabbitOrder<K>(g, newIds, config, &result, false);
+            realized.numPasses = result.totalPasses;
+            realized.numCommunities = result.numCommunities;
             
             // Verify if requested
             if (config.verifyTopology) {
@@ -8536,6 +8922,7 @@ void generateGraphBrewMapping(
                 }
             }
         }
+        printGraphBrewRealizedConfig(realized);
         return;
     }
     
@@ -8676,7 +9063,8 @@ void generateGraphBrewMapping(
 #endif
     
     // Apply ordering strategy (shared pipeline with Rabbit Order path)
-    applyOrderingStrategy<K>(g, newIds, result, config);
+    applyOrderingStrategy<K>(g, newIds, result, config, &realized);
+    printGraphBrewRealizedConfig(realized);
 }
 
 //=============================================================================
@@ -8710,8 +9098,34 @@ void generateGraphBrewMapping(
  *   "hrab:gvecsr:0.75" - Hybrid + GVE-CSR aggregation + resolution
  *   "graphbrew:gvecsr:totalm:refine0" - LAYER mode with GVE-CSR (= leiden preset)
  */
-inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& options) {
+inline GraphBrewConfig parseGraphBrewConfig(
+    const std::vector<std::string>& options,
+    bool strict = false) {
     GraphBrewConfig config;
+    auto reject = [&](const std::string& opt) {
+        if (strict) {
+            throw std::invalid_argument(
+                "Unknown or invalid GraphBrew option: " + opt);
+        }
+    };
+    auto parseExactInt = [](const std::string& text, int& value) {
+        try {
+            size_t parsed = 0;
+            value = std::stoi(text, &parsed);
+            return parsed == text.size();
+        } catch (...) {
+            return false;
+        }
+    };
+    auto parseExactDouble = [](const std::string& text, double& value) {
+        try {
+            size_t parsed = 0;
+            value = std::stod(text, &parsed);
+            return parsed == text.size() && std::isfinite(value);
+        } catch (...) {
+            return false;
+        }
+    };
     
     for (size_t i = 0; i < options.size(); ++i) {
         const std::string& opt = options[i];
@@ -8736,6 +9150,9 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         }
         if (opt == "cd_leiden" || opt == "cd:leiden" || opt == "cdleiden") {
             config.algorithm = GraphBrewAlgorithm::LEIDEN;
+            config.communityMode = CommunityMode::FULL_LEIDEN;
+            config.useRefinement = true;
+            config.refinementDepth = -1;
             continue;
         }
         
@@ -8842,7 +9259,7 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             config.intraCommunityOrder = IntraCommunityOrder::Gorder;
         } else if (opt == "s3_hubsort" || opt == "s3:hubsort" || opt == "s3hubsort" ||
                    opt == "intra_hubsort" || opt == "intra:hubsort" || opt == "intrahubsort" ||
-                   opt == "intra_hub" || opt == "intra:hub" || opt == "hubsort") {
+                   opt == "intra_hub" || opt == "intra:hub") {
             // Per-community degree-descending sort.  Cheapest non-trivial
             // intra primitive; no graph traversal.
             config.intraCommunityOrder = IntraCommunityOrder::HubSort;
@@ -8930,14 +9347,15 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         else if (opt.size() > 5 && opt.substr(0, 5) == "final") {
             std::string numStr = opt.substr(5);
             if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
-            try {
-                int algoId = std::stoi(numStr);
-                if (algoId >= 0 && algoId <= 11) {
-                    config.finalAlgoId = algoId;
-                    config.ordering = OrderingStrategy::LAYER;
-                    config.useSmallCommunityMerging = true;
-                }
-            } catch (...) {}
+            int algoId = -1;
+            if (!parseExactInt(numStr, algoId) ||
+                algoId < 0 || algoId > 11) {
+                reject(opt);
+                continue;
+            }
+            config.finalAlgoId = algoId;
+            config.ordering = OrderingStrategy::LAYER;
+            config.useSmallCommunityMerging = true;
         }
         // Recursive depth for GraphBrew: "depth:2" or "depth2" or "recursive" or "flat"
         else if (opt == "flat" || opt == "norecurse") {
@@ -8954,15 +9372,16 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         } else if (opt.size() > 5 && opt.substr(0, 5) == "depth") {
             std::string numStr = opt.substr(5);
             if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
-            try {
-                int d = std::stoi(numStr);
-                if (d >= 0 && d <= 10) {
-                    config.recursiveDepth = d;
-                    config.ordering = OrderingStrategy::LAYER;
-                    config.useSmallCommunityMerging = true;
-                    if (config.finalAlgoId < 0) config.finalAlgoId = 8;
-                }
-            } catch (...) {}
+            int depth = -1;
+            if (!parseExactInt(numStr, depth) ||
+                depth < 0 || depth > 10) {
+                reject(opt);
+                continue;
+            }
+            config.recursiveDepth = depth;
+            config.ordering = OrderingStrategy::LAYER;
+            config.useSmallCommunityMerging = true;
+            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
         }
         // Sub-community algorithm for recursive GraphBrew: "sub:auto" or "sub:3" or "subauto"
         else if (opt == "subauto" || opt == "sub:auto") {
@@ -8973,10 +9392,13 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             if (numStr == "auto") {
                 config.subAlgoId = -1;
             } else {
-                try {
-                    int a = std::stoi(numStr);
-                    if (a >= 0 && a <= 11) config.subAlgoId = a;
-                } catch (...) {}
+                int algorithm = -1;
+                if (!parseExactInt(numStr, algorithm) ||
+                    algorithm < 0 || algorithm > 11) {
+                    reject(opt);
+                    continue;
+                }
+                config.subAlgoId = algorithm;
             }
         }
         // Check for aggregation strategy (for Leiden variant)
@@ -8998,12 +9420,13 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         // Check for hub extraction with custom percentage: hubx0.5 = top 0.5%
         else if (opt.size() > 4 && opt.substr(0, 4) == "hubx") {
             config.useHubExtraction = true;
-            try {
-                double pct = std::stod(opt.substr(4));
-                if (pct > 0 && pct < 100) {
-                    config.hubExtractionPct = pct / 100.0;  // Convert percent to fraction
-                }
-            } catch (...) {}
+            double pct = 0.0;
+            if (!parseExactDouble(opt.substr(4), pct) ||
+                pct <= 0 || pct >= 100) {
+                reject(opt);
+                continue;
+            }
+            config.hubExtractionPct = pct / 100.0;
         }
         // Gorder-inspired improvements
         else if (opt == "gord" || opt == "gorder") {
@@ -9012,36 +9435,48 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         // gord with custom window: gord8 = window of 8
         else if (opt.size() > 4 && opt.substr(0, 4) == "gord" && std::isdigit(opt[4])) {
             config.useGorderIntra = true;
-            try {
-                int w = std::stoi(opt.substr(4));
-                if (w > 0 && w <= 100) config.gorderWindow = w;
-            } catch (...) {}
+            int window = 0;
+            if (!parseExactInt(opt.substr(4), window) ||
+                window <= 0 || window > 100) {
+                reject(opt);
+                continue;
+            }
+            config.gorderWindow = window;
         }
         // gord fallback threshold: gordf5000 = BFS fallback for communities > 5000
         else if (opt.size() > 5 && opt.substr(0, 5) == "gordf") {
             config.useGorderIntra = true;
-            try {
-                int f = std::stoi(opt.substr(5));
-                if (f > 0) config.gorderFallback = f;
-            } catch (...) {}
+            int fallback = 0;
+            if (!parseExactInt(opt.substr(5), fallback) ||
+                fallback <= 0) {
+                reject(opt);
+                continue;
+            }
+            config.gorderFallback = fallback;
         }
         // gw<N>: set gorderWindow without forcing legacy useGorderIntra path
         // (works for compose:intra_gorder).  Default 5.  Range 1..100.
         else if (opt.size() > 2 && opt.substr(0, 2) == "gw" && std::isdigit(opt[2])) {
-            try {
-                int w = std::stoi(opt.substr(2));
-                if (w > 0 && w <= 100) config.gorderWindow = w;
-            } catch (...) {}
+            int window = 0;
+            if (!parseExactInt(opt.substr(2), window) ||
+                window <= 0 || window > 100) {
+                reject(opt);
+                continue;
+            }
+            config.gorderWindow = window;
         }
         // Super-graph modularity resolution for HRAB / TQR community merge
         // (γ in ΔQ = w_uv − γ·str(u)·str(v)/(2M_super)).  Default 0.25.
         // Token forms:  sgres0.5  /  sgres1  /  gamma0.1  (alias)
         else if ((opt.size() > 5 && opt.substr(0, 5) == "sgres") ||
                  (opt.size() > 5 && opt.substr(0, 5) == "gamma")) {
-            try {
-                double g = std::stod(opt.substr(5));
-                if (g > 0.0 && g <= 10.0) config.superGraphResolution = g;
-            } catch (...) {}
+            double resolution = 0.0;
+            if (!parseExactDouble(opt.substr(5), resolution) ||
+                resolution <= 0.0 || resolution > 10.0) {
+                reject(opt);
+                continue;
+            }
+            config.superGraphResolution = resolution;
         }
         else if (opt == "hsort" || opt == "hubsort") {
             config.useHubSort = true;
@@ -9100,10 +9535,12 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
         }
         // Refinement depth control: refine0 = pass 0 only (GVE), refine2 = passes 0-2
         else if (opt.size() > 6 && opt.substr(0, 6) == "refine" && std::isdigit(opt[6])) {
-            try {
-                int depth = std::stoi(opt.substr(6));
-                config.refinementDepth = depth;
-            } catch (...) {}
+            int depth = -1;
+            if (!parseExactInt(opt.substr(6), depth) || depth < 0) {
+                reject(opt);
+                continue;
+            }
+            config.refinementDepth = depth;
         }
         // M computation mode
         else if (opt == "totalm" || opt == "gvem") {
@@ -9142,10 +9579,25 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
             config.resolution = reorder::DEFAULT_RESOLUTION;  // Initial, will be adjusted
             config.useDynamicResolution = true;  // Enable per-pass adjustment
         }
+        else if (opt.rfind("dynamic_", 0) == 0) {
+            double initial = 0.0;
+            if (!parseExactDouble(opt.substr(8), initial) ||
+                initial <= 0.0 || initial > 3.0) {
+                reject(opt);
+                continue;
+            }
+            config.resolution = initial;
+            config.useDynamicResolution = true;
+        }
         // Check for numeric (resolution, iterations, passes)
         else {
             try {
-                double val = std::stod(opt);
+                size_t parsed = 0;
+                double val = std::stod(opt, &parsed);
+                if (parsed != opt.size() || !std::isfinite(val)) {
+                    reject(opt);
+                    continue;
+                }
                 // Resolution: fractional value (0.0, 3.0], or if > 0 and <= 3
                 // iterations/passes: integer value >= 1
                 if (val > 0 && val <= 3 && (opt.find('.') != std::string::npos || val < 1)) {
@@ -9162,10 +9614,36 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
                 } else if (val > 0 && val <= 3) {
                     // Small integer without decimal - likely resolution
                     config.resolution = val;
+                } else {
+                    reject(opt);
                 }
             } catch (...) {
-                // Ignore parsing errors
+                reject(opt);
             }
+        }
+    }
+
+    if (strict && config.ordering == OrderingStrategy::COMPOSE) {
+        bool explicitSuperGraph = false;
+        bool explicitCommunityOrder = false;
+        for (const std::string& opt : options) {
+            explicitSuperGraph =
+                explicitSuperGraph ||
+                opt.rfind("sg_", 0) == 0 ||
+                opt.rfind("sg:", 0) == 0 ||
+                opt.rfind("s1_", 0) == 0 ||
+                opt.rfind("s1:", 0) == 0;
+            explicitCommunityOrder =
+                explicitCommunityOrder ||
+                opt.rfind("comm_", 0) == 0 ||
+                opt.rfind("comm:", 0) == 0 ||
+                opt.rfind("s2_", 0) == 0 ||
+                opt.rfind("s2:", 0) == 0;
+        }
+        if (explicitSuperGraph && !explicitCommunityOrder) {
+            throw std::invalid_argument(
+                "COMPOSE super-graph order requires an explicit "
+                "community-order token");
         }
     }
     

@@ -42,10 +42,9 @@ BENCHMARK_DATA_FILE = DATA_DIR / "benchmarks.json"
 # The C++ side checks GRAPHBREW_DB_DIR when no --db-dir / -D flag is given.
 os.environ.setdefault("GRAPHBREW_DB_DIR", str(DATA_DIR))
 
-# --- Trained Models (DEPRECATED) -----------------------------------------------
-# C++ now trains perceptron, DT, and hybrid models from benchmarks.json +
-# graph_properties.json at load time.  No results/models/ directory needed.
-# These constants are retained for backward compatibility with legacy code.
+# --- Offline-trained models ---------------------------------------------------
+# Benchmark binaries load exported model artifacts and never train at runtime.
+# Legacy model directories remain for offline tooling compatibility.
 MODELS_DIR = RESULTS_DIR / "models"
 
 # Perceptron weights live under models/perceptron/
@@ -53,6 +52,27 @@ MODELS_DIR = RESULTS_DIR / "models"
 # that existing code (weights.py, training.py, etc.) keeps working.
 WEIGHTS_DIR = MODELS_DIR / "perceptron"
 ACTIVE_WEIGHTS_DIR = WEIGHTS_DIR
+
+_GRAPH_EXTENSIONS = (
+    ".gz", ".sg", ".wsg", ".el", ".wel", ".mtx", ".txt", ".tsv",
+)
+
+
+def normalize_graph_name(path_or_name: str | os.PathLike) -> str:
+    """Return the canonical graph basename used by Python and C++ metadata."""
+    normalized = str(path_or_name).replace("\\", "/").rstrip("/")
+    name = normalized.rsplit("/", 1)[-1]
+    stripped = True
+    while stripped:
+        stripped = False
+        for extension in _GRAPH_EXTENSIONS:
+            if len(name) > len(extension) and name.endswith(extension):
+                name = name[:-len(extension)]
+                stripped = True
+                break
+    if not name:
+        raise ValueError("Graph name cannot be empty")
+    return name
 
 
 def weights_registry_path(weights_dir: str = "") -> str:
@@ -223,9 +243,10 @@ RABBITORDER_VARIANTS = ("csr", "boost")
 RABBITORDER_DEFAULT_VARIANT = "csr"
 
 # GOrder implementation variants: -o 9:variant
-# These differ only in implementation speed — they produce equivalent orderings.
+# `gograph` and `csr` are mapping-equivalent faithful implementations.
+# `fast` is a relaxed parallel heuristic and can produce a different ordering.
 # NOT in _VARIANT_ALGO_REGISTRY because they share a single perceptron weight.
-GORDER_VARIANTS = ("default", "csr", "fast")
+GORDER_VARIANTS = ("default", "gograph", "csr", "fast")
 GORDER_DEFAULT_VARIANT = "default"
 
 # GoGraph variants: -o 16:variant
@@ -371,10 +392,10 @@ GRAPHBREW_OPTIONS = {
 
 # Map: algo_id → (prefix, variants, default)
 # NOTE: Only algorithms whose variants produce *different reorderings* (and thus
-# need separate perceptron weights) belong here.  GOrder variants (default/csr/
-# fast) differ only in implementation speed — they produce equivalent orderings
-# so they share the single "GORDER" weight entry.  LeidenOrder resolution is a
-# continuous parameter, not a discrete variant for training.
+# need separate perceptron weights) belong here. GOrder implementations remain
+# one learned algorithm family: gograph/csr are mapping-equivalent, while fast
+# is a relaxed execution option rather than a separately trained selector label.
+# LeidenOrder resolution is continuous, not a discrete training variant.
 _VARIANT_ALGO_REGISTRY = {
     8:  ("RABBITORDER_",     RABBITORDER_VARIANTS,  RABBITORDER_DEFAULT_VARIANT),
     11: ("RCM_",             RCM_VARIANTS,          RCM_DEFAULT_VARIANT),
@@ -628,6 +649,7 @@ class BenchmarkResult:
     edges: int = 0
     success: bool = True
     error: str = ""
+    error_kind: str = ""
     extra: Dict = None
     
     def __post_init__(self):

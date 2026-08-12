@@ -412,7 +412,7 @@ python3 -m json.tool results/data/adaptive_models.json
 
 ### Wrong algorithm selected
 
-The streaming database (kNN) or perceptron fallback may select a suboptimal algorithm. To debug:
+The offline-produced model or perceptron fallback may select a suboptimal algorithm. To debug:
 
 ```bash
 # Check what properties were detected
@@ -422,7 +422,9 @@ cat results/data/graph_properties.json | python3 -m json.tool | grep -A 10 "your
 python3 scripts/graphbrew_experiment.py --train --size small
 ```
 
-For decision tree and hybrid model issues, also check `results/data/adaptive_models.json` which stores the trained DT/hybrid/kNN models. Re-run `--train` to regenerate — C++ trains DT/hybrid models automatically at runtime when ≥3 graphs are available.
+For decision tree and hybrid issues, check
+`results/data/adaptive_models.json`. Re-run the offline `--train`/export flow
+to regenerate it; C++ benchmark binaries never fit models at runtime.
 
 **Auto-clustering system:**
 Uses 7 features and Euclidean distance to match graphs to the nearest cluster centroid.

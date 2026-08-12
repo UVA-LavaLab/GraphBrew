@@ -2,6 +2,7 @@
 // See LICENSE.txt for license details
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <vector>
 
@@ -31,18 +32,28 @@ using namespace std;
 
 typedef float ScoreT;
 const float kDamp = 0.85;
+static int g_pr_iterations_to_convergence = -1;
+static int g_pr_iterations_executed = 0;
+static double g_pr_final_error = 0.0;
+static bool g_pr_fixed_work = false;
 
 pvector<ScoreT> PageRankPull(const Graph &g, int max_iters, double epsilon = 0,
-                             bool logging_enabled = false) {
+                             bool logging_enabled = false,
+                             bool fixed_work = false) {
   const ScoreT init_score = 1.0f / g.num_nodes();
   const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
   pvector<ScoreT> scores(g.num_nodes(), init_score);
   pvector<ScoreT> outgoing_contrib(g.num_nodes());
+  int converged_iter = -1;
+  int executed_iters = 0;
+  double final_error = 0.0;
   for (int iter=0; iter < max_iters; iter++) {
     double error = 0;
     #pragma omp parallel for
-    for (NodeID n=0; n < g.num_nodes(); n++)
-      outgoing_contrib[n] = scores[n] / g.out_degree(n);
+    for (NodeID n=0; n < g.num_nodes(); n++) {
+      const auto degree = g.out_degree(n);
+      outgoing_contrib[n] = degree ? scores[n] / degree : ScoreT(0);
+    }
     #pragma omp parallel for reduction(+ : error) schedule(dynamic, 16384)
     for (NodeID u=0; u < g.num_nodes(); u++) {
       ScoreT incoming_total = 0;
@@ -52,12 +63,22 @@ pvector<ScoreT> PageRankPull(const Graph &g, int max_iters, double epsilon = 0,
       scores[u] = base_score + kDamp * incoming_total;
       error += fabs(scores[u] - old_score);
     }
+    executed_iters = iter + 1;
+    final_error = error;
     if (logging_enabled)
       PrintStep(iter, error);
-    graphbrew::database::AppendBenchmarkIterationEntry({{"iter", iter}, {"error", error}});
-    if (error < epsilon)
+    if (graphbrew::database::SelfRecordingEnabled())
+      graphbrew::database::AppendBenchmarkIterationEntry(
+          {{"iter", iter}, {"error", error}});
+    if (converged_iter < 0 && error < epsilon)
+      converged_iter = iter + 1;
+    if (!fixed_work && error < epsilon)
       break;
   }
+  g_pr_iterations_to_convergence = converged_iter;
+  g_pr_iterations_executed = executed_iters;
+  g_pr_final_error = final_error;
+  g_pr_fixed_work = fixed_work;
   return scores;
 }
 
@@ -82,7 +103,8 @@ bool PRVerifier(const Graph &g, const pvector<ScoreT> &scores,
   pvector<ScoreT> incoming_sums(g.num_nodes(), 0);
   double error = 0;
   for (NodeID u : g.vertices()) {
-    ScoreT outgoing_contrib = scores[u] / g.out_degree(u);
+    const auto degree = g.out_degree(u);
+    ScoreT outgoing_contrib = degree ? scores[u] / degree : ScoreT(0);
     for (NodeID v : g.out_neigh(u))
       incoming_sums[v] += outgoing_contrib;
   }
@@ -103,8 +125,11 @@ int main(int argc, char* argv[]) {
   graphbrew::database::InitSelfRecording(cli.db_dir());
   Builder b(cli);
   Graph g = b.MakeGraph();
+  PrintLabel("PR Mode", cli.fixed_work() ? "fixed-work" : "convergence");
   auto PRBound = [&cli] (const Graph &g) {
-    return PageRankPull(g, cli.max_iters(), cli.tolerance(), cli.logging_en());
+    return PageRankPull(
+        g, cli.max_iters(), cli.tolerance(),
+        cli.logging_en(), cli.fixed_work());
   };
   auto VerifierBound = [&cli] (const Graph &g, const pvector<ScoreT> &scores) {
     return PRVerifier(g, scores, cli.tolerance());
@@ -121,6 +146,16 @@ int main(int argc, char* argv[]) {
       }
       ans["total_score"] = total;
       ans["max_score"] = static_cast<double>(max_score);
+      ans["iterations_to_convergence"] = g_pr_iterations_to_convergence;
+      ans["converged"] = g_pr_iterations_to_convergence > 0;
+      ans["iterations_executed"] = g_pr_iterations_executed;
+      ans["final_error"] = g_pr_final_error;
+      ans["mode"] = g_pr_fixed_work ? "fixed-work" : "convergence";
+      ans["directed_edges_processed"] =
+          static_cast<int64_t>(g_pr_iterations_executed) *
+          g.num_edges_directed();
+      PrintTime("Iterations", g_pr_iterations_executed);
+      printf("%-21s%.17g\n", "Final Error:", g_pr_final_error);
       return ans;
     });
   return 0;

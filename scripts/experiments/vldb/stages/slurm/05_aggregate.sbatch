@@ -14,4 +14,13 @@ mkdir -p results/slurm_logs
 module load gcc miniforge || true
 source .venv/bin/activate 2>/dev/null || true
 
-python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0
+EXTRA="${EXTRA_ARGS:-}"
+GRAPH_DIR="${GRAPH_DIR:-/media/Data/00_GraphDatasets/GraphBrew}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-/media/Data/00_GraphDatasets/GraphBrew/artifacts}"
+python3 scripts/experiments/vldb/stages/05_aggregate.py \
+  --exp 0 \
+  --graph-dir "$GRAPH_DIR" \
+  --artifact-root "$ARTIFACT_ROOT" \
+  --publish-paper-figures \
+  --package-paper \
+  $EXTRA

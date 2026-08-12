@@ -112,7 +112,7 @@ def run_with_perf_counters(
     Args:
         binary: Path to benchmark binary (e.g. ``bench/bin/pr``).
         graph_path: Path to ``.sg`` graph file.
-        reorder_flag: Reorder flag string (e.g. ``-o 12`` or ``-o 9``).
+        reorder_flag: Reorder flag string (e.g. ``-o 12`` or ``-o 9:csr``).
         extra_args: Additional CLI args for the binary.
         events: List of perf event names.  Defaults to :data:`DEFAULT_EVENTS`.
         timeout: Max seconds before killing the process.
@@ -207,7 +207,7 @@ def run_perf_sweep(
     Args:
         graph_path: Path to ``.sg`` graph file.
         algorithms: Dict mapping name → reorder flag (e.g.
-            ``{"ORIGINAL": "-o 0", "Gorder": "-o 9", "GraphBrew": "-o 12"}``).
+            ``{"ORIGINAL": "-o 0", "Gorder": "-o 9:csr", "GraphBrew": "-o 12"}``).
         benchmarks: List of benchmark names (e.g. ``["pr", "bfs"]``).
             Defaults to ``["pr", "bfs", "sssp", "cc"]``.
         num_trials: Number of trials per configuration.
@@ -284,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--algorithms",
         nargs="+",
-        default=["ORIGINAL:-o 0", "Gorder:-o 9", "GraphBrew:-o 12"],
+        default=["ORIGINAL:-o 0", "Gorder:-o 9:csr", "GraphBrew:-o 12"],
         help='Algorithm specs as "Name:-o N" pairs',
     )
     args = parser.parse_args()

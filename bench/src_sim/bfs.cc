@@ -257,11 +257,15 @@ int main(int argc, char *argv[]) {
     if (multicore) {
         MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
         
-        SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<Graph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto BFSBound = [&sp, &cache](const Graph &g) {
             return DOBFS_Sim(g, sp.PickNext(), cache);
         };
-        SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<Graph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
             return BFSVerifier(g, vsp.PickNext(), parent);
         };
@@ -284,11 +288,15 @@ int main(int argc, char *argv[]) {
         // FAST single-core cache simulation (no locks, ~10x faster)
         FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
         
-        SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<Graph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto BFSBound = [&sp, &cache](const Graph &g) {
             return DOBFS_Sim(g, sp.PickNext(), cache);
         };
-        SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<Graph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
             return BFSVerifier(g, vsp.PickNext(), parent);
         };
@@ -310,11 +318,15 @@ int main(int argc, char *argv[]) {
     } else {
         CacheHierarchy cache = CacheHierarchy::fromEnvironment();
         
-        SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<Graph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto BFSBound = [&sp, &cache](const Graph &g) {
             return DOBFS_Sim(g, sp.PickNext(), cache);
         };
-        SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
+        SourcePicker<Graph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
         auto VerifierBound = [&vsp](const Graph &g, const pvector<NodeID> &parent) {
             return BFSVerifier(g, vsp.PickNext(), parent);
         };

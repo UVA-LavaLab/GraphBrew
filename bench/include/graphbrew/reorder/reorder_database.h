@@ -1,14 +1,10 @@
 // ============================================================================
-// reorder_database.h — Database-Driven Algorithm Selection (MODE_DATABASE)
+// reorder_database.h — Offline upper bounds and compiled model storage
 //
 // Loads the centralized benchmark database (results/data/benchmarks.json) and
-// graph properties (results/data/graph_properties.json) at runtime. Selects
-// the best reordering algorithm using:
-//   1. Oracle lookup: if the graph name matches a known graph, return the
-//      algorithm family with the best (lowest) benchmark time.
-//   2. kNN fallback: if the graph is unknown, compute its 12 features,
-//      find the k nearest known graphs by Euclidean distance, and vote
-//      on the best algorithm family weighted by inverse distance.
+// graph properties (results/data/graph_properties.json). Exact-name oracle and
+// kNN routines are offline diagnostics only; deployable AdaptiveOrder may load
+// compiled model artifacts but cannot query graph identities or benchmark rows.
 //
 // This replaces pre-trained models (perceptron, decision tree) with a
 // "streaming equation": the database IS the model. When new benchmark
@@ -492,9 +488,11 @@ inline std::vector<nlohmann::json>& GetBenchmarkIterationLog() {
     return log;
 }
 inline void AppendBenchmarkIterationEntry(nlohmann::json entry) {
+    if (!SelfRecordingEnabled()) return;
     GetBenchmarkIterationLog().push_back(std::move(entry));
 }
 inline void ClearBenchmarkIterationLog() {
+    if (!SelfRecordingEnabled()) return;
     GetBenchmarkIterationLog().clear();
 }
 
@@ -578,6 +576,12 @@ public:
 
     /// Check if the database was successfully loaded
     bool loaded() const { return loaded_; }
+
+    void ensure_offline_data_loaded() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (offline_data_loaded_) return;
+        load_offline_data();
+    }
 
     /// Number of benchmark records
     size_t num_records() const { return records_.size(); }
@@ -1215,10 +1219,13 @@ public:
         oracle_cache_.clear();
         graph_features_.clear();
         perceptron_weights_.clear();
+        perceptron_schema_.clear();
+        perceptron_tier0_trained_ = false;
         model_trees_.clear();
         loaded_ = false;
         models_loaded_ = false;
         models_from_unified_ = false;
+        offline_data_loaded_ = false;
         load();
     }
 
@@ -1230,6 +1237,9 @@ public:
      * @brief Check if the unified model file was loaded.
      */
     bool models_loaded() const { return models_loaded_; }
+    bool perceptron_tier0_trained() const {
+        return perceptron_tier0_trained_;
+    }
 
     /**
      * @brief Get perceptron weights for a specific benchmark.
@@ -1283,14 +1293,34 @@ public:
      *
      * Delegates to the global ParseWeightsFromJSON function in reorder_types.h.
      */
-    bool parse_perceptron_weights(const std::string& bench,
-                                   std::map<std::string, PerceptronWeights>& out) const {
-        const nlohmann::json* jptr = get_perceptron_weights(bench);
+    bool parse_perceptron_weights(
+        const std::string& bench,
+        std::map<std::string, PerceptronWeights>& out,
+        std::string* source = nullptr) const {
+        const nlohmann::json* jptr = nullptr;
+        if (!bench.empty()) {
+            auto per_benchmark = perceptron_per_bench_.find(bench);
+            if (per_benchmark != perceptron_per_bench_.end()) {
+                jptr = &per_benchmark->second;
+                if (source)
+                    *source = "per-benchmark:" + bench;
+            }
+        }
+        if (
+            !jptr
+            && !perceptron_weights_.is_null()
+            && !perceptron_weights_.empty()
+        ) {
+            jptr = &perceptron_weights_;
+            if (source)
+                *source = "averaged";
+        }
         if (!jptr) return false;
-
-        // Convert nlohmann JSON to string for existing parser
-        std::string json_str = jptr->dump();
-        return ParseWeightsFromJSON(json_str, out);
+        nlohmann::json wrapped = {
+            {"_schema", perceptron_schema_},
+            {"weights", *jptr},
+        };
+        return ParseWeightsFromJSON(wrapped.dump(), out);
     }
 
     /**
@@ -1322,30 +1352,27 @@ private:
     // ========================================================================
 
     void load() {
+        // Deployable construction loads only the compiled model artifact.
+        // Benchmark rows, graph identities, kNN statistics, and oracle caches
+        // are lazy offline-analysis state.
+        load_adaptive_models();
+        if (models_loaded_) {
+            std::cout << "[MODEL] Loaded adaptive_models.json\n";
+        }
+    }
+
+    void load_offline_data() {
         load_benchmarks();
         load_graph_props();
         compute_feature_stats();  // z-norm stats for kNN
         build_oracle_cache();
-
-        // Train models from raw DB data (replaces load_adaptive_models).
-        // Falls back to adaptive_models.json if training data is insufficient.
-        if (raw_graph_props_.size() >= 3 && !oracle_cache_.empty()) {
-            train_all_models();
-        } else {
-            load_adaptive_models();
-        }
-
         loaded_ = !records_.empty();
+        offline_data_loaded_ = true;
 
         if (loaded_) {
             std::cout << "[DATABASE] Loaded " << records_.size()
                       << " records, " << graph_features_.size()
                       << " graph feature vectors";
-            if (models_loaded_) {
-                std::cout << (models_from_unified_
-                    ? ", unified models (from file)"
-                    : ", models (trained from DB)");
-            }
             std::cout << "\n";
         }
     }
@@ -1772,6 +1799,16 @@ private:
             // ---- Perceptron ----
             if (j.contains("perceptron")) {
                 const auto& p = j["perceptron"];
+                perceptron_schema_ = p.value("schema", "");
+                if (
+                    !p.contains("tier0_trained")
+                    || !p["tier0_trained"].is_boolean()
+                ) {
+                    throw std::runtime_error(
+                        "perceptron.tier0_trained provenance is missing");
+                }
+                perceptron_tier0_trained_ =
+                    p["tier0_trained"].get<bool>();
                 if (p.contains("weights")) {
                     perceptron_weights_ = p["weights"];
                 }
@@ -1783,29 +1820,10 @@ private:
                 }
             }
 
-            // ---- Decision Tree ----
-            if (j.contains("decision_tree")) {
-                for (auto it = j["decision_tree"].begin();
-                     it != j["decision_tree"].end(); ++it) {
-                    ModelTree mt;
-                    if (parse_model_tree_from_nlohmann(it.value(), mt)) {
-                        model_trees_["decision_tree"][it.key()] = mt;
-                    }
-                }
-            }
-
-            // ---- Hybrid ----
-            if (j.contains("hybrid")) {
-                for (auto it = j["hybrid"].begin();
-                     it != j["hybrid"].end(); ++it) {
-                    ModelTree mt;
-                    if (parse_model_tree_from_nlohmann(it.value(), mt)) {
-                        model_trees_["hybrid"][it.key()] = mt;
-                    }
-                }
-            }
-
-            models_loaded_ = true;
+            // Legacy decision-tree/hybrid sections remain offline until they
+            // are retrained on the Tier-0 schema in Sprint 3.
+            models_loaded_ = !perceptron_weights_.empty()
+                || !perceptron_per_bench_.empty();
             models_from_unified_ = true;
         } catch (const std::exception& e) {
             std::cerr << "[DATABASE] Error parsing " << models_path
@@ -1824,6 +1842,16 @@ private:
         try {
             mt.model_type = j.value("model_type", "decision_tree");
             mt.benchmark = j.value("benchmark", "");
+            if (
+                j.contains("features")
+                && (
+                    !j["features"].is_array()
+                    || j["features"].size() != MODEL_TREE_N_FEATURES
+                )
+            ) {
+                throw std::runtime_error(
+                    "model tree feature schema length mismatch");
+            }
 
             // Parse families
             if (j.contains("families") && j["families"].is_array()) {
@@ -1852,6 +1880,14 @@ private:
                             for (const auto& v : wit.value()) {
                                 wvec.push_back(v.get<double>());
                             }
+                            if (
+                                wvec.size()
+                                != static_cast<size_t>(
+                                    MODEL_TREE_N_FEATURES + 1)
+                            ) {
+                                throw std::runtime_error(
+                                    "hybrid leaf weight length mismatch");
+                            }
                             node.leaf_weights[wit.key()] = wvec;
                         }
                     }
@@ -1865,6 +1901,21 @@ private:
                 }
 
                 mt.nodes.push_back(node);
+            }
+
+            for (const auto& node : mt.nodes) {
+                if (node.is_leaf()) continue;
+                if (
+                    node.feature_idx < 0
+                    || node.feature_idx >= MODEL_TREE_N_FEATURES
+                    || node.left < 0
+                    || node.left >= static_cast<int>(mt.nodes.size())
+                    || node.right < 0
+                    || node.right >= static_cast<int>(mt.nodes.size())
+                ) {
+                    throw std::runtime_error(
+                        "model tree contains an invalid index");
+                }
             }
 
             mt.loaded = !mt.nodes.empty();
@@ -2783,55 +2834,53 @@ private:
     // --- Unified models (from adaptive_models.json) ---
     bool models_loaded_ = false;
     bool models_from_unified_ = false;
+    bool offline_data_loaded_ = false;
     nlohmann::json perceptron_weights_;                        // averaged weights
+    std::string perceptron_schema_;
+    bool perceptron_tier0_trained_ = false;
     std::map<std::string, nlohmann::json> perceptron_per_bench_; // bench → weights
     // model_trees_[subdir][bench] → ModelTree
     std::map<std::string, std::map<std::string, ModelTree>> model_trees_;
 };
 
 // ============================================================================
-// Convenience Functions (called from reorder_types.h)
+// Offline upper-bound and compiled-model loading functions
 // ============================================================================
 
 /**
- * @brief Select algorithm family using the database.
- *
- * Called from SelectReorderingWithMode() for MODE_DATABASE.
+ * @brief Exact-name oracle for offline analysis only.
  */
-inline std::string SelectAlgorithmDatabase(
-    const CommunityFeatures& feat,
+inline std::string OracleUpperBound(
+    const std::string& graph_name,
     BenchmarkType bench,
-    const std::string& graph_name = "",
     bool verbose = false) {
-
+    if (graph_name.empty()) {
+        throw std::invalid_argument(
+            "OracleUpperBound requires an explicit graph identity");
+    }
     auto& db = BenchmarkDatabase::Get();
-
+    db.ensure_offline_data_loaded();
     if (!db.loaded()) {
         if (verbose) {
-            std::cout << "  Database: not loaded, falling back to ORIGINAL\n";
+            std::cout << "  OracleUpperBound: database not loaded\n";
         }
         return "";
     }
-
-    // Convert BenchmarkType enum to string
-    // Note: pr_spmv→pr and cc_sv→cc (no separate models/data for those variants)
     static const char* bench_names[] = {
-        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc",
+        "pr_spmv", "cc_sv"
     };
     std::string bench_str = "generic";
     if (static_cast<int>(bench) >= 0 &&
         static_cast<int>(bench) < static_cast<int>(sizeof(bench_names)/sizeof(bench_names[0]))) {
         bench_str = bench_names[static_cast<int>(bench)];
     }
-
-    std::string family = db.select(feat, graph_name, bench_str, verbose);
-
+    std::string family = db.best_family_oracle(graph_name, bench_str);
     if (verbose) {
-        std::cout << "  Database selection: " << family
-                  << " (graph=" << (graph_name.empty() ? "<unnamed>" : graph_name)
+        std::cout << "  OracleUpperBound: " << family
+                  << " (graph=" << graph_name
                   << ", bench=" << bench_str << ")\n";
     }
-
     return family;
 }
 
@@ -2859,7 +2908,8 @@ inline std::string SelectAlgorithmModelTreeFromDB(
     // Convert BenchmarkType enum to string
     // Note: pr_spmv→pr and cc_sv→cc (no separate models for those variants)
     static const char* bench_names[] = {
-        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc",
+        "pr_spmv", "cc_sv"
     };
     std::string bench_str = "generic";
     if (static_cast<int>(bench) >= 0 &&
@@ -2906,7 +2956,8 @@ inline bool LoadPerceptronWeightsFromDB(
     // Convert BenchmarkType enum to string
     // Note: pr_spmv→pr and cc_sv→cc (no separate weights for those variants)
     static const char* bench_names[] = {
-        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
+        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc",
+        "pr_spmv", "cc_sv"
     };
     std::string bench_str = "";
     if (bench != BENCH_GENERIC &&
@@ -2915,12 +2966,22 @@ inline bool LoadPerceptronWeightsFromDB(
         bench_str = bench_names[static_cast<int>(bench)];
     }
 
-    bool ok = db.parse_perceptron_weights(bench_str, out);
-    if (ok && verbose) {
-        std::cout << "  Database perceptron: loaded " << out.size()
-                  << " algorithm weights"
-                  << (bench_str.empty() ? " (averaged)" : " (bench=" + bench_str + ")")
+    std::string source;
+    bool ok = db.parse_perceptron_weights(bench_str, out, &source);
+    if (ok) {
+        std::cout << "Adaptive Weight Source: " << source << "\n";
+        std::cout << "Adaptive Tier0 Trained: "
+                  << (db.perceptron_tier0_trained()
+                      ? "true" : "false")
                   << "\n";
+        if (verbose) {
+            std::cout << "  Database perceptron: loaded " << out.size()
+                      << " algorithm weights"
+                      << (bench_str.empty()
+                          ? " (averaged)"
+                          : " (bench=" + bench_str + ")")
+                      << "\n";
+        }
     }
     return ok;
 }
@@ -2955,63 +3016,9 @@ inline void AppendBenchmarkResult(
     rec.success = true;
 
     auto& db = BenchmarkDatabase::Get();
+    db.ensure_offline_data_loaded();
     db.append_with_features(rec, feat);
     db.save();
-}
-
-// ============================================================================
-// Streaming Selection — Unified entry point for all modes
-// ============================================================================
-
-/// Convert BenchmarkType enum to string (shared helper)
-inline std::string BenchTypeToString(BenchmarkType bench) {
-    static const char* names[] = {
-        "generic", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr", "cc"
-    };
-    if (static_cast<int>(bench) >= 0 &&
-        static_cast<int>(bench) < static_cast<int>(sizeof(names)/sizeof(names[0]))) {
-        return names[static_cast<int>(bench)];
-    }
-    return "generic";
-}
-
-/**
- * @brief Streaming mode-aware algorithm selection from the database.
- *
- * This is the main entry point for the streaming database model. All
- * selection modes (fastest reorder, fastest execution, end-to-end,
- * amortization, DT, hybrid, database) are handled by computing
- * predictions directly from the raw benchmark data — no pre-trained
- * model files needed.
- *
- * Called from SelectReorderingWithMode() as the primary selection path.
- * If this returns empty string, the caller falls back to file-based
- * weights (backward compatibility).
- *
- * @param feat       Graph community features
- * @param bench      Benchmark type enum
- * @param graph_name Graph name (for oracle lookup)
- * @param mode       Selection mode
- * @param verbose    Print selection details
- * @return Family name, or empty string if database has no data
- */
-inline std::string SelectForMode(
-    const CommunityFeatures& feat,
-    BenchmarkType bench,
-    const std::string& graph_name,
-    SelectionMode mode,
-    bool verbose = false) {
-
-    auto& db = BenchmarkDatabase::Get();
-    if (!db.loaded()) {
-        if (verbose) {
-            std::cout << "  Database streaming: not loaded\n";
-        }
-        return "";
-    }
-
-    std::string bench_str = BenchTypeToString(bench);
-    return db.select_for_mode(feat, graph_name, bench_str, mode, verbose);
 }
 
 }  // namespace database

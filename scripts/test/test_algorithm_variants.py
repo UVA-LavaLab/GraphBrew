@@ -29,14 +29,27 @@ Requires:
     - A test graph (uses bundled tiny.el, or soc-Epinions1.sg if available)
 """
 
+import json
+import os
+import re
 import subprocess
 from pathlib import Path
 
 import pytest
 
+from scripts.lib.ml.portfolio import (
+    DEPLOYABLE_ARM_CANONICAL_NAMES,
+    DEPLOYABLE_ARM_SPECS,
+)
+from scripts.lib.ml.feature_schema import (
+    TIER0_FEATURE_NAMES,
+    TIER0_WEIGHT_NAMES,
+)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BIN_DIR = PROJECT_ROOT / "bench" / "bin"
 PR_BINARY = BIN_DIR / "pr"
+BFS_BINARY = BIN_DIR / "bfs"
 
 # Test graphs: prefer a real graph for community algos, fall back to tiny
 TINY_GRAPH = PROJECT_ROOT / "scripts" / "test" / "data" / "tiny.el"
@@ -45,13 +58,29 @@ REAL_GRAPH = PROJECT_ROOT / "results" / "graphs" / "soc-Epinions1" / "soc-Epinio
 # Timeout for each binary invocation (seconds)
 BINARY_TIMEOUT = 120
 
+
+def adaptive_weight_entry(bias=0.0, **overrides):
+    entry = {
+        "bias": float(bias),
+        **{f"w_t0_{name}": 0.0 for name in TIER0_FEATURE_NAMES},
+    }
+    entry.update(overrides)
+    return entry
+
+
+def adaptive_env_weight_payload(weights):
+    return {
+        "_schema": "adaptive-tier0/v1",
+        "_note": "0",
+        "weights": weights,
+    }
+
 # Algorithms that need a real graph (community detection is degenerate on 4 nodes)
 NEEDS_REAL_GRAPH = {8, 9, 10, 11, 12, 14, 15}
 
 # Algorithms we skip entirely in CI (need special setup or are too slow)
 SKIP_ALGOS = {
     13,  # MAP — needs a mapping file
-    14,  # AdaptiveOrder — needs weights & may crash on tiny graphs
 }
 
 
@@ -142,6 +171,559 @@ def test_tier2_rabbitorder_variants(option, name):
     )
 
 
+@pytest.mark.parametrize("arm", DEPLOYABLE_ARM_SPECS)
+def test_adaptive_exact_deployable_arms(tmp_path, arm):
+    """Algorithm 14 must apply the exact portfolio arm, not a family proxy."""
+    weights = tmp_path / "weights.json"
+    payload = {
+        spec: adaptive_weight_entry()
+        for spec in DEPLOYABLE_ARM_SPECS
+    }
+    payload[arm] = adaptive_weight_entry(bias=1000.0)
+    weights.write_text(json.dumps(adaptive_env_weight_payload(payload)))
+    env = {
+        **os.environ,
+        "PERCEPTRON_WEIGHTS_FILE": str(weights),
+        "GRAPHBREW_DB_DIR": "",
+        "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+        "OMP_NUM_THREADS": "1",
+    }
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr[-1000:]
+    assert re.search(
+        rf"Adaptive Predicted:\s+{re.escape(arm)}",
+        result.stdout,
+    )
+    assert re.search(
+        rf"Adaptive Applied:\s+{re.escape(arm)}",
+        result.stdout,
+    )
+    assert f"=== Selected Algorithm: {arm} ===" in result.stdout
+    if arm.startswith("12:"):
+        assert "RabbitOrder: modularity resolution=n/a" in result.stdout
+
+
+def test_adaptive_runtime_loads_only_model_artifact(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    payload = {
+        spec: adaptive_weight_entry(
+            bias=1000.0 if spec == "5" else 0.0
+        )
+        for spec in DEPLOYABLE_ARM_SPECS
+    }
+    (data_dir / "adaptive_models.json").write_text(json.dumps({
+        "perceptron": {
+            "schema": "adaptive-tier0/v1",
+            "tier0_trained": False,
+            "weights": payload,
+            "per_benchmark": {},
+        },
+    }))
+    (data_dir / "benchmarks.json").write_text(json.dumps([{
+        "graph": "known",
+        "algorithm": "DBG",
+        "benchmark": "pr",
+        "time_seconds": 1.0,
+        "success": True,
+    }]))
+    (data_dir / "graph_properties.json").write_text(json.dumps({
+        "known": {"nodes": 1024, "edges": 4096},
+    }))
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "GRAPHBREW_DB_DIR": str(data_dir) + "/",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode == 0, result.stderr[-1000:]
+    assert "[MODEL] Loaded adaptive_models.json" in result.stdout
+    assert "[DATABASE] Loaded" not in result.stdout
+    assert "Adaptive Weight Source: averaged" in result.stdout
+    assert "Adaptive Tier0 Trained: false" in result.stdout
+    assert re.search(r"Adaptive Applied:\s+5", result.stdout)
+
+
+def test_adaptive_missing_portfolio_fails_closed(tmp_path):
+    data_dir = tmp_path / "empty-data"
+    data_dir.mkdir()
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "GRAPHBREW_DB_DIR": str(data_dir) + "/",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode != 0
+    combined = result.stdout + result.stderr
+    assert "Deployable adaptive model artifact is unavailable" in combined
+
+
+@pytest.mark.parametrize("omitted_arm", DEPLOYABLE_ARM_SPECS)
+def test_adaptive_partial_portfolio_fails_closed(
+    tmp_path, omitted_arm,
+):
+    weights = tmp_path / "weights.json"
+    payload = {
+        spec: adaptive_weight_entry()
+        for spec in DEPLOYABLE_ARM_SPECS
+        if spec != omitted_arm
+    }
+    weights.write_text(json.dumps(adaptive_env_weight_payload(payload)))
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "PERCEPTRON_WEIGHTS_FILE": str(weights),
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode != 0
+    assert omitted_arm in result.stdout + result.stderr
+
+
+def test_adaptive_legacy_feature_artifact_fails_closed(tmp_path):
+    weights = tmp_path / "weights.json"
+    weights.write_text(json.dumps({
+        "_schema": "adaptive-tier0/v1",
+        "weights": {
+            spec: {
+                "bias": 0.0,
+                "w_modularity": 1.0,
+                "w_log_nodes": 1.0,
+            }
+            for spec in DEPLOYABLE_ARM_SPECS
+        },
+    }))
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "PERCEPTRON_WEIGHTS_FILE": str(weights),
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode != 0
+    assert "missing Tier-0 weight" in result.stdout + result.stderr
+
+
+def test_adaptive_schema_value_cannot_be_spoofed_by_note(tmp_path):
+    weights = tmp_path / "weights.json"
+    weights.write_text(json.dumps({
+        "_schema": "adaptive-legacy/v0",
+        "_note": "adaptive-tier0/v1",
+        "weights": {
+            spec: adaptive_weight_entry()
+            for spec in DEPLOYABLE_ARM_SPECS
+        },
+    }))
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "PERCEPTRON_WEIGHTS_FILE": str(weights),
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode != 0
+    assert "not adaptive-tier0/v1" in result.stdout + result.stderr
+
+
+def test_adaptive_conflicting_aliases_fail_closed(tmp_path):
+    weights = tmp_path / "weights.json"
+    payload = {
+        spec: adaptive_weight_entry()
+        for spec in DEPLOYABLE_ARM_SPECS
+    }
+    payload[DEPLOYABLE_ARM_CANONICAL_NAMES[0]] = (
+        adaptive_weight_entry(bias=1.0)
+    )
+    weights.write_text(json.dumps(adaptive_env_weight_payload(payload)))
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "PERCEPTRON_WEIGHTS_FILE": str(weights),
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode != 0
+    assert "conflicting aliases" in result.stdout + result.stderr
+
+
+def test_adaptive_no_margin_ablation_is_offline_only(tmp_path):
+    weights = tmp_path / "weights.json"
+    weights.write_text(json.dumps(adaptive_env_weight_payload({
+        spec: adaptive_weight_entry()
+        for spec in DEPLOYABLE_ARM_SPECS
+    })))
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "PERCEPTRON_WEIGHTS_FILE": str(weights),
+            "ADAPTIVE_NO_MARGIN": "1",
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode != 0
+    assert "offline-only" in result.stdout + result.stderr
+
+
+def test_trainer_export_runtime_contract_roundtrip(
+    tmp_path, monkeypatch,
+):
+    from scripts.lib.core import datastore
+    from scripts.lib.core.utils import BenchmarkResult
+    from scripts.lib.ml import features as feature_module
+    from scripts.lib.ml.weights import compute_weights_from_results
+
+    graph_properties = {
+        "synthetic": {
+            "nodes": 1024,
+            "edges": 4096,
+            "avg_degree": 4.0,
+            "degree_variance": 1.0,
+            "hub_concentration": 0.25,
+            "clustering_coefficient": 0.1,
+            "normalized_edge_span": 0.2,
+            "window_neighbor_overlap": 0.3,
+        },
+    }
+    monkeypatch.setattr(
+        feature_module,
+        "load_graph_properties_cache",
+        lambda *_args, **_kwargs: graph_properties,
+    )
+    results = [
+        BenchmarkResult(
+            graph="synthetic",
+            algorithm="DBG",
+            algorithm_id=5,
+            benchmark="pr",
+            time_seconds=1.0,
+        ),
+        BenchmarkResult(
+            graph="synthetic",
+            algorithm="RABBITORDER_csr",
+            algorithm_id=8,
+            benchmark="pr",
+            time_seconds=1.1,
+        ),
+    ]
+    weights_dir = tmp_path / "models" / "perceptron"
+    compute_weights_from_results(
+        results,
+        weights_dir=str(weights_dir),
+    )
+    model_path = tmp_path / "data" / "adaptive_models.json"
+    datastore.export_unified_models(
+        model_path,
+        weights_dir=weights_dir,
+    )
+    model = json.loads(model_path.read_text())
+    assert set(model["perceptron"]["weights"]) == set(
+        DEPLOYABLE_ARM_SPECS
+    )
+    exported_sets = [model["perceptron"]["weights"]]
+    exported_sets.extend(
+        model["perceptron"]["per_benchmark"].values()
+    )
+    for exported in exported_sets:
+        for entry in exported.values():
+            assert all(
+                entry[name] == 0.0
+                for name in TIER0_WEIGHT_NAMES[1:]
+            )
+
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "10",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "GRAPHBREW_DB_DIR": str(model_path.parent) + "/",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode == 0, result.stderr[-1000:]
+    assert "[MODEL] Loaded adaptive_models.json" in result.stdout
+    assert "Adaptive Weight Source: per-benchmark:pr" in result.stdout
+    assert "Adaptive Tier0 Trained: false" in result.stdout
+
+
+def test_adaptive_tier0_features_change_selected_arm(tmp_path):
+    weights = tmp_path / "weights.json"
+    payload = {
+        spec: adaptive_weight_entry(bias=-100.0)
+        for spec in DEPLOYABLE_ARM_SPECS
+    }
+    payload["0"] = adaptive_weight_entry(bias=4.0)
+    payload["5"] = adaptive_weight_entry(
+        w_t0_log10_nodes=1.0,
+    )
+    weights.write_text(json.dumps(adaptive_env_weight_payload(payload)))
+
+    def run(scale):
+        return subprocess.run(
+            [
+                str(PR_BINARY),
+                "-g", str(scale),
+                "-o", "14",
+                "-n", "1",
+                "-i", "2",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=BINARY_TIMEOUT,
+            cwd=str(PROJECT_ROOT),
+            env={
+                **os.environ,
+                "PERCEPTRON_WEIGHTS_FILE": str(weights),
+                "GRAPHBREW_DB_DIR": "",
+                "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+                "OMP_NUM_THREADS": "1",
+            },
+        )
+
+    small = run(10)
+    large = run(20)
+    assert small.returncode == 0, small.stderr[-1000:]
+    assert large.returncode == 0, large.stderr[-1000:]
+    assert re.search(r"Adaptive Applied:\s+0", small.stdout)
+    assert re.search(r"Adaptive Applied:\s+5", large.stdout)
+
+
+def test_adaptive_tier0_json_ignores_prior_stream_precision(tmp_path):
+    weights = tmp_path / "weights.json"
+    weights.write_text(json.dumps({
+        "_schema": "adaptive-tier0/v1",
+        "weights": {
+            spec: adaptive_weight_entry(
+                bias=1000.0 if spec == "5" else 0.0
+            )
+            for spec in DEPLOYABLE_ARM_SPECS
+        },
+    }))
+    result = subprocess.run(
+        [
+            str(PR_BINARY),
+            "-g", "12",
+            "-o", "8:csr",
+            "-o", "14",
+            "-n", "1",
+            "-i", "2",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "PERCEPTRON_WEIGHTS_FILE": str(weights),
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode == 0, result.stderr[-1000:]
+    match = re.search(
+        r"Adaptive Tier0 Features:\s*(\{.*\})",
+        result.stdout,
+    )
+    assert match is not None
+    features = json.loads(match.group(1))
+    assert features["property_wsr_llc"] > 0
+    assert features["log10_nodes"] > 3
+
+
+@pytest.mark.parametrize("arm", [
+    "0",
+    "5",
+    "8:csr",
+    "12:rabbit:compose:sg_none:comm_identity:intra_hubsort",
+    "12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort",
+])
+def test_deployable_arm_source_roundtrip(arm):
+    """Every deployable arm preserves and resolves explicit original IDs."""
+    if not BFS_BINARY.exists():
+        pytest.skip("bfs binary is required for source round-trip tests")
+    result = subprocess.run(
+        [
+            str(BFS_BINARY),
+            "-f", str(TINY_GRAPH),
+            "-s",
+            "-o", arm,
+            "-r", "0,1",
+            "-v",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode == 0, (
+        f"Source round-trip failed for {arm}:\n{result.stderr[-1000:]}"
+    )
+    originals = [
+        int(value)
+        for value in re.findall(
+            r"Source Original:\s+(\d+)",
+            result.stdout,
+        )
+    ]
+    assert originals == [0, 1]
+    assert result.stdout.count("Source Out Degree:") == 2
+    assert result.stdout.count("Verification:") == 2
+    assert result.stdout.count("PASS") >= 2
+
+
+def test_sssp_single_source_repeat_contract():
+    sssp = BIN_DIR / "sssp"
+    if not sssp.exists():
+        pytest.skip("sssp binary is required")
+    result = subprocess.run(
+        [
+            str(sssp),
+            "-f", str(TINY_GRAPH),
+            "-s",
+            "-W", "hash",
+            "-d", "1",
+            "-r", "0",
+            "-R", "3",
+            "-v",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=BINARY_TIMEOUT,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "OMP_NUM_THREADS": "1",
+        },
+    )
+    assert result.returncode == 0, result.stderr[-1000:]
+    assert re.findall(
+        r"Source Original:\s+(\d+)",
+        result.stdout,
+    ) == ["0", "0", "0"]
+
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TIER 2b: RCM (11) variants
@@ -167,15 +749,16 @@ def test_tier2b_rcm_variants(option, name):
 # ═══════════════════════════════════════════════════════════════════════════
 
 TIER2C_GORDER = [
-    ("9",     "GORDER_default"),
-    ("9:csr", "GORDER_csr"),
-    ("9:fast", "GORDER_fast"),
+    ("9",         "GORDER_default"),
+    ("9:gograph", "GORDER_gograph"),
+    ("9:csr",     "GORDER_csr"),
+    ("9:fast",    "GORDER_fast"),
 ]
 
 
 @pytest.mark.parametrize("option,name", TIER2C_GORDER, ids=[t[1] for t in TIER2C_GORDER])
 def test_tier2c_gorder_variants(option, name):
-    """Tier 2c: GOrder default/csr variants (sym removed — equivalent to csr)."""
+    """Tier 2c: GOrder auto, forced legacy, CSR, and relaxed variants."""
     result = run_pr(option)
     assert result.returncode == 0, (
         f"GOrder variant {name} (-o {option}) failed.\nstderr: {result.stderr[-500:]}"

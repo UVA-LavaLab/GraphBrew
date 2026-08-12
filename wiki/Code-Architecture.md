@@ -108,7 +108,7 @@ reorder/
 ├── reorder_gorder.h     # GOrder CSR variants: serial (-o 9:csr) + parallel (-o 9:fast) (~926 lines)
 ├── reorder_rcm.h        # RCM BNF variant (-o 11:bnf) (~645 lines)
 ├── reorder_adaptive.h   # ML-based selection (algo 14) (~932 lines)
-├── reorder_database.h   # Database-driven selection (MODE_DATABASE) (~1,221 lines)
+├── reorder_database.h   # Offline oracle diagnostics + compiled model storage
 ├── reorder_graphbrew.h  # GraphBrew + Leiden unified reordering (algo 12, 15) (~7,359 lines)
 └── reorder.h            # Main dispatcher (~633 lines)
 ```
@@ -119,7 +119,7 @@ reorder/
 |------|-------|---------|
 | `reorder_graphbrew.h` | ~7,359 | GraphBrew + Leiden unified reordering framework (algo 12, 15) |
 | `reorder_types.h` | ~6,293 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (~16 base names), `lookupAlgorithm()`, `ResolveVariantSelection()` |
-| `reorder_database.h` | ~1,221 | Database-driven algorithm selection (MODE_DATABASE): oracle lookup + kNN fallback |
+| `reorder_database.h` | ~1,221 | Offline `OracleUpperBound`, historical kNN diagnostics, and compiled model storage |
 | `reorder_rabbit.h` | ~1,117 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
 | `reorder_gorder.h` | ~926 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
 | `reorder_adaptive.h` | ~932 | `AdaptiveConfig`, ML-based algorithm selection (full-graph default) |
@@ -141,7 +141,7 @@ reorder/
 
 | Struct | Header | Key Fields |
 |--------|--------|------------|
-| `AdaptiveConfig` | `reorder_adaptive.h` | selection_mode (0-6), graph_name; standalone uses full-graph mode |
+| `AdaptiveConfig` | `reorder_adaptive.h` | deployable model/criterion policy; standalone uses full-graph mode |
 | `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
@@ -322,24 +322,20 @@ Key entry points:
 - `lib/pipeline/cache.py` — Cache simulation
 - `lib/` — 5 sub-packages, 27 modules (~21,000 lines total)
 
-#### Streaming Database Architecture (v2.0)
+#### Adaptive model boundary
 
-All adaptive selection modes now use the **streaming database** as their primary
-selection path. The database IS the model — predictions are computed directly from
-raw benchmark data at C++ runtime, with no pre-trained weight files needed.
+Deployable AdaptiveOrder consumes an offline-produced perceptron, decision
+tree, or hybrid artifact. It does not use graph filenames, exact-name oracle
+lookup, runtime kNN, or benchmark-row training. Database oracle/kNN routines
+remain offline diagnostics only.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  PRIMARY: Streaming Database (v2.0)                              │
-│                                                                  │
-│  benchmarks.json + graph_properties.json                         │
-│    ↓                                                             │
-│  BenchmarkDatabase::select_for_mode()  [reorder_database.h]     │
-│    → Oracle (known graph): direct lookup                         │
-│    → kNN (unknown graph): knn_algo_scores() → per-mode scoring  │
-│    → All modes (0-6) handled                                     │
+│  DEPLOYABLE: offline model artifact                              │
+│    → perceptron / decision tree / hybrid                         │
+│    → no graph identity or benchmark-row lookup                   │
 ├──────────────────────────────────────────────────────────────────┤
-│  FALLBACK: SSO Perceptron Weights                                │
+│  OFFLINE ONLY: OracleUpperBound / kNN diagnostics                │
 │                                                                  │
 │  weights.py  →  PerceptronWeight.compute_score()                │
 │                 (26 fields: bias + 15 linear + 3 quadratic      │
@@ -357,7 +353,9 @@ raw benchmark data at C++ runtime, with no pre-trained weight files needed.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**C++ selection flow:** `SelectReorderingWithMode()` first calls `database::SelectForMode()` which uses `knn_algo_scores()` to compute per-algorithm performance metrics from the k nearest neighbors. Only if the database is empty does it fall back to perceptron weights.
+**C++ selection flow:** `ParseDeployableSelectionPolicy()` parses model and
+criterion independently, rejects offline-only models, and dispatches through
+`SelectReorderingWithModelCriterion()`.
 
 **C++ fallback alignment:** `PerceptronWeight.compute_score()` mirrors `scoreBase() × getBenchmarkMultiplier()` in `reorder_types.h`. Both apply identical transforms (log₁₀, /100, /10, /50, log₂, log₁₀) and the same 17-feature dot product + convergence bonus.
 
@@ -373,7 +371,7 @@ raw benchmark data at C++ runtime, with no pre-trained weight files needed.
 
 **Chained Orderings:** `CHAINED_ORDERINGS` is auto-populated at module load from `_CHAINED_ORDERING_OPTS` via `chain_canonical_name()`. These are pregeneration-only (not used in perceptron training). Each entry is a `(canonical_name, converter_opts)` tuple. Current chains: `GraphBrewOrder_leiden+DBG`, `GraphBrewOrder_leiden+HUBCLUSTER`, `GraphBrewOrder_hrab+DBG`, `GraphBrewOrder_leiden+GoGraphOrder`, `RABBITORDER_csr+DBG`.
 
-**Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/csr/fast) are tracked separately in `GORDER_VARIANTS` but share a single perceptron weight (they produce equivalent orderings).
+**Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/gograph/csr/fast) are tracked separately in `GORDER_VARIANTS` and share one perceptron weight; `gograph` and `csr` are faithful and mapping-equivalent, while `fast` is a relaxed parallel heuristic.
 
 See [[Python-Scripts]].
 

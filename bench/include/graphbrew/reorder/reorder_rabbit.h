@@ -14,8 +14,7 @@
  * 
  * Complexity: O(n log n + m) approximately
  * 
- * @note Requires RABBIT_ENABLE macro and Boost library for full functionality.
- *       Falls back to original ordering if RABBIT_ENABLE is not defined.
+ * @note The Boost reference implementation requires RABBIT_ENABLE.
  */
 
 #ifndef REORDER_RABBIT_H_
@@ -26,6 +25,7 @@
 #include <unordered_set>
 #include <algorithm>
 #include <iterator>
+#include <stdexcept>
 #include <atomic>
 #include <cstring>
 #include <deque>
@@ -390,7 +390,7 @@ inline adjacency_list readRabbitOrderAdjacencylist(
  * @param g Input CSR graph
  * @param new_ids Output: new_ids[old_id] = new_id mapping
  * 
- * @note Falls back to original ordering if RABBIT_ENABLE is not defined
+ * @throws std::runtime_error if the Boost implementation was not compiled
  */
 template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateRabbitOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
@@ -399,16 +399,11 @@ void GenerateRabbitOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     auto adj = readRabbitOrderGraphCSR<NodeID_, DestID_, WeightT_, invert>(g);
     reorder_internal_rabbit<NodeID_>(std::move(adj), new_ids);
 #else
-    // Fallback to original ordering
-    Timer t;
-    t.Start();
-    const int64_t num_nodes = g.num_nodes();
-    #pragma omp parallel for
-    for (int64_t i = 0; i < num_nodes; i++) {
-        new_ids[i] = static_cast<NodeID_>(i);
-    }
-    t.Stop();
-    PrintTime("RabbitOrder (disabled) Map Time", t.Seconds());
+    (void)g;
+    (void)new_ids;
+    throw std::runtime_error(
+        "RabbitOrder Boost variant requested, but this binary was built "
+        "with RABBIT_ENABLE=0");
 #endif
 }
 
@@ -728,7 +723,8 @@ inline uint32_t rabbitCSRFindBest(const RabbitCSRGraph& g, uint32_t u, float u_s
         double delta_q = static_cast<double>(e.second) - 
                          g.resolution * static_cast<double>(u_strength) * static_cast<double>(v_atom.str) / g.tot_wgt;
         
-        if (delta_q > dmax) {
+        if (delta_q > dmax ||
+            (delta_q == dmax && delta_q > 0.0 && e.first < best)) {
             dmax = delta_q;
             best = e.first;
         }
@@ -802,7 +798,11 @@ inline void rabbitCSRAggregate(RabbitCSRGraph& g) {
         ord[v] = {v, static_cast<uint32_t>(g.es[v].size())};
     }
     __gnu_parallel::sort(ord.begin(), ord.end(),
-        [](const auto& a, const auto& b) { return a.second < b.second; });
+        [](const auto& a, const auto& b) {
+            return a.second != b.second
+                ? a.second < b.second
+                : a.first < b.first;
+        });
     
     std::vector<std::deque<uint32_t>> topss(np);
     
@@ -1036,8 +1036,12 @@ void GenerateRabbitOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
             rg.resolution = std::atof(res_env);
         }
         double avg_deg = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 1.0;
+        const auto old_flags = std::cout.flags();
+        const auto old_precision = std::cout.precision();
         std::cout << "Resolution: " << rg.resolution 
                   << " (avg_deg=" << std::fixed << std::setprecision(1) << avg_deg << ")\n";
+        std::cout.flags(old_flags);
+        std::cout.precision(old_precision);
     }
     
     // Initialize vertices and edges — direct copy matching Boost/GBrew_rabbit.

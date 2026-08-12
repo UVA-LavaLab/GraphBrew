@@ -421,7 +421,7 @@ echo "Phase 9: Triple-reorder chain verification"
 # org_ids should still be valid permutation mapping to original
 "$BIN/converter" -f "$TMP/test_identity.sg" -s -o 1 -b "$TMP/chain_r.sg" > /dev/null 2>&1
 "$BIN/converter" -f "$TMP/chain_r.sg" -s -o 4 -b "$TMP/chain_rh.sg" > /dev/null 2>&1
-"$BIN/converter" -f "$TMP/chain_rh.sg" -s -o 9 -b "$TMP/chain_rhg.sg" > /dev/null 2>&1
+"$BIN/converter" -f "$TMP/chain_rh.sg" -s -o 9:csr -b "$TMP/chain_rhg.sg" > /dev/null 2>&1
 "$BIN/converter" -f "$TMP/chain_rhg.sg" -s -o 0 -q "$TMP/chain_orgids.lo" > /dev/null 2>&1
 "$BIN/converter" -f "$TMP/chain_rhg.sg" -s -o 0 -e "$TMP/chain_edges.el" > /dev/null 2>&1
 

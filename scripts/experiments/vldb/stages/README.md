@@ -6,13 +6,25 @@ Five stages, each runnable standalone. Pick only what you need.
 |---|---|---|---|---|---|
 | 01 | `01_prep.py`     | Download + `.mtx`→`.sg` convert     | **Yes** | No   | — |
 | 02 | `02_reorder.py`  | Pre-generate reorder mappings (`.lo`) | No  | Yes  | 01 |
-| 03 | `03_cpu_perf.py` | Wall-clock kernel sweep on real CPU  | No  | **Yes** | 01 + 02 |
-| 04 | `04_cache_sim.py`| Cache-simulator sweep (sim stats only) | No | No | 01 + 02 |
+| 03 | `03_cpu_perf.py` | Verification gate (`--verify-gate`) and wall-clock sweep | No | **Yes** | 01 + 02 |
+| 04 | `04_cache_sim.py`| Cache-simulator sweep (sim stats only) | No | No | 01 + 02 + host-local gate |
 | 05 | `05_aggregate.py`| LaTeX tables + PNG figures from JSON | No  | No   | 03 and/or 04 |
 
 > **Tip:** stages 03 and 04 are independent. Skip 04 if you don't care about
 > cache stats. Run 04 on a slow/shared/other machine — the host's CPU speed
 > doesn't affect simulation results.
+
+Final Stage 03 timing is pinned to host `jaguar`, CPUs `0-15`, with the
+performance governor and turbo disabled. Reapply after every reboot:
+
+```bash
+sudo sh -c 'for f in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor; do echo performance > "$f"; done; echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo'
+cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort -u
+cat /sys/devices/system/cpu/intel_pstate/no_turbo
+```
+
+The checks must print only `performance` and `1`. Final Stage 03 commands fail
+immediately otherwise; preview runs may bypass the guard.
 
 ## Quick smoke test (everything tiny, ~1 min total)
 
@@ -20,9 +32,11 @@ Five stages, each runnable standalone. Pick only what you need.
 source .venv/bin/activate
 python3 scripts/experiments/vldb/stages/01_prep.py     --exp 2 --preview
 python3 scripts/experiments/vldb/stages/02_reorder.py  --exp 2 --preview
+python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview --verify-gate
 python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview
 python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 --preview   # optional
-python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0             # optional
+python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0 \
+  --publish-paper-figures --package-paper                                 # optional
 ```
 
 ## Full local 6-graph run
@@ -30,8 +44,14 @@ python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0             # op
 ```bash
 python3 scripts/experiments/vldb/stages/01_prep.py     --exp 2 --local
 python3 scripts/experiments/vldb/stages/02_reorder.py  --exp 2 --local
+python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --local --verify-gate
 python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --local
 ```
+
+The gate is bound to the host and exact normal/work/cache-simulator binaries.
+If Stage 04 runs on another host, run `03_cpu_perf.py --verify-gate` on that
+host against the same artifact root before starting Stage 04. Run full gates
+on a compatible compute node, not a login node.
 
 ## SLURM (UVA Rivanna / generic Slurm cluster)
 
@@ -45,19 +65,28 @@ python3 scripts/experiments/vldb/stages/01_prep.py --exp 2 --local
 # 2. Pre-generate mappings
 sbatch --export=ALL,EXP=2 scripts/experiments/vldb/stages/slurm/02_reorder.sbatch
 
-# 3. CPU sweep — one job per graph (fan-out)
+# 3. Run the untimed semantic/work verification gate once for the full set
+python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
+  --exp 2 --verify-gate --threads 16 --cpu-list 0-15
+
+# 4. CPU sweep — one job per graph (fan-out)
+generation="vldb-final-2026-01"
 for g in cit-Patents com-Orkut hollywood-2009 soc-pokec soc-LiveJournal1; do
   sbatch --job-name="gbrew-exp2-$g" \
-         --export=ALL,EXP=2,GRAPHS="$g" \
+         --export=ALL,EXP=2,GRAPHS="$g",MEASUREMENT_GENERATION="$generation" \
          scripts/experiments/vldb/stages/slurm/03_cpu_perf.sbatch
 done
 
-# 4. (optional) cache sim on a separate / slower node
+# 5. (optional) cache sim on a separate / slower node
 sbatch --export=ALL,EXP=1 scripts/experiments/vldb/stages/slurm/04_cache_sim.sbatch
 
-# 5. Aggregate when 03/04 complete
+# 6. Aggregate when 03/04 complete
 sbatch scripts/experiments/vldb/stages/slurm/05_aggregate.sbatch
 ```
+
+All fan-out workers for one measurement generation must use the same
+`MEASUREMENT_GENERATION`. Without an explicit value, the runner derives one
+from the complete shared mapping-sidecar set and runtime policy.
 
 ### Large graphs (twitter7, webbase, kron, uk-2002, indochina, wikipedia)
 
@@ -79,7 +108,15 @@ sbatch --partition=largemem --mem=512G --time=24:00:00 \
 | `--64gb`               | 11-graph auto-download eval set |
 | `--graphs A B C`       | Override graph list by name |
 | `--graph-dir PATH`     | Where graphs live (default `results/graphs/`) |
+| `--artifact-root PATH` | Root for `vldb_paper/`, `vldb_mappings/`, and `vldb_runs/` |
+| `--threads N`          | Base OpenMP thread count |
+| `--cpu-list LIST`      | `taskset` CPU list used for timing isolation |
+| `--cache-mode MODE`    | `accurate`, `fast`, `ultrafast` (final default), or exploratory `sampled` |
 | `--dry-run`            | Print commands, don't execute |
+
+Stage 05 additionally accepts `--publish-paper-figures` to copy generated
+assets into `research/dataCharts/` and `--package-paper` to rebuild the
+deterministic VLDB source ZIP.
 
 ## Outputs
 
@@ -89,7 +126,7 @@ sbatch --partition=largemem --mem=512G --time=24:00:00 \
 | 02 | `results/vldb_mappings/<graph>/<algo_key>.{lo,time}` |
 | 03 | `results/vldb_paper/exp<N>_*/...json` |
 | 04 | `results/vldb_paper/exp1_cache/cache_results.json` |
-| 05 | `paper/figures/`, `paper/dataCharts/` |
+| 05 | `results/vldb_paper/{figures,tables}/`, `research/dataCharts/`, paper ZIP |
 
 ## Relationship to the legacy runner
 

@@ -29,6 +29,11 @@ from _common import add_common_args, resolve_config, banner, V
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(p)
+    p.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Use the already-reviewed simulator binary without invoking make.",
+    )
     args = p.parse_args()
     cfg = resolve_config(args)
     banner("04_cache_sim", cfg)
@@ -38,6 +43,19 @@ def main() -> None:
               "only exp 1 uses bench/bin_sim. Proceeding anyway and routing "
               "through exp1_cache_performance.", file=sys.stderr)
 
+    if not args.skip_build:
+        V._setup_build_binaries(
+            benchmarks=["pr"],
+            include_standard=False,
+            include_sim=True,
+            include_converter=True,
+        )
+    V.preflight_benchmark_policies(
+        cfg["graphs"], cfg["benchmarks"], cfg["graph_dir"],
+    )
+    V.require_verification_gate(
+        cfg["graphs"], cfg["benchmarks"], cfg["graph_dir"],
+    )
     V.exp1_cache_performance(
         graphs=cfg["graphs"],
         benchmarks=cfg["benchmarks"],

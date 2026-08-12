@@ -20,6 +20,7 @@ Library usage:
 import os
 import json
 import math
+import copy
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -35,6 +36,7 @@ from ..core.utils import (
     is_chained_ordering_name,
     weights_registry_path, weights_type_path, weights_bench_path,
 )
+from .portfolio import DEPLOYABLE_ARM_CANONICAL_NAMES
 
 # Initialize logger
 log = Logger()
@@ -59,6 +61,34 @@ OOD_RADIUS_RATIO = 1.5
 # C++ now computes avg_path_length, diameter, community_count at runtime
 # via ComputeExtendedFeatures(), so they are no longer dead.
 _DEAD_WEIGHT_KEYS: set = set()
+
+LEGACY_FEATURE_TO_WEIGHT = {
+    'modularity': 'w_modularity',
+    'degree_variance': 'w_degree_variance',
+    'hub_concentration': 'w_hub_concentration',
+    'log_nodes': 'w_log_nodes',
+    'log_edges': 'w_log_edges',
+    'density': 'w_density',
+    'avg_degree': 'w_avg_degree',
+    'clustering_coefficient': 'w_clustering_coeff',
+    'avg_path_length': 'w_avg_path_length',
+    'diameter': 'w_diameter',
+    'community_count': 'w_community_count',
+    'packing_factor': 'w_packing_factor',
+    'forward_edge_fraction': 'w_forward_edge_fraction',
+    'log_working_set_ratio': 'w_working_set_ratio',
+    'vertex_significance_skewness':
+        'w_vertex_significance_skewness',
+    'window_neighbor_overlap': 'w_window_neighbor_overlap',
+    'dv_x_hub': 'w_dv_x_hub',
+    'mod_x_logn': 'w_mod_x_logn',
+    'pf_x_wsr': 'w_pf_x_wsr',
+    'vss_x_hc': 'w_vss_x_hc',
+    'wno_x_pf': 'w_wno_x_pf',
+    'packing_factor_cl': 'w_packing_factor_cl',
+    'log_wsr_l1': 'w_wsr_l1',
+    'log_wsr_l2': 'w_wsr_l2',
+}
 
 # =============================================================================
 # Algorithm Groups (Mode 4+3)
@@ -279,6 +309,17 @@ class PerceptronWeight:
     # --- Algorithm prior ---
     bias: float = 0.0                    # Base score before any features
                                          # (matches C++ PerceptronWeights default)
+    # --- Deployable Tier-0 weights ---
+    w_t0_log10_nodes: float = 0.0
+    w_t0_log10_edges: float = 0.0
+    w_t0_avg_degree: float = 0.0
+    w_t0_degree_cv: float = 0.0
+    w_t0_hub_concentration: float = 0.0
+    w_t0_normalized_edge_span: float = 0.0
+    w_t0_window_neighbor_overlap: float = 0.0
+    w_t0_property_wsr_llc: float = 0.0
+    w_t0_kernel_class: float = 0.0
+    w_t0_reuse_bucket: float = 0.0
     
     # --- Core topology weights (paper: community & degree structure) ---
     w_modularity: float = 0.0            # Leiden/Louvain modularity Q
@@ -374,6 +415,44 @@ class PerceptronWeight:
         if 'avg_reorder_time' not in kwargs and 'avg_reorder_time' in meta:
             kwargs['avg_reorder_time'] = meta['avg_reorder_time']
         return cls(**kwargs)
+
+    def compute_tier0_score(
+        self,
+        features: Dict,
+        *,
+        property_wsr_llc: float,
+        kernel_class: int,
+        reuse_count: float,
+    ) -> float:
+        """Score only the frozen deployable Tier-0 feature vector."""
+        from .feature_schema import (
+            TIER0_FEATURE_NAMES,
+            extract_tier0_features,
+        )
+
+        values = extract_tier0_features(
+            features,
+            property_wsr_llc=property_wsr_llc,
+            kernel_class=kernel_class,
+            reuse_count=reuse_count,
+        )
+        weights = {
+            "log10_nodes": self.w_t0_log10_nodes,
+            "log10_edges": self.w_t0_log10_edges,
+            "avg_degree": self.w_t0_avg_degree,
+            "degree_cv": self.w_t0_degree_cv,
+            "hub_concentration": self.w_t0_hub_concentration,
+            "normalized_edge_span": self.w_t0_normalized_edge_span,
+            "window_neighbor_overlap":
+                self.w_t0_window_neighbor_overlap,
+            "property_wsr_llc": self.w_t0_property_wsr_llc,
+            "kernel_class": self.w_t0_kernel_class,
+            "reuse_bucket": self.w_t0_reuse_bucket,
+        }
+        return self.bias + sum(
+            weights[name] * value
+            for name, value in zip(TIER0_FEATURE_NAMES, values)
+        )
     
     def compute_score(self, features: Dict, benchmark: str = 'pr') -> float:
         """Compute perceptron score — SINGLE SOURCE OF TRUTH for Python scoring.
@@ -1549,38 +1628,8 @@ def compute_weights_from_results(
     from scripts.lib.core.utils import RESULTS_DIR
     graph_props = load_graph_properties_cache(RESULTS_DIR)
     
-    # Feature keys used in C++ scoreBase()
-    feat_to_weight = {
-        'modularity': 'w_modularity',
-        'degree_variance': 'w_degree_variance',
-        'hub_concentration': 'w_hub_concentration',
-        'log_nodes': 'w_log_nodes',
-        'log_edges': 'w_log_edges',
-        'density': 'w_density',
-        'avg_degree': 'w_avg_degree',
-        'clustering_coefficient': 'w_clustering_coeff',
-        'avg_path_length': 'w_avg_path_length',
-        'diameter': 'w_diameter',
-        'community_count': 'w_community_count',
-        # IISWC'18 / GoGraph / P-OPT locality features
-        'packing_factor': 'w_packing_factor',
-        'forward_edge_fraction': 'w_forward_edge_fraction',
-        'log_working_set_ratio': 'w_working_set_ratio',
-        # DON-RL features (Zhao et al.)
-        'vertex_significance_skewness': 'w_vertex_significance_skewness',
-        'window_neighbor_overlap': 'w_window_neighbor_overlap',
-        # Quadratic interaction terms (matches C++ scoreBase cross-features)
-        'dv_x_hub': 'w_dv_x_hub',
-        'mod_x_logn': 'w_mod_x_logn',
-        'pf_x_wsr': 'w_pf_x_wsr',
-        'vss_x_hc': 'w_vss_x_hc',
-        'wno_x_pf': 'w_wno_x_pf',
-        # IISWC'18 cache-line packing factor
-        'packing_factor_cl': 'w_packing_factor_cl',
-        # Per-level WSR (P-OPT cache hierarchy)
-        'log_wsr_l1': 'w_wsr_l1',
-        'log_wsr_l2': 'w_wsr_l2',
-    }
+    # Feature keys used by the retired legacy 24-feature trainer.
+    feat_to_weight = LEGACY_FEATURE_TO_WEIGHT
     
     # Collect features per graph
     #
@@ -2051,13 +2100,21 @@ def compute_weights_from_results(
                     continue
                 bw_raw = bn_weights[base]
                 # Save z-score weights directly (all within [-W_MAX, W_MAX])
-                entry = {'bias': bw_raw['bias']}
+                entry = copy.deepcopy(weights[base])
+                entry['bias'] = bw_raw['bias']
                 entry.update({weight_keys[i]: bw_raw['w'][i] for i in range(n_feat)})
                 # No benchmark_weights needed - this IS the benchmark-specific perceptron
                 entry['benchmark_weights'] = {}
-                entry['_metadata'] = {}
                 # Per-bench files use the canonical variant name directly
                 per_bench_cpp[base] = entry
+            for canonical in DEPLOYABLE_ARM_CANONICAL_NAMES:
+                if canonical not in per_bench_cpp:
+                    per_bench_cpp[canonical] = copy.deepcopy(
+                        weights.get(
+                            canonical,
+                            _create_default_weight_entry(),
+                        )
+                    )
             # Shared normalization stats for C++ z-score normalization.
             # Uses estimated-modularity stats for mod-related indices
             # because C++ only has estimated_mod = min(0.9, CC*1.5).
@@ -2867,11 +2924,18 @@ def save_weights_to_active_type(
     
     os.makedirs(weights_dir, exist_ok=True)
     
+    staged_weights = copy.deepcopy(weights)
+    for canonical in DEPLOYABLE_ARM_CANONICAL_NAMES:
+        staged_weights.setdefault(
+            canonical,
+            _create_default_weight_entry(),
+        )
+
     # Save weights to type file
     type_file = weights_type_path(type_name, weights_dir)
     os.makedirs(os.path.dirname(type_file), exist_ok=True)
     with open(type_file, 'w') as f:
-        json.dump(weights, f, indent=2)
+        json.dump(staged_weights, f, indent=2)
     
     # Update type registry
     if not _type_registry:
@@ -2907,13 +2971,11 @@ def save_weights_to_active_type(
     save_type_registry(weights_dir)
     log.info(f"Saved weights to {type_file} ({len(canonical_algos)} algorithms)")
     
-    # M1: auto-regenerate unified adaptive_models.json so C++ always has
-    # up-to-date model data in a single file.
-    try:
+    # Only the canonical staging directory publishes the runtime artifact.
+    # Temporary LOGO/training directories are exported explicitly by callers.
+    if Path(weights_dir).resolve() == Path(DEFAULT_WEIGHTS_DIR).resolve():
         from scripts.lib.core.datastore import export_unified_models
         export_unified_models()
-    except Exception as e:
-        log.warning(f"export_unified_models() failed (non-fatal): {e}")
     
     return type_file
 
@@ -2922,6 +2984,16 @@ def _create_default_weight_entry() -> Dict:
     """Create a default weight entry for an algorithm."""
     return {
         'bias': 0.5,
+        'w_t0_log10_nodes': 0.0,
+        'w_t0_log10_edges': 0.0,
+        'w_t0_avg_degree': 0.0,
+        'w_t0_degree_cv': 0.0,
+        'w_t0_hub_concentration': 0.0,
+        'w_t0_normalized_edge_span': 0.0,
+        'w_t0_window_neighbor_overlap': 0.0,
+        'w_t0_property_wsr_llc': 0.0,
+        'w_t0_kernel_class': 0.0,
+        'w_t0_reuse_bucket': 0.0,
         'w_modularity': 0.0,
         'w_log_nodes': 0.0,
         'w_log_edges': 0.0,
@@ -2962,6 +3034,7 @@ def _create_default_weight_entry() -> Dict:
         '_metadata': {
             'sample_count': 0,
             'avg_speedup': 1.0,
+            'avg_reorder_time': 0.0,
             'win_count': 0,
             'times_best': 0,
             'win_rate': 0.0,

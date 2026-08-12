@@ -16,6 +16,7 @@ LINT_INCLUDES = $(PYTHON) $(SCRIPT_DIR)/lib/tools/check_includes.py
 BENCH_DIR   = bench
 # =========================================================
 BIN_DIR = $(BENCH_DIR)/bin
+BIN_WORK_DIR = $(BENCH_DIR)/bin_work
 LIB_DIR = $(BENCH_DIR)/lib
 SRC_DIR = $(BENCH_DIR)/src
 SRC_EDGE_DIR = $(BENCH_DIR)/src_edge
@@ -24,6 +25,7 @@ INC_DIR = $(BENCH_DIR)/include
 OBJ_DIR = $(BENCH_DIR)/obj
 TEST_SRC_DIR = $(BENCH_DIR)/tests
 TEST_BIN_DIR = $(BENCH_DIR)/test_bin
+BUILD_CONFIG_STAMP = $(OBJ_DIR)/.build-config
 
 # =========================================================
 # Include paths
@@ -33,9 +35,14 @@ INCLUDE_EXTERNAL  = $(INC_DIR)/external
 INCLUDE_CACHE     = $(INC_DIR)/cache_sim
 # =========================================================
 INCLUDE_BOOST  = /opt/boost_1_58_0/include  
+LOCAL_NUMA_PREFIX ?= $(HOME)/.local/graphbrew-deps/numa/usr
+ifneq ($(wildcard $(LOCAL_NUMA_PREFIX)/include/numa.h),)
+INCLUDE_NUMA = -I$(LOCAL_NUMA_PREFIX)/include
+LDLIBS_NUMA = -L$(LOCAL_NUMA_PREFIX)/lib/x86_64-linux-gnu
+endif
 # =========================================================
 DEP_GAPBS     = $(wildcard $(INCLUDE_GAPBS)/*.h)
-DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/algorithms/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/edge/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/gas/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h)
+DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/algorithms/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/analysis/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/edge/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/gas/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.def) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/cagra/*.h)
 DEP_RABBIT = $(wildcard $(INCLUDE_EXTERNAL)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INCLUDE_EXTERNAL)/gorder/*.h)
 DEP_CORDER = $(wildcard $(INCLUDE_EXTERNAL)/corder/*.h)
@@ -73,7 +80,7 @@ CXXFLAGS_GORDER = -m64 -march=native
 CXXFLAGS_GORDER += -DRelease -DGCC
 CXXFLAGS_LEIDEN = -DTYPE=float -DMAX_THREADS=$(PARALLEL) -DREPEAT_METHOD=1
 # =========================================================
-LDLIBS_RABBIT   += -ltcmalloc_minimal -lnuma
+LDLIBS_RABBIT   += $(LDLIBS_NUMA) -ltcmalloc_minimal -lnuma
 # =========================================================
 # Default library path for Boost libraries
 BOOST_LIB_DIR := /opt/boost_1_58_0/lib
@@ -86,7 +93,7 @@ LDLIBS_BOOST    += -L$(BOOST_LIB_DIR)
 CXXFLAGS = $(CXXFLAGS_GAP) $(CXXFLAGS_GORDER) $(CXXFLAGS_LEIDEN) $(CXXFLAGS_RABBIT)
 LDLIBS  = 
 # =========================================================
-INCLUDES = -I$(INCLUDE_BOOST) -I$(INCLUDE_GAPBS) -I$(INCLUDE_GRAPHBREW) -I$(INCLUDE_EXTERNAL) -I$(INC_DIR)
+INCLUDES = -I$(INCLUDE_BOOST) $(INCLUDE_NUMA) -I$(INCLUDE_GAPBS) -I$(INCLUDE_GRAPHBREW) -I$(INCLUDE_EXTERNAL) -I$(INC_DIR)
 # =========================================================
 # Optional RABBIT includes
 ifeq ($(RABBIT_ENABLE), 1)
@@ -98,6 +105,8 @@ endif
 # =========================================================
 KERNELS = bc bfs bfs_p cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
+WORK_KERNELS = bc bfs cc cc_sv sssp
+WORK_KERNELS_BIN = $(addprefix $(BIN_WORK_DIR)/,$(WORK_KERNELS))
 DENSE_EDGE_KERNELS = cc_edge cc_sv_edge pr_edge pr_spmv_edge
 DENSE_EDGE_KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(DENSE_EDGE_KERNELS))
 FRONTIER_EDGE_KERNELS = bfs_edge sssp_edge
@@ -112,11 +121,12 @@ SUITE = $(KERNELS_BIN) $(DENSE_EDGE_KERNELS_BIN) $(FRONTIER_EDGE_KERNELS_BIN) $(
 	$(BIN_DIR)/ownership_analysis $(BIN_DIR)/edge_view_benchmark
 UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
 	test_shard_stream test_ownership_analysis test_edge_primitives \
-	test_gas_executor
+	test_gas_executor test_relabel_weights test_graphbrew_config \
+	test_large_edge_indices test_refine_two_swap
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) $(GAS_KERNELS) converter edge_view_benchmark edge-all edge-dense edge-frontier edge-irregular gas-all all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular check-edge check-gas-runtime check-gas check-edge-gas-repeatability check-edge-gas check-edge-structure report-edge-gas-performance run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) $(GAS_KERNELS) converter edge_view_benchmark edge-all edge-dense edge-frontier edge-irregular gas-all all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular check-edge check-gas-runtime check-gas check-edge-gas-repeatability check-edge-gas check-edge-structure report-edge-gas-performance run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all FORCE
 ownership_analysis: $(BIN_DIR)/ownership_analysis
 edge_view_benchmark: $(BIN_DIR)/edge_view_benchmark
 edge-all: $(EDGE_KERNELS_BIN)
@@ -300,23 +310,39 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 # =========================================================
 # Compilation Rules
 # =========================================================
-$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
+FORCE:
+
+$(BUILD_CONFIG_STAMP): FORCE | $(OBJ_DIR)
+	@tmp="$@.tmp.$$$$"; printf '%s\n' \
+		'CC=$(CC)' \
+		'CXX=$(CXX)' \
+		'CXXFLAGS=$(CXXFLAGS)' \
+		'INCLUDES=$(INCLUDES)' \
+		'LDLIBS=$(LDLIBS)' \
+		'RABBIT_ENABLE=$(RABBIT_ENABLE)' \
+		'LOCAL_NUMA_PREFIX=$(LOCAL_NUMA_PREFIX)' > "$$tmp"; \
+	if ! cmp -s "$$tmp" $@; then mv "$$tmp" $@; else rm -f "$$tmp"; fi
+
+$(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) Makefile $(BUILD_CONFIG_STAMP) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
-$(EDGE_KERNELS_BIN): $(BIN_DIR)/%: $(SRC_EDGE_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
+$(BIN_WORK_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) Makefile $(BUILD_CONFIG_STAMP) | $(BIN_WORK_DIR)
+	@$(CXX) $(CXXFLAGS) -DGRAPHBREW_COUNT_WORK $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+
+$(EDGE_KERNELS_BIN): $(BIN_DIR)/%: $(SRC_EDGE_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) Makefile $(BUILD_CONFIG_STAMP) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
-$(GAS_KERNELS_BIN): $(BIN_DIR)/%: $(SRC_GAS_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
+$(GAS_KERNELS_BIN): $(BIN_DIR)/%: $(SRC_GAS_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) Makefile $(BUILD_CONFIG_STAMP) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
 # The streaming exporter only depends on the gapbs reader and the graphbrew
 # partition headers, so it builds with the lightweight GAP flags and links no
 # reorder/boost/tcmalloc dependencies.
-$(BIN_DIR)/graph_shard_export: $(SRC_DIR)/graph_shard_export.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) | $(BIN_DIR)
+$(BIN_DIR)/graph_shard_export: $(SRC_DIR)/graph_shard_export.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) Makefile $(BUILD_CONFIG_STAMP) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS_GAP) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
 
-$(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) | $(TEST_BIN_DIR)
-	@$(CXX) $(CXXFLAGS_GAP) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
+$(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) Makefile $(BUILD_CONFIG_STAMP) | $(TEST_BIN_DIR)
+	@$(CXX) $(CXXFLAGS_GAP) $(CXXFLAGS_GORDER) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
 
 # =========================================================
 # Directory Setup
@@ -324,14 +350,20 @@ $(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) | $(TEST_B
 $(BIN_DIR):
 	@mkdir -p $@ $(CREATE_STATUS)
 
+$(BIN_WORK_DIR):
+	@mkdir -p $@ $(CREATE_STATUS)
+
 $(TEST_BIN_DIR):
 	@mkdir -p $@ $(CREATE_STATUS)
+
+$(OBJ_DIR):
+	@mkdir -p $@
 
 # =========================================================
 # Cleanup
 # =========================================================
 clean:
-	@rm -rf $(BIN_DIR) $(BIN_SIM_DIR) $(TEST_BIN_DIR) $(EXIT_STATUS)
+	@rm -rf $(BIN_DIR) $(BIN_WORK_DIR) $(BIN_SIM_DIR) $(TEST_BIN_DIR) $(OBJ_DIR) $(EXIT_STATUS)
 
 clean-all: clean
 
@@ -339,7 +371,7 @@ clean-all: clean
 # Testing
 # =========================================================
 scrub-all:
-	@rm -rf $(BIN_DIR) $(BIN_SIM_DIR) $(TEST_BIN_DIR) 00_* $(EXIT_STATUS)
+	@rm -rf $(BIN_DIR) $(BIN_WORK_DIR) $(BIN_SIM_DIR) $(TEST_BIN_DIR) 00_* $(EXIT_STATUS)
 
 # =========================================================
 # Cache Simulation Builds
@@ -356,7 +388,7 @@ $(BIN_SIM_DIR):
 	mkdir -p $@
 
 # Build simulation versions
-$(BIN_SIM_DIR)/%: $(SRC_SIM_DIR)/%.cc $(DEP_GAPBS) $(DEP_CACHE) | $(BIN_SIM_DIR)
+$(BIN_SIM_DIR)/%: $(SRC_SIM_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_CACHE) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) Makefile $(BUILD_CONFIG_STAMP) | $(BIN_SIM_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -I$(INCLUDE_CACHE) $< $(LDLIBS) -o $@
 
 # Convenience targets for simulation builds

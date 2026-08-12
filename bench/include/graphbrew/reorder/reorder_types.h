@@ -35,8 +35,10 @@
 #define REORDER_TYPES_H_
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cassert>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <deque>
@@ -49,6 +51,8 @@
 #include <queue>
 #include <random>
 #include <set>
+#include <stdexcept>
+#include <string>
 #include <thread>
 #include <tuple>
 #include <unordered_map>
@@ -68,6 +72,7 @@
 #include <pvector.h>
 #include <timer.h>
 #include <util.h>
+#include "../../external/nlohmann_json.hpp"
 
 // ============================================================================
 // TYPE ALIASES
@@ -770,11 +775,13 @@ CSRGraph<NodeID_, DestID_, invert> RelabelByMappingStandalone(
         #pragma omp parallel for schedule(dynamic, 1024)
         for (NodeID_ u = 0; u < g.num_nodes(); u++) {
             if (outDegree) {
-                for (NodeID_ v : g.in_neigh(u))
-                    neighs[offsets[new_ids[u]]++] = new_ids[v];
+                for (DestID_ v : g.in_neigh(u))
+                    neighs[offsets[new_ids[u]]++] =
+                        RemapDestination(v, new_ids);
             } else {
-                for (NodeID_ v : g.out_neigh(u))
-                    neighs[offsets[new_ids[u]]++] = new_ids[v];
+                for (DestID_ v : g.out_neigh(u))
+                    neighs[offsets[new_ids[u]]++] =
+                        RemapDestination(v, new_ids);
             }
             std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
         }
@@ -787,11 +794,13 @@ CSRGraph<NodeID_, DestID_, invert> RelabelByMappingStandalone(
         #pragma omp parallel for schedule(dynamic, 1024)
         for (NodeID_ u = 0; u < g.num_nodes(); u++) {
             if (outDegree) {
-                for (NodeID_ v : g.out_neigh(u))
-                    inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+                for (DestID_ v : g.out_neigh(u))
+                    inv_neighs[inv_offsets[new_ids[u]]++] =
+                        RemapDestination(v, new_ids);
             } else {
-                for (NodeID_ v : g.in_neigh(u))
-                    inv_neighs[inv_offsets[new_ids[u]]++] = new_ids[v];
+                for (DestID_ v : g.in_neigh(u))
+                    inv_neighs[inv_offsets[new_ids[u]]++] =
+                        RemapDestination(v, new_ids);
             }
             std::sort(inv_index[new_ids[u]], inv_index[new_ids[u] + 1]);
         }
@@ -827,8 +836,9 @@ CSRGraph<NodeID_, DestID_, invert> RelabelByMappingStandalone(
         
         #pragma omp parallel for schedule(dynamic, 1024)
         for (NodeID_ u = 0; u < g.num_nodes(); u++) {
-            for (NodeID_ v : g.out_neigh(u))
-                neighs[offsets[new_ids[u]]++] = new_ids[v];
+            for (DestID_ v : g.out_neigh(u))
+                neighs[offsets[new_ids[u]]++] =
+                    RemapDestination(v, new_ids);
             std::sort(index[new_ids[u]], index[new_ids[u] + 1]);
         }
 
@@ -1148,6 +1158,8 @@ struct CommunityFeatures {
     double working_set_ratio = 0.0;  ///< graph_bytes / LLC_size (>1 = exceeds cache)
     double wsr_l1 = 0.0;             ///< graph_bytes / L1_size (per-level cache geometry)
     double wsr_l2 = 0.0;             ///< graph_bytes / L2_size (per-level cache geometry)
+    double kernel_class = 0.0;       ///< BenchmarkType ordinal for Tier-0
+    double reuse_count = 1.0;        ///< Expected permutation reuse count
     
     // ---------- DON-RL Features (Zhao et al.) ----------
     double vertex_significance_skewness = 0.0; ///< Skewness of per-vertex locality contributions (CV)
@@ -1211,6 +1223,105 @@ enum BenchmarkType {
     BENCH_CC_SV         ///< Connected Components (Shiloach-Vishkin) - pointer chasing
 };
 
+inline uint64_t ModeledPropertyBytes(
+    BenchmarkType benchmark,
+    uint64_t nodes,
+    uint64_t directed_edges) {
+    constexpr uint64_t node_id_bytes = sizeof(int32_t);
+    constexpr uint64_t score_bytes = sizeof(float);
+    constexpr uint64_t count_bytes = sizeof(double);
+    const uint64_t bitmap_bytes = (nodes + 7) / 8;
+    switch (benchmark) {
+        case BENCH_PR:
+        case BENCH_PR_SPMV:
+            return nodes * 2 * score_bytes;
+        case BENCH_BFS:
+            return nodes * 2 * node_id_bytes + 2 * bitmap_bytes;
+        case BENCH_CC:
+        case BENCH_CC_SV:
+            return nodes * node_id_bytes + bitmap_bytes;
+        case BENCH_SSSP:
+            return nodes * node_id_bytes
+                + directed_edges * node_id_bytes;
+        case BENCH_BC:
+            return nodes * (
+                score_bytes + count_bytes
+                + 2 * node_id_bytes)
+                + (directed_edges + 7) / 8;
+        case BENCH_TC:
+            return nodes * node_id_bytes;
+        case BENCH_GENERIC:
+        default:
+            throw std::invalid_argument(
+                "Kernel-specific modeled property bytes are unavailable");
+    }
+}
+
+enum class Tier0FeatureIndex : size_t {
+#define GRAPHBREW_TIER0_FEATURE(symbol, name) symbol,
+#include "adaptive_feature_schema.def"
+#undef GRAPHBREW_TIER0_FEATURE
+    COUNT
+};
+
+constexpr size_t TIER0_FEATURE_COUNT =
+    static_cast<size_t>(Tier0FeatureIndex::COUNT);
+
+constexpr std::array<const char*, TIER0_FEATURE_COUNT>
+TIER0_FEATURE_NAMES = {{
+#define GRAPHBREW_TIER0_FEATURE(symbol, name) name,
+#include "adaptive_feature_schema.def"
+#undef GRAPHBREW_TIER0_FEATURE
+}};
+
+struct Tier0FeatureContext {
+    double property_wsr_llc = -1.0;
+    BenchmarkType kernel_class = BENCH_GENERIC;
+    double reuse_count = 1.0;
+};
+
+inline double AdaptiveReuseBucket(double reuse_count) {
+    if (reuse_count <= 1.0) return 0.0;
+    if (reuse_count <= 5.0) return 1.0;
+    if (reuse_count <= 10.0) return 2.0;
+    if (reuse_count <= 20.0) return 3.0;
+    if (reuse_count <= 50.0) return 4.0;
+    if (reuse_count <= 100.0) return 5.0;
+    return 6.0;
+}
+
+inline std::array<double, TIER0_FEATURE_COUNT> ExtractTier0Features(
+    const CommunityFeatures& feat,
+    const Tier0FeatureContext& context) {
+    if (!std::isfinite(context.property_wsr_llc)
+        || context.property_wsr_llc < 0.0) {
+        throw std::invalid_argument(
+            "Tier-0 extraction requires kernel-specific property_wsr_llc");
+    }
+    std::array<double, TIER0_FEATURE_COUNT> values{};
+    values[static_cast<size_t>(Tier0FeatureIndex::LOG10_NODES)] =
+        std::log10(static_cast<double>(feat.num_nodes) + 1.0);
+    values[static_cast<size_t>(Tier0FeatureIndex::LOG10_EDGES)] =
+        std::log10(static_cast<double>(feat.num_edges) + 1.0);
+    values[static_cast<size_t>(Tier0FeatureIndex::AVG_DEGREE)] =
+        feat.avg_degree;
+    values[static_cast<size_t>(Tier0FeatureIndex::DEGREE_CV)] =
+        feat.degree_variance;
+    values[static_cast<size_t>(Tier0FeatureIndex::HUB_CONCENTRATION)] =
+        feat.hub_concentration;
+    values[static_cast<size_t>(Tier0FeatureIndex::NORMALIZED_EDGE_SPAN)] =
+        feat.avg_reuse_distance;
+    values[static_cast<size_t>(Tier0FeatureIndex::WINDOW_NEIGHBOR_OVERLAP)] =
+        feat.window_neighbor_overlap;
+    values[static_cast<size_t>(Tier0FeatureIndex::PROPERTY_WSR_LLC)] =
+        context.property_wsr_llc;
+    values[static_cast<size_t>(Tier0FeatureIndex::KERNEL_CLASS)] =
+        static_cast<double>(context.kernel_class);
+    values[static_cast<size_t>(Tier0FeatureIndex::REUSE_BUCKET)] =
+        AdaptiveReuseBucket(context.reuse_count);
+    return values;
+}
+
 /**
  * @brief Global benchmark type hint for AdaptiveOrder.
  * 
@@ -1230,9 +1341,8 @@ inline BenchmarkType GetBenchmarkTypeHint() { return _BenchmarkTypeHint(); }
 /**
  * @brief Global graph name hint for AdaptiveOrder.
  *
- * Automatically extracted from the input filename so that
- * database/oracle modes can identify known graphs without
- * the user having to supply the name on the command line.
+ * Automatically extracted from the input filename for metadata and
+ * self-recording. Deployable AdaptiveOrder must not consume this value.
  *
  * Usage:  SetGraphNameHint("ca-GrQc");  // set in Builder::MakeGraph()
  */
@@ -1250,19 +1360,37 @@ inline const std::string& GetGraphNameHint() { return _GraphNameHint(); }
  * Strips directory prefix and known extensions (.sg, .wsg, .el, .wel, .mtx, .txt, .tsv).
  */
 inline std::string ExtractGraphNameFromPath(const std::string& path) {
-    // Find last component
-    std::string name = path;
-    auto slash = name.rfind('/');
-    if (slash != std::string::npos) name = name.substr(slash + 1);
-    // Strip known extensions
-    const char* exts[] = {".sg", ".wsg", ".el", ".wel", ".mtx", ".txt", ".tsv"};
-    for (auto ext : exts) {
-        std::string e(ext);
-        if (name.size() > e.size() && name.compare(name.size() - e.size(), e.size(), e) == 0) {
-            name = name.substr(0, name.size() - e.size());
-            break;
+    std::string normalized = path;
+    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    while (!normalized.empty() && normalized.back() == '/')
+        normalized.pop_back();
+    const auto slash = normalized.rfind('/');
+    std::string name = (
+        slash == std::string::npos
+        ? normalized : normalized.substr(slash + 1));
+    const char* exts[] = {
+        ".gz", ".sg", ".wsg", ".el", ".wel", ".mtx", ".txt", ".tsv",
+    };
+    bool stripped = true;
+    while (stripped) {
+        stripped = false;
+        for (const char* ext : exts) {
+            const std::string extension(ext);
+            if (
+                name.size() > extension.size()
+                && name.compare(
+                    name.size() - extension.size(),
+                    extension.size(),
+                    extension) == 0
+            ) {
+                name.resize(name.size() - extension.size());
+                stripped = true;
+                break;
+            }
         }
     }
+    if (name.empty())
+        throw std::invalid_argument("Graph name cannot be empty");
     return name;
 }
 
@@ -1381,6 +1509,9 @@ struct PerceptronSelection {
     double margin = 0.0;                  ///< Score margin over ORIGINAL (P1 1.4)
     double confidence = 0.0;              ///< Platt-calibrated P(win) in [0,1] (P1 1.4)
     bool explored = false;                ///< True if selected via bandit exploration (P2 2.1)
+    std::string canonical_spec;           ///< Exact deployable -o specification
+    std::string predicted_spec;           ///< Model action before deployment guards
+    std::string override_reason;           ///< Empty unless a guard changed the action
 
     /// Chained ordering steps (e.g. SORT+RABBITORDER_csr → 2 steps).
     /// Empty for single-algorithm selections.
@@ -1392,6 +1523,81 @@ struct PerceptronSelection {
     /// True if this is a chained (multi-step) ordering
     bool isChained() const { return !chain.empty(); }
 };
+
+enum class DeployableAdaptiveArm : size_t {
+#define GRAPHBREW_ADAPTIVE_ARM(symbol, spec, canonical) symbol,
+#include "adaptive_portfolio.def"
+#undef GRAPHBREW_ADAPTIVE_ARM
+    COUNT
+};
+
+constexpr size_t DEPLOYABLE_ADAPTIVE_ARM_COUNT =
+    static_cast<size_t>(DeployableAdaptiveArm::COUNT);
+
+constexpr std::array<const char*, DEPLOYABLE_ADAPTIVE_ARM_COUNT>
+DEPLOYABLE_ADAPTIVE_ARM_SPECS = {{
+#define GRAPHBREW_ADAPTIVE_ARM(symbol, spec, canonical) spec,
+#include "adaptive_portfolio.def"
+#undef GRAPHBREW_ADAPTIVE_ARM
+}};
+
+constexpr std::array<const char*, DEPLOYABLE_ADAPTIVE_ARM_COUNT>
+DEPLOYABLE_ADAPTIVE_ARM_CANONICAL_NAMES = {{
+#define GRAPHBREW_ADAPTIVE_ARM(symbol, spec, canonical) canonical,
+#include "adaptive_portfolio.def"
+#undef GRAPHBREW_ADAPTIVE_ARM
+}};
+
+inline std::string NormalizeDeployableAdaptiveArm(
+    const std::string& label) {
+    for (size_t i = 0; i < DEPLOYABLE_ADAPTIVE_ARM_COUNT; ++i) {
+        if (
+            label == DEPLOYABLE_ADAPTIVE_ARM_SPECS[i]
+            || label == DEPLOYABLE_ADAPTIVE_ARM_CANONICAL_NAMES[i]
+        ) {
+            return DEPLOYABLE_ADAPTIVE_ARM_SPECS[i];
+        }
+    }
+    throw std::invalid_argument(
+        "Adaptive model emitted a non-portfolio label: " + label);
+}
+
+inline PerceptronSelection ResolveDeployableAdaptiveArm(
+    const std::string& label,
+    double score = 0.0) {
+    const std::string spec = NormalizeDeployableAdaptiveArm(label);
+    PerceptronSelection selected;
+    selected.score = score;
+    selected.variant_name = spec;
+    selected.canonical_spec = spec;
+    selected.predicted_spec = spec;
+    if (spec == "0") {
+        selected.algo = ORIGINAL;
+    } else if (spec == "5") {
+        selected.algo = DBG;
+    } else if (spec == "8:csr") {
+        selected.algo = RabbitOrder;
+        selected.options = {"csr"};
+    } else {
+        selected.algo = GraphBrewOrder;
+        const size_t separator = spec.find(':');
+        if (separator == std::string::npos)
+            throw std::invalid_argument(
+                "GraphBrew adaptive arm is missing options");
+        std::string options = spec.substr(separator + 1);
+        size_t start = 0;
+        while (start <= options.size()) {
+            const size_t separator = options.find(':', start);
+            selected.options.push_back(options.substr(
+                start,
+                separator == std::string::npos
+                    ? std::string::npos : separator - start));
+            if (separator == std::string::npos) break;
+            start = separator + 1;
+        }
+    }
+    return selected;
+}
 
 /**
  * @brief Split a string on a delimiter into a vector of tokens.
@@ -1432,6 +1638,14 @@ inline std::vector<std::string> splitString(
  */
 inline PerceptronSelection ResolveVariantSelection(
     const std::string& variant_name, double score = 0.0) {
+    for (size_t i = 0; i < DEPLOYABLE_ADAPTIVE_ARM_COUNT; ++i) {
+        if (
+            variant_name == DEPLOYABLE_ADAPTIVE_ARM_SPECS[i]
+            || variant_name == DEPLOYABLE_ADAPTIVE_ARM_CANONICAL_NAMES[i]
+        ) {
+            return ResolveDeployableAdaptiveArm(variant_name, score);
+        }
+    }
     
     PerceptronSelection sel;
     sel.score = score;
@@ -1498,9 +1712,10 @@ inline PerceptronSelection ResolveVariantSelection(
         return sel;
     }
     
-    // Unknown name — fallback to ORIGINAL
+    // Unknown labels remain visible so the deployable portfolio guard can
+    // record why it applies ORIGINAL.
     sel.algo = ORIGINAL;
-    sel.variant_name = "ORIGINAL";
+    sel.variant_name = variant_name;
     return sel;
 }
 
@@ -1712,7 +1927,7 @@ inline SelectionModel GetSelectionModel(const std::string& name) {
     if (name == "family" || name == "fam") return SELECTION_MODEL_FAMILY;
     if (name == "topn" || name == "top-n" || name == "top") return SELECTION_MODEL_TOPN;
     if (name == "individual" || name == "ind" || name == "all") return SELECTION_MODEL_INDIVIDUAL;
-    return SELECTION_MODEL_KNN_DATABASE;  // Default: use the database model
+    throw std::invalid_argument("Unknown adaptive selection model: " + name);
 }
 
 /**
@@ -1723,7 +1938,8 @@ inline SelectionCriterion GetSelectionCriterion(const std::string& name) {
     if (name == "fastest-execution" || name == "execution" || name == "fe") return CRITERION_FASTEST_EXECUTION;
     if (name == "best-endtoend" || name == "endtoend" || name == "e2e") return CRITERION_BEST_ENDTOEND;
     if (name == "best-amortization" || name == "amortization" || name == "amortize") return CRITERION_BEST_AMORTIZATION;
-    return CRITERION_FASTEST_EXECUTION;  // Default
+    throw std::invalid_argument(
+        "Unknown adaptive selection criterion: " + name);
 }
 
 // Legacy SelectionMode enum — kept for backward compatibility.
@@ -1813,9 +2029,27 @@ ParseModelCriterion(const std::string& spec) {
         std::string crit_str = spec.substr(colon + 1);
         return {GetSelectionModel(model_str), GetSelectionCriterion(crit_str)};
     }
-    // Fall back to legacy SelectionMode
-    SelectionMode legacy = GetSelectionMode(spec);
-    return DecomposeSelectionMode(legacy);
+    if (
+        spec == "0" || spec == "fastest-reorder" || spec == "reorder"
+        || spec == "1" || spec == "fastest-execution"
+        || spec == "execution" || spec == "cache"
+        || spec == "2" || spec == "best-endtoend"
+        || spec == "endtoend" || spec == "e2e"
+        || spec == "3" || spec == "best-amortization"
+        || spec == "amortization" || spec == "amortize"
+        || spec == "4" || spec == "decision-tree"
+        || spec == "dt" || spec == "tree"
+        || spec == "5" || spec == "hybrid"
+        || spec == "model-tree" || spec == "hme"
+        || spec == "6" || spec == "database"
+        || spec == "db" || spec == "knn"
+    ) {
+        return DecomposeSelectionMode(GetSelectionMode(spec));
+    }
+    return {
+        GetSelectionModel(spec),
+        CRITERION_FASTEST_EXECUTION,
+    };
 }
 
 // ============================================================================
@@ -2020,6 +2254,7 @@ private:
 struct PerceptronWeights {
     // ---------- Base ----------
     double bias = 0.0;              ///< Base preference for this algorithm
+    std::array<double, TIER0_FEATURE_COUNT> tier0_weights{};
     
     // ---------- Feature Weights (core) ----------
     double w_modularity = 0.0;       ///< Weight for modularity feature
@@ -2082,6 +2317,8 @@ struct PerceptronWeights {
     // ---------- Metadata from Training ----------
     double avg_speedup = 1.0;        ///< Average speedup observed during training
     double avg_reorder_time = 0.0;   ///< Average reorder time in seconds
+    bool has_reorder_weight = false;
+    bool has_cost_metadata = false;
     
     // ---------- Platt Scaling (P1 1.4) ----------
     // After training, logistic regression maps score margin to P(win):
@@ -2349,7 +2586,48 @@ struct PerceptronWeights {
         
         return s * getBenchmarkMultiplier(bench);
     }
+
+    double scoreTier0(const CommunityFeatures& feat) const {
+        Tier0FeatureContext context;
+        context.property_wsr_llc = feat.working_set_ratio;
+        context.kernel_class = static_cast<BenchmarkType>(
+            static_cast<int>(feat.kernel_class));
+        context.reuse_count = feat.reuse_count;
+        const auto values = ExtractTier0Features(feat, context);
+        double result = bias;
+        for (size_t i = 0; i < TIER0_FEATURE_COUNT; ++i)
+            result += tier0_weights[i] * values[i];
+        return result;
+    }
 };
+
+inline std::map<std::string, PerceptronWeights>
+RequireDeployablePortfolioWeights(
+    const std::map<std::string, PerceptronWeights>& weights) {
+    std::map<std::string, PerceptronWeights> portfolio;
+    std::vector<std::string> missing;
+    for (size_t i = 0; i < DEPLOYABLE_ADAPTIVE_ARM_COUNT; ++i) {
+        const std::string spec = DEPLOYABLE_ADAPTIVE_ARM_SPECS[i];
+        const std::string canonical =
+            DEPLOYABLE_ADAPTIVE_ARM_CANONICAL_NAMES[i];
+        auto found = weights.find(spec);
+        if (found == weights.end())
+            found = weights.find(canonical);
+        if (found == weights.end()) {
+            missing.push_back(spec);
+        } else {
+            portfolio.emplace(spec, found->second);
+        }
+    }
+    if (!missing.empty()) {
+        std::string message =
+            "Adaptive model is missing deployable portfolio arms:";
+        for (const auto& spec : missing)
+            message += " " + spec;
+        throw std::runtime_error(message);
+    }
+    return portfolio;
+}
 
 // ============================================================================
 // UTILITY MACROS
@@ -3735,13 +4013,9 @@ void orderLeidenHybridHubDFS(
  *   ...
  * }
  * 
- * Discovery strategy (no hardcoded variant list needed):
- *   1. All base algorithm names from getAlgorithmNameMap() 
- *   2. Any variant-prefixed keys (GraphBrewOrder_*, RABBITORDER_*, RCM_*)
- *      auto-discovered directly from the JSON content
- *
- * This means adding a new variant in Python training automatically makes
- * its weights loadable in C++ — zero C++ source changes required.
+ * The parser accepts only adaptive-tier0/v1 artifacts with a top-level
+ * `weights` object. It normalizes the exact/canonical labels from the shared
+ * five-arm portfolio and rejects conflicting aliases or malformed numbers.
  * 
  * @param json_content String containing JSON content
  * @param weights Output map to populate with parsed weights (string-keyed)
@@ -3749,233 +4023,239 @@ void orderLeidenHybridHubDFS(
  */
 inline bool ParseWeightsFromJSON(const std::string& json_content, 
                                   std::map<std::string, PerceptronWeights>& weights) {
-    // Simple JSON field parser
-    auto find_double = [](const std::string& s, const std::string& key) -> double {
-        size_t pos = s.find("\"" + key + "\"");
-        if (pos == std::string::npos) return 0.0;
-        pos = s.find(':', pos);
-        if (pos == std::string::npos) return 0.0;
-        pos++;
-        while (pos < s.size() && (s[pos] == ' ' || s[pos] == '\t')) pos++;
-        size_t end = pos;
-        while (end < s.size() && (isdigit(s[end]) || s[end] == '.' || s[end] == '-' || s[end] == 'e' || s[end] == 'E' || s[end] == '+')) end++;
-        try {
-            return std::stod(s.substr(pos, end - pos));
-        } catch (...) {
-            return 0.0;
-        }
-    };
-    
-    // Find matching closing brace, accounting for nested objects
-    auto find_matching_brace = [](const std::string& s, size_t open_pos) -> size_t {
-        int depth = 1;
-        for (size_t i = open_pos + 1; i < s.size(); i++) {
-            if (s[i] == '{') depth++;
-            else if (s[i] == '}') {
-                depth--;
-                if (depth == 0) return i;
+    nlohmann::json artifact;
+    try {
+        artifact = nlohmann::json::parse(json_content);
+    } catch (const nlohmann::json::exception& error) {
+        throw std::runtime_error(
+            "Invalid adaptive perceptron JSON: "
+            + std::string(error.what()));
+    }
+    if (!artifact.is_object()) {
+        throw std::runtime_error(
+            "Adaptive perceptron artifact must be a JSON object");
+    }
+    auto schema = artifact.find("_schema");
+    if (
+        schema == artifact.end()
+        || !schema->is_string()
+        || schema->get<std::string>() != "adaptive-tier0/v1"
+    ) {
+        throw std::runtime_error(
+            "Adaptive perceptron artifact is not adaptive-tier0/v1");
+    }
+    auto model_weights = artifact.find("weights");
+    if (
+        model_weights == artifact.end()
+        || !model_weights->is_object()
+    ) {
+        throw std::runtime_error(
+            "Adaptive perceptron artifact is missing weights object");
+    }
+
+    auto number = [](
+        const nlohmann::json& object,
+        const std::string& key,
+        bool required = false,
+        double fallback = 0.0) -> double {
+        auto found = object.find(key);
+        if (found == object.end()) {
+            if (required) {
+                throw std::runtime_error(
+                    "Adaptive arm is missing numeric field " + key);
             }
+            return fallback;
         }
-        return std::string::npos;
+        if (!found->is_number()) {
+            throw std::runtime_error(
+                "Adaptive arm field is not numeric: " + key);
+        }
+        const double value = found->get<double>();
+        if (!std::isfinite(value)) {
+            throw std::runtime_error(
+                "Adaptive arm field is not finite: " + key);
+        }
+        return value;
     };
-    
-    // ---- Step 1: Collect candidate algorithm keys ----
-    // (a) Base names from the algorithm map
-    std::set<std::string> candidate_keys;
-    for (const auto& kv : getAlgorithmNameMap()) {
-        candidate_keys.insert(kv.first);
-    }
-    
-    // (b) Auto-discover variant-prefixed keys from the JSON content
-    //     This makes new Python-trained variants loadable with zero C++ changes.
-    for (size_t pi = 0; pi < VARIANT_PREFIX_COUNT; ++pi) {
-        std::string prefix = VARIANT_PREFIXES[pi];
-        std::string needle = "\"" + prefix;
-        size_t pos = 0;
-        while ((pos = json_content.find(needle, pos)) != std::string::npos) {
-            size_t key_start = pos + 1;  // skip opening quote
-            size_t key_end = json_content.find('"', key_start);
-            if (key_end == std::string::npos) break;
-            candidate_keys.insert(json_content.substr(key_start, key_end - key_start));
-            pos = key_end + 1;
+
+    weights.clear();
+    for (size_t i = 0; i < DEPLOYABLE_ADAPTIVE_ARM_COUNT; ++i) {
+        const std::string spec = DEPLOYABLE_ADAPTIVE_ARM_SPECS[i];
+        const std::string canonical =
+            DEPLOYABLE_ADAPTIVE_ARM_CANONICAL_NAMES[i];
+        auto exact = model_weights->find(spec);
+        auto alias = model_weights->find(canonical);
+        const bool has_exact = exact != model_weights->end();
+        const bool has_alias = alias != model_weights->end();
+        if (has_exact && has_alias && *exact != *alias) {
+            throw std::runtime_error(
+                "Adaptive model contains conflicting aliases for "
+                + spec);
         }
-    }
-    
-    // ---- Step 2: Parse weights for each discovered key ----
-    for (const auto& key : candidate_keys) {
-        size_t pos = json_content.find("\"" + key + "\"");
-        if (pos == std::string::npos) continue;
-        
-        // Find the block for this algorithm (with proper brace matching
-        // to handle nested objects like benchmark_weights and _metadata)
-        size_t start = json_content.find('{', pos);
-        if (start == std::string::npos) continue;
-        size_t end = find_matching_brace(json_content, start);
-        if (end == std::string::npos) continue;
-        
-        std::string block = json_content.substr(start, end - start + 1);
-        
+        if (!has_exact && !has_alias)
+            continue;
+        const nlohmann::json& entry = has_exact ? *exact : *alias;
+        if (!entry.is_object()) {
+            throw std::runtime_error(
+                "Adaptive arm must be a JSON object: " + spec);
+        }
+
         PerceptronWeights w;
-        // Core weights
-        w.bias = find_double(block, "bias");
-        w.w_modularity = find_double(block, "w_modularity");
-        w.w_log_nodes = find_double(block, "w_log_nodes");
-        w.w_log_edges = find_double(block, "w_log_edges");
-        w.w_density = find_double(block, "w_density");
-        w.w_avg_degree = find_double(block, "w_avg_degree");
-        w.w_degree_variance = find_double(block, "w_degree_variance");
-        w.w_hub_concentration = find_double(block, "w_hub_concentration");
-        
-        // Extended graph structure weights
-        w.w_clustering_coeff = find_double(block, "w_clustering_coeff");
-        w.w_avg_path_length = find_double(block, "w_avg_path_length");
-        w.w_diameter = find_double(block, "w_diameter");
-        w.w_community_count = find_double(block, "w_community_count");
-        
-        // Cache impact weights
-        w.cache_l1_impact = find_double(block, "cache_l1_impact");
-        w.cache_l2_impact = find_double(block, "cache_l2_impact");
-        w.cache_l3_impact = find_double(block, "cache_l3_impact");
-        w.cache_dram_penalty = find_double(block, "cache_dram_penalty");
-        
-        // Reorder time weight
-        w.w_reorder_time = find_double(block, "w_reorder_time");
-        
-        // Locality feature weights (IISWC'18 / GoGraph)
-        w.w_packing_factor = find_double(block, "w_packing_factor");
-        w.w_forward_edge_fraction = find_double(block, "w_forward_edge_fraction");
-        
-        // System-cache feature weight (P-OPT)
-        w.w_working_set_ratio = find_double(block, "w_working_set_ratio");
-        
-        // Quadratic interaction weights
-        w.w_dv_x_hub = find_double(block, "w_dv_x_hub");
-        w.w_mod_x_logn = find_double(block, "w_mod_x_logn");
-        w.w_pf_x_wsr = find_double(block, "w_pf_x_wsr");
-        w.w_vss_x_hc = find_double(block, "w_vss_x_hc");
-        w.w_wno_x_pf = find_double(block, "w_wno_x_pf");
-        
-        // DON-RL feature weights (Zhao et al.)
-        w.w_vertex_significance_skewness = find_double(block, "w_vertex_significance_skewness");
-        w.w_window_neighbor_overlap = find_double(block, "w_window_neighbor_overlap");
-        
-        // Convergence bonus weight (GoGraph)
-        w.w_fef_convergence = find_double(block, "w_fef_convergence");
-        
-        // P1 3.1d: Sampled locality score weight
-        w.w_sampled_locality = find_double(block, "w_sampled_locality");
-        
-        // P3 3.2: Transpose reuse distance weight
-        w.w_avg_reuse_distance = find_double(block, "w_avg_reuse_distance");
-        
-        // Paper-aligned feature weights
-        w.w_packing_factor_cl = find_double(block, "w_packing_factor_cl");
-        w.w_wsr_l1 = find_double(block, "w_wsr_l1");
-        w.w_wsr_l2 = find_double(block, "w_wsr_l2");
-        w.w_locality_score_pairwise = find_double(block, "w_locality_score_pairwise");
-        w.w_reuse_distance_lru = find_double(block, "w_reuse_distance_lru");
-        
-        // P1 1.4: Platt scaling parameters
-        w.platt_A = find_double(block, "platt_A");
-        w.platt_B = find_double(block, "platt_B");
-        
-        // Parse _metadata block for avg_speedup and avg_reorder_time
-        size_t meta_pos = block.find("\"_metadata\"");
-        if (meta_pos != std::string::npos) {
-            size_t meta_start = block.find('{', meta_pos);
-            size_t meta_end = find_matching_brace(block, meta_start);
-            if (meta_start != std::string::npos && meta_end != std::string::npos) {
-                std::string meta_block = block.substr(meta_start, meta_end - meta_start + 1);
-                double speedup = find_double(meta_block, "avg_speedup");
-                double reorder_time = find_double(meta_block, "avg_reorder_time");
-                w.avg_speedup = (speedup > 0) ? speedup : 1.0;
-                w.avg_reorder_time = (reorder_time > 0) ? reorder_time : 0.0;
+        w.bias = number(entry, "bias", true);
+        for (size_t feature = 0; feature < TIER0_FEATURE_COUNT; ++feature) {
+            const std::string weight_key =
+                std::string("w_t0_")
+                + TIER0_FEATURE_NAMES[feature];
+            if (!entry.contains(weight_key)) {
+                throw std::runtime_error(
+                    "Adaptive arm is missing Tier-0 weight "
+                    + weight_key + ": " + spec);
             }
+            w.tier0_weights[feature] =
+                number(entry, weight_key, true);
         }
-        
-        // Benchmark-specific weights (parse nested benchmark_weights object)
-        size_t bw_pos = block.find("\"benchmark_weights\"");
-        if (bw_pos != std::string::npos) {
-            size_t bw_start = block.find('{', bw_pos);
-            size_t bw_end = find_matching_brace(block, bw_start);
-            if (bw_start != std::string::npos && bw_end != std::string::npos) {
-                std::string bw_block = block.substr(bw_start, bw_end - bw_start + 1);
-                auto find_bench_weight = [&](const std::string& blk, const std::string& bkey) -> double {
-                    if (blk.find("\"" + bkey + "\"") == std::string::npos) return 1.0;
-                    return find_double(blk, bkey);
-                };
-                w.bench_pr   = find_bench_weight(bw_block, "pr");
-                w.bench_bfs  = find_bench_weight(bw_block, "bfs");
-                w.bench_cc   = find_bench_weight(bw_block, "cc");
-                w.bench_sssp = find_bench_weight(bw_block, "sssp");
-                w.bench_bc   = find_bench_weight(bw_block, "bc");
-                w.bench_tc   = find_bench_weight(bw_block, "tc");
-                w.bench_pr_spmv = find_bench_weight(bw_block, "pr_spmv");
-                w.bench_cc_sv   = find_bench_weight(bw_block, "cc_sv");
+        w.w_modularity = number(entry, "w_modularity");
+        w.w_log_nodes = number(entry, "w_log_nodes");
+        w.w_log_edges = number(entry, "w_log_edges");
+        w.w_density = number(entry, "w_density");
+        w.w_avg_degree = number(entry, "w_avg_degree");
+        w.w_degree_variance = number(entry, "w_degree_variance");
+        w.w_hub_concentration = number(entry, "w_hub_concentration");
+        w.w_clustering_coeff = number(entry, "w_clustering_coeff");
+        w.w_avg_path_length = number(entry, "w_avg_path_length");
+        w.w_diameter = number(entry, "w_diameter");
+        w.w_community_count = number(entry, "w_community_count");
+        w.cache_l1_impact = number(entry, "cache_l1_impact");
+        w.cache_l2_impact = number(entry, "cache_l2_impact");
+        w.cache_l3_impact = number(entry, "cache_l3_impact");
+        w.cache_dram_penalty = number(entry, "cache_dram_penalty");
+        w.w_reorder_time = number(entry, "w_reorder_time");
+        w.has_reorder_weight = entry.contains("w_reorder_time");
+        w.w_packing_factor = number(entry, "w_packing_factor");
+        w.w_forward_edge_fraction =
+            number(entry, "w_forward_edge_fraction");
+        w.w_working_set_ratio =
+            number(entry, "w_working_set_ratio");
+        w.w_dv_x_hub = number(entry, "w_dv_x_hub");
+        w.w_mod_x_logn = number(entry, "w_mod_x_logn");
+        w.w_pf_x_wsr = number(entry, "w_pf_x_wsr");
+        w.w_vss_x_hc = number(entry, "w_vss_x_hc");
+        w.w_wno_x_pf = number(entry, "w_wno_x_pf");
+        w.w_vertex_significance_skewness =
+            number(entry, "w_vertex_significance_skewness");
+        w.w_window_neighbor_overlap =
+            number(entry, "w_window_neighbor_overlap");
+        w.w_fef_convergence =
+            number(entry, "w_fef_convergence");
+        w.w_sampled_locality =
+            number(entry, "w_sampled_locality");
+        w.w_avg_reuse_distance =
+            number(entry, "w_avg_reuse_distance");
+        w.w_packing_factor_cl =
+            number(entry, "w_packing_factor_cl");
+        w.w_wsr_l1 = number(entry, "w_wsr_l1");
+        w.w_wsr_l2 = number(entry, "w_wsr_l2");
+        w.w_locality_score_pairwise =
+            number(entry, "w_locality_score_pairwise");
+        w.w_reuse_distance_lru =
+            number(entry, "w_reuse_distance_lru");
+        w.platt_A = number(entry, "platt_A");
+        w.platt_B = number(entry, "platt_B");
+
+        auto metadata = entry.find("_metadata");
+        if (metadata != entry.end()) {
+            if (!metadata->is_object()) {
+                throw std::runtime_error(
+                    "Adaptive arm metadata must be an object: " + spec);
             }
+            const bool has_speedup =
+                metadata->contains("avg_speedup");
+            const bool has_reorder =
+                metadata->contains("avg_reorder_time");
+            w.avg_speedup = number(
+                *metadata, "avg_speedup", false, 1.0);
+            w.avg_reorder_time = number(
+                *metadata, "avg_reorder_time");
+            if (w.avg_speedup <= 0.0 || w.avg_reorder_time < 0.0) {
+                throw std::runtime_error(
+                    "Adaptive arm has invalid cost metadata: " + spec);
+            }
+            w.has_cost_metadata = has_speedup && has_reorder;
         }
-        
-        // Store with the exact string key from the JSON — each variant
-        // (e.g. GraphBrewOrder_leiden vs GraphBrewOrder_rabbit) gets its own
-        // entry so the perceptron can select at variant granularity.
-        weights[key] = w;
+
+        auto benchmark_weights = entry.find("benchmark_weights");
+        if (benchmark_weights != entry.end()) {
+            if (!benchmark_weights->is_object()) {
+                throw std::runtime_error(
+                    "Adaptive benchmark_weights must be an object: "
+                    + spec);
+            }
+            w.bench_pr = number(
+                *benchmark_weights, "pr", false, 1.0);
+            w.bench_bfs = number(
+                *benchmark_weights, "bfs", false, 1.0);
+            w.bench_cc = number(
+                *benchmark_weights, "cc", false, 1.0);
+            w.bench_sssp = number(
+                *benchmark_weights, "sssp", false, 1.0);
+            w.bench_bc = number(
+                *benchmark_weights, "bc", false, 1.0);
+            w.bench_tc = number(
+                *benchmark_weights, "tc", false, 1.0);
+            w.bench_pr_spmv = number(
+                *benchmark_weights, "pr_spmv", false, 1.0);
+            w.bench_cc_sv = number(
+                *benchmark_weights, "cc_sv", false, 1.0);
+        }
+        weights.emplace(spec, w);
     }
-    
-    // ---- Step 3: Parse _normalization block (Mode 5) ----
-    // If present, weights are in z-score space and features must be
-    // z-normalized before scoring.  Parse feat_means and feat_stds arrays.
-    {
-        size_t norm_pos = json_content.find("\"_normalization\"");
-        if (norm_pos != std::string::npos) {
-            size_t norm_start = json_content.find('{', norm_pos);
-            size_t norm_end = find_matching_brace(json_content, norm_start);
-            if (norm_start != std::string::npos && norm_end != std::string::npos) {
-                std::string norm_block = json_content.substr(norm_start, norm_end - norm_start + 1);
-                
-                // Parse JSON double arrays: "key": [v0, v1, ..., v16]
-                auto find_double_array = [](const std::string& s, const std::string& key,
-                                            double* out, int max_n) -> int {
-                    size_t pos = s.find("\"" + key + "\"");
-                    if (pos == std::string::npos) return 0;
-                    pos = s.find('[', pos);
-                    if (pos == std::string::npos) return 0;
-                    pos++; // skip '['
-                    int count = 0;
-                    while (pos < s.size() && count < max_n) {
-                        while (pos < s.size() && (s[pos] == ' ' || s[pos] == '\t' ||
-                               s[pos] == '\n' || s[pos] == '\r' || s[pos] == ','))
-                            pos++;
-                        if (pos >= s.size() || s[pos] == ']') break;
-                        size_t end = pos;
-                        while (end < s.size() && (isdigit(s[end]) || s[end] == '.' ||
-                               s[end] == '-' || s[end] == 'e' || s[end] == 'E' || s[end] == '+'))
-                            end++;
-                        try {
-                            out[count++] = std::stod(s.substr(pos, end - pos));
-                        } catch (...) {
-                            break;
-                        }
-                        pos = end;
+
+    auto normalization = artifact.find("_normalization");
+    if (normalization != artifact.end()) {
+        if (!normalization->is_object()) {
+            throw std::runtime_error(
+                "Adaptive normalization must be an object");
+        }
+        auto means = normalization->find("feat_means");
+        auto stds = normalization->find("feat_stds");
+        if (
+            means != normalization->end()
+            || stds != normalization->end()
+        ) {
+            if (
+                means == normalization->end()
+                || stds == normalization->end()
+                || !means->is_array()
+                || !stds->is_array()
+                || means->size() != PerceptronWeights::N_FEATURES
+                || stds->size() != PerceptronWeights::N_FEATURES
+            ) {
+                throw std::runtime_error(
+                    "Adaptive normalization arrays have invalid size");
+            }
+            for (auto& [name, parsed] : weights) {
+                parsed.use_normalization = true;
+                for (
+                    size_t feature = 0;
+                    feature < PerceptronWeights::N_FEATURES;
+                    ++feature
+                ) {
+                    const auto& mean = (*means)[feature];
+                    const auto& stddev = (*stds)[feature];
+                    if (!mean.is_number() || !stddev.is_number()) {
+                        throw std::runtime_error(
+                            "Adaptive normalization contains "
+                            "a non-numeric value");
                     }
-                    return count;
-                };
-                
-                double means[PerceptronWeights::N_FEATURES] = {};
-                double stds[PerceptronWeights::N_FEATURES] = {};
-                int n_means = find_double_array(norm_block, "feat_means", means,
-                                                 PerceptronWeights::N_FEATURES);
-                int n_stds = find_double_array(norm_block, "feat_stds", stds,
-                                                PerceptronWeights::N_FEATURES);
-                
-                if (n_means == PerceptronWeights::N_FEATURES &&
-                    n_stds == PerceptronWeights::N_FEATURES) {
-                    // Apply normalization stats to all parsed algorithm weights
-                    for (auto& kv : weights) {
-                        kv.second.use_normalization = true;
-                        std::copy(means, means + PerceptronWeights::N_FEATURES,
-                                  kv.second.norm_mean);
-                        std::copy(stds, stds + PerceptronWeights::N_FEATURES,
-                                  kv.second.norm_std);
+                    parsed.norm_mean[feature] = mean.get<double>();
+                    parsed.norm_std[feature] = stddev.get<double>();
+                    if (
+                        !std::isfinite(parsed.norm_mean[feature])
+                        || !std::isfinite(parsed.norm_std[feature])
+                    ) {
+                        throw std::runtime_error(
+                            "Adaptive normalization contains "
+                            "a non-finite value");
                     }
                 }
             }
@@ -4338,18 +4618,16 @@ inline PerceptronSelection SelectFastestReorderFromWeights(
     const std::map<std::string, PerceptronWeights>& weights, bool verbose = false) {
     
     if (weights.empty()) {
-        if (verbose) {
-            std::cout << "No weights available, defaulting to Random\n";
-        }
-        return ResolveVariantSelection("RANDOM", 0.0);
+        throw std::runtime_error(
+            "Deployable adaptive portfolio weights are empty");
     }
     
     // Find algorithm with highest w_reorder_time (least negative = fastest)
-    std::string best_name = "RANDOM";
+    std::string best_name = "5";
     double best_reorder_weight = -std::numeric_limits<double>::infinity();
     
     for (const auto& [name, w] : weights) {
-        if (name == "ORIGINAL") continue;  // Skip ORIGINAL (no reordering)
+        if (name == "0") continue;
         
         if (w.w_reorder_time > best_reorder_weight) {
             best_reorder_weight = w.w_reorder_time;
@@ -4466,8 +4744,8 @@ inline bool LoadPerceptronWeightsForRegime(
  * Load perceptron weights for the given benchmark.
  *
  * M2: Delegates to BenchmarkDatabase which reads from the unified
- * adaptive_models.json.  Falls back to hardcoded defaults if the
- * database has no model data.
+ * adaptive_models.json. Missing or incomplete deployable artifacts fail
+ * closed; hardcoded legacy weights are never merged into the action space.
  *
  * The PERCEPTRON_WEIGHTS_FILE env-var override is preserved as a
  * development escape hatch.
@@ -4486,43 +4764,7 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
     double avg_degree, size_t num_nodes, size_t num_edges, bool verbose = false,
     double clustering_coeff = 0.0, BenchmarkType bench = BENCH_GENERIC) {
     
-    // Start with hardcoded defaults — ensures ALL algorithms have weights
-    auto weights = GetPerceptronWeights();
-    
-    // Per-benchmark weight resolution: if the loaded JSON contains keys like
-    // "HUBSORT__pr", "HUBSORT__bfs", etc., prefer those over the global "HUBSORT"
-    // for the active benchmark. This allows per-feature per-benchmark weights
-    // instead of global multipliers (Gap #1 from theory audit).
-    auto resolveBenchmarkWeights = [&](std::map<std::string, PerceptronWeights>& w,
-                                       BenchmarkType b, bool v) {
-        if (b == BENCH_GENERIC) return;
-        static const char* bench_suffixes[] = {
-            "", "pr", "bfs", "cc", "sssp", "bc", "tc", "pr_spmv", "cc_sv"
-        };
-        const char* suffix = bench_suffixes[static_cast<int>(b)];
-        if (!suffix[0]) return;
-        
-        std::string sep("__");
-        size_t resolved = 0;
-        // Collect per-bench keys first to avoid iterator invalidation
-        std::vector<std::pair<std::string, std::string>> overrides;
-        for (const auto& kv : w) {
-            if (kv.first.size() > sep.size() + std::strlen(suffix) &&
-                kv.first.compare(kv.first.size() - sep.size() - std::strlen(suffix),
-                                  std::string::npos, sep + suffix) == 0) {
-                std::string base_algo = kv.first.substr(0, kv.first.size() - sep.size() - std::strlen(suffix));
-                overrides.emplace_back(base_algo, kv.first);
-            }
-        }
-        for (const auto& [base_algo, bench_key] : overrides) {
-            w[base_algo] = w[bench_key];
-            resolved++;
-        }
-        if (v && resolved > 0) {
-            printf("Perceptron: Resolved %zu per-benchmark (%s) weight overrides\n",
-                   resolved, suffix);
-        }
-    };
+    std::map<std::string, PerceptronWeights> weights;
     
     // Check environment variable override first (dev escape hatch)
     const char* env_path = std::getenv("PERCEPTRON_WEIGHTS_FILE");
@@ -4535,12 +4777,13 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
             
             std::map<std::string, PerceptronWeights> loaded_weights;
             if (ParseWeightsFromJSON(json_content, loaded_weights)) {
-                for (const auto& kv : loaded_weights) {
-                    weights[kv.first] = kv.second;
-                }
-                resolveBenchmarkWeights(weights, bench, verbose);
+                weights = std::move(loaded_weights);
+                std::cout
+                    << "Adaptive Weight Source: env-override\n";
+                std::cout
+                    << "Adaptive Tier0 Trained: development-override\n";
                 if (verbose) {
-                    std::cout << "Perceptron: Loaded " << loaded_weights.size()
+                    std::cout << "Perceptron: Loaded " << weights.size()
                               << " weights from env override: " << env_path << "\n";
                 }
                 return weights;
@@ -4553,40 +4796,27 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
     if (dbFn) {
         std::map<std::string, PerceptronWeights> db_weights;
         if (dbFn(bench, db_weights, verbose)) {
-            for (const auto& kv : db_weights) {
-                weights[kv.first] = kv.second;
-            }
-            resolveBenchmarkWeights(weights, bench, verbose);
+            weights = std::move(db_weights);
             if (verbose) {
-                std::cout << "Perceptron: Loaded " << db_weights.size()
+                std::cout << "Perceptron: Loaded " << weights.size()
                           << " weights from adaptive_models.json\n";
             }
             return weights;
         }
     }
     
-    // No model data available — use hardcoded defaults
-    if (verbose) {
-        std::cout << "Perceptron: Using hardcoded defaults (adaptive_models.json "
-                  << "not loaded or empty)\n";
-    }
-    return weights;
+    throw std::runtime_error(
+        "Deployable adaptive model artifact is unavailable");
 }
 
 // ============================================================================
 // PERCEPTRON-BASED ALGORITHM SELECTION
 // ============================================================================
 
-/**
- * Minimum margin by which a reordering algorithm's score must exceed ORIGINAL's
- * score for it to be selected. This prevents reordering when the predicted
- * benefit is too small to justify the overhead. (IISWC'18: reorder overhead
- * often exceeds speedup for marginal cases.)
- * 
- * The threshold is benchmark-dependent: convergence-heavy benchmarks (PR, SSSP)
- * may benefit more from reordering than traversal-based ones (BFS).
- */
-constexpr double ORIGINAL_MARGIN_THRESHOLD = 0.05;
+#define GRAPHBREW_ADAPTIVE_POLICY(name, value) \
+    constexpr double name = value;
+#include "adaptive_policy.def"
+#undef GRAPHBREW_ADAPTIVE_POLICY
 
 /**
  * @brief Platt sigmoid: convert score margin to calibrated probability.
@@ -4605,6 +4835,42 @@ inline double PlattProbability(double margin, double A, double B) {
 /// Default calibrated confidence threshold for Platt scaling.
 /// If P(win) < this, fall back to ORIGINAL.
 constexpr double PLATT_CONFIDENCE_THRESHOLD = 0.55;
+
+inline PerceptronSelection SelectDeployableTier0FromWeights(
+    const CommunityFeatures& feat,
+    const std::map<std::string, PerceptronWeights>& weights) {
+    const auto portfolio = RequireDeployablePortfolioWeights(weights);
+    std::string best_name = "0";
+    double best_score = -std::numeric_limits<double>::infinity();
+    double original_score = -std::numeric_limits<double>::infinity();
+    for (const char* arm : DEPLOYABLE_ADAPTIVE_ARM_SPECS) {
+        const std::string name = arm;
+        const auto& weight = portfolio.at(name);
+        const double score = weight.scoreTier0(feat);
+        if (name == "0") original_score = score;
+        if (score > best_score) {
+            best_score = score;
+            best_name = name;
+        }
+    }
+    const std::string predicted_name = best_name;
+    const double margin = best_score - original_score;
+    if (
+        best_name != "0"
+        && !AblationConfig::Get().no_margin
+        && margin < ORIGINAL_MARGIN_THRESHOLD
+    ) {
+        best_name = "0";
+        best_score = original_score;
+    }
+    auto selected = ResolveDeployableAdaptiveArm(
+        best_name, best_score);
+    selected.predicted_spec = predicted_name;
+    if (predicted_name != best_name)
+        selected.override_reason = "original-margin";
+    selected.margin = margin;
+    return selected;
+}
 
 /**
  * Select best reordering algorithm using perceptron scores.
@@ -4625,7 +4891,7 @@ inline PerceptronSelection SelectReorderingFromWeights(
     const std::map<std::string, PerceptronWeights>& weights,
     BenchmarkType bench = BENCH_GENERIC) {
     
-    std::string best_name = "ORIGINAL";
+    std::string best_name = "0";
     double best_score = -std::numeric_limits<double>::infinity();
     double original_score = -std::numeric_limits<double>::infinity();
     
@@ -4838,8 +5104,8 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
 //     ]
 //   }
 //
-// Training: C++ trains DT/hybrid models at runtime from benchmarks.json
-//           via reorder_database.h — no Python training step needed.
+// Training is offline. Runtime loads the versioned adaptive_models.json
+// artifact and never fits models from benchmark rows.
 // ============================================================================
 
 /// Directory for model tree JSON files (relative to working directory)
@@ -4960,13 +5226,21 @@ struct ModelTree {
             }
             // Split node: go left if feature <= threshold, else right
             if (node.feature_idx >= MODEL_TREE_N_FEATURES) {
-                // Invalid feature index — go right as fallback but warn
-                idx = node.right;
-            } else if (features[node.feature_idx] <= node.threshold) {
-                idx = node.left;
-            } else {
-                idx = node.right;
+                throw std::runtime_error(
+                    "Adaptive model references an out-of-range feature index");
             }
+            if (
+                node.left < 0 || node.left >= static_cast<int>(nodes.size())
+                || node.right < 0
+                || node.right >= static_cast<int>(nodes.size())
+            ) {
+                throw std::runtime_error(
+                    "Adaptive model references an out-of-range child node");
+            }
+            const int next = (
+                features[node.feature_idx] <= node.threshold
+                ? node.left : node.right);
+            idx = next;
         }
         return "ORIGINAL"; // Safety fallback (exhausted iterations or OOB index)
     }
@@ -5265,11 +5539,13 @@ inline PerceptronSelection SelectReorderingPerceptronWithFeatures(
     
     // Load weights based on features (tries {matched_type}/{bench}.json first,
     // then type_0/{bench}.json, then {matched_type}/weights.json, then defaults)
-    auto weights = LoadPerceptronWeightsForFeatures(
+    auto weights = RequireDeployablePortfolioWeights(
+        LoadPerceptronWeightsForFeatures(
         global_modularity, global_degree_variance, global_hub_concentration,
-        feat.avg_degree, num_nodes, num_edges, false, feat.clustering_coeff, bench);
+        feat.avg_degree, num_nodes, num_edges, false,
+        feat.clustering_coeff, bench));
     
-    return SelectReorderingFromWeights(feat, weights, bench);
+    return SelectDeployableTier0FromWeights(feat, weights);
 }
 
 // ============================================================================
@@ -5285,6 +5561,71 @@ inline bool _InitLoadPerceptronDBHook() {
 static const bool _loadPerceptronDBHookInit = _InitLoadPerceptronDBHook();
 
 
+inline PerceptronSelection SelectBestEndToEndFromWeights(
+    const CommunityFeatures& feat,
+    const std::map<std::string, PerceptronWeights>& input) {
+    const auto weights = RequireDeployablePortfolioWeights(input);
+    std::string best_name = DEPLOYABLE_ADAPTIVE_ARM_SPECS[0];
+    double best_score = -std::numeric_limits<double>::infinity();
+    for (const char* arm : DEPLOYABLE_ADAPTIVE_ARM_SPECS) {
+        const std::string name = arm;
+        const auto& weight = weights.at(name);
+        if (!weight.has_reorder_weight) {
+            throw std::runtime_error(
+                "best-endtoend requires w_reorder_time for " + name);
+        }
+        const double score =
+            weight.scoreTier0(feat)
+            + REORDER_WEIGHT_BOOST * weight.w_reorder_time;
+        if (score > best_score) {
+            best_score = score;
+            best_name = name;
+        }
+    }
+    return ResolveDeployableAdaptiveArm(best_name, best_score);
+}
+
+
+inline PerceptronSelection SelectBestAmortizationFromWeights(
+    const std::map<std::string, PerceptronWeights>& input,
+    bool verbose = false) {
+    const auto weights = RequireDeployablePortfolioWeights(input);
+    for (const char* arm : DEPLOYABLE_ADAPTIVE_ARM_SPECS) {
+        const std::string name = arm;
+        if (!weights.at(name).has_cost_metadata) {
+            throw std::runtime_error(
+                "best-amortization requires avg_speedup and "
+                "avg_reorder_time for " + name);
+        }
+    }
+
+    std::string best_name = "0";
+    double best_iters = std::numeric_limits<double>::infinity();
+    for (const char* arm : DEPLOYABLE_ADAPTIVE_ARM_SPECS) {
+        const std::string name = arm;
+        if (name == "0")
+            continue;
+        const auto& weight = weights.at(name);
+        const double iterations = weight.iterationsToAmortize();
+        if (verbose) {
+            std::cout << "  " << name
+                      << ": speedup=" << weight.avg_speedup
+                      << ", reorder=" << weight.avg_reorder_time << "s"
+                      << ", iters_to_amortize=" << iterations << "\n";
+        }
+        if (iterations < best_iters) {
+            best_iters = iterations;
+            best_name = name;
+        }
+    }
+    if (verbose) {
+        std::cout << "Perceptron (best-amortization) → " << best_name
+                  << " (amortizes in " << best_iters << " iterations)\n";
+    }
+    return ResolveDeployableAdaptiveArm(best_name, 0.0);
+}
+
+
 /**
  * Select best reordering algorithm with MODEL × CRITERION selection.
  *
@@ -5292,10 +5633,8 @@ static const bool _loadPerceptronDBHookInit = _InitLoadPerceptronDBHook();
  * Model and Criterion are orthogonal axes:
  *
  * **Models** (how to predict):
- * - PERCEPTRON: Multi-class perceptron with SSO-trained weights
- * - DECISION_TREE: Trained DT classifier (12D features, per-benchmark)
- * - HYBRID: DT structure with per-leaf perceptron weights
- * - KNN_DATABASE: Distance-weighted k-NN from benchmark database
+ * - PERCEPTRON: deployable Tier-0 five-arm model
+ * - DECISION_TREE/HYBRID/KNN_DATABASE: offline-only until retrained on Tier-0
  *
  * **Criteria** (what to optimize):
  * - FASTEST_REORDER: Minimize reordering time only
@@ -5311,7 +5650,7 @@ static const bool _loadPerceptronDBHookInit = _InitLoadPerceptronDBHook();
  * @param num_edges Total number of edges
  * @param model Which prediction model to use
  * @param criterion What metric to optimize
- * @param graph_name Name of the graph (for oracle lookup)
+ * @param graph_name Must be empty for deployable selection
  * @param bench Benchmark type
  * @param verbose Print selection details
  * @return Best algorithm based on model and criterion
@@ -5324,56 +5663,25 @@ inline PerceptronSelection SelectReorderingWithModelCriterion(
     const std::string& graph_name = "",
     BenchmarkType bench = BENCH_GENERIC, bool verbose = false) {
 
+    if (!graph_name.empty()) {
+        throw std::invalid_argument(
+            "Deployable AdaptiveOrder cannot consume graph identity; "
+            "use the offline OracleUpperBound analysis instead");
+    }
+    if (model == SELECTION_MODEL_KNN_DATABASE) {
+        throw std::invalid_argument(
+            "knn-database is not a deployable AdaptiveOrder model; "
+            "use the offline OracleUpperBound analysis instead");
+    }
+    if (model != SELECTION_MODEL_PERCEPTRON) {
+        throw std::invalid_argument(
+            SelectionModelToString(model)
+            + " is offline-only until retrained on the Tier-0 schema");
+    }
+
     if (verbose) {
         std::cout << "Selection: model=" << SelectionModelToString(model)
                   << " criterion=" << SelectionCriterionToString(criterion) << "\n";
-    }
-
-    // ================================================================
-    // Model dispatch: KNN_DATABASE uses streaming DB directly
-    // ================================================================
-    if (model == SELECTION_MODEL_KNN_DATABASE) {
-        // Map criterion to legacy mode for the DB's select_for_mode()
-        SelectionMode legacy_mode;
-        switch (criterion) {
-            case CRITERION_FASTEST_REORDER:    legacy_mode = MODE_FASTEST_REORDER; break;
-            case CRITERION_FASTEST_EXECUTION:  legacy_mode = MODE_DATABASE; break;
-            case CRITERION_BEST_ENDTOEND:      legacy_mode = MODE_BEST_ENDTOEND; break;
-            case CRITERION_BEST_AMORTIZATION:  legacy_mode = MODE_BEST_AMORTIZATION; break;
-            default:                           legacy_mode = MODE_DATABASE; break;
-        }
-
-        std::string family = graphbrew::database::SelectForMode(
-            feat, bench, graph_name, legacy_mode, verbose);
-        if (!family.empty()) {
-            if (verbose) {
-                std::cout << "kNN-database → " << family << "\n";
-            }
-            return ResolveVariantSelection(family, 0.0);
-        }
-        // If DB is empty, fall through to perceptron fallback
-        if (verbose) {
-            std::cout << "kNN-database: no data, falling back to perceptron\n";
-        }
-    }
-
-    // ================================================================
-    // Model dispatch: DECISION_TREE or HYBRID
-    // ================================================================
-    if (model == SELECTION_MODEL_DECISION_TREE || model == SELECTION_MODEL_HYBRID) {
-        std::string subdir = (model == SELECTION_MODEL_DECISION_TREE) ? "decision_tree" : "hybrid";
-        std::string family = graphbrew::database::SelectAlgorithmModelTreeFromDB(
-            feat, bench, subdir, verbose);
-        if (!family.empty()) {
-            if (verbose) {
-                std::cout << SelectionModelToString(model) << " → " << family << "\n";
-            }
-            return ResolveVariantSelection(family, 0.0);
-        }
-        // No model tree available — fall through to perceptron
-        if (verbose) {
-            std::cout << SelectionModelToString(model) << ": no model, falling back to perceptron\n";
-        }
     }
 
     // ================================================================
@@ -5382,15 +5690,7 @@ inline PerceptronSelection SelectReorderingWithModelCriterion(
     // ================================================================
     switch (criterion) {
         case CRITERION_FASTEST_REORDER: {
-            auto weights = LoadPerceptronWeightsForFeatures(
-                global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
-
-            PerceptronSelection fastest = SelectFastestReorderFromWeights(weights, verbose);
-            if (verbose) {
-                std::cout << "Perceptron (fastest-reorder) → " << fastest.variant_name << "\n";
-            }
-            return fastest;
+            return ResolveDeployableAdaptiveArm("0", 0.0);
         }
 
         case CRITERION_FASTEST_EXECUTION: {
@@ -5404,59 +5704,28 @@ inline PerceptronSelection SelectReorderingWithModelCriterion(
         }
 
         case CRITERION_BEST_ENDTOEND: {
-            auto weights = LoadPerceptronWeightsForFeatures(
+            auto weights = RequireDeployablePortfolioWeights(
+                LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
-
-            std::string best_name = "ORIGINAL";
-            double best_score = -std::numeric_limits<double>::infinity();
-            const double REORDER_WEIGHT_BOOST = 2.0;
-
-            for (const auto& [name, w] : weights) {
-                double exec_score = w.score(feat, bench);
-                double reorder_bonus = w.w_reorder_time * REORDER_WEIGHT_BOOST;
-                double total_score = exec_score + reorder_bonus;
-
-                if (total_score > best_score) {
-                    best_score = total_score;
-                    best_name = name;
-                }
-            }
-
+                feat.avg_degree, num_nodes, num_edges, verbose,
+                feat.clustering_coeff, bench));
+            auto selected = SelectBestEndToEndFromWeights(
+                feat, weights);
             if (verbose) {
-                std::cout << "Perceptron (best-endtoend) → " << best_name << "\n";
+                std::cout << "Perceptron (best-endtoend) → "
+                          << selected.variant_name << "\n";
             }
-            return ResolveVariantSelection(best_name, best_score);
+            return selected;
         }
 
         case CRITERION_BEST_AMORTIZATION: {
-            auto weights = LoadPerceptronWeightsForFeatures(
+            auto weights = RequireDeployablePortfolioWeights(
+                LoadPerceptronWeightsForFeatures(
                 global_modularity, global_degree_variance, global_hub_concentration,
-                feat.avg_degree, num_nodes, num_edges, verbose, feat.clustering_coeff, bench);
-
-            std::string best_name = "ORIGINAL";
-            double best_iters = std::numeric_limits<double>::infinity();
-
-            for (const auto& [name, w] : weights) {
-                if (name == "ORIGINAL") continue;
-                double iters = w.iterationsToAmortize();
-                if (verbose) {
-                    std::cout << "  " << name
-                              << ": speedup=" << w.avg_speedup
-                              << ", reorder=" << w.avg_reorder_time << "s"
-                              << ", iters_to_amortize=" << iters << "\n";
-                }
-                if (iters < best_iters) {
-                    best_iters = iters;
-                    best_name = name;
-                }
-            }
-
-            if (verbose) {
-                std::cout << "Perceptron (best-amortization) → " << best_name
-                          << " (amortizes in " << best_iters << " iterations)\n";
-            }
-            return ResolveVariantSelection(best_name, 0.0);
+                feat.avg_degree, num_nodes, num_edges, verbose,
+                feat.clustering_coeff, bench));
+            return SelectBestAmortizationFromWeights(
+                weights, verbose);
         }
 
         default:
@@ -5570,30 +5839,36 @@ inline size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
  * @param num_edges Total graph edges
  * @param bench Benchmark type for optimization
  * @param graph_type Detected graph type
- * @param mode Selection mode (default: MODE_FASTEST_EXECUTION)
- * @param graph_name Graph name for loading reorder times
+ * @param model Deployable prediction model
+ * @param criterion Cost criterion optimized by the model
  * @param dynamic_min_size Minimum size threshold (0 = auto-compute)
  * @return Best algorithm for this community
  */
-inline PerceptronSelection SelectBestReorderingForCommunity(
+inline PerceptronSelection SelectBestReorderingForCommunityWithModelCriterion(
     CommunityFeatures feat, 
     double global_modularity,
     double global_degree_variance,
     double global_hub_concentration,
     double global_avg_degree,
     size_t num_nodes, size_t num_edges,
+    SelectionModel model,
+    SelectionCriterion criterion,
     BenchmarkType bench = BENCH_GENERIC,
     GraphType graph_type = GRAPH_GENERIC,
-    SelectionMode mode = MODE_FASTEST_EXECUTION,
-    const std::string& graph_name = "",
     size_t dynamic_min_size = 0)
 {
     (void)global_avg_degree;  // Reserved for future use
-    
-    // Ablation: ADAPTIVE_FORCE_ALGO=N bypasses all perceptron logic
-    if (AblationConfig::Get().force_algo >= 0) {
-        ReorderingAlgo forced = static_cast<ReorderingAlgo>(AblationConfig::Get().force_algo);
-        return PerceptronSelection{forced, ReorderingAlgoStr(forced), {}, 0.0};
+    const auto& ablation = AblationConfig::Get();
+    if (
+        ablation.force_algo >= 0
+        || ablation.no_margin
+        || ablation.packing_skip
+        || ablation.hierarchical_gate
+        || ablation.fef_validate
+        || ablation.don_lite
+    ) {
+        throw std::invalid_argument(
+            "Adaptive runtime override/ablation paths are offline-only");
     }
     
     // P3 3.3: Hierarchical gating — use regime-specific perceptron weights
@@ -5633,22 +5908,21 @@ inline PerceptronSelection SelectBestReorderingForCommunity(
     // Set the modularity in features for perceptron scoring
     feat.modularity = global_modularity;
     
-    // Use MODE-AWARE selection (handles unknown graph fallback automatically)
-    PerceptronSelection selected = SelectReorderingWithMode(
+    PerceptronSelection selected = SelectReorderingWithModelCriterion(
         feat, global_modularity, global_degree_variance, global_hub_concentration,
-        num_nodes, num_edges, mode, graph_name, bench, false);
+        num_nodes, num_edges, model, criterion, "", bench, false);
     
     // Safety check: if perceptron selects an unavailable algorithm, fallback
 #ifndef RABBIT_ENABLE
-    if (selected.algo == RabbitOrder) {
-        // Recompute without RabbitOrder by using heuristic fallback
-        if (feat.degree_variance > 0.8) {
-            selected = ResolveVariantSelection("HUBCLUSTERDBG", selected.score);
-        } else if (feat.hub_concentration > 0.3) {
-            selected = ResolveVariantSelection("HUBSORT", selected.score);
-        } else {
-            selected = ResolveVariantSelection("DBG", selected.score);
-        }
+    if (selected.canonical_spec != "0"
+        && selected.canonical_spec != "5") {
+        auto fallback = ResolveDeployableAdaptiveArm("0", selected.score);
+        fallback.predicted_spec = (
+            selected.predicted_spec.empty()
+            ? selected.canonical_spec
+            : selected.predicted_spec);
+        fallback.override_reason = "rabbit-unavailable";
+        selected = std::move(fallback);
     }
 #endif
     
@@ -5695,6 +5969,44 @@ inline PerceptronSelection SelectBestReorderingForCommunity(
     }
     
     return selected;
+}
+
+/**
+ * Legacy mode wrapper. Graph identity is intentionally rejected by the
+ * deployable selector; callers needing an exact-name oracle must use the
+ * offline OracleUpperBound analysis.
+ */
+inline PerceptronSelection SelectBestReorderingForCommunity(
+    CommunityFeatures feat,
+    double global_modularity,
+    double global_degree_variance,
+    double global_hub_concentration,
+    double global_avg_degree,
+    size_t num_nodes, size_t num_edges,
+    BenchmarkType bench = BENCH_GENERIC,
+    GraphType graph_type = GRAPH_GENERIC,
+    SelectionMode mode = MODE_FASTEST_EXECUTION,
+    const std::string& graph_name = "",
+    size_t dynamic_min_size = 0)
+{
+    if (!graph_name.empty()) {
+        throw std::invalid_argument(
+            "Deployable AdaptiveOrder cannot consume graph identity");
+    }
+    auto [model, criterion] = DecomposeSelectionMode(mode);
+    return SelectBestReorderingForCommunityWithModelCriterion(
+        feat,
+        global_modularity,
+        global_degree_variance,
+        global_hub_concentration,
+        global_avg_degree,
+        num_nodes,
+        num_edges,
+        model,
+        criterion,
+        bench,
+        graph_type,
+        dynamic_min_size);
 }
 
 // ============================================================================
@@ -5760,6 +6072,135 @@ inline size_t GetL2SizeBytes() {
     if (l2 > 0) return static_cast<size_t>(l2);
 #endif
     return 256ULL * 1024;  // 256 KB fallback
+}
+
+/**
+ * Deployable Tier-0 structural extraction.
+ *
+ * Uses deterministic strided vertices and one sampled adjacency pass. Packing
+ * is measured on the actual top-degree vertices in that sample and uses
+ * property cache lines rather than an N-relative ID window.
+ */
+template<typename GraphT>
+inline CommunityFeatures ComputeTier0SampledGraphFeatures(
+    const GraphT& g,
+    size_t sample_size = 0,
+    uint64_t sample_seed = 0) {
+    CommunityFeatures feat;
+    const int64_t nodes = g.num_nodes();
+    const int64_t edges = g.num_edges_directed();
+    feat.num_nodes = static_cast<size_t>(std::max<int64_t>(0, nodes));
+    feat.num_edges = static_cast<size_t>(std::max<int64_t>(0, edges));
+    if (nodes <= 0) return feat;
+
+    if (sample_size == 0) {
+        sample_size = std::max(
+            size_t(1024),
+            std::min(
+                static_cast<size_t>(
+                    std::sqrt(static_cast<double>(nodes))),
+                size_t(8192)));
+    }
+    sample_size = std::min(sample_size, static_cast<size_t>(nodes));
+
+    std::vector<std::pair<int64_t, int64_t>> degree_nodes;
+    degree_nodes.reserve(sample_size);
+    double degree_sum = 0.0;
+    const uint64_t offset = (
+        static_cast<uint64_t>(nodes) == 0
+        ? 0
+        : (sample_seed * 0x9E3779B97F4A7C15ULL)
+            % static_cast<uint64_t>(nodes));
+    for (size_t i = 0; i < sample_size; ++i) {
+        const uint64_t base = (
+            (2 * static_cast<uint64_t>(i) + 1)
+            * static_cast<uint64_t>(nodes))
+            / (2 * sample_size);
+        const int64_t node = static_cast<int64_t>(
+            (base + offset) % static_cast<uint64_t>(nodes));
+        const int64_t degree = g.out_degree(node);
+        degree_nodes.emplace_back(degree, node);
+        degree_sum += degree;
+    }
+
+    feat.avg_degree = degree_sum / sample_size;
+    double variance_sum = 0.0;
+    for (const auto& [degree, node] : degree_nodes) {
+        (void)node;
+        const double delta = degree - feat.avg_degree;
+        variance_sum += delta * delta;
+    }
+    const double variance = (
+        sample_size > 1 ? variance_sum / (sample_size - 1) : 0.0);
+    feat.degree_variance = (
+        feat.avg_degree > 0.0
+        ? std::sqrt(variance) / feat.avg_degree : 0.0);
+    feat.internal_density = (
+        nodes > 1 ? feat.avg_degree / (nodes - 1) : 0.0);
+
+    std::sort(
+        degree_nodes.begin(),
+        degree_nodes.end(),
+        [](const auto& left, const auto& right) {
+            if (left.first != right.first) return left.first > right.first;
+            return left.second < right.second;
+        });
+    const size_t hub_count = std::max(size_t(1), sample_size / 10);
+    double hub_degree_sum = 0.0;
+    std::unordered_set<int64_t> hubs;
+    hubs.reserve(hub_count * 2);
+    for (size_t i = 0; i < hub_count; ++i) {
+        hub_degree_sum += degree_nodes[i].first;
+        hubs.insert(degree_nodes[i].second);
+    }
+    feat.hub_concentration = (
+        degree_sum > 0.0 ? hub_degree_sum / degree_sum : 0.0);
+
+    constexpr int64_t CACHE_LINE_BYTES = 64;
+    constexpr int64_t PROPERTY_BYTES = sizeof(double);
+    constexpr int64_t VERTICES_PER_LINE =
+        CACHE_LINE_BYTES / PROPERTY_BYTES;
+    std::unordered_set<int64_t> hub_cache_lines;
+    hub_cache_lines.reserve(hubs.size());
+    for (int64_t hub : hubs)
+        hub_cache_lines.insert(hub / VERTICES_PER_LINE);
+    feat.packing_factor = (
+        hub_cache_lines.empty()
+        ? 0.0
+        : static_cast<double>(hubs.size())
+            / hub_cache_lines.size());
+    feat.packing_factor_cl = feat.packing_factor;
+    double normalized_span_sum = 0.0;
+    size_t sampled_edges = 0;
+    size_t window_edges = 0;
+    const double span_denominator = std::max<int64_t>(1, nodes - 1);
+
+    for (const auto& [degree, node] : degree_nodes) {
+        (void)degree;
+        const int64_t node_line = node / VERTICES_PER_LINE;
+        for (auto destination_value : g.out_neigh(node)) {
+            const int64_t destination =
+                static_cast<int64_t>(destination_value);
+            const int64_t destination_line =
+                destination / VERTICES_PER_LINE;
+            normalized_span_sum += (
+                static_cast<double>(std::abs(destination - node))
+                / span_denominator);
+            sampled_edges++;
+            if (std::abs(destination_line - node_line) <= 1) {
+                window_edges++;
+            }
+        }
+    }
+
+    feat.avg_reuse_distance = (
+        sampled_edges > 0
+        ? normalized_span_sum / sampled_edges : 0.0);
+    feat.window_neighbor_overlap = (
+        sampled_edges > 0
+        ? static_cast<double>(window_edges) / sampled_edges : 0.0);
+    feat.sampled_locality_score = feat.window_neighbor_overlap;
+    return feat;
 }
 
 /**

@@ -3,7 +3,7 @@
 
 Runs every algorithm + COMPOSE_VARIANT spec once per graph, dumps the
 permutation to results/vldb_mappings/<graph>/<algo_key>.lo plus a
-.time JSON sidecar with the measured reorder overhead.
+.json sidecar with the measured reorder overhead and provenance.
 
 Downstream stages (03_cpu_perf, 04_cache_sim) automatically pick up
 these cached mappings via algo_flags_or_map() and swap the original
@@ -31,10 +31,17 @@ def main() -> None:
     cfg = resolve_config(args)
     banner("02_reorder", cfg)
 
+    V._setup_build_binaries(
+        benchmarks=[],
+        include_standard=False,
+        include_sim=False,
+        include_converter=True,
+    )
     V._pregenerate_mappings(
         cfg["graphs"],
         cfg["graph_dir"],
         dry_run=cfg["dry_run"],
+        timeout=cfg["reorder_timeout"],
     )
     print("STAGE 02 COMPLETE — mappings under results/vldb_mappings/")
 

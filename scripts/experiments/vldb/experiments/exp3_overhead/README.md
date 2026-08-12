@@ -5,15 +5,31 @@
 
 **Output:** `results/vldb_paper/exp3_overhead/overhead_results.json`
 
-Uses the `.time` sidecars produced by [stage 02](../stages/02_reorder.py)
-plus a small fresh sweep.
+Live-measures all mappings on the seven smaller graphs in the final timing
+state. It reuses structured Stage-02 timing only for wikipedia, Gong-gplus,
+webbase, and twitter, whose single mapping sweep accounts for most of the
+multi-day cost. Promoted Gorder mappings on wikipedia, Gong-gplus, and webbase
+still run live and are byte-compared with the promoted mappings; all completed
+within the final 12-hour budget. Small-graph live rows retain
+their Stage-02 reference and calibration ratio. Every uncensored cell also
+receives one final-state weighted MAP-application measurement for SSSP
+amortization. Existing canonical `.lo` files are never regenerated.
+
+Run the isolated cit-Patents check, isolated webbase check, and bulk command
+with the exact same measurement generation, artifact root, thread count,
+CPU list, timeout, and `--skip-build`. Do not rebuild
+`bench/bin/converter` between phases.
 
 ## Run
 
 ```bash
-python3 scripts/experiments/vldb/stages/01_prep.py     --exp 3 --local
-python3 scripts/experiments/vldb/stages/02_reorder.py  --exp 3 --local
-python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 3 --local
+python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
+  --exp 3 \
+  --measurement-generation vldb-final-20260808 \
+  --skip-build \
+  --graph-dir /media/Data/00_GraphDatasets/GraphBrew \
+  --artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --threads 16 --cpu-list 0-15
 ```
 
 ## SLURM

@@ -13,15 +13,10 @@
  * AdaptiveOrder (ID 14) analyzes graph structure and selects the best algorithm:
  * 
  * 1. FEATURE EXTRACTION
- *    Samples ~5000 vertices to compute:
- *    - degree_variance: Normalized variance in degree distribution (CV)
- *    - hub_concentration: Fraction of edges from top 10% degree nodes
- *    - avg_degree: Average vertex degree
- *    - clustering_coeff: Local clustering coefficient
- *    - estimated_modularity: Rough modularity from degree structure
- *    - packing_factor: Hub neighbor co-location (IISWC'18)
- *    - forward_edge_fraction: Fraction of edges (u,v) where u < v (GoGraph)
- *    - working_set_ratio: graph_bytes / LLC_size (P-OPT)
+ *    Uses the shared Tier-0 schema:
+ *    - log graph dimensions, average degree, degree CV, hub concentration
+ *    - normalized sampled edge span and cache-line neighbor overlap
+ *    - kernel-specific property/LLC ratio, kernel class, and reuse bucket
  *
  * 2. TYPE MATCHING
  *    - Compare features against trained type centroids (type_0, type_1, etc.)
@@ -37,18 +32,23 @@
  * COMMAND LINE FORMAT
  * ============================================================================
  *
- * -o 14[:_[:_[:_[:selection_mode[:graph_name]]]]]
+ * -o 14[:_[:_[:model[:criterion]]]]
  *
  * Parameters (positions relative to algorithm ID):
  *   0-2: Reserved (currently unused by standalone entry point)
- *   3: selection_mode: 0=fastest-reorder, 1=fastest-execution (default),
- *                      2=best-endtoend, 3=best-amortization
- *   4: graph_name: Graph name for loading reorder times
+ *   3: model: perceptron (Sprint-0 deployable model)
+ *   4: criterion: fastest-reorder, fastest-execution (default),
+ *                 best-endtoend, or best-amortization
  *
  * Examples:
- *   -o 14                           # Default: full-graph, fastest-execution
- *   -o 14::::0                      # Full-graph, fastest-reorder mode
- *   -o 14::::1:web-Google           # fastest-execution with graph name hint
+ *   -o 14                                  # perceptron + fastest-execution
+ *   -o 14::::perceptron:best-endtoend      # independent model/criterion
+ * Decision-tree and hybrid artifacts remain offline-only until Sprint 3
+ * retrains them on the Tier-0 schema.
+ *
+ * Graph names, runtime benchmark-database kNN, and exact-name oracle lookup
+ * are prohibited in deployable AdaptiveOrder. Exact-name comparisons belong
+ * to the offline OracleUpperBound analysis.
  *
  * ============================================================================
  * SELECTION MODES
@@ -93,7 +93,6 @@
 
 #include <cstddef>
 #include <iomanip>
-#include <limits>
 #include <string>
 #include <vector>
 #include "reorder_types.h"
@@ -145,13 +144,12 @@ struct AdaptiveConfig {
     double resolution = DEFAULT_RESOLUTION;
     size_t min_recurse_size = DEFAULT_MIN_RECURSE_SIZE;
     SelectionMode selection_mode = MODE_FASTEST_EXECUTION;
-    std::string graph_name = "";
     BenchmarkType benchmark = BENCH_GENERIC;
     bool verbose = false;
     
     /**
      * Parse configuration from reordering options
-     * Format: mode:depth:resolution:min_size:selection_mode:graph_name
+     * Format: mode:depth:resolution:min_size:selection_mode
      */
     static AdaptiveConfig FromOptions(const std::vector<std::string>& options) {
         AdaptiveConfig cfg;
@@ -199,11 +197,6 @@ struct AdaptiveConfig {
             } catch (...) {}
         }
         
-        // Parse graph_name (param 5)
-        if (options.size() > 5 && !options[5].empty()) {
-            cfg.graph_name = options[5];
-        }
-        
         return cfg;
     }
     
@@ -217,11 +210,64 @@ struct AdaptiveConfig {
         std::cout << "  Resolution: " << resolution << "\n";
         std::cout << "  Min Recurse Size: " << min_recurse_size << "\n";
         std::cout << "  Selection Mode: " << SelectionModeToString(selection_mode) << "\n";
-        if (!graph_name.empty()) {
-            std::cout << "  Graph Name: " << graph_name << "\n";
-        }
     }
 };
+
+struct DeployableSelectionPolicy {
+    SelectionModel model = SELECTION_MODEL_PERCEPTRON;
+    SelectionCriterion criterion = CRITERION_FASTEST_EXECUTION;
+};
+
+inline bool IsDeployableSelectionModel(SelectionModel model) {
+    return model == SELECTION_MODEL_PERCEPTRON;
+}
+
+inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
+    const std::vector<std::string>& options) {
+    DeployableSelectionPolicy policy;
+    for (size_t i = 0; i < std::min<size_t>(3, options.size()); ++i) {
+        if (!options[i].empty() && options[i] != "_") {
+            throw std::invalid_argument(
+                "AdaptiveOrder reserved fields must be empty");
+        }
+    }
+    const std::string model_spec = (
+        options.size() > 3 ? options[3] : "");
+    const std::string criterion_spec = (
+        options.size() > 4 ? options[4] : "");
+
+    if (!model_spec.empty() && model_spec != "_") {
+        if (!criterion_spec.empty() && criterion_spec != "_") {
+            if (model_spec.find(':') != std::string::npos) {
+                throw std::invalid_argument(
+                    "AdaptiveOrder model and criterion were specified twice");
+            }
+            policy.model = GetSelectionModel(model_spec);
+            policy.criterion = GetSelectionCriterion(criterion_spec);
+        } else {
+            auto parsed = ParseModelCriterion(model_spec);
+            policy.model = parsed.first;
+            policy.criterion = parsed.second;
+        }
+    } else if (!criterion_spec.empty() && criterion_spec != "_") {
+        throw std::invalid_argument(
+            "AdaptiveOrder criterion requires an explicit model");
+    }
+
+    for (size_t i = 5; i < options.size(); ++i) {
+        if (!options[i].empty() && options[i] != "_") {
+            throw std::invalid_argument(
+                "AdaptiveOrder no longer accepts graph identity or "
+                "additional runtime selection fields");
+        }
+    }
+    if (!IsDeployableSelectionModel(policy.model)) {
+        throw std::invalid_argument(
+            SelectionModelToString(policy.model)
+            + " is offline-only and cannot drive deployable AdaptiveOrder");
+    }
+    return policy;
+}
 
 // ============================================================================
 // HEURISTIC FALLBACK
@@ -291,6 +337,46 @@ using adaptive::AdaptiveConfig;
 using adaptive::SelectHeuristicFallback;
 using adaptive::ShouldRecurse;
 
+inline PerceptronSelection EnforceDeployableAdaptivePortfolio(
+    const PerceptronSelection& predicted) {
+    try {
+        auto applied = ResolveDeployableAdaptiveArm(
+            predicted.variant_name, predicted.score);
+        applied.margin = predicted.margin;
+        applied.confidence = predicted.confidence;
+        applied.explored = predicted.explored;
+        applied.predicted_spec = predicted.predicted_spec;
+        applied.override_reason = predicted.override_reason;
+        return applied;
+    } catch (const std::invalid_argument&) {
+        throw std::runtime_error(
+            "Deployable adaptive model emitted non-portfolio label: "
+            + predicted.variant_name);
+    }
+}
+
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void ApplyDeployableAdaptiveArm(
+    const CSRGraph<NodeID_, DestID_, invert>& g,
+    pvector<NodeID_>& new_ids,
+    const PerceptronSelection& selected,
+    bool useOutdeg) {
+    if (selected.algo == GraphBrewOrder) {
+        if constexpr (!invert) {
+            throw std::invalid_argument(
+                "Deployable GraphBrew adaptive arms require inverse CSR");
+        } else {
+            auto config = graphbrew::parseGraphBrewConfig(
+                selected.options, true);
+            graphbrew::generateGraphBrewMapping<uint32_t>(
+                g, new_ids, config);
+            return;
+        }
+    }
+    ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
+        g, new_ids, selected, useOutdeg, "");
+}
+
 // ============================================================================
 // STANDALONE ADAPTIVE IMPLEMENTATIONS
 // ============================================================================
@@ -324,17 +410,37 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         return;
     }
     
-    // Compute global features (auto-scaled sample size)
-    auto features = ::ComputeSampledDegreeFeatures(g, 0, true);
-    
-    // Compute extended features (avg_path_length, diameter, component_count)
-    auto ext_features = ::ComputeExtendedFeatures(g);
-    
-    double global_modularity = features.estimated_modularity;
-    double global_degree_variance = features.degree_variance;
-    double global_hub_concentration = features.hub_concentration;
-    double global_avg_degree = (num_nodes > 0) ? static_cast<double>(num_edges) / num_nodes : 0.0;
-    double clustering_coeff = features.clustering_coeff;
+    Timer feature_timer;
+    feature_timer.Start();
+    CommunityFeatures global_feat =
+        ::ComputeTier0SampledGraphFeatures(g);
+    const BenchmarkType benchmark = GetBenchmarkTypeHint();
+    const uint64_t property_bytes = ModeledPropertyBytes(
+        benchmark,
+        static_cast<uint64_t>(num_nodes),
+        static_cast<uint64_t>(num_edges));
+    const size_t llc_bytes = GetLLCSizeBytes();
+    Tier0FeatureContext tier0_context;
+    tier0_context.property_wsr_llc = (
+        llc_bytes > 0
+        ? static_cast<double>(property_bytes) / llc_bytes
+        : 0.0);
+    tier0_context.kernel_class = benchmark;
+    tier0_context.reuse_count = 1.0;
+    global_feat.working_set_ratio =
+        tier0_context.property_wsr_llc;
+    global_feat.kernel_class =
+        static_cast<double>(benchmark);
+    global_feat.reuse_count = tier0_context.reuse_count;
+    const auto tier0_values = ExtractTier0Features(
+        global_feat, tier0_context);
+    feature_timer.Stop();
+
+    const double global_modularity = 0.0;
+    const double global_degree_variance = global_feat.degree_variance;
+    const double global_hub_concentration =
+        global_feat.hub_concentration;
+    const double global_avg_degree = global_feat.avg_degree;
     
     // Detect graph type
     GraphType detected_graph_type = DetectGraphType(
@@ -344,190 +450,81 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     std::cout << "Graph Type: " << GraphTypeToString(detected_graph_type) << "\n";
     PrintTime("Degree Variance", global_degree_variance);
     PrintTime("Hub Concentration", global_hub_concentration);
-    PrintTime("Modularity", global_modularity);
-    
-    // Create community features for the whole graph
-    CommunityFeatures global_feat;
-    global_feat.num_nodes = num_nodes;
-    global_feat.num_edges = num_edges;
-    global_feat.internal_density = (num_nodes > 1) ? global_avg_degree / (num_nodes - 1) : 0.0;
-    global_feat.avg_degree = global_avg_degree;
-    global_feat.degree_variance = global_degree_variance;
-    global_feat.hub_concentration = global_hub_concentration;
-    global_feat.clustering_coeff = clustering_coeff;
-    global_feat.packing_factor = features.packing_factor;
-    global_feat.forward_edge_fraction = features.forward_edge_fraction;
-    global_feat.working_set_ratio = features.working_set_ratio;
-    global_feat.vertex_significance_skewness = features.vertex_significance_skewness;
-    global_feat.window_neighbor_overlap = features.window_neighbor_overlap;
-    global_feat.sampled_locality_score = features.sampled_locality_score;
-    global_feat.avg_reuse_distance = features.avg_reuse_distance;
-    global_feat.packing_factor_cl = features.packing_factor_cl;
-    global_feat.locality_score_pairwise = features.locality_score_pairwise;
-    global_feat.reuse_distance_lru = features.reuse_distance_lru;
-    
-    // Populate extended features (previously always 0 at runtime)
-    global_feat.avg_path_length = ext_features.avg_path_length;
-    global_feat.diameter_estimate = static_cast<double>(ext_features.diameter_estimate);
-    global_feat.community_count = static_cast<double>(ext_features.component_count);
-    
-    std::cout << "Avg Path Length: " << ext_features.avg_path_length << "\n";
-    std::cout << "Diameter Estimate: " << ext_features.diameter_estimate << "\n";
-    std::cout << "Component Count: " << ext_features.component_count << "\n";
-    
-    // Parse selection model:criterion and graph name from options (positions 3 & 4)
-    // Supports both new "model:criterion" format (e.g. "dt:e2e") and legacy
-    // integer modes (0-6) for backward compatibility.
-    SelectionModel selection_model = SELECTION_MODEL_PERCEPTRON;
-    SelectionCriterion selection_criterion = CRITERION_FASTEST_EXECUTION;
-    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;  // kept for legacy callers
-    std::string graph_name;
-    
-    if (reordering_options.size() > 3 && !reordering_options[3].empty()
-        && reordering_options[3] != "_") {
-        auto mc = ParseModelCriterion(reordering_options[3]);
-        selection_model = mc.first;
-        selection_criterion = mc.second;
-        // Also set legacy mode for any remaining callers
-        try {
-            int mode_val = std::stoi(reordering_options[3]);
-            if (mode_val >= 0 && mode_val <= 6)
-                selection_mode = static_cast<SelectionMode>(mode_val);
-        } catch (...) {
-            selection_mode = GetSelectionMode(reordering_options[3]);
-        }
+    PrintTime("Normalized Edge Span", global_feat.avg_reuse_distance);
+    PrintTime("Window Neighbor Overlap",
+              global_feat.window_neighbor_overlap);
+    PrintTime("Packing Factor", global_feat.packing_factor);
+    PrintTime(
+        "Property Working Set Bytes",
+        static_cast<double>(property_bytes));
+    PrintTime("LLC Capacity Bytes", static_cast<double>(llc_bytes));
+    PrintTime(
+        "Property WSR LLC",
+        tier0_context.property_wsr_llc);
+    const auto old_flags = std::cout.flags();
+    const auto old_precision = std::cout.precision();
+    std::cout << std::defaultfloat << std::setprecision(17);
+    std::cout << "Adaptive Tier0 Features: {";
+    for (size_t i = 0; i < TIER0_FEATURE_COUNT; ++i) {
+        if (i > 0) std::cout << ",";
+        std::cout << "\"" << TIER0_FEATURE_NAMES[i]
+                  << "\":" << tier0_values[i];
     }
-    if (reordering_options.size() > 4 && !reordering_options[4].empty()
-        && reordering_options[4] != "_") {
-        graph_name = reordering_options[4];
-    }
-    // Fallback: use the global graph-name hint (auto-extracted from filename)
-    if (graph_name.empty()) {
-        graph_name = GetGraphNameHint();
-    }
-    
-    std::cout << "Selection: model=" << SelectionModelToString(selection_model)
-              << " criterion=" << SelectionCriterionToString(selection_criterion);
-    if (!graph_name.empty()) std::cout << " (graph: " << graph_name << ")";
-    std::cout << "\n";
+    std::cout << "}\n";
+    std::cout.flags(old_flags);
+    std::cout.precision(old_precision);
+    PrintTime("Adaptive Feature Time", feature_timer.Seconds());
+
+    Timer model_timer;
+    model_timer.Start();
+    const auto selection_policy =
+        adaptive::ParseDeployableSelectionPolicy(reordering_options);
+
+    std::cout << "Selection: model="
+              << SelectionModelToString(selection_policy.model)
+              << " criterion="
+              << SelectionCriterionToString(selection_policy.criterion)
+              << "\n";
     
     // Select best algorithm
-    PerceptronSelection best = SelectBestReorderingForCommunity(
+    PerceptronSelection best =
+        SelectBestReorderingForCommunityWithModelCriterion(
         global_feat, global_modularity, global_degree_variance, global_hub_concentration,
         global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
-        GetBenchmarkTypeHint(), detected_graph_type, selection_mode, graph_name);
+        selection_policy.model, selection_policy.criterion,
+        benchmark, detected_graph_type);
     
-    // Complexity guard constants (shared by Top-K and single-selection paths)
-    constexpr int64_t GORDER_MAX_NODES = 500000;
-    constexpr int64_t CORDER_MAX_NODES = 2000000;
-    
-    // Helper lambda: apply complexity guard to a candidate, returning a safe
-    // fallback selection when the algorithm is too expensive for this graph.
-    auto apply_complexity_guard = [&](PerceptronSelection sel) -> PerceptronSelection {
-        if ((sel.algo == GOrder && num_nodes > GORDER_MAX_NODES) ||
-            (sel.algo == COrder && num_nodes > CORDER_MAX_NODES)) {
-            PerceptronSelection fallback;
-            if (global_hub_concentration > 0.5 && global_degree_variance > 1.5)
-                fallback = ResolveVariantSelection("HUBCLUSTERDBG", sel.score);
-            else if (global_hub_concentration > 0.3)
-                fallback = ResolveVariantSelection("HUBSORT", sel.score);
-            else
-                fallback = ResolveVariantSelection("DBG", sel.score);
-            std::cout << "Complexity guard: " << num_nodes << " nodes, "
-                      << sel.variant_name << " -> " << fallback.variant_name << "\n";
-            return fallback;
-        }
-        return sel;
-    };
-    
-    // Mode 3: True Top-K execution
-    // When ADAPTIVE_TOP_K > 1, try each of the top-K candidates: apply the
-    // reordering, evaluate with a fast locality metric (average edge gap =
-    // mean |new_id[u] - new_id[v]| over all edges), and keep the reordering
-    // with the best cache locality.
     const int top_k = AblationConfig::Get().top_k;
-    bool top_k_handled = false;
     if (top_k > 1) {
-        auto weights = LoadPerceptronWeightsForFeatures(
-            global_modularity, global_degree_variance, global_hub_concentration,
-            global_avg_degree, static_cast<size_t>(num_nodes), num_edges, false,
-            clustering_coeff, GetBenchmarkTypeHint());
-        auto candidates = SelectTopKFromWeights(
-            global_feat, weights, GetBenchmarkTypeHint(), top_k);
-        
-        std::cout << "=== Top-" << top_k << " Execution ===\n";
-        
-        double best_avg_gap = std::numeric_limits<double>::max();
-        pvector<NodeID_> best_ids(num_nodes, -1);
-        
-        for (size_t ci = 0; ci < candidates.size(); ci++) {
-            PerceptronSelection cand = apply_complexity_guard(candidates[ci]);
-            
-            Timer trial_tm;
-            trial_tm.Start();
-            
-            pvector<NodeID_> trial_ids(num_nodes, -1);
-            ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
-                g, trial_ids, cand, useOutdeg, "");
-            
-            // Locality metric: average |new_id[u] - new_id[v]| over all edges.
-            // Lower is better — nodes connected by edges are closer in memory.
-            double gap_sum = 0.0;
-            int64_t edge_count = 0;
-            #pragma omp parallel for reduction(+:gap_sum,edge_count)
-            for (NodeID_ u = 0; u < num_nodes; u++) {
-                for (DestID_ neighbor : g.out_neigh(u)) {
-                    NodeID_ v;
-                    if (g.is_weighted())
-                        v = static_cast<NodeWeight<NodeID_, WeightT_>>(neighbor).v;
-                    else
-                        v = static_cast<NodeID_>(neighbor);
-                    if (trial_ids[u] >= 0 && trial_ids[v] >= 0) {
-                        gap_sum += std::abs(
-                            static_cast<double>(trial_ids[u]) - trial_ids[v]);
-                        edge_count++;
-                    }
-                }
-            }
-            double avg_gap = (edge_count > 0) ? gap_sum / edge_count : 0.0;
-            
-            trial_tm.Stop();
-            
-            std::cout << "  " << (ci + 1) << ". " << cand.variant_name
-                      << " (score=" << cand.score
-                      << ", avg_gap=" << std::fixed << std::setprecision(1)
-                      << avg_gap << ", time=" << trial_tm.Seconds() << "s)\n";
-            
-            if (avg_gap < best_avg_gap) {
-                best_avg_gap = avg_gap;
-                std::swap(best_ids, trial_ids);
-                best = cand;
-            }
-        }
-        
-        if (best_avg_gap < std::numeric_limits<double>::max()) {
-            // Copy winning mapping to output
-            #pragma omp parallel for
-            for (NodeID_ n = 0; n < num_nodes; n++) {
-                new_ids[n] = best_ids[n];
-            }
-            top_k_handled = true;
-            std::cout << "=== Top-K Winner: " << best.variant_name
-                      << " (avg_gap=" << std::fixed << std::setprecision(1)
-                      << best_avg_gap << ") ===\n";
-        }
+        throw std::invalid_argument(
+            "ADAPTIVE_TOP_K is offline-only; deployable AdaptiveOrder "
+            "cannot trial multiple reorderers");
     }
-    
-    if (!top_k_handled) {
-        // Single-selection path (top_k <= 1 or Top-K produced no valid result)
-        best = apply_complexity_guard(best);
-        
-        std::cout << "\n=== Selected Algorithm: " << best.variant_name << " ===\n";
-        
-        // Use standalone dispatcher
-        ApplyBasicReorderingStandalone<NodeID_, DestID_, WeightT_, invert>(
-            g, new_ids, best, useOutdeg, "");
-    }
+
+    const std::string predicted_label = (
+        best.predicted_spec.empty()
+        ? best.variant_name
+        : best.predicted_spec);
+    best = EnforceDeployableAdaptivePortfolio(best);
+    model_timer.Stop();
+    PrintTime("Adaptive Model Time", model_timer.Seconds());
+    PrintTime(
+        "Adaptive Selection Time",
+        feature_timer.Seconds() + model_timer.Seconds());
+    PrintLabel("Adaptive Predicted", predicted_label);
+    PrintLabel("Adaptive Applied", best.canonical_spec);
+    PrintLabel(
+        "Adaptive Override Reason",
+        best.override_reason.empty() ? "none" : best.override_reason);
+    PrintTime("Adaptive Confidence", best.confidence);
+    std::cout << "\n=== Selected Algorithm: " << best.canonical_spec
+              << " ===\n";
+    Timer arm_timer;
+    arm_timer.Start();
+    ApplyDeployableAdaptiveArm<NodeID_, DestID_, WeightT_, invert>(
+        g, new_ids, best, useOutdeg);
+    arm_timer.Stop();
+    PrintTime("Adaptive Arm Map Time", arm_timer.Seconds());
     
     tm.Stop();
     PrintTime("Full-Graph Adaptive Time", tm.Seconds());
@@ -547,8 +544,12 @@ void GenerateAdaptiveMappingRecursiveStandalone(
     const std::vector<std::string>& reordering_options,
     int depth = 0,
     bool verbose = true,
-    SelectionMode selection_mode = MODE_FASTEST_EXECUTION,
-    const std::string& graph_name = "") {
+    SelectionModel selection_model = SELECTION_MODEL_PERCEPTRON,
+    SelectionCriterion selection_criterion =
+        CRITERION_FASTEST_EXECUTION) {
+    throw std::invalid_argument(
+        "Recursive AdaptiveOrder is retired; deployable selection is "
+        "full-graph over the frozen exact portfolio");
     
     Timer tm;
     tm.Start();
@@ -762,10 +763,12 @@ void GenerateAdaptiveMappingRecursiveStandalone(
             printf("AdaptiveOrder: Benchmark hint = %s (%d)\n", 
                    bench_hint < 9 ? bnames[bench_hint] : "?", bench_hint);
         }
-        PerceptronSelection small_sel = SelectBestReorderingForCommunity(
+        PerceptronSelection small_sel =
+            SelectBestReorderingForCommunityWithModelCriterion(
             comm_feat, global_modularity, global_degree_variance, global_hub_concentration,
             global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
-            bench_hint, detected_graph_type, selection_mode, graph_name);
+            selection_model, selection_criterion,
+            bench_hint, detected_graph_type);
         
         // Complexity guard: GOrder is O(n*m*w) and CORDER is O(n*m) — prohibitively
         // slow for large merged groups. Fall back to fast O(n+m) alternatives when
@@ -890,10 +893,12 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         // Select algorithm for this community
         Timer t_cs;
         t_cs.Start();
-        PerceptronSelection selected = SelectBestReorderingForCommunity(
+        PerceptronSelection selected =
+            SelectBestReorderingForCommunityWithModelCriterion(
             feat, global_modularity, global_degree_variance, global_hub_concentration,
             global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
-            GetBenchmarkTypeHint(), detected_graph_type, selection_mode, graph_name);
+            selection_model, selection_criterion,
+            GetBenchmarkTypeHint(), detected_graph_type);
         t_cs.Stop();
         t_comm_scoring_total += t_cs.Seconds();
         
@@ -1014,55 +1019,12 @@ void GenerateAdaptiveMappingStandalone(
     bool useOutdeg,
     const std::vector<std::string>& reordering_options) {
     
-    SelectionModel selection_model = SELECTION_MODEL_PERCEPTRON;
-    SelectionCriterion selection_criterion = CRITERION_FASTEST_EXECUTION;
-    SelectionMode selection_mode = MODE_FASTEST_EXECUTION;  // kept for legacy callers
-    std::string graph_name = "";
-    
-    if (reordering_options.size() > 3) {
-        // Check for legacy mode=100 first
-        try {
-            int mode_val = std::stoi(reordering_options[3]);
-            if (mode_val == 100) {
-                GenerateAdaptiveMappingFullGraphStandalone<NodeID_, DestID_, WeightT_, invert>(
-                    g, new_ids, useOutdeg, reordering_options);
-                return;
-            }
-        } catch (...) {}
-        
-        auto mc = ParseModelCriterion(reordering_options[3]);
-        selection_model = mc.first;
-        selection_criterion = mc.second;
-        // Also set legacy mode for any remaining callers
-        try {
-            int mode_val = std::stoi(reordering_options[3]);
-            if (mode_val >= 0 && mode_val <= 6)
-                selection_mode = static_cast<SelectionMode>(mode_val);
-        } catch (...) {
-            selection_mode = GetSelectionMode(reordering_options[3]);
-        }
-    }
-    
-    if (reordering_options.size() > 4) {
-        graph_name = reordering_options[4];
-    }
-    
-    printf("AdaptiveOrder: model=%s criterion=%s",
-           SelectionModelToString(selection_model).c_str(),
-           SelectionCriterionToString(selection_criterion).c_str());
-    if (!graph_name.empty()) {
-        printf(" (graph: %s)", graph_name.c_str());
-    }
-    printf("\n");
-    fflush(stdout);
-    
     // Default: full-graph mode. The perceptron selects the best algorithm for
     // the whole graph based on graph features and benchmark type. Per-community
     // reordering (recursive mode) was found to degrade performance because:
     //   1. Leiden decomposition disrupts original memory layout
     //   2. Community-level features differ from training data (whole-graph)
     //   3. Cross-community edge patterns are not captured
-    // Full-graph mode achieves 96.3% accuracy on training data.
     GenerateAdaptiveMappingFullGraphStandalone<NodeID_, DestID_, WeightT_, invert>(
         g, new_ids, useOutdeg, reordering_options);
 }

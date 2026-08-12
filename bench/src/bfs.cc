@@ -45,14 +45,34 @@ them in the parent array as negative numbers. Thus, the encoding of parent is:
 
 using namespace std;
 
+#ifdef GRAPHBREW_COUNT_WORK
+static int64_t g_bfs_td_edges = 0;
+static int64_t g_bfs_bu_edges = 0;
+static int64_t g_bfs_steps = 0;
+#endif
+
 int64_t BUStep(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
-               Bitmap &next) {
+               Bitmap &next
+#ifdef GRAPHBREW_COUNT_WORK
+               , int64_t &edges_examined
+#endif
+               ) {
   int64_t awake_count = 0;
+#ifdef GRAPHBREW_COUNT_WORK
+  int64_t step_edges = 0;
+#endif
   next.reset();
+#ifdef GRAPHBREW_COUNT_WORK
+  #pragma omp parallel for reduction(+ : awake_count, step_edges) schedule(dynamic, 1024)
+#else
   #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
+#endif
   for (NodeID u=0; u < g.num_nodes(); u++) {
     if (parent[u] < 0) {
       for (NodeID v : g.in_neigh(u)) {
+#ifdef GRAPHBREW_COUNT_WORK
+        step_edges++;
+#endif
         if (front.get_bit(v)) {
           parent[u] = v;
           awake_count++;
@@ -62,20 +82,37 @@ int64_t BUStep(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
       }
     }
   }
+#ifdef GRAPHBREW_COUNT_WORK
+  edges_examined = step_edges;
+#endif
   return awake_count;
 }
 
 
 int64_t TDStep(const Graph &g, pvector<NodeID> &parent,
-               SlidingQueue<NodeID> &queue) {
+               SlidingQueue<NodeID> &queue
+#ifdef GRAPHBREW_COUNT_WORK
+               , int64_t &edges_examined
+#endif
+               ) {
   int64_t scout_count = 0;
+#ifdef GRAPHBREW_COUNT_WORK
+  int64_t step_edges = 0;
+#endif
   #pragma omp parallel
   {
     QueueBuffer<NodeID> lqueue(queue);
+#ifdef GRAPHBREW_COUNT_WORK
+    #pragma omp for reduction(+ : scout_count, step_edges) nowait
+#else
     #pragma omp for reduction(+ : scout_count) nowait
+#endif
     for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
       NodeID u = *q_iter;
       for (NodeID v : g.out_neigh(u)) {
+#ifdef GRAPHBREW_COUNT_WORK
+        step_edges++;
+#endif
         NodeID curr_val = parent[v];
         if (curr_val < 0) {
           if (compare_and_swap(parent[v], curr_val, u)) {
@@ -87,6 +124,9 @@ int64_t TDStep(const Graph &g, pvector<NodeID> &parent,
     }
     lqueue.flush();
   }
+#ifdef GRAPHBREW_COUNT_WORK
+  edges_examined = step_edges;
+#endif
   return scout_count;
 }
 
@@ -125,12 +165,24 @@ pvector<NodeID> DOBFS(const Graph &g, NodeID source, bool logging_enabled = fals
                       int alpha = 15, int beta = 18) {
   using graphbrew::database::AppendBenchmarkIterationEntry;
   int bfs_step = 0;
+  const bool record_iterations =
+      graphbrew::database::SelfRecordingEnabled();
+  const bool measure_steps = logging_enabled || record_iterations;
+#ifdef GRAPHBREW_COUNT_WORK
+  constexpr bool count_work = true;
+#else
+  constexpr bool count_work = false;
+#endif
+#ifdef GRAPHBREW_COUNT_WORK
+  int64_t td_edges = 0;
+  int64_t bu_edges = 0;
+#endif
   if (logging_enabled)
     PrintStep("Source", static_cast<int64_t>(source));
   Timer t;
-  t.Start();
+  if (measure_steps) t.Start();
   pvector<NodeID> parent = InitParent(g);
-  t.Stop();
+  if (measure_steps) t.Stop();
   if (logging_enabled)
     PrintStep("i", t.Seconds());
   parent[source] = source;
@@ -146,43 +198,73 @@ pvector<NodeID> DOBFS(const Graph &g, NodeID source, bool logging_enabled = fals
   while (!queue.empty()) {
     if (scout_count > edges_to_check / alpha) {
       int64_t awake_count, old_awake_count;
-      TIME_OP(t, QueueToBitmap(queue, front));
+      if (measure_steps) t.Start();
+      QueueToBitmap(queue, front);
+      if (measure_steps) t.Stop();
       if (logging_enabled)
         PrintStep("e", t.Seconds());
-      AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "e"}, {"time_s", t.Seconds()}});
+      if (record_iterations)
+        AppendBenchmarkIterationEntry({{"step", bfs_step}, {"phase", "e"}, {"time_s", t.Seconds()}});
+      if (record_iterations || count_work) bfs_step++;
       awake_count = queue.size();
       queue.slide_window();
       do {
-        t.Start();
+        if (measure_steps) t.Start();
         old_awake_count = awake_count;
+#ifdef GRAPHBREW_COUNT_WORK
+        int64_t step_edges = 0;
+        awake_count = BUStep(
+            g, parent, front, curr, step_edges);
+        bu_edges += step_edges;
+#else
         awake_count = BUStep(g, parent, front, curr);
+#endif
         front.swap(curr);
-        t.Stop();
+        if (measure_steps) t.Stop();
         if (logging_enabled)
           PrintStep("bu", t.Seconds(), awake_count);
-        AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "bu"}, {"time_s", t.Seconds()}, {"awake_count", awake_count}});
+        if (record_iterations)
+          AppendBenchmarkIterationEntry({{"step", bfs_step}, {"phase", "bu"}, {"time_s", t.Seconds()}, {"awake_count", awake_count}});
+        if (record_iterations || count_work) bfs_step++;
       } while ((awake_count >= old_awake_count) ||
                (awake_count > g.num_nodes() / beta));
-      TIME_OP(t, BitmapToQueue(g, front, queue));
+      if (measure_steps) t.Start();
+      BitmapToQueue(g, front, queue);
+      if (measure_steps) t.Stop();
       if (logging_enabled)
         PrintStep("c", t.Seconds());
-      AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "c"}, {"time_s", t.Seconds()}});
+      if (record_iterations)
+        AppendBenchmarkIterationEntry({{"step", bfs_step}, {"phase", "c"}, {"time_s", t.Seconds()}});
+      if (record_iterations || count_work) bfs_step++;
       scout_count = 1;
     } else {
-      t.Start();
+      if (measure_steps) t.Start();
       edges_to_check -= scout_count;
+#ifdef GRAPHBREW_COUNT_WORK
+      int64_t step_edges = 0;
+      scout_count = TDStep(g, parent, queue, step_edges);
+      td_edges += step_edges;
+#else
       scout_count = TDStep(g, parent, queue);
+#endif
       queue.slide_window();
-      t.Stop();
+      if (measure_steps) t.Stop();
       if (logging_enabled)
         PrintStep("td", t.Seconds(), queue.size());
-      AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "td"}, {"time_s", t.Seconds()}, {"scout_count", scout_count}, {"queue_size", static_cast<int64_t>(queue.size())}});
+      if (record_iterations)
+        AppendBenchmarkIterationEntry({{"step", bfs_step}, {"phase", "td"}, {"time_s", t.Seconds()}, {"scout_count", scout_count}, {"queue_size", static_cast<int64_t>(queue.size())}});
+      if (record_iterations || count_work) bfs_step++;
     }
   }
   #pragma omp parallel for
   for (NodeID n = 0; n < g.num_nodes(); n++)
     if (parent[n] < -1)
       parent[n] = -1;
+#ifdef GRAPHBREW_COUNT_WORK
+  g_bfs_td_edges = td_edges;
+  g_bfs_bu_edges = bu_edges;
+  g_bfs_steps = bfs_step;
+#endif
   return parent;
 }
 
@@ -197,17 +279,24 @@ int main(int argc, char* argv[]) {
   Graph g = b.MakeGraph();
   // Create SourcePicker with pre-generated consistent sources based on num_trials
   // This ensures all orderings use the same ORIGINAL vertex IDs as sources
-  SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
+  SourcePicker<Graph> sp(
+      g, cli.start_vertices(), cli.num_trials(),
+      cli.source_repeats());
   auto BFSBound = [&sp,&cli] (const Graph &g) {
     return DOBFS(g, sp.PickNext(), cli.logging_en());
   };
-  SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
+  std::unique_ptr<SourcePicker<Graph>> vsp;
+  if (cli.do_verify()) {
+    vsp = std::make_unique<SourcePicker<Graph>>(
+        g, cli.start_vertices(), cli.num_trials(),
+        cli.source_repeats());
+  }
   auto VerifierBound = [&vsp] (const Graph &g, const pvector<NodeID> &parent) {
-    return BFSVerifier(g, vsp.PickNext(), parent);
+    return BFSVerifier(g, vsp->PickNext(), parent);
   };
   BenchmarkKernel(cli, g, BFSBound, PrintBFSStats, VerifierBound,
     "bfs",
-    [](const Graph &g, const pvector<NodeID> &parent) -> nlohmann::json {
+    [&sp](const Graph &g, const pvector<NodeID> &parent) -> nlohmann::json {
       nlohmann::json ans;
       int64_t tree_size = 0, n_edges = 0;
       for (NodeID n = 0; n < g.num_nodes(); n++) {
@@ -215,6 +304,28 @@ int main(int argc, char* argv[]) {
       }
       ans["tree_nodes"] = tree_size;
       ans["tree_edges"] = n_edges;
+      ans["source_original"] = sp.last_original_source();
+      ans["source_internal"] = sp.last_internal_source();
+      PrintLabel(
+          "Source Original", std::to_string(sp.last_original_source()));
+      PrintLabel(
+          "Source Internal", std::to_string(sp.last_internal_source()));
+      PrintLabel(
+          "Source Out Degree",
+          std::to_string(sp.last_source_out_degree()));
+      ans["source_out_degree"] = sp.last_source_out_degree();
+#ifdef GRAPHBREW_COUNT_WORK
+      ans["top_down_edges_examined"] = g_bfs_td_edges;
+      ans["bottom_up_edges_examined"] = g_bfs_bu_edges;
+      ans["edges_examined"] = g_bfs_td_edges + g_bfs_bu_edges;
+      ans["bfs_steps"] = g_bfs_steps;
+      PrintLabel("BFS TD Edges", std::to_string(g_bfs_td_edges));
+      PrintLabel("BFS BU Edges", std::to_string(g_bfs_bu_edges));
+      PrintLabel(
+          "BFS Edges Examined",
+          std::to_string(g_bfs_td_edges + g_bfs_bu_edges));
+      PrintLabel("BFS Steps", std::to_string(g_bfs_steps));
+#endif
       return ans;
     });
   return 0;

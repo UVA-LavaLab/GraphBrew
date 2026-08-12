@@ -47,7 +47,7 @@ class SelectionModel(Enum):
     PERCEPTRON = "perceptron"          # Multi-class perceptron with SSO-trained weights
     DECISION_TREE = "decision-tree"    # Trained DT classifier (12D features, per-benchmark)
     HYBRID = "hybrid"                  # DT structure with per-leaf perceptron weights
-    KNN_DATABASE = "knn-database"      # Distance-weighted k-NN from benchmark database
+    KNN_DATABASE = "knn-database"      # Offline upper-bound/diagnostic only
     HEURISTIC = "heuristic"            # Feature-based heuristic (Python-only, experimental)
     TYPE_BENCH = "type-bench"          # Type+benchmark recommendations (Python-only, experimental)
     # ── Label granularity modes ──
@@ -66,6 +66,11 @@ class SelectionCriterion(Enum):
     FASTEST_EXECUTION = "fastest-execution"  # Minimize algorithm execution time
     BEST_ENDTOEND = "best-endtoend"          # Minimize (reorder_time + execution_time)
     BEST_AMORTIZATION = "best-amortization"  # Minimize iterations to amortize
+
+
+DEPLOYABLE_SELECTION_MODELS = frozenset({
+    SelectionModel.PERCEPTRON,
+})
 
 
 # =============================================================================
@@ -110,8 +115,8 @@ def decompose_selection_mode(mode: SelectionMode) -> tuple:
 
 # Path constants from SSOT (lib/core/utils.py)
 from ..core.utils import (
-    WEIGHTS_DIR, RESULTS_DIR, GRAPHS_DIR, PROJECT_ROOT,
-    weights_registry_path, weights_type_path,
+    DATA_DIR, WEIGHTS_DIR, RESULTS_DIR, GRAPHS_DIR, PROJECT_ROOT,
+    weights_bench_path, weights_registry_path, weights_type_path,
 )
 
 # All weight fields — derived from PerceptronWeight dataclass (SSO).
@@ -119,6 +124,19 @@ from ..core.utils import (
 # for ablation experiments.  If you add a field to PerceptronWeight,
 # add it here too.
 from .weights import PerceptronWeight as _PW
+from .portfolio import (
+    DEPLOYABLE_ARM_SPECS,
+    apply_portfolio_guard,
+    normalize_deployable_arm,
+    normalize_deployable_portfolio,
+)
+from .adaptive_policy import (
+    ORIGINAL_MARGIN_THRESHOLD,
+    REORDER_WEIGHT_BOOST,
+    iterations_to_amortize,
+)
+from .working_set import KERNEL_CLASS
+from .feature_schema import validate_tier0_weight_entry
 import dataclasses as _dc
 WEIGHT_FIELDS = [f.name for f in _dc.fields(_PW)]
 
@@ -150,8 +168,12 @@ class GraphFeatures:
     packing_factor: float = 0.0
     forward_edge_fraction: float = 0.5
     working_set_ratio: float = 0.0
+    property_wsr_llc: float = -1.0
+    kernel_class: int = 0
+    reuse_count: float = 1.0
     vertex_significance_skewness: float = 0.0
-    window_neighbor_overlap: float = 0.0
+    window_neighbor_overlap: float = math.nan
+    normalized_edge_span: float = math.nan
     
     @property
     def log_nodes(self) -> float:
@@ -209,8 +231,9 @@ class GraphFeatures:
             "modularity": self.modularity,
             "density": self.density,
             "avg_degree": self.avg_degree,
-            "degree_variance": self.degree_variance,
+            "degree_cv": self.degree_variance,
             "hub_concentration": self.hub_concentration,
+            "normalized_edge_span": self.normalized_edge_span,
             "clustering_coeff": self.clustering_coeff,
             "avg_path_length": self.avg_path_length,
             "diameter": self.diameter,
@@ -222,6 +245,20 @@ class GraphFeatures:
             "vertex_significance_skewness": self.vertex_significance_skewness,
             "window_neighbor_overlap": self.window_neighbor_overlap,
         }
+
+
+def _required_tier0_property(
+    properties: Dict,
+    graph_name: str,
+    primary: str,
+    *aliases: str,
+) -> float:
+    for name in (primary, *aliases):
+        if name in properties:
+            return float(properties[name])
+    raise ValueError(
+        f"Graph {graph_name} is missing Tier-0 property {primary}"
+    )
 
 
 @dataclass
@@ -269,7 +306,9 @@ class EmulationResult:
     graph_name: str
     matched_type: str
     type_distance: float
+    predicted_algorithm: str
     selected_algorithm: str
+    override_reason: Optional[str]
     algorithm_scores: Dict[str, float]
     features: GraphFeatures
 
@@ -348,9 +387,17 @@ class TypeMatcher:
 class AlgorithmSelector:
     """Selects the best algorithm using perceptron scoring."""
     
-    def __init__(self, weights_dir: Path = None):
+    def __init__(
+        self,
+        weights_dir: Path = None,
+        models_path: Path = None,
+    ):
         self.weights_dir = weights_dir or WEIGHTS_DIR
         self.weights_cache: Dict[str, Dict] = {}
+        self.models_path = Path(
+            models_path or (Path(DATA_DIR) / "adaptive_models.json")
+        )
+        self.deployable_cache: Dict[str, Dict] = {}
     
     def load_weights(self, type_name: str) -> Dict[str, Dict]:
         """Load weights for a specific type."""
@@ -367,6 +414,60 @@ class AlgorithmSelector:
         
         self.weights_cache[type_name] = weights
         return weights
+
+    def load_deployable_weights(
+        self,
+        type_name: str,
+        benchmark: str,
+    ) -> Dict[str, Dict]:
+        """Mirror the C++ per-benchmark then averaged artifact lookup."""
+        cache_key = benchmark or "generic"
+        if cache_key in self.deployable_cache:
+            return self.deployable_cache[cache_key]
+
+        if self.models_path.is_file():
+            with open(self.models_path) as stream:
+                artifact = json.load(stream)
+            perceptron = artifact.get("perceptron", {})
+            if perceptron.get("schema") != "adaptive-tier0/v1":
+                raise ValueError(
+                    "Adaptive perceptron artifact is not "
+                    "adaptive-tier0/v1"
+                )
+            if not isinstance(
+                perceptron.get("tier0_trained"), bool
+            ):
+                raise ValueError(
+                    "Adaptive perceptron artifact is missing "
+                    "tier0_trained provenance"
+                )
+            per_benchmark = perceptron.get("per_benchmark", {})
+            weights = per_benchmark.get(
+                benchmark,
+                perceptron.get("weights"),
+            )
+            if not isinstance(weights, dict) or not weights:
+                raise ValueError(
+                    "Deployable adaptive model artifact is unavailable"
+                )
+            self.deployable_cache[cache_key] = weights
+            return weights
+
+        benchmark_path = Path(weights_bench_path(
+            type_name,
+            benchmark,
+            str(self.weights_dir),
+        ))
+        if (
+            benchmark
+            and benchmark != "generic"
+            and benchmark_path.is_file()
+        ):
+            with open(benchmark_path) as stream:
+                weights = json.load(stream)
+            self.deployable_cache[cache_key] = weights
+            return weights
+        return self.load_weights(type_name)
     
     def _load_regime_weights(self, regime: str, type_name: str) -> Optional[Dict[str, Dict]]:
         """P3 3.3: Load regime-specific weights for hierarchical gating.
@@ -1167,6 +1268,11 @@ class DatabaseSelector:
                 packing_factor=gprops.get('packing_factor', 0.0),
                 forward_edge_fraction=gprops.get('forward_edge_fraction', 0.5),
                 working_set_ratio=gprops.get('working_set_ratio', 0.0),
+                normalized_edge_span=_required_tier0_property(
+                    gprops, gname,
+                    "normalized_edge_span", "avg_reuse_distance"),
+                window_neighbor_overlap=_required_tier0_property(
+                    gprops, gname, "window_neighbor_overlap"),
             )
             perc_result = emulator.emulate(gf, benchmark)
             perc_fam = algo_to_family(perc_result.selected_algorithm)
@@ -1243,6 +1349,9 @@ def extract_features_from_graph(graph_path: str, bin_dir: Path = None) -> Option
         "degree_variance": r"Degree Variance:\s+([\d.]+)",
         "hub_concentration": r"Hub Concentration:\s+([\d.]+)",
         "avg_degree": r"Avg Degree:\s+([\d.]+)",
+        "normalized_edge_span": r"Normalized Edge Span:\s+([\d.]+)",
+        "window_neighbor_overlap":
+            r"Window Neighbor Overlap:\s+([\d.]+)",
     }
     
     for attr, pattern in patterns.items():
@@ -1291,7 +1400,11 @@ def load_cached_features(cache_path: Path = None) -> Dict[str, GraphFeatures]:
                 forward_edge_fraction=props.get("forward_edge_fraction", 0.5),
                 working_set_ratio=props.get("working_set_ratio", 0.0),
                 vertex_significance_skewness=props.get("vertex_significance_skewness", 0.0),
-                window_neighbor_overlap=props.get("window_neighbor_overlap", 0.0),
+                window_neighbor_overlap=_required_tier0_property(
+                    props, graph_name, "window_neighbor_overlap"),
+                normalized_edge_span=_required_tier0_property(
+                    props, graph_name,
+                    "normalized_edge_span", "avg_reuse_distance"),
             )
     
     return features
@@ -1305,13 +1418,20 @@ def load_cached_features(cache_path: Path = None) -> Dict[str, GraphFeatures]:
 class AdaptiveOrderEmulator:
     """Main emulator class combining type matching and algorithm selection."""
     
-    def __init__(self, weights_dir: Path = None):
+    def __init__(
+        self,
+        weights_dir: Path = None,
+        models_path: Path = None,
+    ):
         self.type_matcher = TypeMatcher()
-        self.algorithm_selector = AlgorithmSelector(weights_dir)
+        self.algorithm_selector = AlgorithmSelector(
+            weights_dir,
+            models_path=models_path,
+        )
         self.config = WeightConfig()
-        self.selection_mode = SelectionMode.DATABASE  # Default: DB-driven (mirrors C++)
+        self.selection_mode = SelectionMode.FASTEST_EXECUTION
         # New 2D defaults
-        self.selection_model = SelectionModel.KNN_DATABASE
+        self.selection_model = SelectionModel.PERCEPTRON
         self.selection_criterion = SelectionCriterion.FASTEST_EXECUTION
         # P3 3.3: Hierarchical gating (set via ADAPTIVE_HIERARCHICAL=1)
         self.hierarchical = os.environ.get('ADAPTIVE_HIERARCHICAL', '') in ('1', 'true')
@@ -1338,6 +1458,7 @@ class AdaptiveOrderEmulator:
         *,
         model: SelectionModel = None,
         criterion: SelectionCriterion = None,
+        allow_oracle_upper_bound: bool = False,
     ) -> EmulationResult:
         """Emulate AdaptiveOrder for given graph features.
 
@@ -1358,6 +1479,14 @@ class AdaptiveOrderEmulator:
         else:
             model = model or self.selection_model
             criterion = criterion or self.selection_criterion
+        if (
+            model not in DEPLOYABLE_SELECTION_MODELS
+            and not allow_oracle_upper_bound
+        ):
+            raise ValueError(
+                f"{model.value} is offline-only; set "
+                "allow_oracle_upper_bound=True for diagnostic analysis"
+            )
         
         # Layer 1: Type matching - finds the closest type centroid
         matched_type, type_distance = self.type_matcher.find_best_type(features)
@@ -1366,16 +1495,21 @@ class AdaptiveOrderEmulator:
         type_radius = self.type_matcher.radii.get(matched_type, 0.0)
         
         # Layer 2: Model × Criterion dispatch
-        selected_algo, scores = self._dispatch(
+        predicted_algo, scores = self._dispatch(
             model, criterion, matched_type, features, benchmark,
             type_distance=type_distance, type_radius=type_radius,
+        )
+        selected_algo, override_reason = apply_portfolio_guard(
+            predicted_algo
         )
         
         return EmulationResult(
             graph_name=features.name,
             matched_type=matched_type,
             type_distance=type_distance,
+            predicted_algorithm=predicted_algo,
             selected_algorithm=selected_algo,
+            override_reason=override_reason,
             algorithm_scores=scores,
             features=features,
         )
@@ -1489,26 +1623,95 @@ class AdaptiveOrderEmulator:
         type_distance: float = 0.0,
         type_radius: float = 0.0,
     ) -> Tuple[str, Dict[str, float]]:
-        """Perceptron selection parameterized by criterion."""
-        hierarchical = self.hierarchical
+        """Tier-0 perceptron selection over the exact deployable portfolio."""
         if criterion == SelectionCriterion.FASTEST_REORDER:
-            return self._select_fastest_reorder(matched_type, features)
-        if criterion == SelectionCriterion.FASTEST_EXECUTION:
-            return self.algorithm_selector.select_algorithm(
-                matched_type, features, self.config, benchmark,
-                type_distance=type_distance, type_radius=type_radius,
-                hierarchical=hierarchical,
-            )
-        if criterion == SelectionCriterion.BEST_ENDTOEND:
-            return self._select_best_endtoend(matched_type, features, benchmark)
-        if criterion == SelectionCriterion.BEST_AMORTIZATION:
-            return self._select_best_amortization(matched_type, features, benchmark)
-        # Default
-        return self.algorithm_selector.select_algorithm(
-            matched_type, features, self.config, benchmark,
-            type_distance=type_distance, type_radius=type_radius,
-            hierarchical=hierarchical,
+            return "0", {
+                spec: 0.0 if spec == "0" else float("-inf")
+                for spec in DEPLOYABLE_ARM_SPECS
+            }
+
+        raw_weights = self.algorithm_selector.load_deployable_weights(
+            matched_type,
+            benchmark or "generic",
         )
+        portfolio = normalize_deployable_portfolio(raw_weights)
+        properties = features.to_scoring_dict()
+        property_wsr = features.property_wsr_llc
+        kernel_class = (
+            features.kernel_class
+            if features.kernel_class > 0
+            else KERNEL_CLASS.get(benchmark or "generic", 0)
+        )
+        scores = {}
+        amortization = {}
+        for spec in DEPLOYABLE_ARM_SPECS:
+            payload = portfolio[spec]
+            if not isinstance(payload, dict):
+                raise ValueError(
+                    f"Adaptive arm {spec} must be an object")
+            validate_tier0_weight_entry(payload, spec)
+            weight = _PW.from_dict(payload)
+            if criterion == SelectionCriterion.BEST_AMORTIZATION:
+                metadata = payload.get("_metadata", {})
+                if (
+                    "avg_speedup" not in metadata
+                    or "avg_reorder_time" not in metadata
+                ):
+                    raise ValueError(
+                        "best-amortization requires cost metadata "
+                        f"for {spec}"
+                    )
+                iterations = (
+                    math.inf
+                    if spec == "0"
+                    else iterations_to_amortize(
+                        weight.avg_speedup,
+                        weight.avg_reorder_time,
+                    )
+                )
+                amortization[spec] = iterations
+                score = -iterations
+            else:
+                score = weight.compute_tier0_score(
+                    properties,
+                    property_wsr_llc=property_wsr,
+                    kernel_class=kernel_class,
+                    reuse_count=features.reuse_count,
+                )
+                if criterion == SelectionCriterion.BEST_ENDTOEND:
+                    if "w_reorder_time" not in payload:
+                        raise ValueError(
+                            "best-endtoend requires w_reorder_time "
+                            f"for {spec}"
+                        )
+                    score += REORDER_WEIGHT_BOOST * weight.w_reorder_time
+            scores[spec] = score
+
+        if criterion == SelectionCriterion.BEST_AMORTIZATION:
+            selected = "0"
+            best_iterations = math.inf
+            for spec in DEPLOYABLE_ARM_SPECS:
+                if spec == "0":
+                    continue
+                if amortization[spec] < best_iterations:
+                    best_iterations = amortization[spec]
+                    selected = spec
+            return selected, scores
+
+        selected = DEPLOYABLE_ARM_SPECS[0]
+        best_score = scores[selected]
+        for spec in DEPLOYABLE_ARM_SPECS[1:]:
+            if scores[spec] > best_score:
+                selected = spec
+                best_score = scores[spec]
+        if (
+            criterion == SelectionCriterion.FASTEST_EXECUTION
+            and selected != "0"
+            and scores[selected] - scores["0"]
+                < ORIGINAL_MARGIN_THRESHOLD
+        ):
+            selected = "0"
+        return selected, scores
 
     # -- Model Tree (DT / Hybrid) cache --
     _model_tree_cache: Dict = None
@@ -2010,7 +2213,10 @@ def print_emulation_result(result: EmulationResult, verbose: bool = False):
     print(f"Graph: {result.graph_name}")
     print(f"{'='*70}")
     print(f"  Matched Type:      {result.matched_type} (distance: {result.type_distance:.4f})")
+    print(f"  Predicted Label:   {result.predicted_algorithm}")
     print(f"  Selected Algorithm: {result.selected_algorithm}")
+    if result.override_reason:
+        print(f"  Override Reason:   {result.override_reason}")
     
     if verbose and result.algorithm_scores:
         print("\n  Algorithm Scores (sorted):")
@@ -2207,7 +2413,14 @@ def compare_with_benchmark(
                 continue
             
             # Get emulated selection with mode-specific logic
-            emulated = emulator.emulate(features, bench, mode)
+            emulated = emulator.emulate(
+                features,
+                bench,
+                mode,
+                allow_oracle_upper_bound=(
+                    mode == SelectionMode.DATABASE
+                ),
+            )
             emulated_algo = emulated.selected_algorithm
             
             # Get metrics for emulated algorithm
@@ -2514,7 +2727,9 @@ def main():
                 "graph": r.graph_name,
                 "matched_type": r.matched_type,
                 "type_distance": r.type_distance,
+                "predicted_algorithm": r.predicted_algorithm,
                 "selected_algorithm": r.selected_algorithm,
+                "override_reason": r.override_reason,
                 "scores": r.algorithm_scores,
             }
             for r in results

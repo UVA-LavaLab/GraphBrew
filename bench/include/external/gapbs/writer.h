@@ -394,7 +394,7 @@ public:
         NodeID_ *source_array = g_.get_org_ids();
         for (NodeID_ u = 0; u < g_.num_nodes(); u++)
         {
-            out << source_array[u] << std::endl;
+            out << source_array[u] << '\n';
         }
     }
 

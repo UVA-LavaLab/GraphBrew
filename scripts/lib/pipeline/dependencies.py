@@ -209,6 +209,8 @@ def check_header_exists(header: str) -> bool:
         True if header exists
     """
     include_paths = [
+        # User-local fallback for environments without interactive sudo
+        str(Path.home() / ".local" / "graphbrew-deps" / "numa" / "usr" / "include"),
         # GraphBrew recommended path - source tarball structure
         "/opt/boost_1_58_0",
         # GraphBrew recommended path - compiled structure
@@ -292,6 +294,7 @@ def check_library_exists(lib_name: str) -> bool:
     
     # Check common library paths
     lib_paths = [
+        str(Path.home() / ".local" / "graphbrew-deps" / "numa" / "usr" / "lib" / "x86_64-linux-gnu"),
         "/usr/lib",
         "/usr/lib64",
         "/usr/local/lib",

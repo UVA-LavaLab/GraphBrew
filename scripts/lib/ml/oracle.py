@@ -479,7 +479,7 @@ def print_report(report: OracleReport) -> None:
     if top_oracle and top_adaptive:
         print("\nConfusion Matrix (rows=oracle, cols=adaptive):")
         # Header
-        header = f"{'Oracle\\Adaptive':<20}"
+        header = "Oracle\\Adaptive".ljust(20)
         for a in top_adaptive:
             short = a[:10]
             header += f" {short:>10}"

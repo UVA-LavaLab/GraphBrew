@@ -3,7 +3,7 @@
 Centralized Data Store for GraphBrew.
 
 Single-file append-only benchmark database with automatic deduplication.
-All models (perceptron, decision tree, hybrid) read from this one source.
+Offline training exports one load-only adaptive_models.json artifact.
 
 Data file: results/data/benchmarks.json
     Schema: JSON array of records, each with a unique composite key
@@ -31,7 +31,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from collections import defaultdict
 
-from .utils import DATA_DIR, RESULTS_DIR, Logger, DISPLAY_TO_CANONICAL, VARIANT_PREFIXES
+from .utils import (
+    DATA_DIR, RESULTS_DIR, WEIGHTS_DIR, Logger,
+    DISPLAY_TO_CANONICAL, VARIANT_PREFIXES,
+)
 
 log = Logger()
 
@@ -332,8 +335,6 @@ class GraphPropsStore:
 # Module-level convenience functions
 # =============================================================================
 
-# DEPRECATED: C++ now trains models from DB at runtime (train_all_models).
-# adaptive_models.json is no longer the mechanism for model delivery.
 ADAPTIVE_MODELS_FILE = DATA_DIR / "adaptive_models.json"
 
 _benchmark_store: Optional[BenchmarkStore] = None
@@ -357,23 +358,77 @@ def get_props_store() -> GraphPropsStore:
 
 
 # =============================================================================
-# Unified Model Export: single adaptive_models.json
-# DEPRECATED: C++ now trains models from raw DB data at runtime.
-# This function is retained only for legacy compatibility.
+# Unified Model Export: single load-only adaptive_models.json
 # =============================================================================
 
-def export_unified_models(out_path: Optional[Path] = None) -> Path:
+def export_unified_models(
+    out_path: Optional[Path] = None,
+    weights_dir: Optional[Path] = None,
+    tier0_trained: bool = False,
+) -> Path:
+    """Merge offline perceptron staging files into adaptive_models.json.
+
+    Existing decision-tree, hybrid, and random-forest sections are preserved.
     """
-    DEPRECATED: C++ now trains perceptron, DT, and hybrid models from
-    benchmarks.json + graph_properties.json at load time.  This function
-    is a no-op stub retained for backward compatibility.
-    """
-    import warnings
-    warnings.warn(
-        "export_unified_models() is deprecated: C++ trains models at runtime.",
-        DeprecationWarning, stacklevel=2,
-    )
     out_path = Path(out_path) if out_path else ADAPTIVE_MODELS_FILE
+    data = {}
+    if out_path.is_file():
+        with open(out_path) as stream:
+            loaded = json.load(stream)
+        if isinstance(loaded, dict):
+            data = loaded
+
+    active_dir = Path(weights_dir or WEIGHTS_DIR) / "type_0"
+    weights_file = active_dir / "weights.json"
+    if not weights_file.is_file():
+        raise FileNotFoundError(
+            f"Offline perceptron weights not found: {weights_file}"
+        )
+    with open(weights_file) as stream:
+        weights = json.load(stream)
+    if not isinstance(weights, dict) or not weights:
+        raise ValueError("Offline perceptron weights must be a non-empty object")
+    from scripts.lib.ml.portfolio import (
+        DEPLOYABLE_ARM_SPECS,
+        normalize_deployable_portfolio,
+    )
+    from scripts.lib.ml.feature_schema import validate_tier0_weight_entry
+
+    def normalize_portfolio(payload: Dict) -> Dict:
+        normalized = normalize_deployable_portfolio(payload)
+        for spec, entry in normalized.items():
+            if not isinstance(entry, dict):
+                raise ValueError(
+                    f"Offline adaptive arm {spec} must be an object")
+            validate_tier0_weight_entry(entry, spec)
+        return {
+            spec: normalized[spec]
+            for spec in DEPLOYABLE_ARM_SPECS
+        }
+
+    weights = normalize_portfolio(weights)
+
+    per_benchmark = {}
+    for path in sorted(active_dir.glob("*.json")):
+        if path.name == "weights.json":
+            continue
+        with open(path) as stream:
+            payload = json.load(stream)
+        if isinstance(payload, dict) and payload:
+            per_benchmark[path.stem] = normalize_portfolio(payload)
+    data["perceptron"] = {
+        "schema": "adaptive-tier0/v1",
+        "tier0_trained": bool(tier0_trained),
+        "weights": weights,
+        "per_benchmark": per_benchmark,
+    }
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = out_path.with_suffix(out_path.suffix + ".tmp")
+    with open(temporary, "w") as stream:
+        json.dump(data, stream, indent=2, sort_keys=True)
+        stream.write("\n")
+    os.replace(temporary, out_path)
     return out_path
 
 
@@ -472,11 +527,6 @@ def main():
         return
 
     if args.export_models:
-        import warnings
-        warnings.warn(
-            "--export-models is deprecated: C++ now trains models from "
-            "raw DB data at runtime (no adaptive_models.json needed).",
-            DeprecationWarning, stacklevel=2)
         path = export_unified_models()
         print(f"Exported unified models to {path}")
         return

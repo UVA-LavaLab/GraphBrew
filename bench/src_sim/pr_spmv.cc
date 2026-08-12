@@ -12,6 +12,7 @@
 //     → insensitive to forward-edge fraction; pure SpMV access pattern
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -32,6 +33,8 @@ using namespace cache_sim;
 
 typedef float ScoreT;
 const float kDamp = 0.85;
+static int g_pr_spmv_sim_iterations = 0;
+static double g_pr_spmv_sim_final_error = 0.0;
 
 // PageRank Jacobi/SpMV with cache simulation
 // Key difference from GS: outgoing_contrib is computed FIRST from old scores,
@@ -39,7 +42,8 @@ const float kDamp = 0.85;
 template<typename CacheType>
 pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
                                  int max_iters, double epsilon = 0,
-                                 bool logging_enabled = false) {
+                                 bool logging_enabled = false,
+                                 bool fixed_work = false) {
     const ScoreT init_score = 1.0f / g.num_nodes();
     const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
     pvector<ScoreT> scores(g.num_nodes(), init_score);
@@ -84,6 +88,8 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
     }
     graph_ctx.printSummary();
 
+    int executed_iters = 0;
+    double final_error = 0.0;
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
 
@@ -93,7 +99,9 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
         for (NodeID n = 0; n < g.num_nodes(); n++) {
             SIM_CACHE_READ(cache, scores_ptr, n);
             SIM_CACHE_WRITE(cache, contrib_ptr, n);
-            outgoing_contrib[n] = scores[n] / g.out_degree(n);
+            const auto degree = g.out_degree(n);
+            outgoing_contrib[n] =
+                degree ? scores[n] / degree : ScoreT(0);
         }
 
         // Phase 2: SpMV — accumulate contributions (read-only from stale contrib)
@@ -121,11 +129,22 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
         if (logging_enabled)
             cout << "Iteration " << iter << ": error = " << error << endl;
 
-        if (error < epsilon)
+        executed_iters = iter + 1;
+        final_error = error;
+        if (!fixed_work && error < epsilon)
             break;
     }
+    g_pr_spmv_sim_iterations = executed_iters;
+    g_pr_spmv_sim_final_error = final_error;
 
     return scores;
+}
+
+void PrintPRSpMVSimMetrics() {
+    PrintTime("Iterations", g_pr_spmv_sim_iterations);
+    printf(
+        "%-21s%.17g\n", "Final Error:",
+        g_pr_spmv_sim_final_error);
 }
 
 void PrintTopScores(const Graph &g, const pvector<ScoreT> &scores) {
@@ -146,7 +165,9 @@ bool PRVerifier(const Graph &g, const pvector<ScoreT> &scores, double target_err
     pvector<ScoreT> incomming_sums(g.num_nodes(), 0);
     double error = 0;
     for (NodeID u = 0; u < g.num_nodes(); u++) {
-        ScoreT outgoing_contrib = scores[u] / g.out_degree(u);
+        const auto degree = g.out_degree(u);
+        ScoreT outgoing_contrib =
+            degree ? scores[u] / degree : ScoreT(0);
         for (NodeID v : g.out_neigh(u))
             incomming_sums[v] += outgoing_contrib;
     }
@@ -165,6 +186,7 @@ int main(int argc, char *argv[]) {
 
     Builder b(cli);
     Graph g = b.MakeGraph();
+    PrintLabel("PR Mode", cli.fixed_work() ? "fixed-work" : "convergence");
 
     bool multicore = IsMultiCoreMode();
     bool sampled = IsSampledMode();
@@ -173,13 +195,16 @@ int main(int argc, char *argv[]) {
 
     auto runSim = [&](auto &cache) {
         auto PRBound = [&cli, &cache](const Graph &g) {
-            return PageRankSpMV_Sim(g, cache, cli.max_iters(), cli.tolerance());
+            return PageRankSpMV_Sim(
+                g, cache, cli.max_iters(), cli.tolerance(),
+                cli.logging_en(), cli.fixed_work());
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return PRVerifier(g, scores, cli.tolerance());
         };
 
         BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+        PrintPRSpMVSimMetrics();
         cout << endl;
         cache.printStats();
 

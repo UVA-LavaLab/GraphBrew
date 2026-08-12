@@ -9,8 +9,11 @@
 #include "util.h"
 #include <algorithm>
 #include <cinttypes>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -35,7 +38,7 @@ protected:
     int argc_;
     char **argv_;
     std::string name_;
-    std::string get_args_ = "f:g:hk:su:m:o:zj:SlD:";
+    std::string get_args_ = "f:g:hk:su:m:o:zj:SlD:W:";
     std::vector<std::string> help_strings_;
     std::vector<std::pair<ReorderingAlgo, std::vector<std::string> > >
     reorder_options_;
@@ -51,6 +54,7 @@ protected:
     std::vector<int> segments_{0, 1, 1};   // Default to one segment ir
     bool enable_logging_ = false;
     std::string db_dir_ = "";              // --db-dir: JSON database output directory
+    std::string weight_scheme_ = "unit";   // generated weights for .sg -> WGraph
 
     void AddHelpLine(char opt, std::string opt_arg, std::string text,
                      std::string def = "")
@@ -90,6 +94,8 @@ public:
         AddHelpLine('l', "", "log performance within each trial", "false");
         AddHelpLine('S', "", "keep self loops", "false");
         AddHelpLine('D', "dir", "database directory for JSON output", "results/data");
+        AddHelpLine('W', "scheme", "generated edge weights for .sg: unit or hash",
+                    weight_scheme_);
     }
 
     bool ParseArgs()
@@ -147,6 +153,12 @@ public:
             break;
         case 'D':
             db_dir_ = std::string(opt_arg);
+            break;
+        case 'W':
+            weight_scheme_ = std::string(opt_arg);
+            if (weight_scheme_ != "unit" && weight_scheme_ != "hash")
+                throw std::invalid_argument(
+                    "Weight scheme must be unit or hash");
             break;
         case 'o':
         {
@@ -226,6 +238,10 @@ public:
     {
         return filename_;
     }
+    const std::string &weight_scheme() const
+    {
+        return weight_scheme_;
+    }
     bool symmetrize() const
     {
         return symmetrize_;
@@ -273,16 +289,58 @@ class CLApp : public CLBase
 {
     bool do_analysis_ = false;
     int num_trials_ = 16;
-    int64_t start_vertex_ = -1;
+    bool num_trials_explicit_ = false;
+    int source_repeats_ = 1;
+    std::vector<int64_t> start_vertices_;
     bool do_verify_ = false;
+
+    static std::vector<int64_t> ParseSourceList(
+        const std::string& text)
+    {
+        if (text.empty())
+            throw std::invalid_argument("Source list cannot be empty");
+        std::vector<int64_t> sources;
+        std::set<int64_t> seen;
+        size_t start = 0;
+        while (start <= text.size())
+        {
+            const size_t comma = text.find(',', start);
+            const std::string token = text.substr(
+                start,
+                comma == std::string::npos
+                    ? std::string::npos : comma - start);
+            if (token.empty())
+                throw std::invalid_argument(
+                    "Source list contains an empty field");
+            size_t parsed = 0;
+            const long long source = std::stoll(token, &parsed);
+            if (parsed != token.size() || source < 0)
+                throw std::invalid_argument(
+                    "Source IDs must be non-negative integers");
+            if (!seen.insert(source).second)
+                throw std::invalid_argument(
+                    "Source list contains a duplicate ID");
+            sources.push_back(source);
+            if (comma == std::string::npos) break;
+            start = comma + 1;
+        }
+        return sources;
+    }
 
 public:
     CLApp(int argc, char **argv, std::string name) : CLBase(argc, argv, name)
     {
-        get_args_ += "an:r:v";
+        get_args_ += "an:r:R:v";
         AddHelpLine('a', "", "output analysis of last run", "false");
         AddHelpLine('n', "n", "perform n trials", std::to_string(num_trials_));
-        AddHelpLine('r', "node", "start from node r", "rand");
+        AddHelpLine(
+            'r', "id[,id...]",
+            "original source ID or comma-separated original-ID list",
+            "rand");
+        AddHelpLine(
+            'R', "repeats",
+            "repeat each deterministic source this many consecutive trials",
+            std::to_string(source_repeats_));
         AddHelpLine('v', "", "verify the output of each run", "false");
     }
 
@@ -295,9 +353,19 @@ public:
             break;
         case 'n':
             num_trials_ = atoi(opt_arg);
+            num_trials_explicit_ = true;
+            if (num_trials_ <= 0)
+                throw std::invalid_argument(
+                    "Trial count must be positive");
             break;
         case 'r':
-            start_vertex_ = atol(opt_arg);
+            start_vertices_ = ParseSourceList(opt_arg);
+            break;
+        case 'R':
+            source_repeats_ = std::stoi(opt_arg);
+            if (source_repeats_ <= 0)
+                throw std::invalid_argument(
+                    "Source repeat count must be positive");
             break;
         case 'v':
             do_verify_ = true;
@@ -305,6 +373,38 @@ public:
         default:
             CLBase::HandleArg(opt, opt_arg);
         }
+    }
+
+    bool ParseArgs()
+    {
+        const bool parsed = CLBase::ParseArgs();
+        if (!parsed) return false;
+        if (!start_vertices_.empty())
+        {
+            if (
+                start_vertices_.size() > 1
+                || SourceRepeatMultiplier() > 1
+            )
+            {
+                const int expected = static_cast<int>(
+                    start_vertices_.size()) * SourceRepeatMultiplier();
+                if (num_trials_explicit_ && num_trials_ != expected)
+                    throw std::invalid_argument(
+                        "Explicit source list requires -n to equal "
+                        "source_count * source_repeats");
+                num_trials_ = expected;
+            }
+        }
+        return true;
+    }
+
+    int SourceRepeatMultiplier() const
+    {
+        return source_repeats_;
+    }
+    int source_repeats() const
+    {
+        return source_repeats_;
     }
     bool do_analysis() const
     {
@@ -316,7 +416,12 @@ public:
     }
     int64_t start_vertex() const
     {
-        return start_vertex_;
+        return start_vertices_.size() == 1
+            ? start_vertices_.front() : -1;
+    }
+    const std::vector<int64_t>& start_vertices() const
+    {
+        return start_vertices_;
     }
     bool do_verify() const
     {
@@ -430,16 +535,20 @@ class CLPageRank : public CLApp
 {
     int max_iters_;
     double tolerance_;
+    bool fixed_work_ = false;
 
 public:
     CLPageRank(int argc, char **argv, std::string name, double tolerance,
                int max_iters)
         : CLApp(argc, argv, name), max_iters_(max_iters), tolerance_(tolerance)
     {
-        get_args_ += "i:t:";
+        get_args_ += "i:t:F";
         AddHelpLine('i', "i", "perform at most i iterations",
                     std::to_string(max_iters_));
         AddHelpLine('t', "t", "use tolerance t", std::to_string(tolerance_));
+        AddHelpLine(
+            'F', "", "run exactly i iterations (ignore early convergence)",
+            "false");
     }
 
     void HandleArg(signed char opt, char *opt_arg) override
@@ -447,10 +556,19 @@ public:
         switch (opt)
         {
         case 'i':
-            max_iters_ = atoi(opt_arg);
+            max_iters_ = std::stoi(opt_arg);
+            if (max_iters_ <= 0)
+                throw std::invalid_argument(
+                    "PageRank iteration count must be positive");
             break;
         case 't':
             tolerance_ = std::stod(opt_arg);
+            if (!std::isfinite(tolerance_) || tolerance_ < 0)
+                throw std::invalid_argument(
+                    "PageRank tolerance must be finite and non-negative");
+            break;
+        case 'F':
+            fixed_work_ = true;
             break;
         default:
             CLApp::HandleArg(opt, opt_arg);
@@ -464,6 +582,10 @@ public:
     double tolerance() const
     {
         return tolerance_;
+    }
+    bool fixed_work() const
+    {
+        return fixed_work_;
     }
 };
 
@@ -483,11 +605,28 @@ public:
         switch (opt)
         {
         case 'd':
-            if (std::is_floating_point<WeightT_>::value)
-                delta_ = static_cast<WeightT_>(atof(opt_arg));
-            else
-                delta_ = static_cast<WeightT_>(atol(opt_arg));
+        {
+            std::string value_text(opt_arg);
+            size_t parsed = 0;
+            if constexpr (std::is_floating_point<WeightT_>::value) {
+                double value = std::stod(value_text, &parsed);
+                if (
+                    parsed != value_text.size() ||
+                    !std::isfinite(value) || value <= 0)
+                    throw std::invalid_argument(
+                        "Delta must be a finite positive number");
+                delta_ = static_cast<WeightT_>(value);
+            } else {
+                long long value = std::stoll(value_text, &parsed);
+                if (
+                    parsed != value_text.size() || value <= 0 ||
+                    value > std::numeric_limits<WeightT_>::max())
+                    throw std::invalid_argument(
+                        "Delta must be a positive in-range integer");
+                delta_ = static_cast<WeightT_>(value);
+            }
             break;
+        }
         default:
             CLApp::HandleArg(opt, opt_arg);
         }
@@ -497,6 +636,7 @@ public:
     {
         return delta_;
     }
+
 };
 
 class CLConvert : public CLBase

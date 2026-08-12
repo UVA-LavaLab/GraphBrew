@@ -44,7 +44,29 @@ _EXPS = {
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_common_args(p)
+    p.add_argument(
+        "--tune-sssp-delta",
+        action="store_true",
+        help="Tune weighted SSSP delta on the SHUFFLED baseline and exit.",
+    )
+    p.add_argument(
+        "--freeze-sssp-policy",
+        action="store_true",
+        help="Freeze reviewed tuner recommendations into policy SSOT.",
+    )
+    p.add_argument(
+        "--verify-gate",
+        action="store_true",
+        help="Run the untimed semantic verification gate and exit.",
+    )
+    p.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Use the already-reviewed binaries without invoking make.",
+    )
     args = p.parse_args()
+    if args.freeze_sssp_policy and not args.tune_sssp_delta:
+        p.error("--freeze-sssp-policy requires --tune-sssp-delta")
     cfg = resolve_config(args)
     banner("03_cpu_perf", cfg)
 
@@ -58,11 +80,56 @@ def main() -> None:
               file=sys.stderr)
         sys.exit(2)
 
+    if not args.freeze_sssp_policy and not args.skip_build:
+        V._setup_build_binaries(
+            benchmarks=(
+                ["sssp"] if args.tune_sssp_delta
+                else cfg["benchmarks"]
+            ),
+            include_standard=True,
+            include_sim=args.verify_gate and "pr" in cfg["benchmarks"],
+            include_converter=not args.tune_sssp_delta,
+            include_work=args.verify_gate,
+            sim_benchmarks=["pr"],
+        )
+    if args.tune_sssp_delta:
+        V.tune_sssp_deltas(
+            graphs=cfg["graphs"],
+            graph_dir=cfg["graph_dir"],
+            timeout=cfg["timeout"],
+            dry_run=cfg["dry_run"],
+            trials=1 if args.preview else V.SSSP_TUNING_TRIALS,
+            freeze_policy=args.freeze_sssp_policy,
+        )
+        print("SSSP DELTA TUNING COMPLETE.")
+        return
+    if args.verify_gate:
+        V.run_verification_gate(
+            graphs=cfg["graphs"],
+            benchmarks=cfg["benchmarks"],
+            graph_dir=cfg["graph_dir"],
+            timeout=cfg["timeout"],
+            dry_run=cfg["dry_run"],
+        )
+        print("VERIFICATION GATE COMPLETE.")
+        return
+    V.preflight_benchmark_policies(
+        cfg["graphs"], cfg["benchmarks"], cfg["graph_dir"],
+    )
+    V.require_timing_machine_policy(preview=args.preview)
+    V.require_verification_gate(
+        cfg["graphs"], cfg["benchmarks"], cfg["graph_dir"],
+    )
+    experiment_timeout = (
+        cfg["reorder_timeout"]
+        if cfg["exp"] in {3, 8}
+        else cfg["timeout"]
+    )
     fn(
         graphs=cfg["graphs"],
         benchmarks=cfg["benchmarks"],
         trials=cfg["trials"],
-        timeout=cfg["timeout"],
+        timeout=experiment_timeout,
         dry_run=cfg["dry_run"],
         graph_dir=cfg["graph_dir"],
     )

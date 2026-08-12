@@ -4,6 +4,7 @@
 // Supports both single-core and multi-core cache simulation
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -26,12 +27,15 @@ using namespace cache_sim;
 
 typedef float ScoreT;
 const float kDamp = 0.85;
+static int g_pr_sim_iterations = 0;
+static double g_pr_sim_final_error = 0.0;
 
 // PageRank with cache simulation - template version works with both cache types
 template<typename CacheType>
 pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                                     int max_iters, double epsilon = 0,
-                                    bool logging_enabled = false) {
+                                    bool logging_enabled = false,
+                                    bool fixed_work = false) {
     const ScoreT init_score = 1.0f / g.num_nodes();
     const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
     pvector<ScoreT> scores(g.num_nodes(), init_score);
@@ -95,9 +99,13 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
         // Track: read degree (via neighbor iteration bounds), write contrib[n]
         SIM_CACHE_READ(cache, scores_ptr, n);
         SIM_CACHE_WRITE(cache, contrib_ptr, n);
-        outgoing_contrib[n] = init_score / g.out_degree(n);
+        const auto degree = g.out_degree(n);
+        outgoing_contrib[n] =
+            degree ? init_score / degree : ScoreT(0);
     }
     
+    int executed_iters = 0;
+    double final_error = 0.0;
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
         
@@ -116,7 +124,10 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                 NodeID v = *it;
                 // ECG: read contrib[v] with mask (DBG + P-OPT + optional prefetch)
                 SIM_CACHE_READ_MASKED_PREFETCH(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
-                incoming_total += outgoing_contrib[v];
+                ScoreT contribution;
+                #pragma omp atomic read
+                contribution = outgoing_contrib[v];
+                incoming_total += contribution;
             }
             
             // Track: read old score, write new score
@@ -129,17 +140,29 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
             
             // Update contribution for next iteration
             SIM_CACHE_WRITE(cache, contrib_ptr, u);
-            outgoing_contrib[u] = new_score / g.out_degree(u);
+            const auto degree = g.out_degree(u);
+            const ScoreT contribution =
+                degree ? new_score / degree : ScoreT(0);
+            #pragma omp atomic write
+            outgoing_contrib[u] = contribution;
         }
+        executed_iters = iter + 1;
+        final_error = error;
         
         if (logging_enabled)
             cout << "Iteration " << iter << ": error = " << error << endl;
         
-        if (error < epsilon)
+        if (!fixed_work && error < epsilon)
             break;
     }
-    
+    g_pr_sim_iterations = executed_iters;
+    g_pr_sim_final_error = final_error;
     return scores;
+}
+
+void PrintPRMetrics() {
+    PrintTime("Iterations", g_pr_sim_iterations);
+    printf("%-21s%.17g\n", "Final Error:", g_pr_sim_final_error);
 }
 
 void PrintTopScores(const Graph &g, const pvector<ScoreT> &scores) {
@@ -160,7 +183,9 @@ bool PRVerifier(const Graph &g, const pvector<ScoreT> &scores, double target_err
     pvector<ScoreT> incomming_sums(g.num_nodes(), 0);
     double error = 0;
     for (NodeID u = 0; u < g.num_nodes(); u++) {
-        ScoreT outgoing_contrib = scores[u] / g.out_degree(u);
+        const auto degree = g.out_degree(u);
+        ScoreT outgoing_contrib =
+            degree ? scores[u] / degree : ScoreT(0);
         for (NodeID v : g.out_neigh(u))
             incomming_sums[v] += outgoing_contrib;
     }
@@ -179,6 +204,7 @@ int main(int argc, char *argv[]) {
     
     Builder b(cli);
     Graph g = b.MakeGraph();
+    PrintLabel("PR Mode", cli.fixed_work() ? "fixed-work" : "convergence");
     
     // Check modes: multi-core vs single-core, ultrafast vs fast vs accurate
     bool multicore = IsMultiCoreMode();
@@ -191,13 +217,16 @@ int main(int argc, char *argv[]) {
         MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
         
         auto PRBound = [&cli, &cache](const Graph &g) {
-            return PageRankPullGS_Sim(g, cache, cli.max_iters(), cli.tolerance());
+            return PageRankPullGS_Sim(
+                g, cache, cli.max_iters(), cli.tolerance(),
+                cli.logging_en(), cli.fixed_work());
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return PRVerifier(g, scores, cli.tolerance());
         };
         
         BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+        PrintPRMetrics();
         
         cout << endl;
         cache.printStats();
@@ -216,13 +245,16 @@ int main(int argc, char *argv[]) {
         SampledCacheHierarchy cache = SampledCacheHierarchy::fromEnvironment();
         
         auto PRBound = [&cli, &cache](const Graph &g) {
-            return PageRankPullGS_Sim(g, cache, cli.max_iters(), cli.tolerance());
+            return PageRankPullGS_Sim(
+                g, cache, cli.max_iters(), cli.tolerance(),
+                cli.logging_en(), cli.fixed_work());
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return PRVerifier(g, scores, cli.tolerance());
         };
         
         BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+        PrintPRMetrics();
         
         cout << endl;
         cache.printStats();
@@ -241,13 +273,16 @@ int main(int argc, char *argv[]) {
         UltraFastCacheHierarchy cache = UltraFastCacheHierarchy::fromEnvironment();
         
         auto PRBound = [&cli, &cache](const Graph &g) {
-            return PageRankPullGS_Sim(g, cache, cli.max_iters(), cli.tolerance());
+            return PageRankPullGS_Sim(
+                g, cache, cli.max_iters(), cli.tolerance(),
+                cli.logging_en(), cli.fixed_work());
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return PRVerifier(g, scores, cli.tolerance());
         };
         
         BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+        PrintPRMetrics();
         
         cout << endl;
         cache.printStats();
@@ -266,13 +301,16 @@ int main(int argc, char *argv[]) {
         FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
         
         auto PRBound = [&cli, &cache](const Graph &g) {
-            return PageRankPullGS_Sim(g, cache, cli.max_iters(), cli.tolerance());
+            return PageRankPullGS_Sim(
+                g, cache, cli.max_iters(), cli.tolerance(),
+                cli.logging_en(), cli.fixed_work());
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return PRVerifier(g, scores, cli.tolerance());
         };
         
         BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+        PrintPRMetrics();
         
         cout << endl;
         cache.printStats();
@@ -291,13 +329,16 @@ int main(int argc, char *argv[]) {
         CacheHierarchy cache = CacheHierarchy::fromEnvironment();
         
         auto PRBound = [&cli, &cache](const Graph &g) {
-            return PageRankPullGS_Sim(g, cache, cli.max_iters(), cli.tolerance());
+            return PageRankPullGS_Sim(
+                g, cache, cli.max_iters(), cli.tolerance(),
+                cli.logging_en(), cli.fixed_work());
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return PRVerifier(g, scores, cli.tolerance());
         };
         
         BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+        PrintPRMetrics();
         
         // Print cache statistics
         cout << endl;

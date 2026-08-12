@@ -21,6 +21,8 @@ import random
 from collections import deque
 from typing import Dict, List, Optional, Tuple
 
+from ..core.utils import normalize_graph_name
+
 # =============================================================================
 # Graph Type Constants (must match C++ GraphType enum in builder.h)
 # =============================================================================
@@ -87,6 +89,7 @@ def update_graph_properties(graph_name: str, properties: Dict, output_dir: str =
 
     Auto-detects ``graph_type`` when enough features are present.
     """
+    graph_name = normalize_graph_name(graph_name)
     store = _get_store()
     store.update(graph_name, properties)
 
@@ -109,7 +112,7 @@ def update_graph_properties(graph_name: str, properties: Dict, output_dir: str =
 
 def get_graph_properties(graph_name: str) -> Dict:
     """Get cached properties for a graph."""
-    return _get_store().get(graph_name) or {}
+    return _get_store().get(normalize_graph_name(graph_name)) or {}
 
 
 def clear_graph_properties_cache():
@@ -173,7 +176,7 @@ def get_graph_type_from_name(graph_name: str) -> str:
     
     Used as a fallback when we don't have computed features.
     """
-    name_lower = graph_name.lower()
+    name_lower = normalize_graph_name(graph_name).lower()
     
     # Social networks
     if any(x in name_lower for x in ['soc-', 'social', 'twitter', 'facebook', 'friendster', 'orkut']):

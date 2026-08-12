@@ -548,7 +548,7 @@ int main(int argc, char *argv[])
         last_runtime_traffic;
     std::string last_diagnostics_error;
     SourcePicker<Graph> source_picker(
-        graph, cli.start_vertex(), cli.num_trials());
+        graph, cli.start_vertices(), cli.num_trials());
     auto bfs = [
         &source_picker,
         &cli,
@@ -567,7 +567,7 @@ int main(int argc, char *argv[])
             &last_runtime_traffic);
     };
     SourcePicker<Graph> verifier_source_picker(
-        graph, cli.start_vertex(), cli.num_trials());
+        graph, cli.start_vertices(), cli.num_trials());
     auto verifier =
         [
             &verifier_source_picker,

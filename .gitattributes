@@ -1,0 +1,3 @@
+bench/include/external/gorder/GoGraph.h whitespace=cr-at-eol
+research/ACM-Reference-Format.bst whitespace=-trailing-space
+research/acmart.cls whitespace=-trailing-space

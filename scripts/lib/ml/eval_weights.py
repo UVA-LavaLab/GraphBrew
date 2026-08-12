@@ -31,7 +31,7 @@ from ..core.utils import (
     VARIANT_PREFIXES, DISPLAY_TO_CANONICAL,
 )
 from ..core.datastore import get_benchmark_store
-from .weights import compute_weights_from_results, cross_validate_logo, PerceptronWeight
+from .weights import compute_weights_from_results, PerceptronWeight
 from .features import load_graph_properties_cache
 
 log = Logger()
@@ -461,6 +461,11 @@ def train_and_evaluate(
     Returns:
         EvalReport with all accuracy/regret metrics.
     """
+    if logo:
+        raise RuntimeError(
+            "Legacy non-nested LOGO is retired for adaptive claims; "
+            "use the Sprint-3 fold-local portfolio/model/OOD evaluation"
+        )
     results_dir = str(results_dir or RESULTS_DIR)
     if weights_dir is None:
         weights_dir = str(WEIGHTS_DIR)
@@ -498,42 +503,6 @@ def train_and_evaluate(
 
     # 6. Print report
     print_report(report, weights_dir)
-
-    # 7. LOGO cross-validation (generalization accuracy)
-    if logo:
-        print("\n" + "=" * 60)
-        print("LEAVE-ONE-GRAPH-OUT CROSS-VALIDATION")
-        print("=" * 60)
-        print("Training N separate models (one per graph), each time")
-        print("predicting on the held-out graph it has never seen.\n")
-
-        logo_result = cross_validate_logo(
-            bench_results,
-            reorder_results=reorder_results,
-            weights_dir=weights_dir,
-        )
-
-        print("\n=== LOGO Results (Generalization Accuracy) ===")
-        print(f"Graphs:             {logo_result['num_graphs']}")
-        print(f"Predictions:        {logo_result['correct']}/{logo_result['total']}")
-        print(f"LOGO Accuracy:      {logo_result['accuracy']:.1%}  "
-              "(on UNSEEN graphs)")
-        print(f"In-sample Accuracy: {logo_result['full_training_accuracy']:.1%}  "
-              "(on training graphs)")
-        gap = logo_result['overfitting_score']
-        print(f"Overfit gap:        {gap:.1%}  "
-              f"({'⚠ possible overfitting' if gap > 0.2 else '✓ OK'})")
-        print(f"Avg regret:         {logo_result['avg_regret']:.1f}%")
-        print(f"Median regret:      {logo_result['median_regret']:.1f}%")
-
-        # Per-graph breakdown
-        if logo_result.get('per_graph'):
-            print("\nPer-graph breakdown:")
-            for g in sorted(logo_result['per_graph']):
-                pg = logo_result['per_graph'][g]
-                mark = "✓" if pg['accuracy'] == 1.0 else "✗" if pg['accuracy'] == 0.0 else "~"
-                print(f"  {mark} {g:<30} {pg['correct']}/{pg['total']}  "
-                      f"regret={pg['avg_regret']:.1f}%")
 
     return report
 
@@ -818,7 +787,7 @@ def main():
     parser.add_argument("--benchmark-file", default=None,
                         help="Load a specific benchmark JSON file")
     parser.add_argument("--logo", action="store_true",
-                        help="Run Leave-One-Graph-Out cross-validation (generalization accuracy)")
+                        help="Retired: Sprint 3 provides nested fold-local LOGO")
     args = parser.parse_args()
 
     train_and_evaluate(

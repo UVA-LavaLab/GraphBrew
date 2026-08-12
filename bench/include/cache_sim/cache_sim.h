@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <stdexcept>
 #include <mutex>
 #include <atomic>
 #include <omp.h>
@@ -262,20 +263,34 @@ struct GRASPState {
 // Fast Cache Level - NO LOCKS, uses clock algorithm (faster than LRU)
 // Use this for private per-thread caches where no locking is needed
 // ============================================================================
+inline size_t ExactCacheSetCount(const std::string& name, size_t size_bytes,
+                                 size_t line_size, size_t associativity) {
+    if (line_size == 0 || associativity == 0 ||
+        (line_size & (line_size - 1)) != 0) {
+        throw std::invalid_argument(name + ": invalid cache geometry");
+    }
+    const size_t set_bytes = line_size * associativity;
+    if (size_bytes < set_bytes || size_bytes % set_bytes != 0) {
+        throw std::invalid_argument(
+            name + ": capacity must be an exact multiple of line_size * ways");
+    }
+    const size_t num_sets = size_bytes / set_bytes;
+    if ((num_sets & (num_sets - 1)) != 0) {
+        throw std::invalid_argument(
+            name + ": cache set count must be a power of two");
+    }
+    return num_sets;
+}
+
+
 class FastCacheLevel {
 public:
     FastCacheLevel(const std::string& name, size_t size_bytes, size_t line_size,
                    size_t associativity)
         : name_(name), size_bytes_(size_bytes), line_size_(line_size),
           associativity_(associativity) {
-        
-        num_sets_ = size_bytes / (line_size * associativity);
-        if (num_sets_ == 0) num_sets_ = 1;
-        
-        // Round to power of 2 for fast modulo
-        size_t orig_sets = num_sets_;
-        num_sets_ = 1;
-        while (num_sets_ < orig_sets) num_sets_ <<= 1;
+        num_sets_ = ExactCacheSetCount(
+            name, size_bytes, line_size, associativity);
         set_mask_ = num_sets_ - 1;
         
         offset_bits_ = log2i(line_size);
@@ -389,14 +404,8 @@ public:
                         size_t associativity)
         : name_(name), size_bytes_(size_bytes), line_size_(line_size),
           associativity_(associativity), hits_(0), misses_(0), evictions_(0) {
-        
-        num_sets_ = size_bytes / (line_size * associativity);
-        if (num_sets_ == 0) num_sets_ = 1;
-        
-        // Round to power of 2 for fast modulo
-        size_t orig_sets = num_sets_;
-        num_sets_ = 1;
-        while (num_sets_ < orig_sets) num_sets_ <<= 1;
+        num_sets_ = ExactCacheSetCount(
+            name, size_bytes, line_size, associativity);
         set_mask_ = num_sets_ - 1;
         
         offset_bits_ = __builtin_ctzll(line_size);  // Fast log2 for power of 2
@@ -513,9 +522,8 @@ public:
                size_t associativity, EvictionPolicy policy)
         : name_(name), size_bytes_(size_bytes), line_size_(line_size),
           associativity_(associativity), policy_(policy) {
-        
-        num_sets_ = size_bytes / (line_size * associativity);
-        if (num_sets_ == 0) num_sets_ = 1;
+        num_sets_ = ExactCacheSetCount(
+            name, size_bytes, line_size, associativity);
         
         // Calculate bit widths
         offset_bits_ = log2i(line_size);
@@ -1439,8 +1447,11 @@ public:
            << "                          ║\n";
         os << "║ Memory Accesses:     " << std::setw(15) << memory_accesses_
            << "                          ║\n";
+        double overall = total_accesses_ > 0
+            ? (1.0 - static_cast<double>(memory_accesses_) / total_accesses_)
+            : 0.0;
         os << "║ Overall Hit Rate:    " << std::setw(14) << std::fixed 
-           << std::setprecision(4) << (1.0 - (double)memory_accesses_ / total_accesses_)
+           << std::setprecision(4) << (overall * 100)
            << "%                          ║\n";
         os << "╚══════════════════════════════════════════════════════════════════╝\n";
     }

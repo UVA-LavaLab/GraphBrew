@@ -64,9 +64,9 @@ Three common reasons:
 
 ## Where do trained AdaptiveOrder models live?
 
-`results/data/adaptive_models.json`. Models train at runtime inside
-the C++ binary on first invocation of `-o 14` with enough data in
-`benchmark.json`. See [AdaptiveOrder-ML](AdaptiveOrder-ML).
+`results/data/adaptive_models.json`. Models are trained/exported offline;
+algorithm 14 only loads the artifact. See
+[AdaptiveOrder-ML](AdaptiveOrder-ML).
 
 ## How do I add a new algorithm or benchmark?
 

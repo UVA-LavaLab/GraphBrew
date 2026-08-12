@@ -4,9 +4,12 @@
 #ifndef READER_H_
 #define READER_H_
 
+#include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <cstring> // for std::strtok
@@ -34,6 +37,26 @@ class Reader {
 typedef EdgePair<NodeID_, DestID_> Edge;
 typedef pvector<Edge> EdgeList;
 std::string filename_;
+
+static uint64_t Mix64(uint64_t value) {
+  value += 0x9e3779b97f4a7c15ULL;
+  value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+  return value ^ (value >> 31);
+}
+
+WeightT_ GeneratedWeight(NodeID_ source, NodeID_ destination,
+                         bool directed, const std::string &scheme) const {
+  if (scheme == "unit")
+    return static_cast<WeightT_>(1);
+  using UNode = typename std::make_unsigned<NodeID_>::type;
+  uint64_t src = static_cast<uint64_t>(static_cast<UNode>(source));
+  uint64_t dst = static_cast<uint64_t>(static_cast<UNode>(destination));
+  if (!directed && dst < src)
+    std::swap(src, dst);
+  uint64_t key = (src << 32) ^ dst ^ 0x27491095ULL;
+  return static_cast<WeightT_>((Mix64(key) % 255ULL) + 1ULL);
+}
 
 public:
 explicit Reader(std::string filename) : filename_(filename) {
@@ -419,7 +442,8 @@ EdgeList ReadFile(bool &needs_weights) {
   return el;
 }
 
-CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
+CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph(
+    const std::string &weight_scheme = "unit") {
   bool weighted = GetSuffix() == ".wsg";
   CSRGraph<NodeID_, DestID_, invert> g_new;
   bool generate_weights = false;
@@ -456,6 +480,20 @@ CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
   file.read(reinterpret_cast<char *>(&directed), sizeof(bool));
   file.read(reinterpret_cast<char *>(&num_edges), sizeof(SGOffset));
   file.read(reinterpret_cast<char *>(&num_nodes), sizeof(SGOffset));
+  NodeID_ *org_ids = new NodeID_[num_nodes];
+  std::streampos graph_data_start = file.tellg();
+  file.seekg(
+      -static_cast<std::streamoff>(num_nodes * sizeof(NodeID_)),
+      std::ios::end);
+  file.read(
+      reinterpret_cast<char *>(org_ids),
+      num_nodes * sizeof(NodeID_));
+  if (!file) {
+    delete[] org_ids;
+    throw std::runtime_error("Serialized graph original-ID block is truncated");
+  }
+  file.clear();
+  file.seekg(graph_data_start);
   pvector<SGOffset> offsets(num_nodes + 1);
   neighs = new DestID_[num_edges];
   std::streamsize num_index_bytes = (num_nodes + 1) * sizeof(SGOffset);
@@ -470,10 +508,16 @@ CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
     file.read(reinterpret_cast<char *>(temp_neighs), temp_num_neigh_bytes);
 
 #pragma omp parallel for
-    for (int i = 0; i < num_edges; ++i) {
-      reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&neighs[i])->v =
-        temp_neighs[i];
-      reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&neighs[i])->w = 1;
+    for (NodeID_ source = 0; source < num_nodes; ++source) {
+      for (SGOffset i = offsets[source]; i < offsets[source + 1]; ++i) {
+        NodeID_ destination = temp_neighs[i];
+        auto *weighted =
+          reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&neighs[i]);
+        weighted->v = destination;
+        weighted->w = GeneratedWeight(
+            org_ids[source], org_ids[destination],
+            directed, weight_scheme);
+      }
     }
     delete[] temp_neighs;
   } else {
@@ -483,7 +527,7 @@ CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
       file.read(reinterpret_cast<char *>(temp_neighs_clear),
                 num_neigh_bytes_clear);
 #pragma omp parallel for
-      for (int i = 0; i < num_edges; ++i) {
+      for (int64_t i = 0; i < num_edges; ++i) {
         neighs[i] = temp_neighs_clear[i].v;
         // cout << temp_neighs_clear[i] << endl;
       }
@@ -505,11 +549,17 @@ CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
                 temp_num_inv_neighs_bytes);
 
 #pragma omp parallel for
-      for (int i = 0; i < num_edges; ++i) {
-        reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&inv_neighs[i])->v =
-          temp_inv_neighs[i];
-        reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&inv_neighs[i])->w =
-          1;
+      for (NodeID_ destination = 0; destination < num_nodes; ++destination) {
+        for (SGOffset i = offsets[destination];
+             i < offsets[destination + 1]; ++i) {
+          NodeID_ source = temp_inv_neighs[i];
+          auto *weighted =
+            reinterpret_cast<NodeWeight<NodeID_, WeightT_> *>(&inv_neighs[i]);
+          weighted->v = source;
+          weighted->w = GeneratedWeight(
+              org_ids[source], org_ids[destination],
+              true, weight_scheme);
+        }
       }
       delete[] temp_inv_neighs;
     } else {
@@ -519,7 +569,7 @@ CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
         file.read(reinterpret_cast<char *>(temp_inv_neighs_clear),
                   num_neigh_bytes_clear);
 #pragma omp parallel for
-        for (int i = 0; i < num_edges; ++i) {
+        for (int64_t i = 0; i < num_edges; ++i) {
           inv_neighs[i] = temp_inv_neighs_clear[i].v;
         }
         delete[] temp_inv_neighs_clear;
@@ -529,9 +579,6 @@ CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
     }
     inv_index = CSRGraph<NodeID_, DestID_>::GenIndex(offsets, inv_neighs);
   }
-  NodeID_ *org_ids = new NodeID_[num_nodes];
-  file.read(reinterpret_cast<char *>(org_ids),
-            num_nodes * sizeof(NodeID_)); // Read original IDs
   file.close();
   t.Stop();
   PrintTime("Read Time", t.Seconds());
@@ -542,6 +589,8 @@ CSRGraph<NodeID_, DestID_, invert> ReadSerializedGraph() {
     g_new = CSRGraph<NodeID_, DestID_, invert>(num_nodes, index, neighs);
 
   g_new.copy_org_ids(org_ids);
+  if (generate_weights)
+    PrintLabel("Weight Scheme", weight_scheme);
 
   delete[] org_ids;
   return g_new;

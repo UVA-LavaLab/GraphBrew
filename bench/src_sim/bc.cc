@@ -155,10 +155,12 @@ void BCBFS_Sim(const Graph &g, NodeID source,
 }
 
 template<typename CacheType>
-pvector<ScoreT> BC_Sim(const Graph &g, int num_iters, CacheType &cache) {
+pvector<ScoreT> BC_Sim(
+    const Graph &g,
+    int num_iters,
+    CacheType &cache,
+    SourcePicker<Graph> &sp) {
     pvector<ScoreT> scores(g.num_nodes(), 0);
-    
-    SourcePicker<Graph> sp(g);
     for (int i = 0; i < num_iters; i++) {
         NodeID source = sp.PickNext();
         BCBFS_Sim(g, source, scores, cache);
@@ -197,6 +199,15 @@ int main(int argc, char *argv[]) {
     
     Builder b(cli);
     Graph g = b.MakeGraph();
+    if (!cli.start_vertices().empty() && cli.num_iters() != 1)
+        throw std::invalid_argument(
+            "Explicit BC source lists require one source per trial");
+    SourcePicker<Graph> sp(
+        g, cli.start_vertices(),
+        cli.start_vertices().empty()
+            ? cli.num_trials() * cli.num_iters()
+            : cli.num_trials(),
+        cli.source_repeats());
     
     bool multicore = IsMultiCoreMode();
     bool fast = IsFastMode();
@@ -204,8 +215,8 @@ int main(int argc, char *argv[]) {
     if (multicore) {
         MultiCoreCacheHierarchy cache = MultiCoreCacheHierarchy::fromEnvironment();
         
-        auto BCBound = [&cli, &cache](const Graph &g) {
-            return BC_Sim(g, cli.num_iters(), cache);
+        auto BCBound = [&cli, &cache, &sp](const Graph &g) {
+            return BC_Sim(g, cli.num_iters(), cache, sp);
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return BCVerifier(g, scores, cli.num_iters());
@@ -228,8 +239,8 @@ int main(int argc, char *argv[]) {
         // FAST single-core cache simulation (no locks, ~10x faster)
         FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
         
-        auto BCBound = [&cli, &cache](const Graph &g) {
-            return BC_Sim(g, cli.num_iters(), cache);
+        auto BCBound = [&cli, &cache, &sp](const Graph &g) {
+            return BC_Sim(g, cli.num_iters(), cache, sp);
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return BCVerifier(g, scores, cli.num_iters());
@@ -251,8 +262,8 @@ int main(int argc, char *argv[]) {
     } else {
         CacheHierarchy cache = CacheHierarchy::fromEnvironment();
         
-        auto BCBound = [&cli, &cache](const Graph &g) {
-            return BC_Sim(g, cli.num_iters(), cache);
+        auto BCBound = [&cli, &cache, &sp](const Graph &g) {
+            return BC_Sim(g, cli.num_iters(), cache, sp);
         };
         auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
             return BCVerifier(g, scores, cli.num_iters());
