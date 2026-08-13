@@ -68,7 +68,7 @@ SCREEN_REPEATS = {
 SCREEN_RESOLVED_SPECS = {
     "5": "5:degree=out",
     "8:csr": "8:csr:degree-sort=out-in:resolution=1",
-    "9:csr": "9:csr:window=8",
+    "9:csr": "9:csr:window=5",
 }
 SCREEN_NODE_HOUR_CAP = 24.0
 SCREEN_CONFIGURATION_CAP = 48
@@ -103,8 +103,11 @@ def _canonical_digest(payload: Any) -> str:
 
 def _screen_environment(threads: int) -> dict[str, str]:
     return {
-        "PATH": os.environ.get("PATH", ""),
-        "LD_LIBRARY_PATH": os.environ.get("LD_LIBRARY_PATH", ""),
+        "PATH": (
+            "/usr/local/sbin:/usr/local/bin:/usr/sbin:"
+            "/usr/bin:/sbin:/bin"
+        ),
+        "LD_LIBRARY_PATH": "",
         "LANG": "C",
         "LC_ALL": "C",
         "TZ": "UTC",
@@ -118,7 +121,7 @@ def _screen_environment(threads: int) -> dict[str, str]:
         "OMP_PLACES": "cores",
         "OMP_DYNAMIC": "FALSE",
         "RABBIT_RESOLUTION": "1",
-        "GORDER_WINDOW": "8",
+        "GORDER_WINDOW": "5",
         "GORDER_FAST_BATCH": "256",
         "ADAPTIVE_DON_TIEBREAK": "0",
         "ADAPTIVE_SKIP_MODULARITY": "0",
@@ -586,6 +589,8 @@ def build_mapping_screen_plan(
     commands = []
     graph_records = []
     for artifact in graphs:
+        artifact_metadata = json.loads(
+            artifact.metadata_path.read_text())
         graph_output = output_root / artifact.spec.name
         original_mapping = graph_output / "ORIGINAL.lo"
         _write_identity_mapping(original_mapping, artifact.spec.nodes)
@@ -606,8 +611,8 @@ def build_mapping_screen_plan(
                 str(artifact.reference_mapping_path.resolve()),
             "reference_mapping_sha256":
                 file_sha256(artifact.reference_mapping_path),
-            "reference_kind": json.loads(
-                artifact.metadata_path.read_text())["reference_kind"],
+            "reference_kind": artifact_metadata["reference_kind"],
+            "parameters": artifact_metadata["spec"]["parameters"],
             "original_mapping_path": str(original_mapping.resolve()),
             "original_mapping_sha256": file_sha256(original_mapping),
         })
@@ -703,7 +708,7 @@ def build_mapping_screen_plan(
             "sha256": file_sha256(converter),
         },
         "baselines": list(SCREEN_BASELINE_SPECS),
-        "reference": "analytic-family-layout",
+        "reference": "mixed-proven-heuristic-control-layouts",
         "rabbit_repeats_per_graph": SCREEN_REPEATS["8:csr"],
         "generator_repository_state": repository_state,
         "promotion_rule": {

@@ -103,7 +103,7 @@ def test_screen_plan_is_capped_and_exact(tmp_path):
     assert all(
         command["environment_mode"] == "clean-allowlist/v1"
         and command["environment"]["RABBIT_RESOLUTION"] == "1"
-        and command["environment"]["GORDER_WINDOW"] == "8"
+        and command["environment"]["GORDER_WINDOW"] == "5"
         and command["environment"]["OMP_THREAD_LIMIT"] == "2"
         for command in plan["commands"]
     )
