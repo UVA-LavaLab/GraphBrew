@@ -491,6 +491,42 @@ If the cap expires with no qualifying, prevalent failure, terminate the study
 with a written negative result and ask the user for an explicit scope decision.
 Do not automatically launch another theory pass, corpus run, or adaptive study.
 
+### Mechanism-Discovery Screen Result
+
+The frozen screen at plan
+`d54e75e665b78119418110a81484614115d5d2d05f41f4e60928dd658005a0da`
+completed all 210 commands over 42 configurations under committed policy
+`c65a2ae8`. It consumed 0.00277 measured hours; all rows remain
+`diagnostic-synthetic` and claim-ineligible.
+
+The primary positive-bit MLogA screen nominated two families:
+
+- **grid:** the Morton reference was 20--23% below Rabbit CSR and exact Gorder;
+- **hub-spoke:** the centered-hub reference was 15--18% below Rabbit and
+  54--58% below Gorder.
+
+Layered Opus/Sol mechanism review rejected both:
+
+- grid uses hidden generator coordinates destroyed by the input-label shuffle,
+  and its Morton/SFC or coordinate-free recursive equivalent is occupied
+  cache-oblivious mesh/recursive-partitioning prior art. Only the road and mesh
+  corpus graphs plausibly exhibit the structure, below the three-graph
+  prevalence requirement;
+- Rabbit already packs hub-spoke groups nearly perfectly. Centering the hub
+  changes MLogA bits but leaves same-line and row-line demand essentially
+  unchanged; the large structural packing failure is Gorder-only. Median
+  neighbor placement is also established MinLA/local-search behavior.
+
+Block-biclique missed the Rabbit threshold, chain and community-bridge were
+matched by exact Gorder, copied-neighborhood exposed a defective reference, and
+the expander control behaved as a negative control.
+
+**Negative result:** no recoverable, novelty-safe, shared Rabbit/Gorder
+cache-locality failure qualified. The six reserved WSR-scale configurations
+remain unused. Do not run prevalence probes, scale timing, another synthetic
+family pass, corpus refresh, or adaptive work without an explicit user scope
+decision.
+
 **Gate:** Opus then Sol theory review. Do not assign an algorithm ID or launch
 timing before both approve.
 
