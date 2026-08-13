@@ -2352,6 +2352,59 @@ def main():
         help="Emit the pre-data adaptive Sprint-1 node-hour projection",
     )
     g_paper.add_argument(
+        "--mechanism-discovery-plan",
+        action="store_true",
+        help="Generate and freeze the synthetic mapping-screen plan",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-screen",
+        action="store_true",
+        help="Execute the separately reviewed synthetic mapping screen",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-refreeze-plan",
+        action="store_true",
+        help="Replace the frozen mapping-screen plan after review",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-refreeze-graphs",
+        action="store_true",
+        help="Replace frozen synthetic graph bytes after review",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-no-resume",
+        action="store_true",
+        help="Re-run every reviewed mapping-screen command",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-graph-root",
+        default=(
+            "/media/Data/00_GraphDatasets/GraphBrew/"
+            "synthetic/mechanism_discovery"
+        ),
+        metavar="DIR",
+        help="External root for synthetic diagnostic graphs",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-artifact-root",
+        default=(
+            "/media/Data/00_GraphDatasets/GraphBrew/"
+            "artifacts/mechanism_discovery"
+        ),
+        metavar="DIR",
+        help="External root for mechanism-discovery manifests/results",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-threads",
+        type=int,
+        default=4,
+        help="OpenMP threads for the synthetic mapping screen",
+    )
+    g_paper.add_argument(
+        "--mechanism-discovery-cpu-list",
+        help="taskset CPU list for the synthetic mapping screen",
+    )
+    g_paper.add_argument(
         "--adaptive-sprint1-sources",
         action="store_true",
         help="Generate frozen source manifests for the adaptive pilot",
@@ -2656,6 +2709,64 @@ def main():
         log_section("RUNNING evaluate_all_modes.py")
         _sp.run(["python3", "scripts/lib/tools/evaluate_all_modes.py", "--all"])
         return
+
+    if (
+        args.mechanism_discovery_plan
+        and args.mechanism_discovery_screen
+    ):
+        parser.error(
+            "Plan and screen are separate reviewed mechanism-discovery stages"
+        )
+
+    if args.mechanism_discovery_plan:
+        import subprocess as _sp
+        from scripts.lib.analysis.mechanism_discovery import (
+            build_mapping_screen_plan,
+            write_mapping_screen_plan,
+        )
+
+        build = _sp.run(
+            ["make", "-j2", "bench/bin/converter"],
+            cwd=_PROJECT_ROOT,
+        )
+        if build.returncode != 0:
+            raise SystemExit(build.returncode)
+        plan = build_mapping_screen_plan(
+            Path(args.mechanism_discovery_graph_root).resolve(),
+            Path(args.mechanism_discovery_artifact_root).resolve(),
+            threads=args.mechanism_discovery_threads,
+            cpu_list=args.mechanism_discovery_cpu_list,
+            refreeze_graphs=args.mechanism_discovery_refreeze_graphs,
+        )
+        path = write_mapping_screen_plan(
+            plan,
+            Path(args.mechanism_discovery_artifact_root).resolve(),
+            refreeze=args.mechanism_discovery_refreeze_plan,
+        )
+        print(
+            "Mechanism-discovery plan: "
+            f"{plan['configuration_count']} configurations, "
+            f"{plan['command_count']} commands, "
+            f"{plan['defined_cap_hours']:.2f} defined cap hours"
+        )
+        print(f"Wrote: {path}")
+        raise SystemExit(0)
+
+    if args.mechanism_discovery_screen:
+        from scripts.lib.analysis.mechanism_discovery import (
+            execute_mapping_screen,
+        )
+
+        plan_path = (
+            Path(args.mechanism_discovery_artifact_root).resolve()
+            / "mapping_screen_plan.json"
+        )
+        output = execute_mapping_screen(
+            plan_path,
+            resume=not args.mechanism_discovery_no_resume,
+        )
+        print(f"Wrote: {output}")
+        raise SystemExit(0)
 
     if args.adaptive_sprint1_plan:
         import subprocess as _sp

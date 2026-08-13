@@ -444,11 +444,21 @@ The study is pre-registered as follows:
 - use `measurement_mode=diagnostic-synthetic`; these rows are permanently
   claim-ineligible and cannot enter adaptive or final matrices;
 - use at most 48 family configurations and 24 dedicated node-hours;
-- use at least two sizes spanning below and above the property-working-set/LLC
-  fit boundary and at least three deterministic seeds per stochastic family;
+- use 42 small mapping-screen configurations
+  (7 families x 2 sizes x 3 label/topology seeds) and reserve the remaining
+  6 configurations for exactly one promoted family at two sizes spanning below
+  and above the property-working-set/LLC fit boundary;
+- execute three Rabbit CSR mapping draws per screen graph and require any
+  promotion signal to exceed their observed metric spread;
 - provide an analytic layout for families with a known optimum structure, or
-  an expensive exact/small-instance oracle. A family has no demonstrated
-  headroom if neither reference nor any ordering beats ORIGINAL;
+  label the reference explicitly as a heuristic or control. A baseline that
+  beats a proven/heuristic reference is a reference defect, not a no-headroom
+  result. A control reference records baseline advantage separately and can
+  never qualify;
+- use positive-bit MLogA per edge as the primary mapping-screen statistic. The
+  reference must improve by at least 5% over median Rabbit CSR and exact Gorder
+  at both screen sizes and all seeds before one family may advance to the
+  reserved WSR-scale configurations;
 - call a case a shared baseline failure only when the reference is at least 5%
   faster in controlled kernel time than both Rabbit CSR and exact Gorder across
   both sizes, with a seed/bootstrap interval excluding parity. A structural
@@ -459,6 +469,23 @@ The study is pre-registered as follows:
 - emit a per-family decision-divergence table keyed by exact mapping
   fingerprints, showing the vertices/regions where Rabbit, Gorder, DBG, and the
   reference make different placements.
+
+Freeze the small-instance screen with:
+
+```bash
+python3 scripts/graphbrew_experiment.py \
+  --mechanism-discovery-plan
+```
+
+After implementation review, execute only that frozen plan with:
+
+```bash
+python3 scripts/graphbrew_experiment.py \
+  --mechanism-discovery-screen
+```
+
+Commit the reviewed generator/analysis implementation before freezing the
+plan; its repository-state binding deliberately invalidates pre-commit plans.
 
 If the cap expires with no qualifying, prevalent failure, terminate the study
 with a written negative result and ask the user for an explicit scope decision.
