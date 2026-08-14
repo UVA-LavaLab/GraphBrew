@@ -455,6 +455,22 @@ def test_cache_filter_accepts_explicit_compose_candidate():
         runner.configure_algorithm_filter(None)
 
 
+def test_algorithm_filter_accepts_rabbit_emission_screen():
+    specs = [
+        spec for label, spec in COMPOSE_VARIANTS
+        if label.startswith("Rabbit-")
+    ]
+    runner.configure_algorithm_filter(specs)
+    try:
+        keys = {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
+        assert set(specs).issubset(keys)
+    finally:
+        runner.configure_algorithm_filter(None)
+
+
 def test_cache_filter_resolves_ablation_and_chain_keys():
     ablation = ABLATION_CONTRASTS[0]["base"]
     runner.configure_algorithm_filter([

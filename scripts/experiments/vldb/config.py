@@ -110,6 +110,20 @@ COMPOSE_VARIANTS = [
      "12:rabbit:compose:sg_none:comm_identity:intra_hubsort"),
     ("SuperRabbit-HubSort",
      "12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort"),
+    ("Rabbit-Dendrogram",
+     "12:rabbit:compose:sg_none:comm_identity:intra_dendrogram"),
+    ("Rabbit-SizeDesc-Dendrogram",
+     "12:rabbit:compose:sg_none:comm_size_desc:intra_dendrogram"),
+    ("Rabbit-DegreeDesc-Dendrogram",
+     "12:rabbit:compose:sg_none:comm_degree_desc:intra_dendrogram"),
+    ("Rabbit-SuperRCM-Dendrogram",
+     "12:rabbit:compose:sg_super_rcm:comm_identity:intra_dendrogram"),
+    ("Rabbit-Hilbert-Dendrogram",
+     "12:rabbit:compose:sg_hilbert:comm_identity:intra_dendrogram"),
+    ("Rabbit-BoundaryLast",
+     "12:rabbit:compose:sg_none:comm_identity:intra_boundary_last"),
+    ("Rabbit-CoreOrder",
+     "12:rabbit:compose:sg_none:comm_identity:intra_core"),
     ("Leiden-RCMpp",
      "12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp"),
     ("Leiden-CommDegree-RCMpp",
@@ -164,6 +178,18 @@ GRAPHBREW_DISPLAY_NAMES = {
         "LeidenGVE-DegreeDesc-RCMpp",
     "12:rabbit:compose:sg_none:comm_identity:intra_dendrogram":
         "Rabbit-Identity-Dendrogram",
+    "12:rabbit:compose:sg_none:comm_size_desc:intra_dendrogram":
+        "Rabbit-SizeDesc-Dendrogram",
+    "12:rabbit:compose:sg_none:comm_degree_desc:intra_dendrogram":
+        "Rabbit-DegreeDesc-Dendrogram",
+    "12:rabbit:compose:sg_super_rcm:comm_identity:intra_dendrogram":
+        "Rabbit-SuperRCM-Dendrogram",
+    "12:rabbit:compose:sg_hilbert:comm_identity:intra_dendrogram":
+        "Rabbit-Hilbert-Dendrogram",
+    "12:rabbit:compose:sg_none:comm_identity:intra_boundary_last":
+        "Rabbit-Identity-BoundaryLast",
+    "12:rabbit:compose:sg_none:comm_identity:intra_core":
+        "Rabbit-Identity-CoreOrder",
     "12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort":
         "Rabbit-SuperRabbit.DegreeDesc-HubSort",
     "12:leiden:compose:sg_none:comm_identity:intra_hubsort":
