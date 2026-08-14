@@ -573,6 +573,32 @@ def _measurement_shape(
     )
 
 
+def _projection_graph_output_bytes(
+    graph_root: Path,
+) -> dict[str, int]:
+    admitted_graphs = set(sprint1_pilot_graphs()) | set(
+        NATURAL_PILOT_GRAPHS
+    )
+    output_bytes: dict[str, int] = {}
+    for graph in EVAL_GRAPHS:
+        graph_name = str(graph["name"])
+        graph_path = graph_root / graph_name / f"{graph_name}.sg"
+        if graph_name in admitted_graphs:
+            metadata = _current_graph_metadata(
+                graph_path,
+                graph_name=graph_name,
+                natural=False,
+                verify_content=True,
+                expected_nodes=int(graph["nodes"]),
+                expected_undirected_edges=
+                    int(graph["undirected_edges"]),
+            )
+            output_bytes[graph_name] = int(metadata["output_bytes"])
+        else:
+            output_bytes[graph_name] = graph_path.stat().st_size
+    return output_bytes
+
+
 def build_sprint1_budget_projection(
     artifact_root: Path,
     graph_root: Path,
@@ -613,24 +639,7 @@ def build_sprint1_budget_projection(
     )
     overhead = _index_required_overhead(exp3)
     cache_rates = _cache_rate_by_graph_proxy(cache)
-    graph_metadata = {
-        str(graph["name"]): _current_graph_metadata(
-            graph_root
-            / str(graph["name"])
-            / f"{graph['name']}.sg",
-            graph_name=str(graph["name"]),
-            natural=False,
-            verify_content=True,
-            expected_nodes=int(graph["nodes"]),
-            expected_undirected_edges=
-                int(graph["undirected_edges"]),
-        )
-        for graph in EVAL_GRAPHS
-    }
-    graph_output_bytes = {
-        graph_name: int(metadata["output_bytes"])
-        for graph_name, metadata in graph_metadata.items()
-    }
+    graph_output_bytes = _projection_graph_output_bytes(graph_root)
     max_read_by_graph = {}
     for graph in EVAL_GRAPHS:
         graph_name = str(graph["name"])

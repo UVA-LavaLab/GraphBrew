@@ -460,6 +460,31 @@ def test_source_bundle_cannot_retrofit_missing_graph_provenance():
         })
 
 
+def test_budget_projection_validates_only_admitted_graphs(
+    tmp_path, monkeypatch,
+):
+    validated = []
+    for graph in EVAL_GRAPHS:
+        graph_dir = tmp_path / graph["name"]
+        graph_dir.mkdir()
+        (graph_dir / f"{graph['name']}.sg").write_bytes(b"fixture")
+
+    def fake_metadata(path, *, graph_name, **_kwargs):
+        validated.append(graph_name)
+        return {"output_bytes": path.stat().st_size}
+
+    monkeypatch.setattr(
+        adaptive_runner, "_current_graph_metadata", fake_metadata)
+    output_bytes = adaptive_runner._projection_graph_output_bytes(tmp_path)
+    assert set(output_bytes) == {
+        graph["name"] for graph in EVAL_GRAPHS
+    }
+    assert set(validated) == (
+        set(adaptive_runner.sprint1_pilot_graphs())
+        | set(adaptive_runner.NATURAL_PILOT_GRAPHS)
+    )
+
+
 def test_budget_projection_covers_frozen_matrix(tmp_path):
     graph_root = tmp_path / "graphs"
     artifact_root = tmp_path / "artifacts"
