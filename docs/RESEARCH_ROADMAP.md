@@ -2,13 +2,19 @@
 
 ## Objective
 
-Design, implement, and publish a GraphBrew-native ordering that is
-algorithmically independent of RabbitOrder, Gorder, and Leiden. It must beat
-RabbitOrder and Gorder on controlled kernel performance while keeping complete
-reorder overhead at or below RabbitOrder's level. Exact preprocessing,
-mapping, kernel, work, cache, memory, and amortization accounting remain
-mandatory. Adaptive selection is a downstream extension only after the new
-ordering establishes a genuine Pareto point.
+The original objective was to design and publish a GraphBrew-native ordering
+that was algorithmically independent of RabbitOrder, Gorder, and Leiden while
+beating their locality at Rabbit-level complete reorder cost. The bounded
+theory, synthetic, and real-mapping searches below closed without a
+novelty-approved mechanism.
+
+The active objective is therefore a cost-aware adaptive GraphBrew system that
+selects among fully attributed, audited orderings using only lightweight
+topology and workload features. It must beat the best static deployable policy
+on cross-fitted end-to-end regret while charging feature extraction,
+selection, mapping, validation, application, and kernel cost. It does not
+claim a new vertex-ordering algorithm. Exact preprocessing, mapping, kernel,
+work, cache, memory, and amortization accounting remain mandatory.
 
 The normal experiment entry point is `scripts/graphbrew_experiment.py`.
 Reusable experiment, parsing, storage, and analysis logic belongs under
@@ -38,6 +44,10 @@ The research program advances without skipping gates:
    features can select among the new ordering and cheap static controls.
 9. **Final evaluation:** verification manifest first, then the frozen full
    matrix, figures, tables, and reproducibility package.
+
+The 2026-08-14 scope reset supersedes the original dependency between Gates 7
+and 8. Gates 2--7 closed with no independent candidate; the active program
+resumes at a revised adaptive Gate 8 and makes no new-ordering claim.
 
 At every stage boundary, obtain two independent technical reviews. Resolve
 every blocking finding before advancing and update this roadmap when evidence
@@ -729,6 +739,87 @@ authorized independent-ordering search. No new theory pass, confirmation run,
 mapping generation, corpus refresh, timing, synthetic extension, or adaptive
 work follows without an explicit scope decision.
 
+### Scope Reset and Automorphism-Safe Contract
+
+The user authorized continuation on 2026-08-14. That authorization opens a
+new adaptive/characterization scope; it does not reopen Route F or convert its
+failed signature into a candidate.
+
+The scope review corrected an impossible requirement in the earlier novelty
+contract. A deterministic total permutation cannot be strictly
+label-equivariant on a graph with a nontrivial automorphism. For a relabeling
+`pi`, concrete mappings are now compared modulo automorphisms:
+
+```text
+sigma_(pi G) o pi = sigma_G o alpha,  alpha in Aut(G)
+```
+
+Topology-derived decisions must remain relabeling-equivariant. A concrete ID
+tie-break is permitted only inside a certified automorphism class, and the
+certificate must include stored edge multiplicity, direction, weights,
+self-loops, and any source/color attributes used by the workload. Given a
+proposed `alpha`, membership in `Aut(G)` is checked in `O(m)` by verifying the
+stored edge multiset and attributes. Topology-isomorphism-invariant metrics
+are then identical automatically; source-ID diagnostics remain outside this
+equivalence.
+
+The reopened novelty landscape produced no new ordering:
+
+- doubly lexical/vicinal-preorder seriation is established matrix-ordering
+  prior art, has unresolved non-unique ties, and its sparse refinement cost is
+  unlikely to meet Rabbit's budget;
+- exact twin contiguity reduces to depth-one modular decomposition, duplicate
+  neighborhood compression, and an extremal case of Gorder's sibling score.
+  It is also suboptimal on stars, where the center belongs inside the
+  false-twin leaf interval;
+- cache-set-aware vertex placement is cache-conscious data-placement prior
+  art and is a no-op for dense contiguous property arrays unless padding or
+  line repacking is introduced, reducing respectively to coloring/bin packing
+  or the already occupied spatial-locality objectives;
+- bounded-pass community aggregation plus cache-aware emission overlaps
+  2PS-L, size-constrained clustering, RabbitOrder, Corder/Cagra, Rebo, and
+  existing fast Leiden implementations. Engineering fusion alone does not
+  satisfy the independent-ordering novelty gate.
+
+This closes the independent-ordering headline under the current constraints.
+Phases 2--4 below are retained as the historical candidate path but are not
+active.
+
+### Active Adaptive Pilot
+
+The active contribution is an attributed cost-aware selector, not a relabeled
+ordering. The existing Sprint-1 pilot remains `diagnostic-adaptive` and
+claim-ineligible. Its frozen manifest contains 527 serial commands plus four
+page-cache priming commands, projects 11.109 buffered node-hours at the pilot
+high estimate, and has a 49.428-hour bound if every command cap binds.
+
+The three graphs formerly reserved as Route-F confirmation may be used only by
+this separately frozen adaptive manifest. No Route-F confirmation analysis,
+signature replication, or threshold reuse is permitted. Their release to the
+new scope must be recorded by the content-bound execution authorization.
+
+Pilot entry requires:
+
+1. the frozen source, natural-label, Tier-0 weight, graph, binary, and command
+   bindings to validate byte-for-byte;
+2. the executor validation artifact to pass on the current host;
+3. an explicit authorization bound to the complete execution-manifest hash;
+4. serial exclusive execution with failures, retries, timeouts, censoring,
+   wall caps, and peak RSS retained;
+5. no graph identity, database/kNN lookup, runtime oracle, or non-Tier-0
+   deployable feature.
+
+After collection, promotion requires nested topology-held-out evaluation and:
+
+- lower end-to-end regret than the best static deployable arm after charging
+  feature, selection, reorder, validation, apply, and kernel costs;
+- exact Python/C++ policy parity and deterministic tie semantics;
+- explicit no-abstention and abstaining policies;
+- comparison with ORIGINAL, DBG, Rabbit CSR, exact Gorder, canonical Corder,
+  explicit RCM, and attributed Leiden/GraphBrew controls;
+- no broad corpus or final claim if the three-graph pilot does not beat the
+  best static deployable policy.
+
 ## Phase 2: Native Implementation and Correctness
 
 Phase 2 remains blocked until Route F gates N0--N4 pass and the frozen
@@ -807,7 +898,12 @@ kernel improvement advances to the full corpus.
 
 ## Phase 5: Adaptive Selection
 
-Only after the independent-ordering Pareto gate:
+This phase is active under the 2026-08-14 scope reset. The former
+independent-ordering prerequisite is superseded; the portfolio contains only
+fully attributed existing methods and the contribution is selection,
+measurement, and cost-aware deployment.
+
+The active work must:
 
 1. collect fresh source-driven and reuse-aware measurements;
 2. train only on runtime-emitted Tier-0 features;
@@ -819,8 +915,8 @@ Only after the independent-ordering Pareto gate:
 
 The selector must never consume graph identity or exact-name oracle data.
 Report a no-abstention selector, an abstaining selector, the best static
-GraphBrew-native ordering, Rabbit CSR, Gorder, and the cross-fitted portfolio
-oracle. The new ordering must be a deployable arm.
+deployable ordering, Rabbit CSR, Gorder, and the cross-fitted portfolio oracle.
+No arm may be described as a new GraphBrew-native ordering.
 
 Phase-5 entry requires the existing fail-closed graph-identity and
 database/kNN guards plus executable regression tests. A non-empty graph name,
@@ -829,8 +925,8 @@ fall back.
 
 ## Phase 6: Full Evaluation
 
-Only after the independent candidate, pilot, precision, memory, and optional
-adaptive gates:
+Only after the adaptive pilot, precision, memory, abstention, and end-to-end
+regret gates:
 
 - run the frozen graph/kernel/source/reuse matrix through the harness;
 - retain rapid and final execution modes as explicit policies;
