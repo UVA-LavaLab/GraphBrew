@@ -205,6 +205,7 @@ def load_selected_pilot_results(
             selected[str(base_command["command_id"])] = terminal
 
     priming_results = []
+    prior_priming_results = []
     if completion is not None:
         session_id = str(completion.get("execution_session_id") or "")
         if not session_id:
@@ -228,6 +229,10 @@ def load_selected_pilot_results(
                 raise ValueError(
                     "Adaptive pilot completion contains failed priming")
 
+    priming_commands = {
+        str(command["command_id"]): command
+        for command in manifest["priming_commands"]
+    }
     for path in (sprint_root / "pilot_runs").glob("**/result.json"):
         result = _load_json(path)
         if (
@@ -237,10 +242,27 @@ def load_selected_pilot_results(
                 == manifest_sha256
             and path.resolve() not in validated_paths
         ):
-            if (
-                completion is None
-                and result.get("phase") == "page-cache-prime"
-            ):
+            if result.get("phase") == "page-cache-prime":
+                base_command = priming_commands.get(
+                    str(result.get("command_id") or ""))
+                idempotency_key = str(
+                    result.get("idempotency_key") or "")
+                marker = "|session="
+                if base_command is None or marker not in idempotency_key:
+                    raise ValueError(
+                        "Adaptive pilot contains an invalid prior "
+                        f"priming result: {path}")
+                session_id = idempotency_key.split(marker, 1)[1]
+                command = bind_authorized_command(
+                    priming_command_for_session(
+                        base_command, session_id),
+                    authorization_reference,
+                    manifest_sha256,
+                    manifest["input_artifacts"],
+                )
+                validate_result_contract(result, command)
+                prior_priming_results.append(result)
+                validated_paths.add(path.resolve())
                 continue
             raise ValueError(
                 f"Adaptive pilot contains an unauthorized result path: {path}")
@@ -297,6 +319,7 @@ def load_selected_pilot_results(
         "budget": budget,
         "selected_results": selected,
         "priming_results": priming_results,
+        "prior_priming_results": prior_priming_results,
         "all_attempt_results": all_attempts,
         "missing_command_ids": missing,
         "result_bindings": result_bindings,
@@ -1161,6 +1184,8 @@ def build_pilot_analysis(
             int(bundle["manifest"]["priming_command_count"]),
         "selected_result_count": len(selected),
         "priming_result_count": len(bundle["priming_results"]),
+        "prior_priming_result_count":
+            len(bundle["prior_priming_results"]),
         "validated_attempt_count":
             len(bundle["all_attempt_results"]),
         "missing_command_ids": bundle["missing_command_ids"],
@@ -1175,6 +1200,7 @@ def build_pilot_analysis(
             for result in (
                 bundle["all_attempt_results"]
                 + bundle["priming_results"]
+                + bundle["prior_priming_results"]
             )
         ) / 3600.0,
         "selection_seconds_by_graph_label": {

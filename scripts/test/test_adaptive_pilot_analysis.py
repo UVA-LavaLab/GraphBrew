@@ -239,6 +239,17 @@ def _fixture(
     )
     priming_result = _result(priming_command)
     _write_json(Path(priming_command["result_path"]), priming_result)
+    prior_priming_command = bind_authorized_command(
+        priming_command_for_session(priming, "prior-session"),
+        authorization_reference,
+        manifest_sha256,
+        {},
+    )
+    prior_priming_result = _result(prior_priming_command)
+    _write_json(
+        Path(prior_priming_command["result_path"]),
+        prior_priming_result,
+    )
     if complete:
         _write_json(
             sprint_root / "pilot_execution_complete.json",
@@ -267,6 +278,7 @@ def test_pilot_analysis_replays_retries_and_crossfits_headroom(tmp_path):
     assert analysis["headroom_eligible"] is True
     assert analysis["selected_result_count"] == 12
     assert analysis["priming_result_count"] == 1
+    assert analysis["prior_priming_result_count"] == 1
     assert analysis["validated_attempt_count"] == 13
     assert analysis["total_consumed_hours"] > (
         analysis["terminal_command_hours"])
