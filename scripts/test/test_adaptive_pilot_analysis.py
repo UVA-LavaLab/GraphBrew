@@ -11,6 +11,9 @@ import pytest
 
 from scripts.lib.analysis.adaptive_pilot import (
     build_pilot_analysis,
+    summarize_cache_repricing,
+    summarize_feature_overhead,
+    summarize_peak_rss,
     write_pilot_analysis,
 )
 from scripts.lib.pipeline.adaptive_pilot_contract import (
@@ -340,6 +343,103 @@ def test_censoring_suppresses_headroom(tmp_path):
     assert analysis["status"] == "complete-with-censoring"
     assert analysis["headroom_eligible"] is False
     assert analysis["policy_headroom"]["headroom_eligible"] is False
+
+
+def test_feature_rss_and_cache_pilot_gates():
+    original_cell = {
+        "graph": "g",
+        "labeling": "randomized",
+        "kernel": "pr",
+        "arm": "0",
+        "eligible": True,
+        "process_samples": [{
+            "process_id": process_id,
+            "state": "success",
+            "censored": False,
+            "kernel_seconds": 10.0,
+            "modeled_complete_reorder_seconds": 0.0,
+        } for process_id in range(3)],
+    }
+    feature = summarize_feature_overhead(
+        [original_cell], {("g", "randomized"): 0.1})
+    assert feature["eligible"]
+    assert feature["all_contexts_within_2pct"]
+
+    rss_commands = [{
+        "command_id": f"rss|{arm}",
+        "phase": "rss-pilot",
+    } for arm in ("0", "5")]
+    rss_results = [{
+        "command_id": f"rss|{arm}",
+        "phase": "rss-pilot",
+        "graph": "g",
+        "arm": arm,
+        "error_kind": "",
+        "censored": False,
+        "extra": {"peak_rss_kib": peak},
+    } for arm, peak in (("0", 100), ("5", 120))]
+    rss = summarize_peak_rss(
+        rss_results, {"commands": rss_commands})
+    assert rss["eligible"]
+    assert rss["max_peak_rss_kib"] == 120
+
+    probes = (
+        ("twitter", "pr", "8:csr", 22, None, "graph-factor", 20.0),
+        ("webbase", "pr", "8:csr", 22, None, "graph-factor", 30.0),
+        ("hollywood", "pr", "8:csr", 22, None, "star-center", 10.0),
+        ("hollywood", "bfs", "8:csr", 22, 0, "kernel-factor", 40.0),
+        ("hollywood", "pr", "0", 22, None, "arm-factor", 5.0),
+        ("hollywood", "pr", "5", 22, None, "arm-factor", 8.0),
+        ("hollywood", "pr", "8:csr", 512, None, "capacity-factor", 20.0),
+        (
+            "twitter", "bfs", "8:csr", 22, 0,
+            "graph-kernel-interaction", 80.0,
+        ),
+        (
+            "hollywood", "bfs", "8:csr", 22, 7,
+            "source-dispersion", 44.0,
+        ),
+    )
+    budget_rows = [{
+        "graph": graph,
+        "kernel": kernel,
+        "arm": arm,
+        "capacities_mib": capacity,
+        "source_index": source,
+        "probe_role": role,
+    } for graph, kernel, arm, capacity, source, role, _ in probes]
+    cache_results = []
+    for graph, kernel, arm, capacity, source, _, duration in probes:
+        cache_results.append({
+            "phase": "cache-micro-pilot",
+            "command_id": (
+                f"cache|{graph}|{kernel}|{arm}|{capacity}MiB|s{source}"
+            ),
+            "graph": graph,
+            "kernel": kernel,
+            "arm": arm,
+            "measurement_mode": f"cache-simulator-{capacity}mib",
+            "error_kind": "",
+            "censored": False,
+            "duration_seconds": duration,
+            "extra": {
+                "cache_stats": {
+                    "total_accesses": 100,
+                    "L1": {"misses": 50},
+                    "L2": {"misses": 25},
+                    "L3": {"misses": 10},
+                },
+            },
+        })
+    cache = summarize_cache_repricing(cache_results, {
+        "cache_micro_pilot_rows": budget_rows,
+        "policy": {
+            "cache_repricing_max_interaction_residual": 0.25,
+        },
+    })
+    assert cache["eligible"]
+    assert cache["interaction_residual"] == pytest.approx(0.0)
+    assert cache["separable_model_eligible"]
 
 
 def test_top_level_exposes_adaptive_pilot_analysis():

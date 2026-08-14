@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -497,6 +498,308 @@ def summarize_label_sensitivity(
     return rows
 
 
+def summarize_feature_overhead(
+    timing_cells: Iterable[Mapping[str, Any]],
+    selection_costs: Mapping[tuple[str, str], float],
+) -> dict[str, Any]:
+    original_pr = {
+        (str(cell["graph"]), str(cell["labeling"])): cell
+        for cell in timing_cells
+        if (
+            cell["kernel"] == "pr"
+            and cell["arm"] == "0"
+            and cell["eligible"]
+        )
+    }
+    rows = []
+    for key, selection_seconds in sorted(selection_costs.items()):
+        original = original_pr.get(key)
+        if original is None:
+            continue
+        original_kernel = _mean_process_cost(original, "infinity")
+        rows.append({
+            "graph": key[0],
+            "labeling": key[1],
+            "selection_seconds": selection_seconds,
+            "original_pr_kernel_seconds": original_kernel,
+            "selection_over_original_pr_ratio":
+                selection_seconds / original_kernel,
+        })
+    expected = set(selection_costs)
+    observed = {
+        (row["graph"], row["labeling"]) for row in rows
+    }
+    return {
+        "eligible": bool(rows) and observed == expected,
+        "context_count": len(rows),
+        "all_contexts_within_2pct": (
+            bool(rows)
+            and observed == expected
+            and all(
+                row["selection_over_original_pr_ratio"] <= 0.02
+                for row in rows
+            )
+        ),
+        "rows": rows,
+    }
+
+
+def summarize_peak_rss(
+    results: Iterable[Mapping[str, Any]],
+    manifest: Mapping[str, Any],
+) -> dict[str, Any]:
+    expected = {
+        str(command["command_id"])
+        for command in manifest["commands"]
+        if command.get("phase") == "rss-pilot"
+    }
+    rows = []
+    seen = set()
+    for result in results:
+        if result.get("phase") != "rss-pilot":
+            continue
+        command_id = str(result["command_id"])
+        seen.add(command_id)
+        row = {
+            "command_id": command_id,
+            "graph": result["graph"],
+            "arm": result["arm"],
+            "state": str(result.get("error_kind") or "success"),
+            "censored": bool(result.get("censored")),
+            "peak_rss_kib": result.get(
+                "extra", {}).get("peak_rss_kib"),
+        }
+        rows.append(row)
+    eligible = (
+        bool(expected)
+        and seen == expected
+        and all(
+            row["state"] == "success"
+            and not row["censored"]
+            and isinstance(row["peak_rss_kib"], int)
+            and row["peak_rss_kib"] > 0
+            for row in rows
+        )
+    )
+    return {
+        "eligible": eligible,
+        "expected_count": len(expected),
+        "observed_count": len(rows),
+        "max_peak_rss_kib": (
+            max(row["peak_rss_kib"] for row in rows)
+            if eligible and rows else None
+        ),
+        "rows": sorted(
+            rows, key=lambda row: (row["graph"], row["arm"])),
+    }
+
+
+def _cache_hierarchy_lookups(stats: Mapping[str, Any]) -> int:
+    try:
+        values = (
+            int(stats["total_accesses"]),
+            int(stats["L1"]["misses"]),
+            int(stats["L2"]["misses"]),
+            int(stats["L3"]["misses"]),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("Cache pilot has invalid hierarchy statistics") from error
+    if any(value < 0 for value in values):
+        raise ValueError("Cache hierarchy statistics must be non-negative")
+    return sum(values)
+
+
+def _cache_capacity_mib(result: Mapping[str, Any]) -> int:
+    match = re.fullmatch(
+        r"cache-simulator-(\d+)mib",
+        str(result.get("measurement_mode") or ""),
+    )
+    if match is None:
+        raise ValueError("Cache pilot measurement mode changed")
+    return int(match.group(1))
+
+
+def summarize_cache_repricing(
+    results: Iterable[Mapping[str, Any]],
+    budget: Mapping[str, Any],
+) -> dict[str, Any]:
+    expected_rows = budget.get("cache_micro_pilot_rows", [])
+    expected = {
+        (
+            str(row["graph"]),
+            str(row["kernel"]),
+            str(row["arm"]),
+            int(row["capacities_mib"]),
+            row.get("source_index"),
+        ): row
+        for row in expected_rows
+    }
+    rows = []
+    observed = {}
+    for result in results:
+        if result.get("phase") != "cache-micro-pilot":
+            continue
+        source_token = str(result["command_id"]).rsplit("|s", 1)[-1]
+        source_index = (
+            None if source_token == "None" else int(source_token)
+        )
+        key = (
+            str(result["graph"]),
+            str(result["kernel"]),
+            str(result["arm"]),
+            _cache_capacity_mib(result),
+            source_index,
+        )
+        expected_row = expected.get(key)
+        if expected_row is None:
+            raise ValueError(
+                f"Unexpected cache repricing result: {key}")
+        if key in observed:
+            raise ValueError(
+                f"Duplicate cache repricing result: {key}")
+        state = str(result.get("error_kind") or "success")
+        stats = result.get("extra", {}).get("cache_stats")
+        hierarchy = (
+            _cache_hierarchy_lookups(stats)
+            if state == "success"
+            and not result.get("censored")
+            and isinstance(stats, Mapping)
+            else None
+        )
+        row = {
+            "graph": key[0],
+            "kernel": key[1],
+            "arm": key[2],
+            "capacity_mib": key[3],
+            "source_index": key[4],
+            "probe_role": expected_row["probe_role"],
+            "state": state,
+            "censored": bool(result.get("censored")),
+            "duration_seconds": _finite_nonnegative(
+                result.get("duration_seconds", 0.0),
+                "Cache pilot duration",
+            ),
+            "hierarchy_lookups": hierarchy,
+        }
+        observed[key] = row
+        rows.append(row)
+    eligible = (
+        bool(expected)
+        and set(observed) == set(expected)
+        and all(
+            row["state"] == "success"
+            and not row["censored"]
+            and row["hierarchy_lookups"] is not None
+            and row["duration_seconds"] > 0
+            for row in rows
+        )
+    )
+    summary: dict[str, Any] = {
+        "eligible": eligible,
+        "expected_count": len(expected),
+        "observed_count": len(rows),
+        "rows": sorted(
+            rows,
+            key=lambda row: (
+                row["graph"],
+                row["kernel"],
+                row["arm"],
+                row["capacity_mib"],
+                -1 if row["source_index"] is None
+                else row["source_index"],
+            ),
+        ),
+        "separable_model_eligible": False,
+    }
+    if not eligible:
+        return summary
+
+    by_role: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        by_role[row["probe_role"]].append(row)
+    centers = by_role.get("star-center", [])
+    interactions = by_role.get("graph-kernel-interaction", [])
+    kernel_rows = by_role.get("kernel-factor", [])
+    if len(centers) != 1 or len(interactions) != 1 or len(kernel_rows) != 1:
+        raise ValueError("Cache repricing star roles changed")
+    center = centers[0]
+    center_seconds = center["duration_seconds"]
+    graph_factors = {
+        row["graph"]: row["duration_seconds"] / center_seconds
+        for row in by_role.get("graph-factor", [])
+    }
+    kernel_factor = (
+        kernel_rows[0]["duration_seconds"] / center_seconds)
+    interaction = interactions[0]
+    predicted_interaction = (
+        center_seconds
+        * graph_factors[interaction["graph"]]
+        * kernel_factor
+    )
+    interaction_residual = abs(
+        interaction["duration_seconds"]
+        / predicted_interaction - 1.0
+    )
+    arm_factors = {
+        row["arm"]: row["duration_seconds"] / center_seconds
+        for row in by_role.get("arm-factor", [])
+    }
+    capacity_factors = {
+        str(row["capacity_mib"]):
+            row["duration_seconds"] / center_seconds
+        for row in by_role.get("capacity-factor", [])
+    }
+    source_rows = by_role.get("source-dispersion", [])
+    source_dispersion = (
+        source_rows[0]["duration_seconds"]
+        / kernel_rows[0]["duration_seconds"]
+        if len(source_rows) == 1 else None
+    )
+    ranking_groups: dict[
+        tuple[str, str, int, int | None],
+        list[dict[str, Any]],
+    ] = defaultdict(list)
+    for row in rows:
+        ranking_groups[(
+            row["graph"],
+            row["kernel"],
+            row["capacity_mib"],
+            row["source_index"],
+        )].append(row)
+    ranking_rows = []
+    for key, group in sorted(ranking_groups.items()):
+        if len(group) < 2:
+            continue
+        best = min(
+            int(row["hierarchy_lookups"]) for row in group)
+        ranking_rows.extend({
+            "graph": key[0],
+            "kernel": key[1],
+            "capacity_mib": key[2],
+            "source_index": key[3],
+            "arm": row["arm"],
+            "hierarchy_lookup_ratio_to_best":
+                int(row["hierarchy_lookups"]) / best,
+        } for row in group)
+    max_residual = float(
+        budget["policy"][
+            "cache_repricing_max_interaction_residual"])
+    summary.update({
+        "center_duration_seconds": center_seconds,
+        "graph_runtime_factors": graph_factors,
+        "kernel_runtime_factor": kernel_factor,
+        "arm_runtime_factors": arm_factors,
+        "capacity_runtime_factors": capacity_factors,
+        "source_runtime_ratio": source_dispersion,
+        "interaction_residual": interaction_residual,
+        "maximum_interaction_residual": max_residual,
+        "separable_model_eligible":
+            interaction_residual <= max_residual,
+        "hierarchy_ranking_rows": ranking_rows,
+    })
+    return summary
+
+
 def _sample_cost(
     sample: Mapping[str, Any],
     reuse_regime: int | str,
@@ -803,6 +1106,12 @@ def build_pilot_analysis(
         selected, bundle["manifest"])
     selection_costs = _selection_costs(selected)
     label_sensitivity = summarize_label_sensitivity(timing_cells)
+    feature_overhead = summarize_feature_overhead(
+        timing_cells, selection_costs)
+    peak_rss = summarize_peak_rss(
+        selected, bundle["manifest"])
+    cache_repricing = summarize_cache_repricing(
+        selected, bundle["budget"])
     portfolio_order = tuple(
         bundle["budget"]["policy"]["deployable_pilot_arms"])
     headroom = evaluate_policy_headroom(
@@ -818,6 +1127,14 @@ def build_pilot_analysis(
             status = "complete-with-censoring"
         else:
             status = "complete-with-errors"
+    pilot_gates = {
+        "timing_headroom": bool(headroom["headroom_eligible"]),
+        "feature_overhead": bool(
+            feature_overhead["all_contexts_within_2pct"]),
+        "peak_rss": bool(peak_rss["eligible"]),
+        "cache_repricing": bool(
+            cache_repricing["separable_model_eligible"]),
+    }
     return {
         "schema": PILOT_ANALYSIS_SCHEMA,
         "status": status,
@@ -827,6 +1144,11 @@ def build_pilot_analysis(
             status == "complete-clean"
             and headroom["headroom_eligible"]
         ),
+        "full_collection_gate_eligible": bool(
+            status == "complete-clean"
+            and all(pilot_gates.values())
+        ),
+        "pilot_gates": pilot_gates,
         "sprint_root": bundle["sprint_root"],
         "execution_manifest_sha256": bundle["manifest_sha256"],
         "authorization_reference":
@@ -861,6 +1183,9 @@ def build_pilot_analysis(
             in sorted(selection_costs.items())
         },
         "label_sensitivity": label_sensitivity,
+        "feature_overhead": feature_overhead,
+        "peak_rss": peak_rss,
+        "cache_repricing": cache_repricing,
         "timing_cells": timing_cells,
         "policy_headroom": headroom,
     }
