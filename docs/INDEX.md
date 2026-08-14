@@ -11,19 +11,16 @@ GraphBrew/
 │   └── include/                    # Headers (see Include Structure below)
 ├── scripts/                        # Python experiment infrastructure
 │   ├── graphbrew_experiment.py      # Main pipeline entry point (single top-level script)
-│   ├── experiments/                 # Frozen and restartable study runners
+│   ├── experiments/                 # Frozen and restartable evaluation runners
 │   ├── lib/                         # 5 sub-packages (core, pipeline, ml, analysis, tools)
 │   └── test/                        # pytest test suite
 ├── wiki/                           # Detailed public documentation
 ├── docs/                           # Quick guides + INDEX.md
-├── Makefile                        # Build and verification SSOT
-├── build_wsl.ps1                   # WSL build helper
-└── setup_wsl.ps1                   # WSL setup (dependencies + Boost 1.58)
+└── Makefile                        # Build and verification SSOT
 ```
 
 ## Top-Level Guides
 - `README.md` — Quick start, CLI overview
-- `docs/RESEARCH_ROADMAP.md` — Ordering-first research and evaluation SSOT
 - `wiki/` — Detailed guides (Quick Start, Command-Line Reference, Benchmarks)
 
 ## Include Structure

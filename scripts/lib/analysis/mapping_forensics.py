@@ -85,7 +85,6 @@ FORENSICS_IMPLEMENTATION_SCOPE = (
     "scripts/lib/pipeline/benchmark.py",
 )
 FORENSICS_PROVENANCE_FILES = (
-    "docs/RESEARCH_ROADMAP.md",
     "scripts/test/test_mapping_forensics.py",
 )
 
@@ -192,7 +191,7 @@ def _repository_state(
             != hashlib.sha256(b"").hexdigest()
     ):
         raise RuntimeError(
-            "Commit the reviewed Route-F implementation before "
+            "Commit the reviewed mapping-forensics implementation before "
             "freezing or executing its plan"
         )
     return state
@@ -762,7 +761,7 @@ def compute_vertex_feature_codes(
 ]:
     if graph.layout.directed:
         raise ValueError(
-            "Route F currently requires symmetric SG inputs")
+            "Mapping forensics requires symmetric SG inputs")
     loop_count_by_vertex = _self_loop_counts(graph)
     feature_degrees = degrees - loop_count_by_vertex
     if np.any(feature_degrees < 0):
@@ -1906,7 +1905,7 @@ def _read_sg_dimensions(path: Path) -> tuple[int, int]:
         raise ValueError(f"SG header is truncated: {path}")
     directed, directed_edges, nodes = struct.unpack("<?qq", header)
     if directed:
-        raise ValueError("Route F requires symmetric SG inputs")
+        raise ValueError("Mapping forensics requires symmetric SG inputs")
     return int(nodes), int(directed_edges // 2)
 
 
@@ -1986,7 +1985,7 @@ def build_forensics_plan(
         discovery_names != DISCOVERY_GRAPHS
         or confirmation_names != CONFIRMATION_GRAPHS
     ):
-        raise ValueError("Route-F production cohorts changed")
+        raise ValueError("Mapping-forensics production cohorts changed")
     discovery_records = []
     total_projection = 0.0
     max_peak = 0
@@ -2139,9 +2138,9 @@ def _load_bound_plan(
             != _implementation_sha256s()
     ):
         raise RuntimeError(
-            "Route-F implementation changed after plan review")
+            "Mapping-forensics implementation changed after plan review")
     if plan["class_bank_sha256"] != CLASS_BANK_SHA256:
-        raise RuntimeError("Route-F class specification changed")
+        raise RuntimeError("Mapping-forensics class specification changed")
     for record in plan["confirmation_lockbox"]:
         if (
             record["lockbox_sha256"]
@@ -2339,7 +2338,7 @@ def analyze_graph_artifacts(
     _check_deadline(deadline)
     with SerializedGraphMMap(artifacts.sg_path) as graph:
         if graph.layout.directed:
-            raise ValueError("Route F requires symmetric SG inputs")
+            raise ValueError("Mapping forensics requires symmetric SG inputs")
         _check_projected_memory(
             graph.nodes, graph.undirected_edges, rss_limit_bytes)
         identity = validate_artifact_identity(
@@ -2520,7 +2519,7 @@ def execute_forensics_discovery(
                 "failed_gate": "wall-clock",
                 "graph": None,
                 "error": str(error),
-                "statement": "Route F stopped at a resource gate.",
+                "statement": "Mapping forensics stopped at a resource gate.",
             },
             "consumed_seconds": prior_consumed,
             "peak_rss_bytes": peak_rss_bytes(),
@@ -2622,7 +2621,7 @@ def execute_forensics_discovery(
                     "graph": graph,
                     "error": str(error),
                     "statement": (
-                        "Route F stopped at an artifact or resource gate."
+                        "Mapping forensics stopped at an artifact or resource gate."
                     ),
                 },
                 "consumed_seconds": sum(

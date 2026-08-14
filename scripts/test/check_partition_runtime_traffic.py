@@ -91,7 +91,7 @@ def main() -> int:
         )
 
     require(
-        traffic["schema"] == "graphbrew.partition_runtime_traffic.v1",
+        traffic["schema"] == "graphbrew.partition_runtime_traffic.v2",
         "runtime traffic schema mismatch",
     )
     require(traffic["ghost_slots"] == 16, "ghost-slot count mismatch")
@@ -125,9 +125,9 @@ def main() -> int:
         "ghost synchronization total mismatch",
     )
     require(
-        traffic["bfs"]["graphblox_halo_bytes"]
+        traffic["bfs"]["halo_bytes"]
         == len(steps) * 16 * 2 * 4,
-        "GraphBlox BFS halo projection mismatch",
+        "BFS halo projection mismatch",
     )
     print("[success!] partition runtime traffic traversal")
     return 0

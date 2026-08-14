@@ -2,13 +2,13 @@
 
 # GraphBrew
 
-GraphBrew is a C++17/OpenMP graph-reordering research framework built on the
+GraphBrew is a C++17/OpenMP graph-reordering framework built on the
 [GAP Benchmark Suite](https://github.com/sbeamer/gapbs). It provides canonical
 graph kernels, multiple reordering baselines, cache simulation, reproducible
 experiment orchestration, and infrastructure for developing new
 GraphBrew-native orderings.
 
-The primary research surfaces are:
+The primary project surfaces are:
 
 - canonical kernels in `bench/src/`;
 - reordering quality and cost in `bench/include/graphbrew/reorder/`;
@@ -54,7 +54,7 @@ Repeated `-o` flags form an ordered composition:
 ./bench/bin/pr -f graph.sg -s -o 2 -o 8:csr -n 3
 ```
 
-## Research Experiment Harness
+## Experiment Harness
 
 Use `scripts/graphbrew_experiment.py` as the public Python entry point. Do not
 create one-off experiment runners or duplicate algorithm, graph, benchmark, or
@@ -74,9 +74,9 @@ python3 scripts/graphbrew_experiment.py --vldb 2 --paper-preview \
 ```
 
 Rapid runs are for smoke testing, bug detection, and candidate narrowing. They
-must not update final claims.
+must not replace full evaluation results.
 
-### Frozen full evaluation
+### Full evaluation
 
 ```bash
 python3 scripts/graphbrew_experiment.py --vldb \
@@ -161,25 +161,19 @@ available only through explicit `-D/--db-dir` or `GRAPHBREW_DB_DIR` use.
 
 The shuffled control is a fixed seeded labeling, not a worst-case claim.
 
-## Adaptive Research Status
+## Adaptive Selection
 
 Benchmark binaries never train models at runtime. They load versioned artifacts
 exported offline from measured Tier-0 features.
 
-Legacy non-nested LOGO evaluation is retired and fails closed. Generalization
-claims require nested leave-one-topology-out evaluation with fold-local
-portfolio selection, model fitting, and OOD calibration.
+Legacy non-nested LOGO evaluation is retired and fails closed. Evaluation uses
+nested leave-one-topology-out folds with fold-local portfolio selection, model
+fitting, and OOD calibration.
 
-The long-term target is a lightweight topology/workload-aware selector over an
-independently designed GraphBrew-native ordering and controlled baselines.
-
-## Secondary Paths
+## Optional Partitioning
 
 - Compact CSR partitioning and `graph.shard.v1` are separate from normal
   kernels; validate changes with `make check-partition`.
-- Edge-centric and GAS drivers are experimental references. Their documentation
-  lives in [Edge-Centric-and-GAS](wiki/Edge-Centric-and-GAS.md), not in the
-  primary evaluation path.
 
 ## Project Layout
 
@@ -190,7 +184,7 @@ bench/include/graphbrew/reorder/   reordering implementations
 bench/include/external/gapbs/      CLI, builder, benchmark lifecycle
 scripts/graphbrew_experiment.py    public experiment orchestrator
 scripts/lib/                       shared Python policy and pipeline modules
-scripts/experiments/               frozen/restartable study runners
+scripts/experiments/               frozen/restartable evaluation runners
 scripts/test/                      Python regression suite
 wiki/                              detailed documentation
 ```
@@ -205,7 +199,7 @@ large datasets in repository-local `results/graphs/`.
 # and the Python suite
 make check
 
-# CI-compatible reduced-dependency gate
+# Reduced-dependency gate
 RABBIT_ENABLE=0 make check
 
 # Extended partition/shard integration
@@ -218,7 +212,7 @@ core gate.
 ## Citation and License
 
 GraphBrew integrates ideas and reference implementations from GAPBS,
-RabbitOrder, Gorder, Leiden/GVE-Leiden, and related graph-locality research.
+RabbitOrder, Gorder, Leiden/GVE-Leiden, and related graph-locality work.
 Consult the bundled source headers and wiki references for exact attribution.
 
 See [LICENSE](LICENSE) for licensing terms.

@@ -308,7 +308,7 @@ int main(int argc, char* argv[]) {
 See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
-- `graphbrew_experiment.py` — Public research experiment orchestrator
+- `graphbrew_experiment.py` — Public experiment orchestrator
 - `lib/tools/evaluate_all_modes.py` — In-sample model × criterion diagnostics; legacy LOGO flags fail closed
 - `lib/ml/weights.py` — **SSO** for scoring (`PerceptronWeight.compute_score()`) and type-based weight training
 - `lib/core/datastore.py` — Versioned raw observations and graph properties

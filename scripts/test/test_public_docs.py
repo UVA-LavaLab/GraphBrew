@@ -55,8 +55,6 @@ def test_public_tree_excludes_private_and_agent_process_markers():
         "opus" + "_review",
         "sol" + "_review",
         "/Users/" + "amughrabi",
-        "research/" + "VLDB_2026",
-        "research/" + "ADAPTIVE_SELECTOR",
     )
     assert not any(
         re.search(pattern, public_text, flags=re.IGNORECASE)

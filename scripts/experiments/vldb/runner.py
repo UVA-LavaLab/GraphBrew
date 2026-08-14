@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VLDB 2026 GraphBrew Paper — Experiment Runner.
+GraphBrew Frozen Evaluation Runner.
 
 Reproduces all figures and tables from the paper. Each experiment
 dumps structured JSON results; a final step generates publication-
@@ -6742,7 +6742,7 @@ def _setup_convert_graphs(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="VLDB 2026 GraphBrew Paper — Experiment Runner"
+        description="GraphBrew frozen evaluation runner"
     )
     parser.add_argument("--all", action="store_true", help="Run all experiments")
     parser.add_argument("--exp", nargs="+", type=int, choices=range(1, 9),

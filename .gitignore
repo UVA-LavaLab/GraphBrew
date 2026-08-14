@@ -24,6 +24,9 @@ results/data/
 agent
 plans
 /research/
+/.github/
+*.ps1
+/scripts/experiments/partition_cut/evidence/
 paper
 docs/agent_*
 # Graph data files (edge lists, weighted edge lists, serialized graphs)

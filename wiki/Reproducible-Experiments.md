@@ -1,10 +1,10 @@
 # Reproducible GraphBrew Experiments
 
-This guide documents the frozen study runner retained for exact artifact
-reproduction. New research should use `scripts/graphbrew_experiment.py` and
-the current roadmap rather than extending paper-specific matrices.
+This guide documents the frozen evaluation runner retained for exact artifact
+reproduction. Use `scripts/graphbrew_experiment.py` rather than extending
+evaluation matrices with one-off runners.
 
-Documents the frozen study matrix and the commands that regenerate its
+It covers the frozen matrix and the commands that regenerate its
 measurements, figures, tables, and manifests. Large graphs and artifacts live
 under `/media/Data/00_GraphDatasets/GraphBrew`, not repository-local
 `results/graphs/`.
@@ -563,7 +563,7 @@ evaluation** parallelised over per-(experiment, graph) jobs.
 
 ### 8.1 One-time UVA setup
 
-UVA Research Computing's Slurm reference:
+UVA HPC Slurm reference:
 <https://www.rc.virginia.edu/userinfo/hpc/slurm/>
 
 ```bash

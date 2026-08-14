@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GraphBrew research experiment orchestrator.
+"""GraphBrew experiment orchestrator.
 
 This is the public front door for dependency checks, graph preparation,
 reordering, canonical kernel runs, cache simulation, offline model fitting,
@@ -2000,7 +2000,7 @@ def run_experiment(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="GraphBrew research experiment orchestrator",
+        description="GraphBrew experiment orchestrator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 === EVALUATION MODES ===
@@ -2028,7 +2028,7 @@ def main():
   # TRAIN BATCHED: Process graphs in batches for large datasets
   python scripts/graphbrew_experiment.py --train-batched --size medium --batch-size 8
 
-=== RAPID RESEARCH PATH ===
+=== RAPID EVALUATION PATH ===
 
   # Small end-to-end smoke run
   python scripts/graphbrew_experiment.py --full --size small --auto
@@ -3319,7 +3319,7 @@ def main():
         # Handle full pipeline mode
         if args.full:
             log("="*60, "INFO")
-            log("GRAPHBREW RESEARCH EXPERIMENT PIPELINE", "INFO")
+            log("GRAPHBREW EXPERIMENT PIPELINE", "INFO")
             log("="*60, "INFO")
             log(f"Configuration: size={args.download_size}, graphs={args.graphs}", "INFO")
             

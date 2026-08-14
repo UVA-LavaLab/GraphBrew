@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Shared configuration for VLDB 2026 GraphBrew paper experiments.
+Shared configuration for the frozen GraphBrew evaluation.
 
 Defines all algorithm IDs, GraphBrew variants, chained orderings,
 graph datasets, benchmarks, and evaluation parameters used across

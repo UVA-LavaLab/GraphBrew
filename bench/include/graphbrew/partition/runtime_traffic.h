@@ -46,7 +46,7 @@ struct ShardHaloProjection
     std::uint64_t spmv_initial_bytes = 0;
 };
 
-struct GraphBloxHaloProjection
+struct HaloProjection
 {
     std::vector<ShardHaloProjection> shards;
     std::uint64_t ghost_slots = 0;
@@ -57,10 +57,10 @@ struct GraphBloxHaloProjection
 };
 
 template <typename PartitionedGraphT>
-GraphBloxHaloProjection BuildGraphBloxHaloProjection(
+HaloProjection BuildHaloProjection(
     const PartitionedGraphT &graph)
 {
-    GraphBloxHaloProjection projection;
+    HaloProjection projection;
     projection.shards.reserve(graph.num_partitions());
     for (std::size_t shard_id = 0;
          shard_id < graph.num_partitions(); ++shard_id)
@@ -110,8 +110,8 @@ struct BfsShardTraffic
     std::uint64_t cpu_ghost_sync_bytes = 0;
     std::uint64_t remote_parent_messages = 0;
     std::uint64_t remote_parent_bytes = 0;
-    std::uint64_t graphblox_halo_values = 0;
-    std::uint64_t graphblox_halo_bytes = 0;
+    std::uint64_t halo_values = 0;
+    std::uint64_t halo_bytes = 0;
 };
 
 struct BfsSuperstepTraffic
@@ -123,32 +123,32 @@ struct BfsSuperstepTraffic
     std::uint64_t cpu_ghost_sync_bytes = 0;
     std::uint64_t remote_parent_messages = 0;
     std::uint64_t remote_parent_bytes = 0;
-    std::uint64_t graphblox_halo_values = 0;
-    std::uint64_t graphblox_halo_bytes = 0;
+    std::uint64_t halo_values = 0;
+    std::uint64_t halo_bytes = 0;
 };
 
 struct BfsRuntimeTraffic
 {
-    GraphBloxHaloProjection projection;
+    HaloProjection projection;
     std::vector<BfsSuperstepTraffic> supersteps;
     std::uint64_t cpu_ghost_sync_values = 0;
     std::uint64_t cpu_ghost_sync_bytes = 0;
     std::uint64_t remote_parent_messages = 0;
     std::uint64_t remote_parent_bytes = 0;
-    std::uint64_t graphblox_halo_values = 0;
-    std::uint64_t graphblox_halo_bytes = 0;
+    std::uint64_t halo_values = 0;
+    std::uint64_t halo_bytes = 0;
 
     template <typename PartitionedGraphT>
     void initialize(const PartitionedGraphT &graph)
     {
-        projection = BuildGraphBloxHaloProjection(graph);
+        projection = BuildHaloProjection(graph);
         supersteps.clear();
         cpu_ghost_sync_values = 0;
         cpu_ghost_sync_bytes = 0;
         remote_parent_messages = 0;
         remote_parent_bytes = 0;
-        graphblox_halo_values = 0;
-        graphblox_halo_bytes = 0;
+        halo_values = 0;
+        halo_bytes = 0;
     }
 
     void record_superstep(
@@ -185,9 +185,9 @@ struct BfsRuntimeTraffic
                 CheckedTrafficMultiply(
                     shard.remote_parent_messages,
                     sizeof(std::int32_t));
-            shard.graphblox_halo_values =
+            shard.halo_values =
                 CheckedTrafficMultiply(halo.ghost_slots, 2);
-            shard.graphblox_halo_bytes =
+            shard.halo_bytes =
                 halo.bfs_bytes_per_superstep;
             event.cpu_ghost_sync_values = CheckedTrafficAdd(
                 event.cpu_ghost_sync_values,
@@ -201,12 +201,12 @@ struct BfsRuntimeTraffic
             event.remote_parent_bytes = CheckedTrafficAdd(
                 event.remote_parent_bytes,
                 shard.remote_parent_bytes);
-            event.graphblox_halo_values = CheckedTrafficAdd(
-                event.graphblox_halo_values,
-                shard.graphblox_halo_values);
-            event.graphblox_halo_bytes = CheckedTrafficAdd(
-                event.graphblox_halo_bytes,
-                shard.graphblox_halo_bytes);
+            event.halo_values = CheckedTrafficAdd(
+                event.halo_values,
+                shard.halo_values);
+            event.halo_bytes = CheckedTrafficAdd(
+                event.halo_bytes,
+                shard.halo_bytes);
             event.shards.push_back(shard);
         }
         cpu_ghost_sync_values = CheckedTrafficAdd(
@@ -221,12 +221,12 @@ struct BfsRuntimeTraffic
         remote_parent_bytes = CheckedTrafficAdd(
             remote_parent_bytes,
             event.remote_parent_bytes);
-        graphblox_halo_values = CheckedTrafficAdd(
-            graphblox_halo_values,
-            event.graphblox_halo_values);
-        graphblox_halo_bytes = CheckedTrafficAdd(
-            graphblox_halo_bytes,
-            event.graphblox_halo_bytes);
+        halo_values = CheckedTrafficAdd(
+            halo_values,
+            event.halo_values);
+        halo_bytes = CheckedTrafficAdd(
+            halo_bytes,
+            event.halo_bytes);
         supersteps.push_back(std::move(event));
     }
 };

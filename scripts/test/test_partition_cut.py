@@ -79,9 +79,9 @@ def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
             "bfs_binary": "bench/bin/bfs_p",
         },
         "runtime_traffic": {
-            "schema": "graphbrew.partition_runtime_traffic.v1",
+            "schema": "graphbrew.partition_runtime_traffic.v2",
             "ghost_slots": 10,
-            "graphblox_projection": {
+            "halo_projection": {
                 "bfs_bytes_per_superstep": 80,
                 "pr_bytes_per_iteration": 40,
                 "cc_bytes_per_iteration": 40,
@@ -103,8 +103,8 @@ def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
                 "cpu_ghost_sync_bytes": 10,
                 "remote_parent_messages": 5,
                 "remote_parent_bytes": 20,
-                "graphblox_halo_values": 40,
-                "graphblox_halo_bytes": 160,
+                "halo_values": 40,
+                "halo_bytes": 160,
                 "steps": [
                     {
                         "step": 0,
@@ -112,14 +112,14 @@ def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
                         "cpu_ghost_sync_bytes": 0,
                         "remote_parent_messages": 5,
                         "remote_parent_bytes": 20,
-                        "graphblox_halo_bytes": 80,
+                        "halo_bytes": 80,
                         "shards": [
                             {
                                 "shard_id": 0,
                                 "cpu_ghost_sync_bytes": 0,
                                 "remote_parent_messages": 5,
                                 "remote_parent_bytes": 20,
-                                "graphblox_halo_bytes": 80,
+                                "halo_bytes": 80,
                             },
                         ],
                     },
@@ -129,14 +129,14 @@ def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
                         "cpu_ghost_sync_bytes": 10,
                         "remote_parent_messages": 0,
                         "remote_parent_bytes": 0,
-                        "graphblox_halo_bytes": 80,
+                        "halo_bytes": 80,
                         "shards": [
                             {
                                 "shard_id": 0,
                                 "cpu_ghost_sync_bytes": 10,
                                 "remote_parent_messages": 0,
                                 "remote_parent_bytes": 0,
-                                "graphblox_halo_bytes": 80,
+                                "halo_bytes": 80,
                             },
                         ],
                     },
@@ -444,7 +444,7 @@ class TestPartitionCutPhase2(unittest.TestCase):
 
         inconsistent = record("original")
         inconsistent["runtime_traffic"]["bfs"][
-            "graphblox_halo_bytes"
+            "halo_bytes"
         ] = 80
         with self.assertRaisesRegex(RuntimeError, "mismatch"):
             validate_runtime_traffic(inconsistent)
@@ -497,7 +497,7 @@ class TestPartitionCutPhase2(unittest.TestCase):
             "bfs_cpu_ghost_sync_bytes",
             "bfs_remote_parent_bytes",
             "bfs_cpu_total_bytes",
-            "bfs_graphblox_halo_bytes",
+            "bfs_halo_bytes",
             "pr_halo_bytes_per_iteration",
             "cc_halo_bytes_per_iteration",
             "spmv_initial_halo_bytes",

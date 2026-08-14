@@ -3,7 +3,7 @@
  * @brief GraphBrew: Graph Reordering for Better Efficiency
  * 
  * A modular, configurable graph reordering library that combines the best
- * techniques from Leiden, RabbitOrder, and cache optimization research.
+ * techniques from Leiden, RabbitOrder, and cache optimization literature.
  * 
  * =============================================================================
  * UNIFIED CONFIGURATION

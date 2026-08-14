@@ -2,8 +2,8 @@
 """
 Retired model ablation based on non-nested LOGO CV.
 
-This entry point fails closed. Replace it with the nested topology-held-out
-evaluation defined by the research roadmap before collecting new evidence.
+This entry point fails closed. Use the nested topology-held-out evaluator
+before collecting new evidence.
 """
 
 from __future__ import annotations

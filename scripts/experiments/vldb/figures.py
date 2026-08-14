@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VLDB 2026 GraphBrew Paper — Figure & Table Generator.
+GraphBrew Frozen Evaluation — Figure & Table Generator.
 
 Reads experiment results from results/vldb_paper/ and generates
 publication-quality figures (PNG) and LaTeX table snippets.
@@ -2847,7 +2847,7 @@ FIGURES = {
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="VLDB 2026 GraphBrew Paper — Figure & Table Generator"
+        description="GraphBrew frozen evaluation figure and table generator"
     )
     parser.add_argument("--sample-data", action="store_true",
                         help="Generate with sample/placeholder data")

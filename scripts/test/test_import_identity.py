@@ -18,7 +18,7 @@ def _clean_environment() -> dict[str, str]:
     return environment
 
 
-def test_research_runners_do_not_load_unprefixed_package_aliases():
+def test_experiment_runners_do_not_load_unprefixed_package_aliases():
     code = """
 import sys
 import scripts.experiments.adaptive.runner
@@ -56,7 +56,7 @@ if bad:
         ["scripts/experiments/vldb/stages/05_aggregate.py", "--help"],
     ],
 )
-def test_direct_research_entrypoints_keep_working(command):
+def test_direct_experiment_entrypoints_keep_working(command):
     result = subprocess.run(
         [sys.executable, *command],
         cwd=PROJECT_ROOT,

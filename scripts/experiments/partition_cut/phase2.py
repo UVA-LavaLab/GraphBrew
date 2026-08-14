@@ -658,7 +658,7 @@ def _range(values: list[float]) -> dict[str, float]:
     }
 
 
-RUNTIME_TRAFFIC_SCHEMA = "graphbrew.partition_runtime_traffic.v1"
+RUNTIME_TRAFFIC_SCHEMA = "graphbrew.partition_runtime_traffic.v2"
 UINT64_MAX = (1 << 64) - 1
 
 
@@ -761,32 +761,32 @@ def validate_runtime_traffic(
         )
 
     projection = _traffic_dict(
-        traffic.get("graphblox_projection"),
-        "graphblox_projection",
+        traffic.get("halo_projection"),
+        "halo_projection",
     )
     projection_fields = {
         "bfs_bytes_per_superstep": _traffic_product(
-            ghost_slots, 8, "graphblox_projection"),
+            ghost_slots, 8, "halo_projection"),
         "pr_bytes_per_iteration": _traffic_product(
-            ghost_slots, 4, "graphblox_projection"),
+            ghost_slots, 4, "halo_projection"),
         "cc_bytes_per_iteration": _traffic_product(
-            ghost_slots, 4, "graphblox_projection"),
+            ghost_slots, 4, "halo_projection"),
         "spmv_initial_bytes": _traffic_product(
-            ghost_slots, 4, "graphblox_projection"),
+            ghost_slots, 4, "halo_projection"),
     }
     for field, expected in projection_fields.items():
         _require_traffic_equal(
             _traffic_uint(
                 projection.get(field),
-                f"graphblox_projection.{field}",
+                f"halo_projection.{field}",
             ),
             expected,
-            f"graphblox_projection.{field}",
+            f"halo_projection.{field}",
         )
 
     projection_shards = _traffic_list(
         projection.get("shards"),
-        "graphblox_projection.shards",
+        "halo_projection.shards",
     )
     if not projection_shards:
         raise RuntimeError(
@@ -799,10 +799,10 @@ def validate_runtime_traffic(
     }
     for raw_shard in projection_shards:
         shard = _traffic_dict(
-            raw_shard, "graphblox_projection.shards[]")
+            raw_shard, "halo_projection.shards[]")
         shard_id = _traffic_uint(
             shard.get("shard_id"),
-            "graphblox_projection.shards[].shard_id",
+            "halo_projection.shards[].shard_id",
         )
         if shard_id in projection_by_shard:
             raise RuntimeError(
@@ -810,7 +810,7 @@ def validate_runtime_traffic(
             )
         shard_ghosts = _traffic_uint(
             shard.get("ghost_slots"),
-            f"graphblox_projection.shards[{shard_id}].ghost_slots",
+            f"halo_projection.shards[{shard_id}].ghost_slots",
         )
         expected_shard = {
             "ghost_slots": shard_ghosts,
@@ -827,7 +827,7 @@ def validate_runtime_traffic(
             actual = _traffic_uint(
                 shard.get(field),
                 (
-                    "graphblox_projection."
+                    "halo_projection."
                     f"shards[{shard_id}].{field}"
                 ),
             )
@@ -835,14 +835,14 @@ def validate_runtime_traffic(
                 actual,
                 expected,
                 (
-                    "graphblox_projection."
+                    "halo_projection."
                     f"shards[{shard_id}].{field}"
                 ),
             )
             projection_sums[field] = _traffic_add(
                 projection_sums[field],
                 actual,
-                f"graphblox_projection.shards.{field}",
+                f"halo_projection.shards.{field}",
             )
         projection_by_shard[shard_id] = expected_shard
     if sorted(projection_by_shard) != \
@@ -853,13 +853,13 @@ def validate_runtime_traffic(
     _require_traffic_equal(
         projection_sums["ghost_slots"],
         ghost_slots,
-        "graphblox_projection.shards.ghost_slots",
+        "halo_projection.shards.ghost_slots",
     )
     for field, expected in projection_fields.items():
         _require_traffic_equal(
             projection_sums[field],
             expected,
-            f"graphblox_projection.shards.{field}",
+            f"halo_projection.shards.{field}",
         )
 
     bfs = _traffic_dict(traffic.get("bfs"), "bfs")
@@ -883,7 +883,7 @@ def validate_runtime_traffic(
         "cpu_ghost_sync_bytes": 0,
         "remote_parent_messages": 0,
         "remote_parent_bytes": 0,
-        "graphblox_halo_bytes": 0,
+        "halo_bytes": 0,
     }
     for expected_step, raw_step in enumerate(steps):
         step = _traffic_dict(raw_step, f"bfs.steps[{expected_step}]")
@@ -912,7 +912,7 @@ def validate_runtime_traffic(
             "cpu_ghost_sync_bytes": 0,
             "remote_parent_messages": 0,
             "remote_parent_bytes": 0,
-            "graphblox_halo_bytes": 0,
+            "halo_bytes": 0,
         }
         seen_shards: set[int] = set()
         for raw_shard in step_shards:
@@ -960,11 +960,11 @@ def validate_runtime_traffic(
                         f"shards[{shard_id}].remote_parent_bytes"
                     ),
                 ),
-                "graphblox_halo_bytes": _traffic_uint(
-                    shard.get("graphblox_halo_bytes"),
+                "halo_bytes": _traffic_uint(
+                    shard.get("halo_bytes"),
                     (
                         f"bfs.steps[{expected_step}]."
-                        f"shards[{shard_id}].graphblox_halo_bytes"
+                        f"shards[{shard_id}].halo_bytes"
                     ),
                 ),
             }
@@ -989,9 +989,9 @@ def validate_runtime_traffic(
                     "BFS bottom-up remote-parent messages",
                 )
             _require_traffic_equal(
-                shard_values["graphblox_halo_bytes"],
+                shard_values["halo_bytes"],
                 halo["bfs_bytes_per_superstep"],
-                "BFS per-shard GraphBlox halo bytes",
+                "BFS per-shard halo bytes",
             )
             for field, value in shard_values.items():
                 step_totals[field] = _traffic_add(
@@ -1031,23 +1031,23 @@ def validate_runtime_traffic(
     _require_traffic_equal(
         _traffic_product(
             _traffic_uint(
-                bfs.get("graphblox_halo_values"),
-                "bfs.graphblox_halo_values",
+                bfs.get("halo_values"),
+                "bfs.halo_values",
             ),
             4,
-            "bfs.graphblox_halo_values",
+            "bfs.halo_values",
         ),
-        aggregate["graphblox_halo_bytes"],
-        "bfs.graphblox_halo_values",
+        aggregate["halo_bytes"],
+        "bfs.halo_values",
     )
     _require_traffic_equal(
-        aggregate["graphblox_halo_bytes"],
+        aggregate["halo_bytes"],
         _traffic_product(
             projection_fields["bfs_bytes_per_superstep"],
             supersteps,
-            "bfs.graphblox_halo_bytes",
+            "bfs.halo_bytes",
         ),
-        "bfs.graphblox_halo_bytes",
+        "bfs.halo_bytes",
     )
     return traffic
 
@@ -1118,10 +1118,10 @@ def summarize_phase2_policy(
                 )
                 for record in selected
             ]),
-            "bfs_graphblox_halo_bytes": _range([
+            "bfs_halo_bytes": _range([
                 float(
                     runtime_traffic(record)["bfs"]
-                    ["graphblox_halo_bytes"]
+                    ["halo_bytes"]
                 )
                 for record in selected
             ]),
@@ -1200,34 +1200,34 @@ def summarize_phase2_policy(
             + int(traffic["bfs"]["remote_parent_bytes"])
             for traffic in primary_traffic
         ),
-        "bfs_graphblox_halo_bytes": max(
-            int(traffic["bfs"]["graphblox_halo_bytes"])
+        "bfs_halo_bytes": max(
+            int(traffic["bfs"]["halo_bytes"])
             for traffic in primary_traffic
         ),
         "bfs_halo_bytes_per_superstep": max(
             int(
-                traffic["graphblox_projection"]
+                traffic["halo_projection"]
                 ["bfs_bytes_per_superstep"]
             )
             for traffic in primary_traffic
         ),
         "pr_halo_bytes_per_iteration": max(
             int(
-                traffic["graphblox_projection"]
+                traffic["halo_projection"]
                 ["pr_bytes_per_iteration"]
             )
             for traffic in primary_traffic
         ),
         "cc_halo_bytes_per_iteration": max(
             int(
-                traffic["graphblox_projection"]
+                traffic["halo_projection"]
                 ["cc_bytes_per_iteration"]
             )
             for traffic in primary_traffic
         ),
         "spmv_initial_halo_bytes": max(
             int(
-                traffic["graphblox_projection"]
+                traffic["halo_projection"]
                 ["spmv_initial_bytes"]
             )
             for traffic in primary_traffic
@@ -1258,7 +1258,7 @@ def add_runtime_relative_metrics(
         "bfs_cpu_total_reduction":
             "bfs_cpu_total_bytes",
         "bfs_halo_reduction":
-            "bfs_graphblox_halo_bytes",
+            "bfs_halo_bytes",
         "pr_halo_reduction":
             "pr_halo_bytes_per_iteration",
         "cc_halo_reduction":

@@ -17,7 +17,7 @@ Usage:
   python3 scripts/evaluate_all_modes.py --json          # JSON output
 
 Legacy non-nested LOGO flags fail closed. Generalization claims require the
-nested leave-one-topology-out evaluator planned in the research roadmap.
+nested leave-one-topology-out evaluator.
 """
 
 import argparse

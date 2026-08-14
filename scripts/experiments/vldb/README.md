@@ -1,7 +1,8 @@
-# Frozen study reproduction
+# Frozen evaluation reproduction
 
 This compatibility package reproduces the frozen evaluation campaign. New
-research uses the top-level orchestrator and shared modules under `scripts/lib/`.
+experiments use the top-level orchestrator and shared modules under
+`scripts/lib/`.
 
 | File / dir | Purpose |
 |---|---|
@@ -40,10 +41,9 @@ explicit exploratory cohorts.
 
 ## Final weighted SSSP policy freeze
 
-After the final corpus refresh, tune on the SHUFFLED baseline and complete two
-independent technical reviews of
+After the final corpus refresh, tune on the SHUFFLED baseline and validate
 `<artifact-root>/vldb_paper/sssp_delta_tuning.json`. Then freeze the exact
-reviewed artifact and recommendations into the repository SSOT.
+artifact and recommendations into the repository SSOT.
 
 The final tuner uses `fastest-source-median-tie/v2`: three independent
 process invocations per `(graph, delta)`, each with the same three deterministic
@@ -68,8 +68,7 @@ python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
   --threads 16 --cpu-list 0-15 --timeout 21600
 ```
 
-After layered review approves that exact artifact, run the validation-only
-freeze:
+After validation approves that exact artifact, run the validation-only freeze:
 
 ```bash
 python3 scripts/experiments/vldb/stages/03_cpu_perf.py \

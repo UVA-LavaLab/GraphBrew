@@ -42,7 +42,7 @@ int main()
 {
     const Graph graph{{{2}, {1}}};
     const auto projection =
-        graphbrew::partition::BuildGraphBloxHaloProjection(
+        graphbrew::partition::BuildHaloProjection(
             graph);
     Require(projection.ghost_slots == 3, "ghost total mismatch");
     Require(
@@ -72,9 +72,9 @@ int main()
             traffic.cpu_ghost_sync_bytes == 3,
         "CPU ghost sync mismatch");
     Require(
-        traffic.graphblox_halo_values == 12 &&
-            traffic.graphblox_halo_bytes == 48,
-        "GraphBlox BFS halo traffic mismatch");
+        traffic.halo_values == 12 &&
+            traffic.halo_bytes == 48,
+        "BFS halo traffic mismatch");
     Require(
         traffic.supersteps[0].shards[0]
                 .remote_parent_messages == 2 &&

@@ -551,8 +551,8 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ./bench/bin/pr -f graph.el -s -o 14 -n 3
 ```
 
-**Note:** AdaptiveOrder is research-only and loads an offline-produced model
-artifact. Deployable `-o 14` rejects graph names, exact-name oracle lookup, and
+**Note:** AdaptiveOrder loads an offline-produced model artifact. Deployable
+`-o 14` rejects graph names, exact-name oracle lookup, and
 runtime kNN/database selection. See [[AdaptiveOrder-ML]].
 
 ### NUMA Binding

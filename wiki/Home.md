@@ -1,6 +1,6 @@
 # GraphBrew Wiki
 
-GraphBrew is a graph-reordering research framework with canonical GAP-style
+GraphBrew is a graph-reordering framework with canonical GAP-style
 kernels, multiple baseline reorderers, cache simulation, reproducible
 experiment orchestration, and infrastructure for developing new orderings.
 
@@ -29,8 +29,8 @@ experiment orchestration, and infrastructure for developing new orderings.
 - [Contributing](Contributing) — adding algorithms and benchmarks
 - [Python-Scripts](Python-Scripts) — analysis tools
 
-**Future work**
-- [AdaptiveOrder-ML](AdaptiveOrder-ML) — deferred runtime selector
+**Selection**
+- [AdaptiveOrder-ML](AdaptiveOrder-ML) — offline-model runtime selector
 
 ## What GraphBrew gives you
 

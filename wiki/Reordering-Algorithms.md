@@ -2,7 +2,7 @@
 
 GraphBrew implements 17 algorithm IDs (`-o 0` through `-o 16`).
 Two are baselines (no useful reordering), one is a runtime selector
-(AdaptiveOrder, research-only), one loads a precomputed permutation
+(AdaptiveOrder), one loads a precomputed permutation
 from disk (MAP). The remaining 13 produce orderings you can benchmark.
 
 ## Why reorder
@@ -42,7 +42,7 @@ the other IDs are individual primitives or baselines.
 | 11 | `-o 11` | RCM | O(n log n + m) | historical double-pass; variants `mind`, `bnf` expose explicit single-pass methods |
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
-| 14 | `-o 14` | AdaptiveOrder | varies | ML selector; research-only, see [AdaptiveOrder-ML](AdaptiveOrder-ML) |
+| 14 | `-o 14` | AdaptiveOrder | varies | offline-model selector; see [AdaptiveOrder-ML](AdaptiveOrder-ML) |
 | 15 | `-o 15` | LeidenOrder | O(n log n + m) | GVE-Leiden communities plus an explicit post-layout policy |
 | 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; published Rabbit clustering omitted |
 

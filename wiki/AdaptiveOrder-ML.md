@@ -1,7 +1,7 @@
-# AdaptiveOrder (research-only)
+# AdaptiveOrder
 
-> Algorithm 14 is research-only and deferred until the independent-ordering
-> Pareto gate. It must not be presented as a validated deployment result.
+Algorithm 14 loads an offline-produced deterministic selector artifact.
+Runtime training and graph-name lookup are not supported.
 
 AdaptiveOrder selects a reordering from graph, kernel, cache-context, and reuse
 features using an offline-produced deterministic model. Deployable selection
@@ -73,9 +73,9 @@ The deployable perceptron consumes only the ten shared Tier-0 fields from
 `adaptive_feature_schema.def`. Legacy 24-feature decision trees/hybrids remain
 offline-only until retrained.
 
-## Frozen first portfolio
+## Default portfolio
 
-The first selector study uses exact canonical arms:
+The selector accepts these exact canonical arms:
 
 ```text
 0
@@ -85,5 +85,4 @@ The first selector study uses exact canonical arms:
 12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort
 ```
 
-The public selector protocol will be added here after the
-independent-ordering gate passes.
+Artifacts missing any required arm fail closed.

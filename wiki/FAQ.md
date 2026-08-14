@@ -105,12 +105,9 @@ Cite the repository:
 }
 ```
 
-Paper drafts are maintained outside the public repository.
-
 ## Where is the AdaptiveOrder / ML documentation?
 
-[AdaptiveOrder-ML](AdaptiveOrder-ML). Note that AdaptiveOrder is
-research-only and deferred until the independent-ordering Pareto gate.
+[AdaptiveOrder-ML](AdaptiveOrder-ML).
 
 ## Common errors
 

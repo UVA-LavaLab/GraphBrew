@@ -37,7 +37,7 @@ DEFAULT_MATRICES = {
         / "results/partition_cut/phase2-scale-native-production/"
         "phase2_summary.json"
     ),
-    "scale_research": (
+    "scale_extended": (
         PROJECT_ROOT
         / "results/partition_cut/phase2-scale-native-determinism/"
         "phase2_summary.json"
@@ -104,7 +104,7 @@ def normalize_paths(value: Any) -> Any:
 def compact_runtime_traffic(
     traffic: dict[str, Any],
 ) -> dict[str, Any]:
-    projection = traffic["graphblox_projection"]
+    projection = traffic["halo_projection"]
     bfs = traffic["bfs"]
     phase_totals = {
         phase: {
@@ -112,7 +112,7 @@ def compact_runtime_traffic(
             "cpu_ghost_sync_bytes": 0,
             "remote_parent_messages": 0,
             "remote_parent_bytes": 0,
-            "graphblox_halo_bytes": 0,
+            "halo_bytes": 0,
         }
         for phase in ("p-bsp-td", "p-bsp-bu")
     }
@@ -122,7 +122,7 @@ def compact_runtime_traffic(
             "cpu_ghost_sync_bytes": 0,
             "remote_parent_messages": 0,
             "remote_parent_bytes": 0,
-            "graphblox_halo_bytes": 0,
+            "halo_bytes": 0,
         }
         for shard in projection["shards"]
     }
@@ -133,7 +133,7 @@ def compact_runtime_traffic(
             "cpu_ghost_sync_bytes",
             "remote_parent_messages",
             "remote_parent_bytes",
-            "graphblox_halo_bytes",
+            "halo_bytes",
         ):
             phase[field] += int(step[field])
         for shard in step["shards"]:
@@ -142,7 +142,7 @@ def compact_runtime_traffic(
                 "cpu_ghost_sync_bytes",
                 "remote_parent_messages",
                 "remote_parent_bytes",
-                "graphblox_halo_bytes",
+                "halo_bytes",
             ):
                 aggregate[field] += int(shard[field])
     step_payload = json.dumps(
@@ -154,7 +154,7 @@ def compact_runtime_traffic(
     return {
         "schema": traffic["schema"],
         "ghost_slots": traffic["ghost_slots"],
-        "graphblox_projection": projection,
+        "halo_projection": projection,
         "bfs": {
             key: bfs[key]
             for key in (
@@ -163,8 +163,8 @@ def compact_runtime_traffic(
                 "cpu_ghost_sync_bytes",
                 "remote_parent_messages",
                 "remote_parent_bytes",
-                "graphblox_halo_values",
-                "graphblox_halo_bytes",
+                "halo_values",
+                "halo_bytes",
             )
         }
         | {
@@ -521,14 +521,14 @@ def combined_aggregates(
     }
     smoke = raw["smoke"]["graph_results"]
     production = raw["scale_production"]["graph_results"]
-    research = raw["scale_research"]["graph_results"]
+    extended = raw["scale_extended"]["graph_results"]
     return {
         "production": summarize_corpus(
             smoke + production,
             ["original", "rcm_bnf", "gorder_csr"],
         ),
-        "research": summarize_corpus(
-            smoke + research,
+        "extended": summarize_corpus(
+            smoke + extended,
             ["original", "comm_cut_min", "intra_rcmpp"],
         ),
     }

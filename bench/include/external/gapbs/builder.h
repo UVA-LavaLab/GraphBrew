@@ -2722,8 +2722,8 @@ public:
     /**
      * Compute optimal resolution based on graph properties.
      * 
-     * Heuristic for stable partitions for reordering; not a research-derived
-     * optimum. Users should sweep γ for best community quality.
+     * Heuristic for stable partitions for reordering; not an optimized
+     * objective. Users should sweep γ for best community quality.
      */
     template<typename NodeID_T, typename DestID_T>
     double LeidenAutoResolution(const CSRGraph<NodeID_T, DestID_T, true>& g) {

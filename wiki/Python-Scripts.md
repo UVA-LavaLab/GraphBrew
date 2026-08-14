@@ -42,8 +42,8 @@ scripts/
 │   └── tools/                    maintenance utilities
 ├── experiments/
 │   ├── adaptive/                 adaptive planning and dry-run manifests
-│   ├── vldb/                     frozen study runner and restartable stages
-│   ├── partition_cut/            separate partition research path
+│   ├── vldb/                     frozen evaluation runner and restartable stages
+│   ├── partition_cut/            separate partition evaluation path
 │   └── adaptive_ml/              retired legacy ablation entry points
 └── test/                         pytest regression suite
 ```
@@ -73,7 +73,7 @@ python3 scripts/graphbrew_experiment.py --target-graphs 50 --dry-run
 python3 scripts/graphbrew_experiment.py --test
 ```
 
-The frozen study is also launched through the orchestrator. Use
+The frozen evaluation is also launched through the orchestrator. Use
 `scripts/experiments/vldb/stages/` directly only when a long run must be
 restartable stage by stage.
 
@@ -83,7 +83,7 @@ restartable stage by stage.
 - Benchmark and cache subsets: `scripts/lib/core/experiment_policy.py`
 - GraphBrew config parsing/validation:
   `scripts/lib/pipeline/reorder_config.py`
-- Frozen study graph/algorithm/trial matrix:
+- Frozen evaluation graph/algorithm/trial matrix:
   `scripts/experiments/vldb/config.py`
 - Deployable adaptive portfolio: `scripts/lib/ml/portfolio.py`
 - Tier-0 features: `scripts/lib/ml/feature_schema.py` and the shared C++

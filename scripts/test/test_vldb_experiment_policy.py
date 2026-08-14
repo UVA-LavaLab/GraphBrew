@@ -2204,7 +2204,7 @@ def test_bootstrap_geo_ci_is_order_pinned_and_repeatable():
 
 def test_published_table_uses_exact_paper_path(tmp_path, monkeypatch):
     table_dir = tmp_path / "results" / "tables"
-    paper_dir = tmp_path / "research" / "dataCharts"
+    paper_dir = tmp_path / "private-paper" / "dataCharts"
     monkeypatch.setattr(figures, "PUBLISH_TO_PAPER", True)
     monkeypatch.setattr(figures, "PAPER_CHARTS_DIR", paper_dir)
     figures.save_latex_table(

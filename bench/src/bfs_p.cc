@@ -720,10 +720,10 @@ int main(int argc, char *argv[])
                 partitioned.max_shard_storage_imbalance();
             nlohmann::json traffic;
             traffic["schema"] =
-                "graphbrew.partition_runtime_traffic.v1";
+                "graphbrew.partition_runtime_traffic.v2";
             traffic["ghost_slots"] =
                 last_runtime_traffic.projection.ghost_slots;
-            traffic["graphblox_projection"] = {
+            traffic["halo_projection"] = {
                 {
                     "bfs_bytes_per_superstep",
                     last_runtime_traffic.projection
@@ -745,12 +745,12 @@ int main(int argc, char *argv[])
                         .spmv_initial_bytes,
                 },
             };
-            traffic["graphblox_projection"]["shards"] =
+            traffic["halo_projection"]["shards"] =
                 nlohmann::json::array();
             for (const auto &shard :
                  last_runtime_traffic.projection.shards)
             {
-                traffic["graphblox_projection"]["shards"]
+                traffic["halo_projection"]["shards"]
                     .push_back({
                         {"shard_id", shard.shard_id},
                         {"ghost_slots", shard.ghost_slots},
@@ -783,10 +783,10 @@ int main(int argc, char *argv[])
                 last_runtime_traffic.remote_parent_messages;
             bfs_traffic["remote_parent_bytes"] =
                 last_runtime_traffic.remote_parent_bytes;
-            bfs_traffic["graphblox_halo_values"] =
-                last_runtime_traffic.graphblox_halo_values;
-            bfs_traffic["graphblox_halo_bytes"] =
-                last_runtime_traffic.graphblox_halo_bytes;
+            bfs_traffic["halo_values"] =
+                last_runtime_traffic.halo_values;
+            bfs_traffic["halo_bytes"] =
+                last_runtime_traffic.halo_bytes;
             bfs_traffic["steps"] = nlohmann::json::array();
             for (const auto &step :
                  last_runtime_traffic.supersteps)
@@ -807,8 +807,8 @@ int main(int argc, char *argv[])
                         step.remote_parent_bytes,
                     },
                     {
-                        "graphblox_halo_bytes",
-                        step.graphblox_halo_bytes,
+                        "halo_bytes",
+                        step.halo_bytes,
                     },
                 };
                 step_json["shards"] = nlohmann::json::array();
@@ -829,8 +829,8 @@ int main(int argc, char *argv[])
                             shard.remote_parent_bytes,
                         },
                         {
-                            "graphblox_halo_bytes",
-                            shard.graphblox_halo_bytes,
+                            "halo_bytes",
+                            shard.halo_bytes,
                         },
                     });
                 }
