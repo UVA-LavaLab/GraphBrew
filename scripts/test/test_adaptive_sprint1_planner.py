@@ -19,6 +19,7 @@ from scripts.experiments.adaptive.runner import (
     PILOT_TIMING_ARMS,
     _kernel_evidence_arm,
     _mapping_evidence_arm,
+    _bind_cache_probe_source_metadata,
     _validate_source_manifest,
     _forbidden_ambient_timing_environment,
     _validate_pilot_realized_order,
@@ -126,6 +127,33 @@ def test_runtime_environment_surface_and_unknown_variant_fail_closed(
             "",
             "Warning: unknown Rabbit variant",
         )
+
+
+def test_cache_probe_binds_singleton_source_metadata():
+    extra = {"trial_times": [1.0]}
+    _bind_cache_probe_source_metadata({
+        "phase": "cache-micro-pilot",
+        "source_repeats": 1,
+        "expected_sources": [42],
+        "expected_source_internals": None,
+        "expected_source_out_degrees": [7],
+    }, extra)
+    assert extra["source_originals"] == [42]
+    assert extra["source_internals"] == [-1]
+    assert extra["source_out_degrees"] == [7]
+    assert extra["source_metadata_origin"] == (
+        "authorized-command-singleton")
+
+    with pytest.raises(
+        SourceContractError, match="cannot bind"
+    ):
+        _bind_cache_probe_source_metadata({
+            "phase": "cache-micro-pilot",
+            "source_repeats": 1,
+            "expected_sources": [42, 43],
+            "expected_source_internals": None,
+            "expected_source_out_degrees": [7, 8],
+        }, {"trial_times": [1.0]})
 
 
 def test_realized_fallback_and_success_postconditions_fail_closed():

@@ -4062,6 +4062,8 @@ def _parse_and_validate_pilot_output(
             parsed_extra["graphbrew_effective_configs"] = effective
             parsed_extra["graphbrew_realized_configs"] = realized
         if command.get("source_policy_id") is not None:
+            _bind_cache_probe_source_metadata(
+                command, parsed_extra)
             attach_source_trial_metadata(
                 parsed_extra,
                 process_id=int(command["process_id"]),
@@ -4124,6 +4126,42 @@ def _parse_and_validate_pilot_output(
             parsed_extra["cache_stats_path"] = str(cache_output_path)
             parsed_extra["cache_stats"] = _load_json(cache_output_path)
     return average_time, reorder_time, parsed_extra
+
+
+def _bind_cache_probe_source_metadata(
+    command: dict[str, Any],
+    parsed_extra: dict[str, Any],
+) -> None:
+    """Bind a singleton cache probe to its authorized source command."""
+    if command.get("phase") != "cache-micro-pilot":
+        return
+    observed = (
+        parsed_extra.get("source_originals", []),
+        parsed_extra.get("source_internals", []),
+        parsed_extra.get("source_out_degrees", []),
+    )
+    if any(observed):
+        return
+    expected_sources = command.get("expected_sources")
+    expected_degrees = command.get("expected_source_out_degrees")
+    if (
+        command.get("expected_source_internals") is not None
+        or command.get("source_repeats") != 1
+        or not isinstance(expected_sources, list)
+        or len(expected_sources) != 1
+        or not isinstance(expected_degrees, list)
+        or len(expected_degrees) != 1
+        or len(parsed_extra.get("trial_times", [])) != 1
+    ):
+        raise SourceContractError(
+            "Cache probe cannot bind missing source metadata")
+    parsed_extra["source_originals"] = [
+        int(expected_sources[0])]
+    parsed_extra["source_internals"] = [-1]
+    parsed_extra["source_out_degrees"] = [
+        int(expected_degrees[0])]
+    parsed_extra["source_metadata_origin"] = (
+        "authorized-command-singleton")
 
 
 def _validate_pilot_realized_order(
