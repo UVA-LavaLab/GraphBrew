@@ -58,6 +58,13 @@ from scripts.lib.ml.source_policy import (
     SOURCE_DRIVEN_KERNELS,
 )
 from scripts.lib.ml.working_set import modeled_property_bytes
+from scripts.lib.analysis.adaptive_pilot import write_pilot_analysis
+from scripts.lib.pipeline.adaptive_pilot_contract import (
+    bind_authorized_command as _shared_bind_authorized_command,
+    canonical_json_sha256 as _shared_canonical_json_sha256,
+    pilot_command_for_attempt as _shared_pilot_command_for_attempt,
+    priming_command_for_session as _shared_priming_command_for_session,
+)
 from scripts.lib.pipeline.benchmark import (
     SourceContractError,
     attach_source_trial_metadata,
@@ -188,12 +195,7 @@ def _load_json(path: Path) -> Any:
 
 
 def _canonical_json_sha256(payload: Any) -> str:
-    encoded = json.dumps(
-        payload,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode()
-    return hashlib.sha256(encoded).hexdigest()
+    return _shared_canonical_json_sha256(payload)
 
 
 def _artifact_binding(path: Path) -> dict[str, Any]:
@@ -3748,39 +3750,14 @@ def _pilot_command_for_attempt(
     command: dict[str, Any],
     attempt: int,
 ) -> dict[str, Any]:
-    if attempt not in command["retry_attempts"]:
-        raise ValueError("Requested pilot retry attempt is not pre-registered")
-    updated = dict(command)
-    updated["environment"] = dict(command["environment"])
-    base_dir = Path(command["result_path"]).parents[1]
-    attempt_dir = base_dir / f"attempt_{attempt}"
-    updated["attempt"] = attempt
-    updated["idempotency_key"] = (
-        f"{command['command_id']}|a{attempt}")
-    updated["stdout_path"] = str(attempt_dir / "stdout.log")
-    updated["stderr_path"] = str(attempt_dir / "stderr.log")
-    updated["result_path"] = str(attempt_dir / "result.json")
-    if command.get("cache_output_path"):
-        cache_output_path = attempt_dir / "cache_stats.json"
-        updated["cache_output_path"] = str(cache_output_path)
-        updated["environment"]["CACHE_OUTPUT_JSON"] = str(
-            cache_output_path)
-    return updated
+    return _shared_pilot_command_for_attempt(command, attempt)
 
 
 def _priming_command_for_session(
     command: dict[str, Any],
     session_id: str,
 ) -> dict[str, Any]:
-    updated = dict(command)
-    base_dir = Path(command["result_path"]).parents[1]
-    session_dir = base_dir / "sessions" / session_id
-    updated["idempotency_key"] = (
-        f"{command['command_id']}|session={session_id}")
-    updated["stdout_path"] = str(session_dir / "stdout.log")
-    updated["stderr_path"] = str(session_dir / "stderr.log")
-    updated["result_path"] = str(session_dir / "result.json")
-    return updated
+    return _shared_priming_command_for_session(command, session_id)
 
 
 class _PilotExecutionLock:
@@ -4230,12 +4207,12 @@ def _bind_authorized_command(
     execution_manifest_sha256: str,
     input_artifacts: dict[str, Any],
 ) -> dict[str, Any]:
-    bound = dict(command)
-    bound["authorization_reference"] = authorization_reference
-    bound["execution_manifest_sha256"] = execution_manifest_sha256
-    bound["input_artifacts"] = input_artifacts
-    bound["command_contract_sha256"] = _canonical_json_sha256(bound)
-    return bound
+    return _shared_bind_authorized_command(
+        command,
+        authorization_reference,
+        execution_manifest_sha256,
+        input_artifacts,
+    )
 
 
 def _authorization_manifest_contract(
@@ -4494,6 +4471,11 @@ def main() -> int:
         help="Execute the separately authorized pilot manifest",
     )
     parser.add_argument(
+        "--analyze-sprint1-pilot",
+        action="store_true",
+        help="Validate and summarize a completed Sprint-1 pilot",
+    )
+    parser.add_argument(
         "--force-sources",
         action="store_true",
         help="Regenerate existing Sprint-1 source manifests",
@@ -4551,6 +4533,7 @@ def main() -> int:
         bool(args.validate_sprint1_executor),
         bool(args.authorize_sprint1_pilot),
         bool(args.execute_sprint1_pilot),
+        bool(args.analyze_sprint1_pilot),
     ))
     if selected_stages != 1:
         parser.error("No adaptive stage selected")
@@ -4634,6 +4617,11 @@ def main() -> int:
             authorization_reference=args.authorization_reference,
             refreeze=args.refreeze_authorization,
         )
+        print(f"Wrote: {path}")
+    elif args.analyze_sprint1_pilot:
+        path = write_pilot_analysis(
+            args.artifact_root.resolve()
+            / "adaptive_selector" / "sprint1")
         print(f"Wrote: {path}")
     else:
         if not args.authorization_reference:

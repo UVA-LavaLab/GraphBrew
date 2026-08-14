@@ -2478,6 +2478,11 @@ def main():
         help="Execute the separately authorized adaptive pilot",
     )
     g_paper.add_argument(
+        "--adaptive-sprint1-analyze",
+        action="store_true",
+        help="Validate and summarize the completed adaptive pilot",
+    )
+    g_paper.add_argument(
         "--adaptive-authorization-reference",
         help="Reviewed authorization reference for adaptive pilot execution",
     )
@@ -2552,6 +2557,18 @@ def main():
                         help="Compare Leiden/RabbitOrder/GraphBrew community detection")
 
     args = parser.parse_args()
+    adaptive_actions = (
+        args.adaptive_sprint1_plan,
+        args.adaptive_sprint1_sources,
+        args.adaptive_sprint1_natural,
+        args.adaptive_sprint1_pilot_dry_run,
+        args.adaptive_sprint1_executor_check,
+        args.adaptive_sprint1_authorize,
+        args.adaptive_sprint1_execute,
+        args.adaptive_sprint1_analyze,
+    )
+    if sum(map(bool, adaptive_actions)) > 1:
+        parser.error("Select exactly one adaptive Sprint-1 action")
     if (
         args.paper_freeze_sssp_policy
         and not args.paper_tune_sssp_delta
@@ -3013,6 +3030,19 @@ def main():
             args.adaptive_authorization_reference,
         ]
         log_section(f"ADAPTIVE SPRINT 1 EXECUTE: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_analyze:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--analyze-sprint1-pilot",
+            "--artifact-root",
+            args.paper_artifact_root,
+        ]
+        log_section(f"ADAPTIVE SPRINT 1 ANALYZE: {' '.join(cmd)}")
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)
 

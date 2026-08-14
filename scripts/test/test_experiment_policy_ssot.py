@@ -9,9 +9,11 @@ from scripts.experiments.vldb import config as vldb_config
 from scripts.lib.core import utils
 from scripts.lib.core.experiment_policy import (
     ADAPTIVE_CACHE_BENCHMARK_ORDER,
+    ADAPTIVE_REUSE_REGIMES,
     ALL_BENCHMARKS,
     CACHE_CAPACITY_CANDIDATES_MIB,
     CACHE_PR_ITERATIONS,
+    END_TO_END_REUSE_COUNTS,
     MODEL_ABLATION_BENCHMARK_ORDER,
     PAPER_BENCHMARK_ORDER,
     PAPER_CACHE_CAPACITIES_MIB,
@@ -63,6 +65,12 @@ def test_cache_policies_use_mib_ssot_and_byte_boundaries():
     assert adaptive_runner.CACHE_CAPACITY_MIB is (
         CACHE_CAPACITY_CANDIDATES_MIB)
     assert adaptive_runner.CACHE_PR_ITERATIONS == CACHE_PR_ITERATIONS == 5
+    assert END_TO_END_REUSE_COUNTS == (1, 5, 10, 20, 50, 100)
+    assert ADAPTIVE_REUSE_REGIMES == (
+        1, 5, 10, 20, 50, 100, "infinity",
+    )
+    assert vldb_config.E2E_REUSE_COUNTS == list(
+        END_TO_END_REUSE_COUNTS)
     assert vldb_config.CACHE_PR_ITERATIONS == CACHE_PR_ITERATIONS
     assert vldb_config.RANDOM_BASELINE_SEED == SHUFFLED_LABEL_SEED == 0
     assert vldb_config.CACHE_SIZES == list(

@@ -812,6 +812,14 @@ Pilot entry requires:
 5. no graph identity, database/kNN lookup, runtime oracle, or non-Tier-0
    deployable feature.
 
+After execution, analyze only through
+`python3 scripts/graphbrew_experiment.py --adaptive-sprint1-analyze`.
+The analyzer replays every authorized retry digest, validates priming and
+completion counts, suppresses headroom under censoring or incomplete arm
+coverage, and uses odd/even process-block oracle cross-fitting plus
+leave-one-topology-out static-policy evaluation over reuse counts
+`1, 5, 10, 20, 50, 100`, and the kernel-only limit.
+
 After collection, promotion requires nested topology-held-out evaluation and:
 
 - lower end-to-end regret than the best static deployable arm after charging
