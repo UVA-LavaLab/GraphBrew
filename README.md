@@ -1,9 +1,14 @@
+<p align="center">
+  <img src="docs/figures/logo_plain.svg" alt="GraphBrew" width="420">
+</p>
+
 # GraphBrew
 
 GraphBrew is a C++17/OpenMP graph-reordering research framework built on the
 [GAP Benchmark Suite](https://github.com/sbeamer/gapbs). It provides canonical
 graph kernels, multiple reordering baselines, cache simulation, reproducible
-experiment orchestration, and an offline adaptive-selection research path.
+experiment orchestration, and infrastructure for developing new
+GraphBrew-native orderings.
 
 The primary research surfaces are:
 
@@ -12,11 +17,11 @@ The primary research surfaces are:
 - reproducible experiment policy in `scripts/graphbrew_experiment.py`;
 - reusable Python infrastructure in `scripts/lib/`.
 
-No fixed ordering is assumed to win across every topology and workload.
 RabbitOrder, Gorder, and Leiden are comparison baselines and diagnostic
-anchors; new GraphBrew-native work must establish independent novelty.
+anchors. GraphBrew keeps their implementations and costs explicit so new
+orderings can be evaluated fairly.
 
-See the [wiki](https://github.com/atmughrabi/GraphBrew/wiki) for detailed
+See the [wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki) for detailed
 algorithm, CLI, cache-simulation, and architecture documentation.
 
 ## Build and Run
@@ -216,6 +221,6 @@ core gate.
 
 GraphBrew integrates ideas and reference implementations from GAPBS,
 RabbitOrder, Gorder, Leiden/GVE-Leiden, and related graph-locality research.
-Consult the source headers and research bibliography for exact attribution.
+Consult the bundled source headers and wiki references for exact attribution.
 
 See [LICENSE](LICENSE) for licensing terms.

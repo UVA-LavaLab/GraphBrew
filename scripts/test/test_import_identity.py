@@ -24,7 +24,6 @@ import sys
 import scripts.experiments.adaptive.runner
 import scripts.experiments.vldb.runner
 import scripts.experiments.vldb.figures
-import scripts.experiments.ecg.runner
 import scripts.lib.analysis.cold_start_sim
 bad = sorted(
     name for name in sys.modules
@@ -55,7 +54,6 @@ if bad:
         ["scripts/experiments/vldb/stages/03_cpu_perf.py", "--help"],
         ["scripts/experiments/vldb/stages/04_cache_sim.py", "--help"],
         ["scripts/experiments/vldb/stages/05_aggregate.py", "--help"],
-        ["scripts/experiments/ecg/runner.py", "--help"],
     ],
 )
 def test_direct_research_entrypoints_keep_working(command):

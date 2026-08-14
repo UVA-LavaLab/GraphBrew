@@ -16,7 +16,6 @@ GraphBrew/
 │   └── test/                        # pytest test suite
 ├── wiki/                           # Detailed public documentation
 ├── docs/                           # Quick guides + INDEX.md
-├── research/                       # Local claim ledger and reference material
 ├── Makefile                        # Build and verification SSOT
 ├── build_wsl.ps1                   # WSL build helper
 └── setup_wsl.ps1                   # WSL setup (dependencies + Boost 1.58)

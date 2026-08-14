@@ -15,9 +15,9 @@ Reusable experiment, parsing, storage, and analysis logic belongs under
 `scripts/lib/`. Paper-replication paths remain isolated consumers of those
 shared contracts.
 
-## Full Sprint Execution Contract
+## Research Execution Gates
 
-The active sprint runs end to end without skipping gates:
+The research program advances without skipping gates:
 
 1. **Novelty landscape closure:** retain the completed primary-source survey
    and rejected mechanisms as hard constraints.
@@ -39,9 +39,9 @@ The active sprint runs end to end without skipping gates:
 9. **Final evaluation:** verification manifest first, then the frozen full
    matrix, figures, tables, and reproducibility package.
 
-At every stage boundary, run layered `rubber-duck` review with
-`claude-opus-5` followed by `gpt-5.6-sol`. Resolve every blocking finding
-before advancing and update this roadmap when evidence changes the plan.
+At every stage boundary, obtain two independent technical reviews. Resolve
+every blocking finding before advancing and update this roadmap when evidence
+changes the plan.
 
 ## Historical Evidence
 
@@ -210,7 +210,7 @@ The proposed optimizer, **Reservation-Nesting Layout (RNL)**, would have:
 6. emit exact `J_log`, `LB_deg`, and the a-posteriori ratio
    `rho_hat = J_log / LB_deg`.
 
-Layered Opus/Sol theory review rejected RNL before implementation:
+Independent theory reviews rejected RNL before implementation:
 
 - `LB_deg` requires an explicitly simple, unit-weight, loop-free topology
   policy and is zero on useful degree-two cases. `J_log / LB_deg` is therefore
@@ -258,14 +258,13 @@ headline before the new ordering passes the Phase-4 Pareto gate.
 
 #### Protocol SSOT and Supersession
 
-This roadmap is the decision and stage-order SSOT.
-`research/ADAPTIVE_SELECTOR_SPRINT.md` is the deferred measurement/model
-protocol for the downstream adaptive extension.
+This roadmap is the decision and stage-order SSOT. Detailed adaptive study
+notes remain private until the independent-ordering gate passes.
 Shared benchmark, variant, naming, and cache registries remain under
 `scripts/lib/`.
 
 The 14-ordering characterization set is a baseline matrix, not the headline
-portfolio. `adaptive_portfolio.def` remains a claim-ineligible Sprint-0
+portfolio. `adaptive_portfolio.def` remains a claim-ineligible legacy
 compatibility contract. No old model or authorization artifact may be promoted
 by relabeling it.
 
@@ -505,7 +504,7 @@ The primary positive-bit MLogA screen nominated two families:
 - **hub-spoke:** the centered-hub reference was 15--18% below Rabbit and
   54--58% below Gorder.
 
-Layered Opus/Sol mechanism review rejected both:
+Independent mechanism reviews rejected both:
 
 - grid uses hidden generator coordinates destroyed by the input-label shuffle,
   and its Morton/SFC or coordinate-free recursive equivalent is occupied
@@ -633,7 +632,7 @@ Passing H0--H4 only nominates one signature. Before an algorithm ID or timing:
   DBG/HubSort/Corder, RCM/profile, graph/hypergraph partitioning, FrontOrder,
   Rebo, SFC/Morton, and recursive layouts;
 - **N3:** provide a concrete non-equivalence graph for every closest family;
-- **N4:** pass one Opus-to-Sol review cycle with at most one revision, then
+- **N4:** pass two independent reviews with at most one revision, then
   replicate H1--H4 unchanged on at least two of the three locked confirmation
   graphs.
 
@@ -669,8 +668,8 @@ per-graph evidence, and consumed caps, then stop. No new theory pass, mapping
 generation, corpus refresh, timing, synthetic extension, or adaptive work is
 authorized automatically.
 
-**Gate:** Opus then Sol theory review. Do not assign an algorithm ID or launch
-timing before both approve.
+**Gate:** two independent theory reviews. Do not assign an algorithm ID or
+launch timing before both approve.
 
 ## Phase 2: Native Implementation and Correctness
 

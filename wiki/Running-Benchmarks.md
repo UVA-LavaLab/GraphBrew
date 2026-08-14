@@ -64,7 +64,7 @@ python3 scripts/graphbrew_experiment.py --train --auto --size all
 
 See [[Command-Line-Reference]] for phases, download size options, and
 memory/disk management. See [[Python-Scripts]] for module documentation and
-[[VLDB-Experiments]] for the isolated frozen-study matrix.
+[[Reproducible-Experiments]] for the isolated frozen-study matrix.
 
 ### Frozen Study Reproduction
 

@@ -36,6 +36,7 @@ python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview --verif
 python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview
 python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 --preview   # optional
 python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0 \
+  --paper-dir /path/to/private-paper \
   --publish-paper-figures --package-paper                                 # optional
 ```
 
@@ -82,6 +83,10 @@ sbatch --export=ALL,EXP=1 scripts/experiments/vldb/stages/slurm/04_cache_sim.sba
 
 # 6. Aggregate when 03/04 complete
 sbatch scripts/experiments/vldb/stages/slurm/05_aggregate.sbatch
+
+# Optional private publication export
+sbatch --export=ALL,PAPER_DIR=/private/paper,PUBLISH_PAPER_FIGURES=1 \
+  scripts/experiments/vldb/stages/slurm/05_aggregate.sbatch
 ```
 
 All fan-out workers for one measurement generation must use the same
@@ -115,7 +120,7 @@ sbatch --partition=largemem --mem=512G --time=24:00:00 \
 | `--dry-run`            | Print commands, don't execute |
 
 Stage 05 additionally accepts `--publish-paper-figures` to copy generated
-assets into `research/dataCharts/` and `--package-paper` to rebuild the
+assets into an explicit private paper workspace and `--package-paper` to rebuild the
 deterministic VLDB source ZIP.
 
 ## Outputs
@@ -126,7 +131,7 @@ deterministic VLDB source ZIP.
 | 02 | `results/vldb_mappings/<graph>/<algo_key>.{lo,time}` |
 | 03 | `results/vldb_paper/exp<N>_*/...json` |
 | 04 | `results/vldb_paper/exp1_cache/cache_results.json` |
-| 05 | `results/vldb_paper/{figures,tables}/`, `research/dataCharts/`, paper ZIP |
+| 05 | `results/vldb_paper/{figures,tables}/`, private paper workspace, paper ZIP |
 
 ## Relationship to the legacy runner
 

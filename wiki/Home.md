@@ -2,8 +2,7 @@
 
 GraphBrew is a graph-reordering research framework with canonical GAP-style
 kernels, multiple baseline reorderers, cache simulation, reproducible
-experiment orchestration, and an offline adaptive-selection research path.
-No fixed ordering is assumed to win across every topology and workload.
+experiment orchestration, and infrastructure for developing new orderings.
 
 ## Documentation
 
@@ -24,14 +23,14 @@ No fixed ordering is assumed to win across every topology and workload.
 - [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
 - [Partitioning-and-Shards](Partitioning-and-Shards) — compact CSR packages
 - [Code-Architecture](Code-Architecture) — codebase map
-- [VLDB-Experiments](VLDB-Experiments) — frozen study reproduction
+- [Reproducible-Experiments](Reproducible-Experiments) — frozen study reproduction
 
 **Developer**
 - [Contributing](Contributing) — adding algorithms and benchmarks
 - [Python-Scripts](Python-Scripts) — analysis tools
 
-**Research roadmap**
-- [AdaptiveOrder-ML](AdaptiveOrder-ML) — runtime algorithm selector
+**Future work**
+- [AdaptiveOrder-ML](AdaptiveOrder-ML) — deferred runtime selector
 
 ## What GraphBrew gives you
 

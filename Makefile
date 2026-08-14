@@ -553,6 +553,7 @@ publish-wiki:
 		cd $(WIKI_CLONE_DIR) && git init && git remote add origin $(WIKI_REPO); \
 	}
 	@echo "Copying wiki files..."
+	@find $(WIKI_CLONE_DIR) -maxdepth 1 -type f -name '*.md' -delete
 	@cp -r $(WIKI_DIR)/*.md $(WIKI_CLONE_DIR)/
 	@cd $(WIKI_CLONE_DIR) && \
 		git add -A && \

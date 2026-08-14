@@ -215,7 +215,7 @@ the graph into one mega-community; check the input is connected).
 - [Reordering-Algorithms](Reordering-Algorithms) — every algorithm including the non-GraphBrew baselines
 - [Cache-Simulation](Cache-Simulation) — how to measure cache quality of a variant
 - [Code-Architecture](Code-Architecture) — codebase map
-- [VLDB-Experiments](VLDB-Experiments) — the paper's variant evaluation
+- [Reproducible-Experiments](Reproducible-Experiments) — frozen variant evaluation
 
 ## Compose tokens added 2026-05-21 (8h autonomous run)
 

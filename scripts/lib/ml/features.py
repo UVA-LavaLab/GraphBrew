@@ -568,7 +568,7 @@ def compute_window_neighbor_overlap(adjacency_list: Dict[int, List[int]],
 def compute_sampled_locality_score(adjacency_list: Dict[int, List[int]],
                                     sample_size: int = 1000) -> float:
     """
-    Compute sampled locality score — F(σ) approximation (P1 3.1d).
+    Compute a sampled F(σ) locality approximation.
     
     Measures how well the CURRENT vertex ordering preserves graph locality,
     using a narrow cache-line-sized window (~16 vertices or N/1000).
@@ -615,7 +615,7 @@ def compute_sampled_locality_score(adjacency_list: Dict[int, List[int]],
 def compute_avg_reuse_distance(adjacency_list: Dict[int, List[int]],
                                 sample_size: int = 1000) -> float:
     """
-    Compute average transpose reuse distance (P3 3.2, P-OPT inspired).
+    Compute the P-OPT-inspired average transpose reuse distance.
     
     For sampled vertices, computes the mean absolute distance to in-neighbors
     (predecessors in the transpose graph). High reuse distance indicates
@@ -983,9 +983,9 @@ def compute_extended_features(nodes: int, edges: int, density: float,
         # DON-RL features (Zhao et al.)
         'vertex_significance_skewness': 0.0,
         'window_neighbor_overlap': 0.0,
-        # P1 3.1d: Sampled locality score
+        # Sampled locality score
         'sampled_locality_score': 0.0,
-        # P3 3.2: Transpose reuse distance
+        # Transpose reuse distance
         'avg_reuse_distance': 0.0,
     }
     
@@ -1005,9 +1005,9 @@ def compute_extended_features(nodes: int, edges: int, density: float,
             # DON-RL features (Zhao et al.)
             features['vertex_significance_skewness'] = compute_vertex_significance_skewness(adjacency_list)
             features['window_neighbor_overlap'] = compute_window_neighbor_overlap(adjacency_list)
-            # P1 3.1d: Sampled locality score
+            # Sampled locality score
             features['sampled_locality_score'] = compute_sampled_locality_score(adjacency_list)
-            # P3 3.2: Transpose reuse distance
+            # Transpose reuse distance
             features['avg_reuse_distance'] = compute_avg_reuse_distance(adjacency_list)
             # Paper-aligned feature variants
             features['packing_factor_cl'] = compute_packing_factor_cl(adjacency_list)

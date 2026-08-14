@@ -535,7 +535,7 @@ struct GraphProperties {
     // DON-RL features
     double      vertex_significance_skewness = 0.0;
     double      window_neighbor_overlap = 0.0;
-    // P1 3.1d: Sampled locality score
+    // Sampled locality score
     double      sampled_locality_score = 0.0;
     std::string graph_type;               ///< "SOCIAL", "ROAD", etc.
 
@@ -695,7 +695,7 @@ struct GraphFeatureVec {
     // DON-RL features (Zhao et al.)
     double vertex_significance_skewness = 0.0;  // CV of per-vertex locality
     double window_neighbor_overlap = 0.0;       // mean neighbor-in-window fraction
-    // P1 3.1d: Sampled locality score (F(σ) approximation)
+    // Sampled locality score (F(σ) approximation)
     double sampled_locality_score = 0.0;        // cache-line-window locality
 
     static constexpr int N_FEATURES = 15;
@@ -2046,7 +2046,7 @@ private:
             }
 
             // Legacy decision-tree/hybrid sections remain offline until they
-            // are retrained on the Tier-0 schema in Sprint 3.
+            // are retrained on the Tier-0 schema.
             models_loaded_ = !perceptron_weights_.empty()
                 || !perceptron_per_bench_.empty();
             models_from_unified_ = true;

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import json
 import zipfile
 from pathlib import Path
 
@@ -23,82 +24,65 @@ from scripts.experiments.vldb.config import (
     PAPER_ARTIFACT_ROOT, PAPER_GRAPH_ROOT,
 )
 
-PAPER_PACKAGE_NAME = (
-    "GraphBrew__Multilayered_Graph_Reordering_Techniques_for_"
-    "Accelerated_Graph_Processing__VLDB_2026_.zip"
-)
-PAPER_PACKAGE_FILES = [
-    "VLDB_2026.tex",
-    "references_sync.bib",
-    "ACM-Reference-Format.bst",
-    "acmart.cls",
-    "paperFigures/Fig1c.png",
-    "paperFigures/Fig2.png",
-    "paperFigures/Fig3.png",
-    "paperFigures/Fig4.png",
-    "paperFigures/Fig5.png",
-    "paperFigures/Fig6.png",
-    "paperFigures/Fig7.png",
-    "dataCharts/cache/cacheGM.png",
-    "dataCharts/cache/Cit-Patents.png",
-    "dataCharts/cache/Com-Orkut.png",
-    "dataCharts/cache/Hollywood.png",
-    "dataCharts/cache/road.png",
-    "dataCharts/speedup/aggregateSpeedups.png",
-    "dataCharts/speedup/overheadReorder.png",
-    "dataCharts/speedup/BFS.png",
-    "dataCharts/speedup/PR.png",
-    "dataCharts/speedup/SpMV.png",
-    "dataCharts/speedup/SSSP.png",
-    "dataCharts/speedup/CC.png",
-    "dataCharts/speedup/CC_SV.png",
-    "dataCharts/speedup/BC.png",
-    "dataCharts/trials/aggregateTrials.png",
-    "dataCharts/trials/BFS.png",
-    "dataCharts/trials/PR.png",
-    "dataCharts/trials/SpMV.png",
-    "dataCharts/trials/SSSP.png",
-    "dataCharts/trials/CC.png",
-    "dataCharts/trials/CC_SV.png",
-    "dataCharts/trials/BC.png",
-    "dataCharts/tables/table_kernel_speedup.tex",
-    "dataCharts/tables/table_end_to_end.tex",
-    "dataCharts/tables/table_ablation.tex",
-    "dataCharts/tables/table_sensitivity.tex",
-    "dataCharts/tables/table_chained.tex",
-    "dataCharts/tables/table_scalability.tex",
-]
-PAPER_PACKAGE_FILES += [
-    Path(relative).with_suffix(".svg").as_posix()
-    for relative in PAPER_PACKAGE_FILES
-    if relative.startswith("dataCharts/")
-    and relative.endswith(".png")
-]
-
-
-def build_paper_package(paper_dir: Path | None = None) -> Path:
-    paper_dir = (
-        paper_dir.resolve()
-        if paper_dir is not None
-        else Path(__file__).resolve().parents[4] / "research"
+def build_paper_package(
+    paper_dir: Path,
+    manifest_path: Path | None = None,
+) -> Path:
+    paper_dir = paper_dir.resolve()
+    manifest_path = (
+        manifest_path.resolve()
+        if manifest_path is not None
+        else paper_dir / "paper-package-manifest.json"
     )
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            f"Private paper manifest not found: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text())
+    package_name = manifest.get("package_name")
+    package_files = manifest.get("files")
+    if (
+        not isinstance(package_name, str)
+        or not package_name.endswith(".zip")
+        or Path(package_name).name != package_name
+        or not isinstance(package_files, list)
+        or not package_files
+        or any(
+            not isinstance(relative, str)
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+            for relative in package_files
+        )
+    ):
+        raise ValueError("Private paper package manifest is invalid")
+    if len(package_files) != len(set(package_files)):
+        raise ValueError("Private paper manifest contains duplicates")
+    resolved_files = {
+        relative: (paper_dir / relative).resolve()
+        for relative in package_files
+    }
+    if any(
+        not path.is_relative_to(paper_dir)
+        for path in resolved_files.values()
+    ):
+        raise ValueError(
+            "Private paper manifest escapes the paper workspace")
     missing = [
-        relative for relative in PAPER_PACKAGE_FILES
-        if not (paper_dir / relative).is_file()
+        relative for relative in package_files
+        if not resolved_files[relative].is_file()
     ]
     if missing:
         raise RuntimeError(
             "Cannot package paper; missing: " + ", ".join(missing)
         )
-    package = paper_dir / PAPER_PACKAGE_NAME
+    package = paper_dir / package_name
     with zipfile.ZipFile(
         package,
         "w",
         compression=zipfile.ZIP_DEFLATED,
         compresslevel=9,
     ) as archive:
-        for relative in sorted(PAPER_PACKAGE_FILES):
-            data = (paper_dir / relative).read_bytes()
+        for relative in sorted(package_files):
+            data = resolved_files[relative].read_bytes()
             info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
@@ -118,9 +102,24 @@ def main() -> None:
     p.add_argument("--graph-dir", type=str, default=str(PAPER_GRAPH_ROOT),
                    help="External graph root to include in INDEX.json.")
     p.add_argument("--publish-paper-figures", action="store_true",
-                   help="Copy generated figures/tables into research/dataCharts/.")
+                   help="Copy generated figures/tables into the private paper workspace.")
     p.add_argument("--package-paper", action="store_true",
                    help="Build a deterministic source ZIP after publishing.")
+    p.add_argument(
+        "--paper-dir",
+        type=Path,
+        default=(
+            Path(os.environ["GRAPHBREW_PRIVATE_PAPER_ROOT"])
+            if os.environ.get("GRAPHBREW_PRIVATE_PAPER_ROOT")
+            else None
+        ),
+        help="Private paper workspace (required for publish/package).",
+    )
+    p.add_argument(
+        "--paper-package-manifest",
+        type=Path,
+        help="Private package manifest (default: <paper-dir>/paper-package-manifest.json).",
+    )
     p.add_argument("--dry-run", action="store_true",
                    help="Print the aggregation plan without writing files.")
     args, ignored = p.parse_known_args()
@@ -134,6 +133,13 @@ def main() -> None:
         )
         return
     if args.publish_paper_figures:
+        if args.paper_dir is None:
+            p.error(
+                "--publish-paper-figures requires --paper-dir or "
+                "GRAPHBREW_PRIVATE_PAPER_ROOT"
+            )
+        os.environ["GRAPHBREW_PRIVATE_PAPER_ROOT"] = str(
+            args.paper_dir.resolve())
         os.environ["GRAPHBREW_PUBLISH_PAPER_FIGURES"] = "1"
     print("STAGE 05 — rebuilding results/INDEX.json")
     try:
@@ -150,7 +156,15 @@ def main() -> None:
         print("STAGE 05 — generating figures + LaTeX tables from results/vldb_paper/")
         V._generate_figures()
     if args.package_paper:
-        package = build_paper_package()
+        if args.paper_dir is None:
+            p.error(
+                "--package-paper requires --paper-dir or "
+                "GRAPHBREW_PRIVATE_PAPER_ROOT"
+            )
+        package = build_paper_package(
+            args.paper_dir,
+            args.paper_package_manifest,
+        )
         print(f"STAGE 05 — wrote paper package {package}")
     print("STAGE 05 COMPLETE.")
 

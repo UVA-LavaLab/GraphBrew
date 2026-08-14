@@ -315,7 +315,7 @@ Key entry points:
 - `lib/pipeline/benchmark.py` — Benchmark execution and timing parsing
 - `lib/pipeline/reorder_config.py` — Effective/realized reorder config validation
 - `lib/ml/adaptive_emulator.py` — C++ logic emulation (delegates scoring to `PerceptronWeight`)
-- `lib/ml/training.py` — Iterative/batched training with significance weighting (P0 3.1c)
+- `lib/ml/training.py` — Iterative/batched training with significance weighting
 - `lib/ml/model_tree.py` — Decision tree & hybrid DT+Perceptron model training
 - `lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)
 - `lib/pipeline/benchmark.py` — Benchmark execution

@@ -473,7 +473,7 @@ DISPLAY_TO_CANONICAL: dict[str, str] = {
     "GraphBrewOrder": "GraphBrewOrder_leiden",
     # LeidenOrder is its own algorithm (C++ enum 15)
     "LeidenOrder": "LeidenOrder",
-    # GoGraph FEF-maximizing reordering (P3 3.4)
+    # GoGraph FEF-maximizing reordering
     "GoGraphOrder": "GOGRAPHORDER_default",
 }
 

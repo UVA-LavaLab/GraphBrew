@@ -2210,20 +2210,28 @@ def test_paper_package_is_complete_and_deterministic(tmp_path):
     aggregate = importlib.import_module(
         "scripts.experiments.vldb.stages.05_aggregate"
     )
-    paper_dir = tmp_path / "research"
-    for index, relative in enumerate(aggregate.PAPER_PACKAGE_FILES):
+    paper_dir = tmp_path / "private-paper"
+    package_files = [
+        "main.tex",
+        "references.bib",
+        "figures/result.svg",
+    ]
+    for index, relative in enumerate(package_files):
         path = paper_dir / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"file-{index}\n".encode())
+    manifest = paper_dir / "paper-package-manifest.json"
+    manifest.write_text(json.dumps({
+        "package_name": "graphbrew-paper.zip",
+        "files": package_files,
+    }))
 
-    package = aggregate.build_paper_package(paper_dir)
+    package = aggregate.build_paper_package(paper_dir, manifest)
     first = package.read_bytes()
-    aggregate.build_paper_package(paper_dir)
+    aggregate.build_paper_package(paper_dir, manifest)
     assert package.read_bytes() == first
     with zipfile.ZipFile(package) as archive:
-        assert archive.namelist() == sorted(
-            aggregate.PAPER_PACKAGE_FILES
-        )
+        assert archive.namelist() == sorted(package_files)
         assert all(
             info.date_time == (1980, 1, 1, 0, 0, 0)
             for info in archive.infolist()
@@ -2232,6 +2240,24 @@ def test_paper_package_is_complete_and_deterministic(tmp_path):
             (info.external_attr >> 16) & 0o777 == 0o644
             for info in archive.infolist()
         )
+
+    manifest.write_text(json.dumps({
+        "package_name": "../outside.zip",
+        "files": package_files,
+    }))
+    with pytest.raises(ValueError, match="manifest is invalid"):
+        aggregate.build_paper_package(paper_dir, manifest)
+
+    outside = tmp_path / "outside.tex"
+    outside.write_text("private")
+    link = paper_dir / "escaped.tex"
+    link.symlink_to(outside)
+    manifest.write_text(json.dumps({
+        "package_name": "graphbrew-paper.zip",
+        "files": ["escaped.tex"],
+    }))
+    with pytest.raises(ValueError, match="escapes"):
+        aggregate.build_paper_package(paper_dir, manifest)
 
 
 def test_graph_conversion_transaction_restores_backups(

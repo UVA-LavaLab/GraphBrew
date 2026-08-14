@@ -74,9 +74,9 @@ Write-Host "    .\build_wsl.ps1 clean                # Clean build" -ForegroundC
 Write-Host ""
 Write-Host "  Option B: Drop into WSL directly" -ForegroundColor Cyan
 Write-Host "    wsl -d Ubuntu-24.04" -ForegroundColor Gray
-Write-Host "    cd /mnt/c/Users/amughrabi/Documents/00_github_repos/GraphBrew" -ForegroundColor Gray
+Write-Host "    cd /mnt/c/path/to/GraphBrew" -ForegroundColor Gray
 Write-Host "    make all" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Option C: One-liner from PowerShell" -ForegroundColor Cyan
-Write-Host "    wsl -d Ubuntu-24.04 -- bash -c 'cd /mnt/c/Users/amughrabi/Documents/00_github_repos/GraphBrew && make all'" -ForegroundColor Gray
+Write-Host "    wsl -d Ubuntu-24.04 -- bash -c 'cd /mnt/c/path/to/GraphBrew && make all'" -ForegroundColor Gray
 Write-Host ""

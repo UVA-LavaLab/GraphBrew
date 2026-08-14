@@ -17,10 +17,22 @@ source .venv/bin/activate 2>/dev/null || true
 EXTRA="${EXTRA_ARGS:-}"
 GRAPH_DIR="${GRAPH_DIR:-/media/Data/00_GraphDatasets/GraphBrew}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-/media/Data/00_GraphDatasets/GraphBrew/artifacts}"
+PRIVATE_ARGS=()
+if [[ -n "${PAPER_DIR:-}" ]]; then
+  PRIVATE_ARGS+=(--paper-dir "$PAPER_DIR")
+  if [[ "${PUBLISH_PAPER_FIGURES:-0}" == "1" ]]; then
+    PRIVATE_ARGS+=(--publish-paper-figures)
+  fi
+  if [[ "${PACKAGE_PAPER:-0}" == "1" ]]; then
+    PRIVATE_ARGS+=(--package-paper)
+    if [[ -n "${PAPER_PACKAGE_MANIFEST:-}" ]]; then
+      PRIVATE_ARGS+=(--paper-package-manifest "$PAPER_PACKAGE_MANIFEST")
+    fi
+  fi
+fi
 python3 scripts/experiments/vldb/stages/05_aggregate.py \
   --exp 0 \
   --graph-dir "$GRAPH_DIR" \
   --artifact-root "$ARTIFACT_ROOT" \
-  --publish-paper-figures \
-  --package-paper \
+  "${PRIVATE_ARGS[@]}" \
   $EXTRA

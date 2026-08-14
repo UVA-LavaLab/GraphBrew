@@ -247,7 +247,7 @@ def feature_passes_acceptance_gate(
         graph_seed_values: Mapping[str, Sequence[float]],
         graph_log_sizes: Mapping[str, tuple[float, float]],
 ) -> bool:
-        """Binding Sprint-1 feature gate, including size-residual checks."""
+        """Validate deployable feature quality, including size residuals."""
         if informativeness_ratio(graph_seed_values) <= 1.0:
             return False
         if feature_name in {

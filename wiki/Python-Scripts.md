@@ -43,7 +43,6 @@ scripts/
 ├── experiments/
 │   ├── adaptive/                 adaptive planning and dry-run manifests
 │   ├── vldb/                     frozen study runner and restartable stages
-│   ├── ecg/                      ECG study runner
 │   ├── partition_cut/            separate partition research path
 │   └── adaptive_ml/              retired legacy ablation entry points
 └── test/                         pytest regression suite

@@ -8,33 +8,24 @@ and [Troubleshooting](Troubleshooting).
 
 | Situation | Try |
 |---|---|
-| Don't know, want a single safe default | `-o 12:hrab` (best cache, reasonable reorder cost) |
-| Iterative algorithm with many trials (PR, SpMV) | `-o 12:hrab` or `-o 12:leiden` |
-| Single traversal from one source (BFS, SSSP) | `-o 7` (HUBCLUSTERDBG; cheap reorder) or `-o 12:rabbit` |
-| Road / mesh graph | `-o 12:rcm` or `-o 11:bnf` |
-| Reorder cost matters most | `-o 8` (RABBITORDER) or `-o 7` (HUBCLUSTERDBG) |
-| Reproducing the paper | the experiments in [VLDB-Experiments](VLDB-Experiments) cover the full algo grid |
+| Establish a baseline | `-o 0` (INPUT-SHUFFLED/ORIGINAL) |
+| Very low reorder cost | `-o 5` (DBG) |
+| Strong general baseline | `-o 8:csr` (RabbitOrder CSR) |
+| Expensive locality reference | `-o 9:csr` (exact Gorder) |
+| Road / mesh diagnostic | `-o 11:bnf` |
+| Reproducing the frozen study | [Reproducible-Experiments](Reproducible-Experiments) covers the full matrix |
 
-If you don't care, `-o 12:hrab` is the right default for most graphs as
-of May 2026 (see commit `0b9c90c` for the adaptive intra-community fix).
+There is no universal winner. Compare complete preprocessing cost, kernel
+time, iteration/work changes, and expected mapping reuse on your workload.
 
 ## How much speedup should I expect?
 
 It depends on (a) how cache-unfriendly the original ordering is and
 (b) how many iterations your benchmark runs.
 
-Rule of thumb on the paper's evaluation machine (Intel Xeon Silver
-4216, 22 MB L3):
-
-| Graph type | Realistic speedup vs ORIGINAL | Reorder cost amortizes after |
-|---|---|---|
-| social / collaboration / web (community-strong) | 1.3–2× on PR | 2–5 trials |
-| road / mesh | 1.5–3× on BFS | 3–5 trials |
-| citation (already well-ordered) | 1.0–1.1× on PR | many trials |
-| random / synthetic | 1.0× (no community structure to exploit) | never |
-
-The break-even-trials column (`N*`) in the auto-generated paper table
-quantifies this per graph.
+Report speedup against the exact input-label baseline and include complete
+reorder, validation, and CSR-application cost. For iterative kernels, report
+iteration count and time per iteration separately.
 
 ## Why does reordering sometimes hurt?
 
@@ -47,10 +38,9 @@ Three common reasons:
    time is paid once; kernel speedup is paid back per trial. With
    `-n 1` you're seeing reorder + 1 kernel, which is often slower
    than ORIGINAL × 1.
-3. **The reordering doesn't match the access pattern.** Degree-only
-   methods (DBG, HUBSORT) help iterative power-law workloads but
-   crash on community-strong dense graphs (e.g. on hollywood at
-   L3=1MB, DBG produced 0.5× speedup — slower than baseline).
+3. **The reordering doesn't match the access pattern.** Degree, bandwidth,
+   community, and window-locality methods optimize different structural
+   signals. Measure the kernel and graph combination you intend to use.
 
 ## Where do my benchmark results land?
 
@@ -81,12 +71,12 @@ See [Supported-Graph-Formats](Supported-Graph-Formats).
 
 ## What's the difference between LeidenOrder (15) and GraphBrew-Leiden (12:leiden)?
 
-- `-o 15` runs the GVE-Leiden reference and uses its community
-  membership directly as the vertex order. No post-processing layer.
-- `-o 12:leiden` is the full GraphBrew pipeline with Leiden as the
-  community detector, BFS within each community for cache locality,
-  and hierarchical sort across communities. Strictly more layers,
-  usually better cache quality, slightly more reorder cost.
+- `-o 15` runs GVE-Leiden and an explicit GraphBrew post-layout. Use the
+  layout option to distinguish hierarchy-degree, final-stable, and
+  final-degree behavior.
+- `-o 12:leiden` is the composable GraphBrew pipeline with Leiden as one
+  partitioning choice. It is a different pipeline, not a guaranteed
+  improvement over Algorithm 15.
 
 ## When should I use DBG vs HUBCLUSTER?
 
@@ -103,7 +93,7 @@ split (hubs vs non-hubs) and only sorts the hub partition.
 
 ## How do I cite GraphBrew?
 
-Until the VLDB 2026 paper is published, cite the repository:
+Cite the repository:
 
 ```bibtex
 @misc{graphbrew,
@@ -115,14 +105,12 @@ Until the VLDB 2026 paper is published, cite the repository:
 }
 ```
 
-The full paper draft lives in `research/.../main.tex` (gitignored
-working directory).
+Paper drafts are maintained outside the public repository.
 
 ## Where is the AdaptiveOrder / ML documentation?
 
 [AdaptiveOrder-ML](AdaptiveOrder-ML). Note that AdaptiveOrder is
-research-only and **not part of the VLDB 2026 submission** — it's
-kept in-tree for future work.
+research-only and deferred until the independent-ordering Pareto gate.
 
 ## Common errors
 

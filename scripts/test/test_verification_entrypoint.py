@@ -10,13 +10,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_ci_and_harness_delegate_to_make_check():
-    travis = (PROJECT_ROOT / ".travis.yml").read_text()
+    workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
+    ).read_text()
     harness = (
         PROJECT_ROOT / "scripts" / "graphbrew_experiment.py"
     ).read_text()
 
-    assert "make check -j2 RABBIT_ENABLE=0" in travis
-    assert "pytest scripts/test -q" not in travis
+    assert "RABBIT_ENABLE=0 make -j2 check" in workflow
+    assert "pytest scripts/test -q" not in workflow
     assert 'cmd = ["make", "check"]' in harness
     assert 'cmd = ["python3", "-m", "pytest"' not in harness
 

@@ -736,7 +736,7 @@ CPP_WEIGHT_KEYS = [
     "w_wno_x_pf",
     # Convergence bonus
     "w_fef_convergence",
-    # P1 3.1d: Sampled locality score
+    # Sampled locality score
     "w_sampled_locality",
     # P3 3.2: Transpose reuse distance
     "w_avg_reuse_distance",
@@ -747,7 +747,7 @@ CPP_WEIGHT_KEYS = [
     # Per-cache-level WSR
     "w_wsr_l1",
     "w_wsr_l2",
-    # P1 1.4: Platt scaling parameters
+    # Platt scaling parameters
     "platt_A",
     "platt_B",
     # Cache impact

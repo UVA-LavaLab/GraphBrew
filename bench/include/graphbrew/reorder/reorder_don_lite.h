@@ -1,5 +1,5 @@
 // ===========================================================================
-// reorder_don_lite.h — DON-Lite neural vertex ordering (P3 3.1f)
+// reorder_don_lite.h — DON-Lite neural vertex ordering
 //
 // Implements a lightweight fixed-weight neural heuristic inspired by DON-RL:
 //   Zhao et al., "Graph Ordering: Towards the Optimal by Learning,"

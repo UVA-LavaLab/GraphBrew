@@ -324,7 +324,7 @@ class TypeMatcher:
         self.registry_path = registry_path or Path(weights_registry_path(str(WEIGHTS_DIR)))
         self.registry = {}
         self.centroids = {}
-        self.radii = {}  # P2 2.2: per-type OOD radius
+        self.radii = {}  # Per-type OOD radius
         self._load_registry()
     
     def _load_registry(self):
@@ -470,7 +470,7 @@ class AlgorithmSelector:
         return self.load_weights(type_name)
     
     def _load_regime_weights(self, regime: str, type_name: str) -> Optional[Dict[str, Dict]]:
-        """P3 3.3: Load regime-specific weights for hierarchical gating.
+        """Load regime-specific weights for hierarchical gating.
         
         Looks for weights in <weights_dir>/<regime>/weights.json.
         Falls back to None if not found (caller uses default weights).
@@ -553,12 +553,12 @@ class AlgorithmSelector:
             config: Weight configuration
             benchmark: Optional benchmark name for per-benchmark multiplier
             type_distance: Euclidean distance to nearest centroid (0 = unknown)
-            type_radius: P2 2.2 per-type OOD radius (p95 of training distances)
-            hierarchical: P3 3.3 hierarchical gating — try regime-specific weights
+            type_radius: per-type OOD radius (p95 of training distances)
+            hierarchical: try regime-specific weights
         """
         # OOD guardrail: if graph is too far from known centroid,
         # predictions are unreliable — fall back to ORIGINAL.
-        # P2 2.2: Use per-type radius when available, else global threshold.
+        # Use the per-type radius when available, else the global threshold.
         if type_distance > 0:
             if type_radius > 0:
                 # Per-type OOD: distance / radius > OOD_RADIUS_RATIO → OOD
@@ -571,7 +571,7 @@ class AlgorithmSelector:
                 if type_distance > OOD_DISTANCE_THRESHOLD:
                     return "ORIGINAL", {}
         
-        # P3 3.3: Hierarchical gating — try regime-specific weights first
+        # Try regime-specific weights first when hierarchical gating is active.
         if hierarchical:
             regime = self._classify_graph_type(features)
             regime_weights = self._load_regime_weights(regime, type_name)
@@ -638,7 +638,7 @@ class AlgorithmSelector:
             # Determine if margin is below threshold
             below_threshold = False
             
-            # P1 1.4: Platt-calibrated margin threshold.
+            # Platt-calibrated margin threshold.
             # If Platt params are available for the selected algo, use calibrated
             # probability instead of fixed threshold.
             algo_w = weights.get(best_algo, {})
@@ -652,7 +652,7 @@ class AlgorithmSelector:
                 below_threshold = (margin < ORIGINAL_MARGIN_THRESHOLD)
             
             if below_threshold:
-                # P2 2.1: ε-greedy bandit exploration for low-margin cases.
+                # ε-greedy exploration for low-margin cases.
                 # When ADAPTIVE_BANDIT=1, with probability ε, explore by using
                 # the model's top pick despite low margin.  ε decays with
                 # log(evaluations) to converge toward exploitation.
@@ -685,7 +685,7 @@ class AlgorithmSelector:
                 
                 best_algo = "ORIGINAL"  # exploit
         
-        # P3 3.1f: DON-Lite neural ordering override.
+        # DON-Lite neural ordering override.
         # When enabled and the perceptron margin is low on a large community,
         # override with DON_LITE (the C++ side dispatches to GenerateDonLiteMapping).
         DON_LITE_MIN_COMMUNITY = 50000
@@ -729,7 +729,7 @@ _ALGO_FAMILY_MAP = {
     # LEIDEN family (C++: Leiden|GraphBrew → "LEIDEN")
     "LeidenOrder": "LEIDEN",
     "GraphBrewOrder": "LEIDEN",
-    # GoGraph family (P3 3.4)
+    # GoGraph family
     "GoGraphOrder": "GOGRAPH",
     "GOGRAPHORDER": "GOGRAPH",
     # Mechanism/meta — not real families
@@ -1433,7 +1433,7 @@ class AdaptiveOrderEmulator:
         # New 2D defaults
         self.selection_model = SelectionModel.PERCEPTRON
         self.selection_criterion = SelectionCriterion.FASTEST_EXECUTION
-        # P3 3.3: Hierarchical gating (set via ADAPTIVE_HIERARCHICAL=1)
+        # Hierarchical gating (set via ADAPTIVE_HIERARCHICAL=1)
         self.hierarchical = os.environ.get('ADAPTIVE_HIERARCHICAL', '') in ('1', 'true')
     
     def get_reorder_time_weights(self, type_name: str) -> Dict[str, float]:
@@ -1491,7 +1491,7 @@ class AdaptiveOrderEmulator:
         # Layer 1: Type matching - finds the closest type centroid
         matched_type, type_distance = self.type_matcher.find_best_type(features)
         
-        # P2 2.2: Get per-type OOD radius
+        # Get the per-type OOD radius.
         type_radius = self.type_matcher.radii.get(matched_type, 0.0)
         
         # Layer 2: Model × Criterion dispatch

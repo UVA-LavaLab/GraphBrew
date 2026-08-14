@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from scripts.experiments.adaptive import runner as adaptive_runner
-from scripts.experiments.ecg import config as ecg_config
 from scripts.experiments.vldb import config as vldb_config
 from scripts.lib.core import utils
 from scripts.lib.core.experiment_policy import (
@@ -49,9 +48,6 @@ def test_compatibility_lists_resolve_to_shared_policies():
     assert utils.EXPERIMENT_BENCHMARKS == list(REORDER_BENCHMARKS)
     assert vldb_config.BENCHMARKS == list(PAPER_BENCHMARK_ORDER)
     assert vldb_config.BENCHMARKS_PREVIEW == list(
-        PREVIEW_BENCHMARK_ORDER)
-    assert ecg_config.BENCHMARKS == list(REORDER_BENCHMARKS)
-    assert ecg_config.BENCHMARKS_PREVIEW == list(
         PREVIEW_BENCHMARK_ORDER)
     assert adaptive_runner.BENCHMARKS == list(PAPER_BENCHMARK_ORDER)
     assert adaptive_runner.CACHE_KERNELS is (

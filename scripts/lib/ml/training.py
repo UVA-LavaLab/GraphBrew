@@ -45,7 +45,7 @@ from .weights import (
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Significance Weighting (P0 3.1c — DON-RL-inspired)
+# DON-RL-inspired significance weighting
 # ─────────────────────────────────────────────────────────────────────────────
 
 def compute_significance_weight(
@@ -426,7 +426,7 @@ def train_adaptive_weights_iterative(
                     graph_name, adaptive_algo)
                 
                 # Update type-based weights
-                # P0 3.1c: Use actual speedups from brute-force instead of
+                # Use actual speedups from brute-force instead of
                 # hardcoded 1.2/0.8.  Scale learning by significance weight:
                 # graphs where algorithm choice matters more get larger updates.
                 correct_time = sc_result.all_results.get(correct_algo, {}).get('time', 0)

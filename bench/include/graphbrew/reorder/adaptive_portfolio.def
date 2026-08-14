@@ -1,4 +1,4 @@
-// Legacy Sprint-0 executable contract. This is not the headline portfolio.
+// Legacy executable contract. This is not the headline portfolio.
 GRAPHBREW_ADAPTIVE_ARM(ORIGINAL, "0", "ORIGINAL")
 GRAPHBREW_ADAPTIVE_ARM(DBG, "5", "DBG")
 GRAPHBREW_ADAPTIVE_ARM(RABBIT_CSR, "8:csr", "RABBITORDER_csr")

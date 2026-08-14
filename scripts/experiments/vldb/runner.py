@@ -6767,7 +6767,13 @@ def main() -> None:
     parser.add_argument("--cache-all-algorithms", action="store_true",
                         help="Sweep the full paper algorithm matrix in experiment 1")
     parser.add_argument("--publish-paper-figures", action="store_true",
-                        help="Copy generated figures/tables into research/dataCharts/")
+                        help="Copy generated figures/tables into the private paper workspace")
+    parser.add_argument(
+        "--paper-dir",
+        type=str,
+        default=os.environ.get("GRAPHBREW_PRIVATE_PAPER_ROOT"),
+        help="Private paper workspace for optional publication export",
+    )
     parser.add_argument("--64gb", action="store_true", dest="use_64gb",
                         help="Use 64 GB graph set (11 auto-downloadable graphs, no >1B-edge graphs)")
     parser.add_argument("--local", action="store_true", dest="use_local",
@@ -6797,6 +6803,14 @@ def main() -> None:
     args = parser.parse_args()
     if args.freeze_sssp_policy and not args.tune_sssp_delta:
         parser.error("--freeze-sssp-policy requires --tune-sssp-delta")
+    if args.publish_paper_figures and not args.paper_dir:
+        parser.error(
+            "--publish-paper-figures requires --paper-dir or "
+            "GRAPHBREW_PRIVATE_PAPER_ROOT"
+        )
+    if args.paper_dir:
+        os.environ["GRAPHBREW_PRIVATE_PAPER_ROOT"] = str(
+            Path(args.paper_dir).resolve())
     if args.publish_paper_figures:
         os.environ["GRAPHBREW_PUBLISH_PAPER_FIGURES"] = "1"
 

@@ -69,8 +69,8 @@
 #include "reorder_hub.h"     // HUBSORT, HUBCLUSTER, DBG variants (3-7)
 #include "reorder_rabbit.h"  // RABBITORDER (8)
 #include "reorder_classic.h" // GORDER, CORDER, RCM (9-11)
-#include "reorder_gograph.h"   // GOGRAPHORDER (16) - FEF-maximizing reordering (P3 3.4)
-#include "reorder_don_lite.h"  // DON-Lite neural ordering (P3 3.1f) — margin-gated MLP
+#include "reorder_gograph.h"   // GOGRAPHORDER (16), FEF-maximizing reordering
+#include "reorder_don_lite.h"  // DON-Lite margin-gated MLP ordering
 // Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 // LeidenOrder (15) uses external/leiden/leiden.hxx directly.
 

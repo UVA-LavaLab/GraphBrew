@@ -36,15 +36,15 @@
  *
  * Parameters (positions relative to algorithm ID):
  *   0-2: Reserved (currently unused by standalone entry point)
- *   3: model: perceptron (Sprint-0 deployable model)
+ *   3: model: perceptron (deployable model)
  *   4: criterion: fastest-reorder, fastest-execution (default),
  *                 best-endtoend, or best-amortization
  *
  * Examples:
  *   -o 14                                  # perceptron + fastest-execution
  *   -o 14::::perceptron:best-endtoend      # independent model/criterion
- * Decision-tree and hybrid artifacts remain offline-only until Sprint 3
- * retrains them on the Tier-0 schema.
+ * Decision-tree and hybrid artifacts remain offline-only until they are
+ * retrained on the Tier-0 schema.
  *
  * Graph names, runtime benchmark-database kNN, and exact-name oracle lookup
  * are prohibited in deployable AdaptiveOrder. Exact-name comparisons belong
@@ -830,7 +830,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
                 new_ids[node] = current_id++;
             }
         } else if (small_sel.variant_name == "DON_LITE") {
-            // P3 3.1f: DON-Lite neural ordering override.
+            // DON-Lite neural ordering override.
             // Build local subgraph and apply MLP-based reordering.
             std::unordered_map<NodeID_, NodeID_> g2l;
             std::vector<NodeID_> l2g(small_community_nodes.size());
@@ -946,7 +946,7 @@ void GenerateAdaptiveMappingRecursiveStandalone(
         Timer t_cr;
         t_cr.Start();
         if (selected.variant_name == "DON_LITE") {
-            // P3 3.1f: DON-Lite neural ordering override for large community.
+            // DON-Lite neural ordering override for a large community.
             std::unordered_map<NodeID_, NodeID_> g2l;
             std::vector<NodeID_> l2g(comm_nodes.size());
             for (size_t i = 0; i < comm_nodes.size(); ++i) {

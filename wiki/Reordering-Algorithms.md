@@ -249,4 +249,4 @@ When in doubt, run HUBCLUSTERDBG (cheap baseline) and `12:hrab`
 - [GraphBrewOrder](GraphBrewOrder) — the `-o 12` pipeline in detail
 - [Cache-Simulation](Cache-Simulation) — measuring cache quality
 - [Command-Line-Reference](Command-Line-Reference) — every flag
-- [VLDB-Experiments](VLDB-Experiments) — paper reproduction
+- [Reproducible-Experiments](Reproducible-Experiments) — frozen study reproduction

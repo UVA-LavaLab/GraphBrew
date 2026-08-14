@@ -1165,9 +1165,9 @@ struct CommunityFeatures {
     double vertex_significance_skewness = 0.0; ///< Skewness of per-vertex locality contributions (CV)
     double window_neighbor_overlap = 0.0;      ///< Mean fraction of neighbors within locality window
     
-    // ---------- Sampled Locality Score (P1 3.1d) ----------
+    // ---------- Sampled Locality Score ----------
     double sampled_locality_score = 0.0;       ///< Sampled F(σ) approximation — baseline ordering quality
-    // ---------- Transpose Reuse Distance (P3 3.2) ----------
+    // ---------- Transpose Reuse Distance ----------
     double avg_reuse_distance = 0.0;           ///< Mean next-reuse distance from transpose (CSC)
     // ---- Paper-aligned feature variants ----
     double packing_factor_cl = 0.0;            ///< IISWC'18 cache-line packing
@@ -1506,9 +1506,9 @@ struct PerceptronSelection {
     std::string variant_name;             ///< Canonical name (e.g. "GraphBrewOrder_leiden")
     std::vector<std::string> options;     ///< Variant options for dispatch (e.g. {"leiden"})
     double score = 0.0;                   ///< Winning score
-    double margin = 0.0;                  ///< Score margin over ORIGINAL (P1 1.4)
-    double confidence = 0.0;              ///< Platt-calibrated P(win) in [0,1] (P1 1.4)
-    bool explored = false;                ///< True if selected via bandit exploration (P2 2.1)
+    double margin = 0.0;                   ///< Score margin over ORIGINAL
+    double confidence = 0.0;              ///< Platt-calibrated P(win) in [0,1]
+    bool explored = false;                ///< True if selected via bandit exploration
     std::string canonical_spec;           ///< Exact deployable -o specification
     std::string predicted_spec;           ///< Model action before deployment guards
     std::string override_reason;           ///< Empty unless a guard changed the action
@@ -2130,22 +2130,16 @@ struct AblationConfig {
     bool zero_fef;           // Zero forward_edge_fraction + fef_convergence
     bool zero_wsr;           // Zero working_set_ratio weight
     bool zero_quadratic;     // Zero all quadratic interaction terms
-    // Phase 6 P0 improvements
-    bool cost_model;         // Enable cost-aware dynamic margin threshold (1.1)
-    bool packing_skip;       // Enable packing factor short-circuit (1.2)
-    // Phase 7 P1 improvements
-    bool overhead_filter;    // Skip heavyweight algos when cost > budget (2.3)
-    bool fef_validate;       // Post-selection FEF validation for PR/SSSP (1.3)
-    bool platt_scaling;      // Use Platt-calibrated margin threshold (1.4)
-    // Phase 8 P2 improvements
-    bool bandit_explore;     // ε-greedy exploration for low-margin cases (2.1)
+    bool cost_model;         // Enable cost-aware dynamic margin threshold
+    bool packing_skip;       // Enable packing factor short-circuit
+    bool overhead_filter;    // Skip heavyweight algorithms when cost exceeds budget
+    bool fef_validate;       // Post-selection FEF validation for PR/SSSP
+    bool platt_scaling;      // Use Platt-calibrated margin threshold
+    bool bandit_explore;     // ε-greedy exploration for low-margin cases
     double bandit_epsilon;   // Initial ε (probability of exploring), default 0.1
-    bool don_tiebreak;       // DON-augmented Gorder tiebreaking (3.1e)
-    // P3 3.3: Hierarchical model gating
+    bool don_tiebreak;       // DON-augmented Gorder tiebreaking
     bool hierarchical_gate;   // Two-level model: graph-type gate + regime-specific expert
-    // P3 3.1f: DON-Lite neural ordering
     bool don_lite;            // MLP-based vertex ordering for uncertain communities
-    // Mode 3: Top-K pilot selection
     int top_k;               // Number of candidate orderings to try (default 1)
     
     static const AblationConfig& Get() {
@@ -2173,15 +2167,15 @@ struct AblationConfig {
         if (zero_fef)       printf("  ZERO: forward_edge_fraction + fef_convergence\n");
         if (zero_wsr)       printf("  ZERO: working_set_ratio\n");
         if (zero_quadratic) printf("  ZERO: quadratic interaction terms\n");
-        if (cost_model)     printf("  COST_MODEL: cost-aware dynamic margin (P0 1.1)\n");
-        if (packing_skip)   printf("  PACKING_SKIP: packing factor short-circuit (P0 1.2)\n");
-        if (overhead_filter) printf("  OVERHEAD_FILTER: skip heavyweights (P1 2.3)\n");
-        if (fef_validate)   printf("  FEF_VALIDATE: post-selection FEF check (P1 1.3)\n");
-        if (platt_scaling)  printf("  PLATT_SCALING: calibrated margin threshold (P1 1.4)\n");
-        if (bandit_explore) printf("  BANDIT_EXPLORE: ε-greedy exploration, ε₀=%.3f (P2 2.1)\n", bandit_epsilon);
-        if (don_tiebreak)   printf("  DON_TIEBREAK: DON-augmented Gorder tiebreaking (P2 3.1e)\n");
-        if (hierarchical_gate) printf("  HIERARCHICAL: two-level regime-specific gating (P3 3.3)\n");
-        if (don_lite)       printf("  DON_LITE: MLP-based vertex ordering (P3 3.1f)\n");
+        if (cost_model)     printf("  COST_MODEL: cost-aware dynamic margin\n");
+        if (packing_skip)   printf("  PACKING_SKIP: packing factor short-circuit\n");
+        if (overhead_filter) printf("  OVERHEAD_FILTER: skip heavyweights\n");
+        if (fef_validate)   printf("  FEF_VALIDATE: post-selection FEF check\n");
+        if (platt_scaling)  printf("  PLATT_SCALING: calibrated margin threshold\n");
+        if (bandit_explore) printf("  BANDIT_EXPLORE: ε-greedy exploration, ε₀=%.3f\n", bandit_epsilon);
+        if (don_tiebreak)   printf("  DON_TIEBREAK: DON-augmented Gorder tiebreaking\n");
+        if (hierarchical_gate) printf("  HIERARCHICAL: two-level regime-specific gating\n");
+        if (don_lite)       printf("  DON_LITE: MLP-based vertex ordering\n");
         if (top_k > 1)      printf("  TOP_K: try %d candidate orderings\n", top_k);
         printf("===============================\n");
     }
@@ -2294,10 +2288,10 @@ struct PerceptronWeights {
     // ---------- Convergence Bonus Weight (GoGraph) ----------
     double w_fef_convergence = 0.0;     ///< Extra forward_edge_fraction weight for iterative algos (PR/SSSP)
     
-    // ---------- Sampled Locality Score Weight (P1 3.1d) ----------
+    // ---------- Sampled Locality Score Weight ----------
     double w_sampled_locality = 0.0;    ///< Weight for sampled F(σ) locality quality
     
-    // ---------- Transpose Reuse Distance Weight (P3 3.2) ----------
+    // ---------- Transpose Reuse Distance Weight ----------
     double w_avg_reuse_distance = 0.0;  ///< Weight for transpose-derived reuse distance
     
     // ---------- Paper-Aligned Feature Weights ----------
@@ -2320,7 +2314,7 @@ struct PerceptronWeights {
     bool has_reorder_weight = false;
     bool has_cost_metadata = false;
     
-    // ---------- Platt Scaling (P1 1.4) ----------
+    // ---------- Platt Scaling ----------
     // After training, logistic regression maps score margin to P(win):
     //   P(win) = 1 / (1 + exp(-(platt_A * margin + platt_B)))
     // When platt_A == 0, Platt scaling is disabled (uncalibrated).
@@ -2458,9 +2452,9 @@ struct PerceptronWeights {
         // Reorder time penalty
         s += w_reorder_time * feat.reorder_time;
         
-        // Sampled locality score (P1 3.1d: baseline ordering quality)
+        // Sampled locality score (baseline ordering quality)
         s += w_sampled_locality * feat.sampled_locality_score;
-        // P3 3.2: Transpose reuse distance
+        // Transpose reuse distance
         s += w_avg_reuse_distance * feat.avg_reuse_distance;
         // Paper-aligned feature variants
         s += w_packing_factor_cl * feat.packing_factor_cl;
@@ -2549,9 +2543,9 @@ struct PerceptronWeights {
         s += cache_l1_impact * 0.5 + cache_l2_impact * 0.3
            + cache_l3_impact * 0.2 + cache_dram_penalty;
         s += w_reorder_time * feat.reorder_time;
-        // P1 3.1d: Sampled locality score (extra term, not z-normalized)
+        // Sampled locality score (extra term, not z-normalized)
         s += w_sampled_locality * feat.sampled_locality_score;
-        // P3 3.2: Transpose reuse distance (extra term, not z-normalized)
+        // Transpose reuse distance (extra term, not z-normalized)
         s += w_avg_reuse_distance * feat.avg_reuse_distance;
         // Paper-aligned feature variants (extra terms, not z-normalized)
         s += w_locality_score_pairwise * feat.locality_score_pairwise;
@@ -4548,7 +4542,7 @@ inline const std::map<std::string, PerceptronWeights>& GetPerceptronWeights() {
             .cache_l1_impact = 0.0, .cache_l2_impact = 0.0, .cache_l3_impact = 0.0, .cache_dram_penalty = 0.0,
             .w_reorder_time = -0.6
         }},
-        // GoGraphOrder: M(σ)-maximizing GetOptVal reordering (P3 3.4)
+        // GoGraphOrder: M(σ)-maximizing GetOptVal reordering
         {"GOGRAPHORDER", {
             .bias = 0.65,
             .w_modularity = 0.1,
@@ -4586,7 +4580,7 @@ inline constexpr double UNKNOWN_TYPE_DISTANCE_THRESHOLD = 1.5;
 /**
  * Check if a graph is distant from known types (i.e., "unknown")
  * 
- * P2 2.2: When per-type radius is available, uses distance/radius > 1.5
+ * When a per-type radius is available, uses distance/radius > 1.5
  * instead of a global distance threshold.  Falls back to the global
  * threshold when radius is 0 (uncalibrated).
  * 
@@ -4657,7 +4651,7 @@ inline LoadPerceptronDBFn& GetLoadPerceptronDBHook() {
 }
 
 /**
- * @brief P3 3.3: Hierarchical gating — regime-specific weight loading.
+ * @brief Load regime-specific weights for hierarchical gating.
  *
  * Two-level model (Rabbit Order insight, Arai et al. IPDPS'16):
  *   Level 1 (gate): GraphType classifies broad regime (social/road/web/etc.)
@@ -4895,7 +4889,7 @@ inline PerceptronSelection SelectReorderingFromWeights(
     double best_score = -std::numeric_limits<double>::infinity();
     double original_score = -std::numeric_limits<double>::infinity();
     
-    // P1 2.3: Overhead-class filtering — skip heavyweight algorithms whose
+    // Skip heavyweight algorithms whose
     // expected reorder time exceeds a fraction of expected kernel time.
     // ADAPTIVE_OVERHEAD_FILTER=1 enables this enhancement.
     // Estimate kernel time from graph size: ~1ms per 100K edges (rough median).
@@ -4903,7 +4897,7 @@ inline PerceptronSelection SelectReorderingFromWeights(
     double estimated_kernel_time = static_cast<double>(feat.num_edges) * 1e-8;  // rough estimate
     
     for (const auto& kv : weights) {
-        // P1 2.3: Skip heavyweight algorithms when cost exceeds budget
+        // Skip heavyweight algorithms when cost exceeds budget.
         if (AblationConfig::Get().overhead_filter && kv.first != "ORIGINAL" && kv.first != "RANDOM") {
             if (kv.second.avg_reorder_time > 0 && estimated_kernel_time > 0) {
                 if (kv.second.avg_reorder_time / estimated_kernel_time > OVERHEAD_RATIO_THRESHOLD) {
@@ -4930,11 +4924,11 @@ inline PerceptronSelection SelectReorderingFromWeights(
     double platt_conf = 0.0;
     
     if (best_name != "ORIGINAL" && original_score > -1e30 && !AblationConfig::Get().no_margin) {
-        // P1 1.4: Platt-calibrated margin threshold.
+        // Use a calibrated margin threshold when parameters are available.
         // If Platt params are available and ADAPTIVE_PLATT=1, use calibrated
         // P(win) instead of fixed margin threshold.
         bool used_platt = false;
-        bool below_threshold = false;   // For P2 2.1 bandit exploration
+        bool below_threshold = false;
         if (AblationConfig::Get().platt_scaling) {
             auto it = weights.find(best_name);
             if (it != weights.end() && it->second.platt_A != 0.0) {
@@ -4948,7 +4942,7 @@ inline PerceptronSelection SelectReorderingFromWeights(
         if (!used_platt) {
             // Legacy fixed-threshold path
             
-            // P0 1.1: Cost-aware dynamic threshold (IISWC'18 cost model).
+            // Cost-aware dynamic threshold (IISWC'18 cost model).
             // Higher avg_reorder_time → need proportionally larger margin to justify.
             // ADAPTIVE_COST_MODEL=1 enables this enhancement.
             if (AblationConfig::Get().cost_model) {
@@ -4964,7 +4958,7 @@ inline PerceptronSelection SelectReorderingFromWeights(
         }
         
         if (below_threshold) {
-            // P2 2.1: ε-greedy bandit exploration for low-margin cases.
+            // ε-greedy exploration for low-margin cases.
             // When the model is uncertain (margin below threshold), with
             // probability ε, explore by using the model's top pick anyway.
             // ε decays with log(evaluations) to converge toward exploitation.
@@ -5043,14 +5037,14 @@ inline std::vector<PerceptronSelection> SelectTopKFromWeights(
     std::vector<std::pair<double, std::string>> scored;
     scored.reserve(weights.size());
 
-    // P1 2.3: Overhead-class filtering — same logic as SelectReorderingFromWeights
+    // Overhead-class filtering, matching SelectReorderingFromWeights.
     constexpr double TOPK_OVERHEAD_RATIO = 0.5;
     double est_kernel = static_cast<double>(feat.num_edges) * 1e-8;
 
     for (const auto& kv : weights) {
         // Skip baselines — they add no value to Top-K reordering
         if (kv.first == "ORIGINAL" || kv.first == "RANDOM") continue;
-        // P1 2.3: Skip heavyweight algorithms when overhead filter is active
+        // Skip heavyweight algorithms when the overhead filter is active.
         if (AblationConfig::Get().overhead_filter) {
             if (kv.second.avg_reorder_time > 0 && est_kernel > 0) {
                 if (kv.second.avg_reorder_time / est_kernel > TOPK_OVERHEAD_RATIO) {
@@ -5871,7 +5865,7 @@ inline PerceptronSelection SelectBestReorderingForCommunityWithModelCriterion(
             "Adaptive runtime override/ablation paths are offline-only");
     }
     
-    // P3 3.3: Hierarchical gating — use regime-specific perceptron weights
+    // Use regime-specific perceptron weights when hierarchical mode is active.
     // when graph type is non-generic and hierarchical mode is enabled.
     if (AblationConfig::Get().hierarchical_gate && graph_type != GRAPH_GENERIC) {
         std::map<std::string, PerceptronWeights> regime_weights;
@@ -5884,7 +5878,7 @@ inline PerceptronSelection SelectBestReorderingForCommunityWithModelCriterion(
         // No regime-specific data → fall through to default path
     }
     
-    // P0 1.2 (IISWC'18): Packing factor short-circuit.
+    // IISWC'18-style packing factor short-circuit.
     // High packing factor = hub neighbours already co-located in memory.
     // Low working_set_ratio = graph fits well in cache hierarchy.
     // Together: reordering has diminishing returns → skip it.
@@ -5926,7 +5920,7 @@ inline PerceptronSelection SelectBestReorderingForCommunityWithModelCriterion(
     }
 #endif
     
-    // P1 1.3: FEF convergence validation for iterative benchmarks.
+    // FEF convergence validation for iterative benchmarks.
     // For PR/PR_SPMV/SSSP: if the selected algorithm's w_fef_convergence
     // weight is negative (i.e., it's expected to hurt convergence), try
     // runner-up from top-2 selection. ADAPTIVE_FEF_VALIDATE=1 enables.
@@ -5950,7 +5944,7 @@ inline PerceptronSelection SelectBestReorderingForCommunityWithModelCriterion(
         }
     }
     
-    // P3 3.1f: DON-Lite neural ordering override.
+    // DON-Lite neural ordering override.
     // When the perceptron is uncertain (low margin) on a large community,
     // override with the DON-Lite MLP-based ordering which can capture
     // nonlinear feature interactions that the linear perceptron misses.
@@ -6032,9 +6026,9 @@ struct SampledDegreeFeatures {
     // DON-RL-inspired features (Zhao et al.)
     double vertex_significance_skewness = 0.0; ///< Skewness of per-vertex locality contributions (CV)
     double window_neighbor_overlap = 0.0;      ///< Mean fraction of neighbors within locality window
-    // Sampled locality score (P1 3.1d)
+    // Sampled locality score
     double sampled_locality_score = 0.0;       ///< Sampled F(σ) approximation — baseline ordering quality
-    // P3 3.2: Transpose reuse distance (P-OPT inspired)
+    // P-OPT-inspired transpose reuse distance
     double avg_reuse_distance = 0.0;           ///< Mean next-reuse distance from transpose (CSC)
     // ---- Paper-aligned variants (kept alongside approximations) ----
     double packing_factor_cl = 0.0;            ///< IISWC'18 cache-line packing: fraction of neighbors on same CL
@@ -6487,7 +6481,7 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
             total_overlap / counted : 0.0;
     }
 
-    // P1 3.1d: Sampled Locality Score — simplified F(σ) proxy.
+    // Sampled locality score: simplified F(σ) proxy.
     // APPROXIMATION of DON-RL's F(σ): The paper computes F(σ) by summing
     // pairwise joint similarity over a permutation window, combining S_s
     // (common sibling count) and S_n (common neighbor count) for each pair.
@@ -6522,7 +6516,7 @@ inline SampledDegreeFeatures ComputeSampledDegreeFeatures(
             total_locality / counted_loc : 0.0;
     }
     
-    // P3 3.2: Transpose reuse distance — spatial ID-distance proxy.
+    // Transpose reuse distance: spatial ID-distance proxy.
     // APPROXIMATION of P-OPT's temporal reuse distance: The paper measures
     // the number of DISTINCT memory accesses between consecutive references
     // to the same cache line during an execution trace (LRU stack distance).

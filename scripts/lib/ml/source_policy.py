@@ -45,7 +45,7 @@ SOURCE_DRIVEN_KERNELS = frozenset({"bfs", "bc", "sssp"})
 
 
 def adaptive_source_record_eligible(record: Mapping) -> bool:
-    """Return true only for post-Sprint-0 source-driven measurements."""
+    """Return true only for measurements using the current source contract."""
     benchmark = record.get("benchmark")
     if benchmark not in SOURCE_DRIVEN_KERNELS:
         return True

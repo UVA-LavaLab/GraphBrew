@@ -1,4 +1,4 @@
-"""Legacy Sprint-0 adaptive-arm registry shared with C++.
+"""Legacy adaptive-arm registry shared with C++.
 
 This executable compatibility contract is not the headline portfolio.
 """

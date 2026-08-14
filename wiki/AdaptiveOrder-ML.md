@@ -1,8 +1,7 @@
 # AdaptiveOrder (research-only)
 
-> **Not part of the frozen VLDB 2026 result matrix.** Algorithm 14 is being
-> rebuilt under the Adaptive Selector Sprint and must not be presented as a
-> validated deployment result yet.
+> Algorithm 14 is research-only and deferred until the independent-ordering
+> Pareto gate. It must not be presented as a validated deployment result.
 
 AdaptiveOrder selects a reordering from graph, kernel, cache-context, and reuse
 features using an offline-produced deterministic model. Deployable selection
@@ -41,14 +40,14 @@ offline `OracleUpperBound` analysis.
 
 ```
 
-Sprint-0 deployable model:
+Current deployable model:
 
 | Model | CLI |
 |---|---|
 | Perceptron | `perceptron` |
 
-Decision-tree and hybrid artifacts remain offline-only until Sprint 3 retrains
-them on the Tier-0 schema; the runtime rejects their legacy 24-feature models.
+Decision-tree and hybrid artifacts remain offline-only until they are
+retrained on the Tier-0 schema; the runtime rejects legacy 24-feature models.
 
 Criteria:
 
@@ -63,16 +62,16 @@ Unknown models/criteria, graph-name fields, `knn`, and `database` fail closed.
 
 ## Offline artifacts
 
-`results/data/adaptive_models.json` is historical model storage. Sprint 0 is
-using it as a load-only artifact. Its perceptron section must contain all five
+`results/data/adaptive_models.json` is historical model storage and a
+load-only artifact. Its perceptron section must contain all five
 exact portfolio arms and Tier-0 weights; missing arms fail closed.
 
 `results/data/benchmarks.json` and `graph_properties.json` remain measurement
 and training inputs. They are never a deployable runtime oracle.
 
 The deployable perceptron consumes only the ten shared Tier-0 fields from
-`adaptive_feature_schema.def`. Legacy 24-feature decision trees/hybrids are
-offline-only until Sprint 3 retrains them.
+`adaptive_feature_schema.def`. Legacy 24-feature decision trees/hybrids remain
+offline-only until retrained.
 
 ## Frozen first portfolio
 
@@ -86,5 +85,5 @@ The first selector study uses exact canonical arms:
 12:rabbit:compose:sg_super_rabbit:comm_identity:intra_hubsort
 ```
 
-See `research/ADAPTIVE_SELECTOR_SPRINT.md` for the cost function, LOGO
-protocol, OOD abstention, feature budget, and acceptance gates.
+The public selector protocol will be added here after the
+independent-ordering gate passes.

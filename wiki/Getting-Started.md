@@ -145,7 +145,8 @@ python3 scripts/graphbrew_experiment.py --vldb \
 ```
 
 Use the independent stage runners only for restartable long runs. See
-[VLDB-Experiments](VLDB-Experiments) for the frozen matrix and stage guide.
+[Reproducible-Experiments](Reproducible-Experiments) for the frozen matrix and
+stage guide.
 
 ## Common build issues
 
@@ -163,4 +164,4 @@ More in [Troubleshooting](Troubleshooting).
 - [Reordering-Algorithms](Reordering-Algorithms) — what each algorithm does and when to use it
 - [GraphBrewOrder](GraphBrewOrder) — the composable pipeline that produces ten variants
 - [Running-Benchmarks](Running-Benchmarks) — manual benchmark workflow
-- [VLDB-Experiments](VLDB-Experiments) — reproducing the paper
+- [Reproducible-Experiments](Reproducible-Experiments) — reproducing the frozen study

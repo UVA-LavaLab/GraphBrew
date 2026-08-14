@@ -171,7 +171,7 @@ public:
     }
 
     /**
-     * P2 3.1e: DON-augmented ExtractMax — within the top bucket,
+     * DON-augmented ExtractMax: within the top bucket,
      * pick the vertex with highest DON priority (degree-based) to
      * break ties.  Scans at most the entire bucket, so overhead
      * scales with bucket size, not N.
@@ -511,7 +511,7 @@ void gorder_greedy_csr(const CSRGraph<NodeID_, DestID_, invert>& g,
     const int num_active = n - 1 - static_cast<int>(zero.size());
     std::vector<char> popvexist(n, 0);
 
-    // P2 3.1e: DON priority for tiebreaking (total degree as proxy)
+    // DON priority for tiebreaking (total degree as proxy)
     // Only computed when ADAPTIVE_DON_TIEBREAK=1
     std::vector<int> don_priority;
     bool use_don = false;
@@ -658,7 +658,7 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
         [&](int a, int b) { return indeg(a) > indeg(b); });
     int fill_cursor = 0;
 
-    // P2 3.1e: DON priority for tiebreaking (total degree as proxy)
+    // DON priority for tiebreaking (total degree as proxy)
     std::vector<int> don_priority;
     bool use_don = false;
     #ifndef GORDER_NO_ABLATION
@@ -759,7 +759,7 @@ void gorder_greedy_parallel(const CSRGraph<NodeID_, DestID_, invert>& g,
         if (B_front > 0) {
             auto cmp = [&](int a, int b) {
                 if (score[a] != score[b]) {
-                    // P2 3.1e: When scores are within 5%, use DON priority
+                    // When scores are within 5%, use DON priority.
                     if (use_don) {
                         int hi = std::max(score[a], score[b]);
                         if (hi > 0 && std::abs(score[a] - score[b]) * 20 <= hi) {

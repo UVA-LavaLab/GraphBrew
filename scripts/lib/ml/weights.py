@@ -52,10 +52,10 @@ DEFAULT_WEIGHTS_DIR = str(ACTIVE_WEIGHTS_DIR)
 # Auto-clustering configuration
 CLUSTER_DISTANCE_THRESHOLD = 0.15  # Max normalized distance to join existing cluster
 
-# P2 2.2: Per-type OOD — fallback global threshold (used when type has no radius)
+# Fallback global OOD threshold when a type has no radius.
 OOD_DISTANCE_THRESHOLD_GLOBAL = 1.5
 
-# P2 2.2: OOD ratio threshold — distance / type_radius > this → OOD
+# OOD ratio threshold: distance / type_radius above this value is OOD.
 OOD_RADIUS_RATIO = 1.5
 
 # Dead feature keys — features that are ALWAYS 0 in training data.
@@ -365,10 +365,10 @@ class PerceptronWeight:
     # --- Convergence bonus (iterative benchmarks only) ---
     w_fef_convergence: float = 0.0       # FEF bonus for PR/PR_SPMV/SSSP
     
-    # --- P1 3.1d: Sampled locality score ---
+    # --- Sampled locality score ---
     w_sampled_locality: float = 0.0      # F(σ) approximation for current ordering quality
     
-    # --- P3 3.2: Transpose reuse distance ---
+    # --- Transpose reuse distance ---
     w_avg_reuse_distance: float = 0.0    # Mean next-reuse distance from transpose (CSC)
     
     # --- Paper-aligned feature weights ---
@@ -387,7 +387,7 @@ class PerceptronWeight:
     avg_speedup: float = 1.0             # Average speedup vs ORIGINAL
     avg_reorder_time: float = 0.0        # Average reorder time (seconds)
     
-    # --- P1 1.4: Platt scaling parameters ---
+    # --- Platt scaling parameters ---
     # After training, logistic regression maps score margin → P(win):
     #   P(win) = 1 / (1 + exp(-(platt_A * margin + platt_B)))
     # platt_A == 0 means uncalibrated (Platt scaling disabled).
@@ -510,9 +510,9 @@ class PerceptronWeight:
         score += self.w_working_set_ratio * math.log2(features.get('working_set_ratio', 0.0) + 1.0)
         score += self.w_vertex_significance_skewness * features.get('vertex_significance_skewness', 0.0)
         score += self.w_window_neighbor_overlap * features.get('window_neighbor_overlap', 0.0)
-        # P1 3.1d: Sampled locality score
+        # Sampled locality score
         score += self.w_sampled_locality * features.get('sampled_locality_score', 0.0)
-        # P3 3.2: Transpose reuse distance
+        # Transpose reuse distance
         score += self.w_avg_reuse_distance * features.get('avg_reuse_distance', 0.0)
         # Paper-aligned feature variants
         score += self.w_packing_factor_cl * features.get('packing_factor_cl', 0.0)
@@ -784,7 +784,7 @@ def _pearson_correlation(x: List[float], y: List[float]) -> float:
 
 
 # =============================================================================
-# Platt Scaling (P1 1.4) — Calibrate score margins to probabilities
+# Platt scaling calibrates score margins to probabilities.
 # =============================================================================
 
 def platt_probability(margin: float, A: float, B: float) -> float:
@@ -1154,7 +1154,7 @@ def assign_graph_type(
         _type_registry[closest_type]['graph_count'] = count + 1
         _type_registry[closest_type]['last_updated'] = datetime.now().isoformat()
         
-        # P2 2.2: Track distances for per-type radius computation
+        # Track distances for per-type radius computation.
         if 'distances' not in _type_registry[closest_type]:
             _type_registry[closest_type]['distances'] = []
         _type_registry[closest_type]['distances'].append(min_distance)
@@ -1187,8 +1187,8 @@ def assign_graph_type(
             'graph_count': 1,
             'algorithms': [],
             'graphs': [graph_name] if graph_name else [],
-            'distances': [],  # P2 2.2: distance history for radius computation
-            'radius': 0.0,    # P2 2.2: p95 distance to centroid (0 = single sample)
+            'distances': [],  # Distance history for radius computation
+            'radius': 0.0,    # p95 distance to centroid (0 = single sample)
             'created': datetime.now().isoformat(),
             'last_updated': datetime.now().isoformat(),
             'representative_features': {
@@ -1235,7 +1235,7 @@ def update_type_weights_incremental(
         reorder_time: Time to reorder the graph
         weights_dir: Directory for type files
         learning_rate: Learning rate for weight updates
-        significance_weight: Multiplier for effective learning rate (P0 3.1c).
+        significance_weight: Multiplier for the effective learning rate.
             Graphs where algorithm choice matters more (large speedup range)
             get higher weight, improving convergence 2-3× (DON-RL, Zhao et al.).
             Default 1.0 preserves backward compatibility.
@@ -1286,7 +1286,7 @@ def update_type_weights_incremental(
     current_score = algo_weights['bias']
     error = (speedup - 1.0) - current_score
     
-    # P0 3.1c: Scale effective learning rate by significance weight.
+    # Scale the effective learning rate by significance weight.
     # High-impact examples (where algorithm choice matters most) contribute
     # more to gradient updates, improving convergence 2-3× (DON-RL).
     effective_lr = learning_rate * max(0.0, significance_weight)
@@ -1331,9 +1331,9 @@ def update_type_weights_incremental(
     algo_weights['w_vertex_significance_skewness'] = algo_weights.get('w_vertex_significance_skewness', 0.0) + effective_lr * error * vss
     algo_weights['w_window_neighbor_overlap'] = algo_weights.get('w_window_neighbor_overlap', 0.0) + effective_lr * error * wno
     
-    # P1 3.1d: Sampled locality score gradient
+    # Sampled locality score gradient
     algo_weights['w_sampled_locality'] = algo_weights.get('w_sampled_locality', 0.0) + effective_lr * error * features.get('sampled_locality_score', 0.0)
-    # P3 3.2: Transpose reuse distance gradient
+    # Transpose reuse distance gradient
     algo_weights['w_avg_reuse_distance'] = algo_weights.get('w_avg_reuse_distance', 0.0) + effective_lr * error * features.get('avg_reuse_distance', 0.0)
     # Paper-aligned feature gradients
     algo_weights['w_packing_factor_cl'] = algo_weights.get('w_packing_factor_cl', 0.0) + effective_lr * error * features.get('packing_factor_cl', 0.0)

@@ -715,7 +715,7 @@ class TestEndToEnd:
 
 
 # ===========================================================================
-# P0 3.1c — Significance-weighted training tests
+# Significance-weighted training tests
 # ===========================================================================
 
 class TestSignificanceWeighting:

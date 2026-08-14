@@ -61,12 +61,18 @@ from scripts.experiments.vldb.config import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("vldb_figures")
 
-# Paper figure directory (for direct LaTeX inclusion).
-# The canonical paper source lives at paper/ — figures are copied into
-# paper/dataCharts/<subdir>/ so main.tex can \includegraphics{dataCharts/...}.
-PAPER_DIR = PROJECT_ROOT / "research"
-PAPER_CHARTS_DIR = PAPER_DIR / "dataCharts"
 PUBLISH_TO_PAPER = os.environ.get("GRAPHBREW_PUBLISH_PAPER_FIGURES") == "1"
+_PRIVATE_PAPER_ROOT = os.environ.get("GRAPHBREW_PRIVATE_PAPER_ROOT")
+if PUBLISH_TO_PAPER and not _PRIVATE_PAPER_ROOT:
+    raise RuntimeError(
+        "Publishing figures requires GRAPHBREW_PRIVATE_PAPER_ROOT")
+PAPER_DIR = (
+    Path(_PRIVATE_PAPER_ROOT).resolve()
+    if _PRIVATE_PAPER_ROOT else None
+)
+PAPER_CHARTS_DIR = (
+    PAPER_DIR / "dataCharts" if PAPER_DIR is not None else None
+)
 
 # Try importing matplotlib; if not available, skip figure generation
 try:
@@ -2869,7 +2875,8 @@ def main() -> None:
 
     log.info(f"\nFigures saved to: {FIGURES_DIR}")
     log.info(f"Tables saved to: {TABLES_DIR}")
-    log.info(f"Paper charts dir: {PAPER_CHARTS_DIR}")
+    if PUBLISH_TO_PAPER:
+        log.info(f"Private paper charts dir: {PAPER_CHARTS_DIR}")
 
 
 if __name__ == "__main__":

@@ -1,14 +1,14 @@
-# `vldb/` — VLDB 2026 paper
+# Frozen study reproduction
 
-Single source of truth for the VLDB paper. Everything VLDB-related lives
-under this folder.
+This compatibility package reproduces the frozen evaluation campaign. New
+research uses the top-level orchestrator and shared modules under `scripts/lib/`.
 
 | File / dir | Purpose |
 |---|---|
-| [`config.py`](config.py)       | ★ Graph sets, baselines, COMPOSE_VARIANTS, benchmark list, trial counts. ONE source of truth. |
+| [`config.py`](config.py)       | Frozen graph sets, baselines, variants, benchmarks, and trial counts |
 | [`runner.py`](runner.py)       | Monolithic all-in-one runner (legacy; still works) |
 | [`figures.py`](figures.py)     | LaTeX + PNG emitter (called by stage 05) |
-| [`stages/`](stages/README.md)  | ★ Recommended: 5 independent stage runners + per-stage SLURM templates |
+| [`stages/`](stages/README.md)  | Five independent stage runners + SLURM templates |
 | [`experiments/`](experiments/) | Per-experiment recipe READMEs (`exp1_cache/`, ..., `exp8_scalability/`) |
 | [`slurm/monolithic.sbatch`](slurm/monolithic.sbatch) | Legacy single-job SLURM template |
 
@@ -22,6 +22,7 @@ python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview --verif
 python3 scripts/experiments/vldb/stages/03_cpu_perf.py --exp 2 --preview
 python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 --preview  # optional
 python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0 \
+  --paper-dir /path/to/private-paper \
   --publish-paper-figures --package-paper                               # optional
 ```
 
@@ -39,8 +40,8 @@ explicit exploratory cohorts.
 
 ## Final weighted SSSP policy freeze
 
-After the final corpus refresh, tune on the SHUFFLED baseline and complete the layered
-Opus/Sol review of
+After the final corpus refresh, tune on the SHUFFLED baseline and complete two
+independent technical reviews of
 `<artifact-root>/vldb_paper/sssp_delta_tuning.json`. Then freeze the exact
 reviewed artifact and recommendations into the repository SSOT.
 
@@ -94,8 +95,8 @@ python3 scripts/experiments/vldb/runner.py --exp 2 --preview
 
 | Stage | Path |
 |---|---|
-| 01 | `results/graphs/<name>/<name>.{sg,mtx,el}` |
-| 02 | `results/vldb_mappings/<graph>/<algo_key>.{lo,time}` |
-| 03 | `results/vldb_paper/exp<N>_*/...json` |
-| 04 | `results/vldb_paper/exp1_cache/cache_results.json` |
-| 05 | `paper/figures/`, `paper/dataCharts/` |
+| 01 | `<graph-root>/<name>/<name>.{sg,mtx,el}` |
+| 02 | `<artifact-root>/vldb_mappings/<graph>/<algo_key>.{lo,json}` |
+| 03 | `<artifact-root>/vldb_paper/exp<N>_*/...json` |
+| 04 | `<artifact-root>/vldb_paper/exp1_cache/cache_results.json` |
+| 05 | `<artifact-root>/vldb_paper/{figures,tables}/` |

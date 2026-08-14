@@ -4,6 +4,7 @@
 import subprocess
 import sys
 from pathlib import Path
+import re
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -25,12 +26,50 @@ def test_public_docs_exclude_retired_workflow_claims():
     assert "LOGO CV on all ML models" not in text
 
 
+def test_public_tree_excludes_private_and_agent_process_markers():
+    result = subprocess.run(
+        ["git", "ls-files"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    text_extensions = {
+        ".cc", ".cpp", ".h", ".hpp", ".md", ".py", ".txt",
+        ".yml", ".yaml", ".ps1", ".hxx", ".sbatch", ".json",
+        ".def", ".sh",
+    }
+    suffixless_names = {"Makefile", ".gitignore", ".gitattributes"}
+    content = []
+    for relative in result.stdout.splitlines():
+        path = PROJECT_ROOT / relative
+        if (
+            path.suffix in text_extensions
+            or path.name in suffixless_names
+        ) and path.is_file():
+            content.append(path.read_text(errors="ignore"))
+    public_text = "\n".join(content)
+    forbidden = (
+        "claude" + "-opus",
+        "gpt" + "-5",
+        "opus" + "_review",
+        "sol" + "_review",
+        "/Users/" + "amughrabi",
+        "research/" + "VLDB_2026",
+        "research/" + "ADAPTIVE_SELECTOR",
+    )
+    assert not any(
+        re.search(pattern, public_text, flags=re.IGNORECASE)
+        for pattern in forbidden
+    )
+
+
 def test_public_docs_use_orchestrator_for_normal_frozen_runs():
     getting_started = (
         PROJECT_ROOT / "wiki" / "Getting-Started.md"
     ).read_text()
     quick_start = (
-        PROJECT_ROOT / "wiki" / "VLDB-Experiments.md"
+        PROJECT_ROOT / "wiki" / "Reproducible-Experiments.md"
     ).read_text().split("## 2. Prerequisites", 1)[0]
 
     assert "scripts/graphbrew_experiment.py --vldb" in getting_started

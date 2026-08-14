@@ -1,11 +1,10 @@
-# `scripts/` — single source of truth
+# Python tooling
 
 ```
 scripts/
-├── experiments/               ← paper experiment runners (see experiments/README.md)
-│   ├── vldb/                   VLDB 2026 paper — everything in one place
-│   ├── ecg/                    ECG / GrAPL paper
-│   ├── adaptive_ml/            ML-ordering model ablation
+├── experiments/               isolated, restartable study runners
+│   ├── vldb/                   frozen study reproduction
+│   ├── adaptive_ml/            model diagnostics
 │   └── legacy/                 archived (no live imports)
 ├── lib/                       ← reusable Python modules (imported, not run)
 │   ├── core/                   ResultsStore, parsing, run helpers
@@ -14,7 +13,7 @@ scripts/
 │   ├── ml/                     adaptive ordering model
 │   └── tools/                  misc CLIs
 ├── test/                      ← pytest tests
-├── graphbrew_experiment.py    ← legacy unified one-click pipeline
+├── graphbrew_experiment.py    public experiment orchestrator
 └── requirements.txt
 ```
 
@@ -22,17 +21,15 @@ scripts/
 
 | Artifact | Path |
 |---|---|
-| Graphs (downloaded + converted)        | `results/graphs/<name>/<name>.{sg,mtx,el}` |
-| Reorder mappings cache (`.lo` + `.time`) | `results/vldb_mappings/<graph>/<algo_key>.lo` |
-| VLDB experiment JSON                  | `results/vldb_paper/exp<N>_*/` |
-| Aggregated figures + tables           | `paper/figures/`, `paper/dataCharts/`, `results/vldb_paper/{figures,tables}/` |
-| ECG experiments                       | `results/ecg_experiments/` |
+| Large graph corpus                    | `/media/Data/00_GraphDatasets/GraphBrew/` |
+| Large mappings/results                | `/media/Data/00_GraphDatasets/GraphBrew/artifacts/` |
+| Generic observations                  | `results/data/` |
 | Generic logs                          | `results/logs/`, `results/slurm_logs/` |
 
 Auto-download for the VLDB pipeline is driven by
 [`experiments/vldb/config.py:VLDB_GRAPH_SOURCES`](experiments/vldb/config.py).
 
-## Quick start (VLDB stage-based, recommended)
+## Frozen-study reproduction
 
 ```bash
 source .venv/bin/activate
@@ -59,7 +56,6 @@ SLURM templates: `scripts/experiments/vldb/stages/slurm/*.sbatch`.
 ## Legacy / all-in-one entry points
 
 - `scripts/experiments/vldb/runner.py --all --local` — monolithic VLDB runner
-- `scripts/experiments/ecg/runner.py --all` — monolithic ECG runner
 - `scripts/graphbrew_experiment.py --phase all` — original one-click pipeline
 - `scripts/experiments/vldb/slurm/monolithic.sbatch` — monolithic SLURM template
 
