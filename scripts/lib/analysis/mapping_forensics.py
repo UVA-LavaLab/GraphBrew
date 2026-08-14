@@ -573,23 +573,37 @@ def validate_dbg_semantics(
         ("adjacency-degree-average", directed_average),
         ("legacy-half-edge-average", directed_average // 2),
     )
+    matches = []
     for policy, average in policies:
+        if policy == "legacy-half-edge-average" and average == 0:
+            continue
         ordered_buckets = dbg_bucket_codes(
             degrees, average_degree=average)[inverse]
         if not np.any(
             ordered_buckets[1:] > ordered_buckets[:-1]
         ):
             counts = np.bincount(ordered_buckets, minlength=8)
-            return {
-                "schema": "dbg-bucket-validation/v2",
-                "valid": True,
-                "semantics": policy,
+            matches.append({
+                "policy": policy,
                 "average_degree": average,
                 "bucket_counts_low_to_high": counts.tolist(),
                 "ordered_buckets_high_to_low": [
                     int(code) for code in np.flatnonzero(counts)[::-1]
                 ],
-            }
+            })
+    if matches:
+        return {
+            "schema": "dbg-bucket-validation/v3",
+            "valid": True,
+            "semantics": (
+                matches[0]["policy"]
+                if len(matches) == 1 else "ambiguous"
+            ),
+            "consistent_semantics": [
+                match["policy"] for match in matches
+            ],
+            "matches": matches,
+        }
     raise ValueError(
         "DBG mapping violates current and legacy bucket semantics")
 

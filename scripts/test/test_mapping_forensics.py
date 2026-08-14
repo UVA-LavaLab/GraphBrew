@@ -287,7 +287,8 @@ def test_dbg_semantics_rejects_bucket_interleaving():
     valid = np.array([0, 3, 1, 2], dtype=np.int32)
     validation = validate_dbg_semantics(valid, degrees)
     assert validation["valid"]
-    assert validation["semantics"] == "adjacency-degree-average"
+    assert "adjacency-degree-average" in (
+        validation["consistent_semantics"])
     invalid = np.array([0, 1, 2, 3], dtype=np.int32)
     with pytest.raises(ValueError, match="bucket semantics"):
         validate_dbg_semantics(invalid, degrees)
@@ -298,7 +299,7 @@ def test_dbg_legacy_half_edge_semantics_are_explicit():
     positions = np.arange(6, dtype=np.int32)
     validation = validate_dbg_semantics(positions, degrees)
     assert validation["semantics"] == "legacy-half-edge-average"
-    assert validation["average_degree"] == 2
+    assert validation["matches"][0]["average_degree"] == 2
 
 
 def test_positive_bit_cost():
@@ -328,6 +329,11 @@ def test_analyze_graph_artifacts_end_to_end(tmp_path):
     assert result["claim_eligible"] is False
     assert result["artifact_identity"]["legacy_forensic"] is True
     assert result["dbg_validation"]["valid"] is True
+    assert result["dbg_validation"]["semantics"] in {
+        "adjacency-degree-average",
+        "legacy-half-edge-average",
+        "ambiguous",
+    }
     assert set(result["layout_metrics"]) == {
         LAYOUT_INPUT,
         "SOURCE-ID-DIAGNOSTIC",
