@@ -562,6 +562,20 @@ def test_forensics_plan_and_discovery_fixture(tmp_path):
     assert payload["confirmation_lockbox_unopened"] is True
     assert payload["nomination"]["h0_passes"] == 8
 
+    first_input = Path(next(iter(
+        plan["discovery"][0]["manifest"]["inputs"]
+    )))
+    first_input.write_bytes(first_input.read_bytes() + b"x")
+    with pytest.raises(RuntimeError, match="changed after freeze"):
+        execute_forensics_discovery(
+            plan_path,
+            resume=False,
+            require_clean_implementation=False,
+        )
+    failure = json.loads(output.read_text())
+    assert failure["status"] == "negative-result"
+    assert failure["negative_result"]["failed_gate"] == "artifact"
+
 
 def test_top_level_forensics_commands_are_exposed():
     result = subprocess.run(

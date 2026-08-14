@@ -1894,13 +1894,17 @@ def _project_graph_seconds(
     hash_seconds = 2 * total_bytes / (180 * 1024**2)
     mapping_parse_seconds = mapping_bytes / (18 * 1024**2)
     edge_scan_seconds = undirected_edges / 350_000
+    feature_pass_seconds = (2 * undirected_edges) / 1_500_000
     sampled_m3_seconds = min(180.0, nodes / 100_000)
     projected = (
         hash_seconds
         + mapping_parse_seconds
         + edge_scan_seconds
+        + feature_pass_seconds
         + sampled_m3_seconds
     )
+    sg_bytes = int(
+        manifest["inputs"][str(artifacts.sg_path.resolve())]["bytes"])
     return {
         "nodes": nodes,
         "undirected_edges": undirected_edges,
@@ -1909,10 +1913,11 @@ def _project_graph_seconds(
         "hash_seconds": hash_seconds,
         "mapping_parse_seconds": mapping_parse_seconds,
         "edge_scan_seconds": edge_scan_seconds,
+        "feature_pass_seconds": feature_pass_seconds,
         "sampled_m3_seconds": sampled_m3_seconds,
         "projected_seconds": projected,
         "projected_peak_bytes":
-            estimated_peak_bytes(nodes, undirected_edges),
+            estimated_peak_bytes(nodes, undirected_edges) + sg_bytes,
     }
 
 
@@ -2033,7 +2038,8 @@ def build_forensics_plan(
             "projected_peak_bytes": max_peak,
             "projection_model":
                 "2x SHA at 180MiB/s + LO parse at 18MiB/s + "
-                "edges at 350k/s + bounded M3",
+                "metrics at 350k edges/s + feature queries at "
+                "1.5M directed edges/s + bounded M3",
         },
         "paths": {
             "graph_root": str(Path(graph_root).resolve()),
@@ -2465,8 +2471,28 @@ def execute_forensics_discovery(
         - prior_consumed
     )
     if remaining_budget <= 0:
-        raise TimeoutError(
+        error = TimeoutError(
             "Cumulative forensic wall-clock cap is exhausted")
+        _atomic_json({
+            "schema": "graphbrew-mapping-forensics-discovery/v1",
+            "plan": str(Path(plan_path).resolve()),
+            "plan_sha256": plan["plan_sha256"],
+            "measurement_mode": FORENSICS_MODE,
+            "claim_eligible": False,
+            "status": "negative-result",
+            "negative_result": {
+                "failed_gate": "wall-clock",
+                "graph": None,
+                "error": str(error),
+                "statement": "Route F stopped at a resource gate.",
+            },
+            "consumed_seconds": prior_consumed,
+            "peak_rss_bytes": peak_rss_bytes(),
+            "completed_graphs": [],
+            "result_paths": [],
+            "confirmation_lockbox_unopened": True,
+        }, artifact_root / "discovery_summary.json")
+        raise error
     deadline = started + remaining_budget
     rows = []
     projected_completed = 0.0
@@ -2478,69 +2504,110 @@ def execute_forensics_discovery(
         for record in plan["discovery"]
     )
     for index, record in enumerate(plan["discovery"]):
-        _check_deadline(deadline)
         graph = record["graph"]
         result_path = per_graph_dir / f"{graph}.json"
-        if result_path.is_file() and resume:
-            existing = json.loads(result_path.read_text())
-            if (
-                existing.get("schema") != FORENSICS_RESULT_SCHEMA
-                or existing.get("plan_sha256") != plan["plan_sha256"]
-                or existing.get("input_manifest_sha256")
-                    != record["manifest_sha256"]
-                or existing.get("post_input_verification") != "pass"
-            ):
-                raise RuntimeError(
-                    f"Stale forensic result requires no-resume: {graph}")
-            rows.append(existing)
-            resumed_graphs.append(graph)
-        else:
-            if (
-                record["manifest_sha256"]
-                != canonical_json_sha256(record["manifest"])
-            ):
-                raise ValueError(
-                    f"Discovery manifest digest changed: {graph}")
-            artifacts = build_artifact_set(
-                graph,
-                Path(plan["paths"]["graph_root"]),
-                Path(plan["paths"]["mapping_root"]),
-                Path(plan["paths"]["equivalence_root"]),
-            )
-            result = analyze_graph_artifacts(
-                artifacts,
-                input_manifest=record["manifest"],
-                deadline_monotonic=deadline,
-                rss_limit_bytes=int(
-                    plan["resource_policy"]["rss_bytes"]),
-            )
-            result.update({
-                "schema": FORENSICS_RESULT_SCHEMA,
-                "plan_sha256": plan["plan_sha256"],
-                "input_manifest_sha256":
-                    record["manifest_sha256"],
-            })
-            _atomic_json(result, result_path)
-            rows.append(result)
-            executed_projected += float(
-                record["projection"]["projected_seconds"])
-            executed_elapsed += float(result["elapsed_seconds"])
-        projected_completed += float(
-            record["projection"]["projected_seconds"])
-        elapsed = time.monotonic() - started
-        if executed_projected > 0 and index + 1 < len(
-            plan["discovery"]
-        ):
-            slowdown = max(
-                1.0, executed_elapsed / executed_projected)
-            remaining = projected_total - projected_completed
-            if elapsed + slowdown * remaining > int(
-                plan["resource_policy"]["wall_seconds"]
-            ):
-                raise TimeoutError(
-                    "Observed forensic throughput projects beyond "
-                    "the four-hour cap"
+        try:
+            _check_deadline(deadline)
+            if result_path.is_file() and resume:
+                existing = json.loads(result_path.read_text())
+                if (
+                    existing.get("schema") != FORENSICS_RESULT_SCHEMA
+                    or existing.get("plan_sha256") != plan["plan_sha256"]
+                    or existing.get("input_manifest_sha256")
+                        != record["manifest_sha256"]
+                    or existing.get("post_input_verification") != "pass"
+                ):
+                    raise RuntimeError(
+                        f"Stale forensic result requires no-resume: {graph}")
+                rows.append(existing)
+                resumed_graphs.append(graph)
+            else:
+                if (
+                    record["manifest_sha256"]
+                    != canonical_json_sha256(record["manifest"])
+                ):
+                    raise ValueError(
+                        f"Discovery manifest digest changed: {graph}")
+                artifacts = build_artifact_set(
+                    graph,
+                    Path(plan["paths"]["graph_root"]),
+                    Path(plan["paths"]["mapping_root"]),
+                    Path(plan["paths"]["equivalence_root"]),
                 )
+                result = analyze_graph_artifacts(
+                    artifacts,
+                    input_manifest=record["manifest"],
+                    deadline_monotonic=deadline,
+                    rss_limit_bytes=int(
+                        plan["resource_policy"]["rss_bytes"]),
+                )
+                result.update({
+                    "schema": FORENSICS_RESULT_SCHEMA,
+                    "plan_sha256": plan["plan_sha256"],
+                    "input_manifest_sha256":
+                        record["manifest_sha256"],
+                })
+                _atomic_json(result, result_path)
+                rows.append(result)
+                executed_projected += float(
+                    record["projection"]["projected_seconds"])
+                executed_elapsed += float(result["elapsed_seconds"])
+            projected_completed += float(
+                record["projection"]["projected_seconds"])
+            elapsed = time.monotonic() - started
+            if executed_projected > 0 and index + 1 < len(
+                plan["discovery"]
+            ):
+                slowdown = max(
+                    1.0, executed_elapsed / executed_projected)
+                remaining = projected_total - projected_completed
+                if elapsed + slowdown * remaining > int(
+                    plan["resource_policy"]["wall_seconds"]
+                ):
+                    raise TimeoutError(
+                        "Observed forensic throughput projects beyond "
+                        "the four-hour cap"
+                    )
+        except (OSError, ValueError, RuntimeError, MemoryError, TimeoutError) as error:
+            failed_gate = (
+                "wall-clock" if isinstance(error, TimeoutError)
+                else "rss" if isinstance(error, MemoryError)
+                else "artifact"
+            )
+            failure = {
+                "schema": "graphbrew-mapping-forensics-discovery/v1",
+                "plan": str(Path(plan_path).resolve()),
+                "plan_sha256": plan["plan_sha256"],
+                "measurement_mode": FORENSICS_MODE,
+                "claim_eligible": False,
+                "status": "negative-result",
+                "negative_result": {
+                    "failed_gate": failed_gate,
+                    "graph": graph,
+                    "error": str(error),
+                    "statement": (
+                        "Route F stopped at an artifact or resource gate."
+                    ),
+                },
+                "consumed_seconds": sum(
+                    float(row.get("elapsed_seconds", 0.0))
+                    for row in rows
+                ),
+                "peak_rss_bytes": peak_rss_bytes(),
+                "completed_graphs": [
+                    row["graph"] for row in rows
+                ],
+                "result_paths": [
+                    str((
+                        per_graph_dir / f"{row['graph']}.json"
+                    ).resolve())
+                    for row in rows
+                ],
+                "confirmation_lockbox_unopened": True,
+            }
+            _atomic_json(
+                failure, artifact_root / "discovery_summary.json")
+            raise
     nomination = nominate_class(rows)
     summary = {
         "schema": "graphbrew-mapping-forensics-discovery/v1",
