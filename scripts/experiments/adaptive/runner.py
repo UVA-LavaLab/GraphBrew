@@ -134,6 +134,7 @@ H4_KERNEL_PROXY = (
     "comm_identity:intra_hubsort"
 )
 ALL_TIMING_ARMS = CHARACTERIZATION_BASELINE_ARM_SPECS
+PILOT_TIMING_ARMS = DEPLOYABLE_ARM_SPECS
 _KERNEL_EVIDENCE_PROXIES = {
     "10:canonical": "9:csr",
     "11:mind": "11",
@@ -898,7 +899,7 @@ def build_sprint1_budget_projection(
     pilot_graphs = sprint1_pilot_graphs()
     natural_pilot_rows: list[dict[str, Any]] = []
     for graph_name in NATURAL_PILOT_GRAPHS:
-        for arm in ALL_TIMING_ARMS:
+        for arm in PILOT_TIMING_ARMS:
             for benchmark in BENCHMARKS:
                 evidence = kernel_lookup[
                     (graph_name, arm, benchmark)]
@@ -957,7 +958,7 @@ def build_sprint1_budget_projection(
                 })
     randomized_pilot_rows: list[dict[str, Any]] = []
     for graph_name in pilot_graphs:
-        for arm in ALL_TIMING_ARMS:
+        for arm in PILOT_TIMING_ARMS:
             for benchmark in BENCHMARKS:
                 evidence = kernel_lookup[
                     (graph_name, arm, benchmark)]
@@ -1048,7 +1049,7 @@ def build_sprint1_budget_projection(
 
     rss_rows = []
     for graph_name in ("twitter7", "webbase-2001"):
-        for arm in ALL_TIMING_ARMS:
+        for arm in PILOT_TIMING_ARMS:
             evidence = kernel_lookup[(graph_name, arm, "pr")]
             raw_seconds_low = (
                 evidence["read_seconds_per_block"]
@@ -1547,6 +1548,8 @@ def build_sprint1_budget_projection(
                 list(PILOT_RETRY_ATTEMPTS),
             "characterization_baseline_arms":
                 list(ALL_TIMING_ARMS),
+            "deployable_pilot_arms":
+                list(PILOT_TIMING_ARMS),
             "natural_pilot_graphs": list(NATURAL_PILOT_GRAPHS),
             "natural_pilot_exclusions": NATURAL_PILOT_EXCLUSIONS,
             "native_ratio_low_floor": 0.25,
@@ -2752,6 +2755,10 @@ def _verify_budget_preconditions(
         raise ValueError(
             "Pilot characterization arm contract changed")
     if budget.get("policy", {}).get(
+        "deployable_pilot_arms"
+    ) != list(PILOT_TIMING_ARMS):
+        raise ValueError("Pilot deployable arm contract changed")
+    if budget.get("policy", {}).get(
         "pilot_retry_attempts"
     ) != list(PILOT_RETRY_ATTEMPTS):
         raise ValueError("Pilot retry budget contract changed")
@@ -2853,14 +2860,14 @@ def prepare_sprint1_pilot_execution(
     expected_group_sizes = {
         "randomized_pilot_rows":
             len(budget["pilot_graphs"])
-            * len(ALL_TIMING_ARMS)
+            * len(PILOT_TIMING_ARMS)
             * len(BENCHMARKS),
         "natural_pilot_rows":
             len(NATURAL_PILOT_GRAPHS)
-            * len(ALL_TIMING_ARMS)
+            * len(PILOT_TIMING_ARMS)
             * len(BENCHMARKS),
         "materialization_rows": len(NATURAL_PILOT_GRAPHS),
-        "rss_rows": 2 * len(ALL_TIMING_ARMS),
+        "rss_rows": 2 * len(PILOT_TIMING_ARMS),
         "cache_micro_pilot_rows": 9,
         "feature_pilot_rows":
             len(budget["pilot_graphs"]) + len(NATURAL_PILOT_GRAPHS),

@@ -16,6 +16,7 @@ from scripts.experiments.adaptive.runner import (
     ALL_TIMING_ARMS,
     CACHE_KERNELS,
     H4_DENDROGRAM_ANCHOR,
+    PILOT_TIMING_ARMS,
     _kernel_evidence_arm,
     _mapping_evidence_arm,
     _validate_source_manifest,
@@ -617,24 +618,27 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
         "randomized_cache_corpus"
     ]
     assert len(projection["randomized_pilot_rows"]) == (
-        3 * len(ALL_TIMING_ARMS) * len(BENCHMARKS)
+        3 * len(PILOT_TIMING_ARMS) * len(BENCHMARKS)
     )
     assert len(projection["cache_micro_pilot_rows"]) == 9
     assert len(projection["feature_pilot_rows"]) == 4
     assert len(projection["natural_pilot_rows"]) == (
-        len(ALL_TIMING_ARMS) * len(BENCHMARKS)
+        len(PILOT_TIMING_ARMS) * len(BENCHMARKS)
     )
     assert len(projection["materialization_rows"]) == 1
-    assert len(projection["rss_rows"]) == 2 * len(ALL_TIMING_ARMS)
+    assert len(projection["rss_rows"]) == 2 * len(PILOT_TIMING_ARMS)
     for graph_name in ("twitter7", "webbase-2001"):
         assert {
             row["arm"]
             for row in projection["rss_rows"]
             if row["graph"] == graph_name
-        } == set(ALL_TIMING_ARMS)
+        } == set(PILOT_TIMING_ARMS)
     assert projection["policy"]["natural_pilot_graphs"] == [
         "hollywood-2009"
     ]
+    assert projection["policy"]["deployable_pilot_arms"] == list(
+        PILOT_TIMING_ARMS
+    )
     bfs_probes = [
         row for row in projection["cache_micro_pilot_rows"]
         if row["kernel"] == "bfs"
@@ -694,9 +698,9 @@ def test_budget_projection_covers_frozen_matrix(tmp_path):
     )
     assert len(expected_priming_ids) == 4
     assert len(expected_command_ids) == (
-        4 * len(ALL_TIMING_ARMS) * len(BENCHMARKS)
+        4 * len(PILOT_TIMING_ARMS) * len(BENCHMARKS)
         * adaptive_runner.PILOT_PROCESS_BLOCKS
-        + 2 * len(ALL_TIMING_ARMS)
+        + 2 * len(PILOT_TIMING_ARMS)
         + 9
         + 4
     )
