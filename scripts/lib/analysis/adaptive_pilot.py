@@ -610,12 +610,12 @@ def _cache_hierarchy_lookups(stats: Mapping[str, Any]) -> int:
 
 
 def _cache_capacity_mib(result: Mapping[str, Any]) -> int:
-    match = re.fullmatch(
-        r"cache-simulator-(\d+)mib",
-        str(result.get("measurement_mode") or ""),
+    match = re.search(
+        r"\|(\d+)MiB\|",
+        str(result.get("command_id") or ""),
     )
     if match is None:
-        raise ValueError("Cache pilot measurement mode changed")
+        raise ValueError("Cache pilot command capacity changed")
     return int(match.group(1))
 
 
