@@ -523,14 +523,159 @@ the expander control behaved as a negative control.
 
 **Negative result:** no recoverable, novelty-safe, shared Rabbit/Gorder
 cache-locality failure qualified. The six reserved WSR-scale configurations
-remain unused. Do not run prevalence probes, scale timing, another synthetic
-family pass, corpus refresh, or adaptive work without an explicit user scope
-decision.
+remain unused. This closes the synthetic-family route only.
+
+### Route F: Frozen Real-Graph Mapping Forensics
+
+The user explicitly authorizes one final input-read-only, timing-free
+real-graph forensic pass. It remains `diagnostic-forensic`, claim-ineligible,
+and cannot establish proxy validity or runtime improvement.
+
+Discovery graphs are `cit-Patents`, `soc-pokec`, `USA-road-d.USA`,
+`soc-LiveJournal1`, `delaunay_n24`, `com-Orkut`, `wikipedia_link_en`, and
+`Gong-gplus`. `hollywood-2009`, `webbase-2001`, and `twitter7` are a locked
+confirmation cohort. Confirmation adjacency and mapping contents remain
+unopened until one class, detector, and candidate-mechanism specification are
+frozen and hashed.
+
+Use only each graph's exact `<graph>/<graph>.sg`, `5.lo`,
+`8_csr.draw{0,1,2}.lo`, and `9_csr.lo` artifacts. `8_csr.lo` is the selected
+draw-0 alias and is not a fourth Rabbit observation. Derive
+**INPUT-SHUFFLED** from SG internal order. Source-ID order is a separately
+labelled diagnostic, not a natural or neutral baseline. Never select
+`hollywood-2009.natural.sg`.
+
+Campaign `.lo` files use original/source-ID coordinates:
+
+```text
+file[new_id] = source_id
+new_id[sg_id] = source_to_new[org_ids[sg_id]]
+```
+
+Any Python analysis that omits this composition is invalid. Implement a
+separate numeric path in `scripts/lib/analysis/mapping_forensics.py`; do not
+reuse the synthetic text-graph analyzer.
+
+The artifact gates require:
+
+1. exact 17-byte SG header, file-size, dimension, and layout validation;
+2. valid `.lo` and `org_ids` permutations;
+3. correct source-space composition;
+4. sidecar algorithm/draw identity and Rabbit draw-0 alias equality;
+5. Gorder byte-equivalence evidence for promoted legacy mappings where
+   available;
+6. SHA-256 and permutation fingerprints before and after every pass;
+7. exact DBG bucket-order semantic validation;
+8. an analytic random-permutation line null reported as diagnostic only.
+
+Historical `reorder_meta/v4` inputs are labelled `legacy-forensic` and are
+never promoted to fresh-campaign evidence. Ten exact Gorder mappings are
+promoted legacy outputs with later byte-equivalence evidence; twitter7 is a
+direct generation. Record the remaining unquantified semantics-drift risk.
+No campaign SG, mapping, or mapping-sidecar path may be written. A SHA-256
+tripwire over all admitted inputs is frozen before reading their contents.
+
+Let:
+
+```text
+b_sigma(e) = 1 + floor(log2(max(1, |sigma(u) - sigma(v)|)))
+```
+
+Report exactly:
+
+- **M1:** exact mean positive-bit MLogA per undirected edge;
+- **M2:** exact excess-bit mass above gaps `8`, `64`, `4096`, and `262144`,
+  plus exact 8-byte-property same-line fraction;
+- **M3:** sampled distinct property lines per degree, diagnostic-only and
+  pre-rejected as a candidate objective because it is hypergraph
+  connectivity;
+- **M4:** source- and reflection-safe class-conditioned Rabbit/Gorder bit-bin
+  disagreement;
+- **M5:** min/median/max over exactly three Rabbit mapping draws;
+- **M6:** the one-sided optimistic class-headroom bound obtained by clipping
+  class-edge charges at gap 64. M6 is a falsifier, not a relocation
+  certificate or optimizer.
+
+M1, M2, M4, M5, and M6 use exact scans with no iid edge bootstrap. M3 samples
+at most 65,536 degree-stratified vertices with a frozen hash seed and a
+256-bucket cluster bootstrap. Across graphs report fixed-corpus counts and
+topology coverage, not population confidence intervals.
+
+Before discovery, freeze at most 64 source-label-free, topology-only class
+predicates using degree, neighbor-degree quantiles, bounded-sample local
+clustering, and a core-number proxy, plus exactly one nomination score.
+Nominate at most one class `C`. Thresholds cannot change after confirmation is
+unsealed.
+
+The gates execute in order:
+
+- **H0-Sanity:** on at least seven of eight discovery graphs,
+  `min(M1(Rabbit median), M1(Gorder)) < M1(INPUT-SHUFFLED)`. Passing has no
+  positive runtime meaning; failure stops Route F.
+- **H1:** one frozen class `C` occurs on at least three discovery graphs
+  spanning at least two topology types with at least 0.1% incident-edge
+  support.
+- **H2:** both Rabbit and Gorder carry line-scale/excess-bit charge on `C`,
+  and their M4 disagreement exceeds the maximum Rabbit/Rabbit draw
+  disagreement by at least 0.05.
+- **H3:** M6 is at least 0.05 for both median Rabbit and Gorder on the same
+  three or more graphs after accounting for Rabbit draw spread.
+- **H4:** `C` is detected deterministically in `O(m)` work and `O(n)` memory
+  without source IDs, timings, communities, or baseline mappings.
+
+Passing H0--H4 only nominates one signature. Before an algorithm ID or timing:
+
+- **N0:** write the signature as a decision-rule predicate, not a metric;
+- **N1:** freeze its mathematical objective/rule, invariant, deterministic
+  semantics, label-equivariance, and Rabbit-cost work/memory argument;
+- **N2:** attempt explicit reductions against median/insertion/swap,
+  FM/KL and multilevel refinement, Gorder windows, MinLA/MLogA local search,
+  DBG/HubSort/Corder, RCM/profile, graph/hypergraph partitioning, FrontOrder,
+  Rebo, SFC/Morton, and recursive layouts;
+- **N3:** provide a concrete non-equivalence graph for every closest family;
+- **N4:** pass one Opus-to-Sol review cycle with at most one revision, then
+  replicate H1--H4 unchanged on at least two of the three locked confirmation
+  graphs.
+
+Auto-reject any rule reducing to median/centroid placement of already placed
+neighbors, insertion/swap/FM refinement, recursive contiguous bisection, or
+distinct-lines-per-neighborhood minimization.
+
+Implement reusable logic in `scripts/lib/analysis/mapping_forensics.py` and
+expose `--mapping-forensics-plan`, `--mapping-forensics-discovery`, and
+`--mapping-forensics-confirmation` only through
+`scripts/graphbrew_experiment.py`.
+
+Implementation requirements:
+
+- mmap/chunked NumPy readers with `int32` position arrays;
+- one SG edge pass processing all layouts;
+- no `read_text().split()`, Python full adjacency lists, or per-edge Python
+  loops on campaign graphs;
+- a 56-GiB internal RSS ceiling, four-wall-hour cap including hashing, and an
+  observed-throughput projection that aborts before exceeding the cap;
+- no persisted composed-permutation caches; store only structured outputs
+  under
+  `/media/Data/00_GraphDatasets/GraphBrew/artifacts/mapping_forensics/<plan-hash>/`.
+
+Historical timing and observation rows are excluded as analysis inputs.
+Historical timing may appear only as a labelled
+`falsifier-only, claim-ineligible` reason to discard a proxy that contradicts
+known behavior; it cannot support H1--H4 or a candidate.
+
+If any artifact, H, or N gate fails, append a
+**Real-Graph Mapping Forensics Result** with the plan hash, failed gate,
+per-graph evidence, and consumed caps, then stop. No new theory pass, mapping
+generation, corpus refresh, timing, synthetic extension, or adaptive work is
+authorized automatically.
 
 **Gate:** Opus then Sol theory review. Do not assign an algorithm ID or launch
 timing before both approve.
 
 ## Phase 2: Native Implementation and Correctness
+
+Phase 2 remains blocked until Route F gates N0--N4 pass and the frozen
+candidate completes layered novelty review.
 
 Implement only the frozen candidate through the existing C++ dispatch,
 algorithm-name SSOT, mapping sidecars, and top-level orchestrator. Require:
