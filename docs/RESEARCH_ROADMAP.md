@@ -671,6 +671,64 @@ authorized automatically.
 **Gate:** two independent theory reviews. Do not assign an algorithm ID or
 launch timing before both approve.
 
+### Real-Graph Mapping Forensics Result
+
+The frozen discovery plan
+`8d9f1c6e1bc47a6957511d5e9342311264b3f09001e195e883d7e84308421b4a`
+completed all eight discovery graphs. The threshold hash was
+`f4389f126ff2ceefb0c07f54632db80e2e0851a7efc261c6108b74e6eface70b`,
+the class-bank hash was
+`0785aa04e6ae637c20062b52e55c8152c1088a250363ab0b50b826dc28f6a38e`,
+and the discovery-decision hash was
+`05fc68adcca9f6db07fed385c11e51715684bcb64efc3972cc6dfa009c94c0e2`.
+The pass consumed 7,341 seconds of analysis time and 7,394 seconds elapsed,
+with 8,346,853,376 bytes peak RSS. It generated no mappings and ran no kernel
+or cache timing.
+
+H0 passed on all eight graphs. Fifteen frozen classes met H1--H4, and the
+frozen nomination score selected class 2, `degree:q2`, with score 2.07966.
+The class is the graph-relative degree band `Q50 <= degree < Q75`; H1 held on
+all eight graphs, while H2 and H3 held on the six skewed
+citation/social/content graphs and failed on the road and mesh graphs:
+
+| Graph | Type | H0 best/input M1 | `degree:q2` support | H2 | H3 |
+|---|---|---:|---:|:---:|:---:|
+| `cit-Patents` | citation | 0.551 | 42.00% | pass | pass |
+| `soc-pokec` | social | 0.759 | 36.02% | pass | pass |
+| `USA-road-d.USA` | road | 0.107 | 40.72% | fail | fail |
+| `soc-LiveJournal1` | social | 0.609 | 25.15% | pass | pass |
+| `delaunay_n24` | mesh | 0.181 | 50.23% | fail | fail |
+| `com-Orkut` | social | 0.762 | 36.47% | pass | pass |
+| `wikipedia_link_en` | content | 0.664 | 13.33% | pass | pass |
+| `Gong-gplus` | social | 0.679 | 21.27% | pass | pass |
+
+The mandatory Opus-then-Sol novelty review rejected the nominee at N1--N3:
+
+- **N1 failed:** the predicate is deterministic and label-equivariant, but it
+  does not define an invariant placement rule, objective, or Rabbit-cost
+  algorithm. Its optimistic M6 headroom is primarily class support multiplied
+  by graph-wide excess, not a localized shared defect. On five of the six
+  qualifying graphs, Rabbit's class excess per edge was only 0.727--0.963 of
+  its global excess; Gorder was 1.011--1.050. Only
+  `wikipedia_link_en` showed material enrichment for both baselines.
+- **N2 failed:** a contiguous placement of `degree:q2` is a percentile-cut
+  degree segment, reducing to the occupied degree-bucketing space of DBG,
+  HubSort/HubCluster, Corder, and hub-peeling layouts. Residual-aware variants
+  reduce to weighted MLogA/MinLA, median/insertion refinement,
+  distinct-neighborhood-line hypergraph objectives, or partitioning.
+- **N3 failed:** without a distinct placement operator, no non-equivalence
+  graph can separate the rule from its closest prior families. Changing
+  average-relative degree boundaries to graph-relative quantiles is parameter
+  selection, not a new mechanism.
+
+No revision was authorized because the frozen evidence contains no
+novelty-safe operator to revise. The confirmation cohort remains sealed and
+unused, no candidate or algorithm ID is created, and Phases 2--4 remain
+blocked. This is the final negative result for Route F and closes the currently
+authorized independent-ordering search. No new theory pass, confirmation run,
+mapping generation, corpus refresh, timing, synthetic extension, or adaptive
+work follows without an explicit scope decision.
+
 ## Phase 2: Native Implementation and Correctness
 
 Phase 2 remains blocked until Route F gates N0--N4 pass and the frozen
