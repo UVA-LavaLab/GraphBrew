@@ -65,6 +65,7 @@ from scripts.lib.pipeline.benchmark import (
     file_sha256,
     parse_benchmark_output,
     repository_scope_state,
+    repository_scope_semantics,
 )
 
 SPRINT1_BUDGET_SCHEMA = "adaptive-sprint1-budget/v1"
@@ -269,8 +270,6 @@ def _current_graph_metadata(
         "converter_sha256": file_sha256(
             PROJECT_ROOT / "bench" / "bin" / "converter"
         ),
-        "conversion_repository_state":
-            _conversion_repository_state(),
         "expected_nodes": expected_nodes,
         "expected_undirected_edges": expected_undirected_edges,
         "nodes": expected_nodes,
@@ -281,6 +280,12 @@ def _current_graph_metadata(
             raise ValueError(
                 "Current graph metadata mismatch: "
                 f"{graph_name}/{key}")
+    if repository_scope_semantics(
+        metadata.get("conversion_repository_state", {})
+    ) != repository_scope_semantics(_conversion_repository_state()):
+        raise ValueError(
+            "Current graph metadata mismatch: "
+            f"{graph_name}/conversion_repository_state")
     expected_crc = metadata.get("output_crc32")
     if not isinstance(expected_crc, str) or not re.fullmatch(
         r"[0-9a-f]{8}", expected_crc
@@ -2373,13 +2378,17 @@ def materialize_sprint1_natural_graphs(
                     graph["undirected_edges"],
                 "ordering": "0",
                 "converter_sha256": file_sha256(converter),
-                "conversion_repository_state":
-                    _conversion_repository_state(),
             }
             for key, value in required.items():
                 if natural_metadata.get(key) != value:
                     raise ValueError(
                         f"Natural graph metadata mismatch: {graph_name}/{key}")
+            if repository_scope_semantics(
+                natural_metadata.get("conversion_repository_state", {})
+            ) != repository_scope_semantics(_conversion_repository_state()):
+                raise ValueError(
+                    "Natural graph metadata mismatch: "
+                    f"{graph_name}/conversion_repository_state")
             if natural_metadata.get("output_bytes") != natural_path.stat().st_size:
                 raise ValueError(
                     f"Natural graph size changed: {graph_name}")

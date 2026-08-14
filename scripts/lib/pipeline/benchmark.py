@@ -26,7 +26,7 @@ import time
 import uuid
 import zlib
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Mapping, Sequence, Tuple
 
 from ..core.utils import (
     BIN_DIR, ALGORITHMS, ALGORITHM_IDS, BENCHMARKS,
@@ -212,6 +212,16 @@ def repository_scope_state(
         "revision": revision,
         "relevant_diff_sha256": digest.hexdigest(),
         "relevant_untracked": untracked,
+    }
+
+
+def repository_scope_semantics(
+    state: Mapping[str, object],
+) -> dict[str, object]:
+    """Return the content-bearing portion of a repository scope state."""
+    return {
+        "relevant_diff_sha256": state.get("relevant_diff_sha256"),
+        "relevant_untracked": state.get("relevant_untracked"),
     }
 
 

@@ -1513,9 +1513,19 @@ def test_graph_provenance_uses_semantic_conversion_policy(tmp_path):
         ],
         "omp_num_threads": "4",
     }
+    provenance["conversion_policy_id"] = runner._graph_conversion_policy_id(
+        provenance, include_revision=True)
+    provenance_path.write_text(json.dumps(provenance))
+    assert runner._graph_provenance_valid(graph)
     provenance["conversion_policy_id"] = (
         runner._graph_conversion_policy_id(provenance)
     )
+    provenance_path.write_text(json.dumps(provenance))
+    assert runner._graph_provenance_valid(graph)
+    provenance["conversion_repository_state"] = {
+        **provenance["conversion_repository_state"],
+        "revision": "historical-provenance-only",
+    }
     provenance_path.write_text(json.dumps(provenance))
     assert runner._graph_provenance_valid(graph)
     provenance["schema"] = "graph_source/v1"

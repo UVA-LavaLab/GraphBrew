@@ -1318,6 +1318,7 @@ from scripts.lib.pipeline.benchmark import (  # noqa: E402
     mapping_permutation_fingerprint,
     parse_benchmark_output as _lib_parse_bench,
     repository_scope_state,
+    repository_scope_semantics,
 )
 from scripts.lib.core.utils import get_graph_dimensions  # noqa: E402
 from scripts.lib.ml.working_set import modeled_property_bytes  # noqa: E402
@@ -1355,7 +1356,14 @@ def _graph_provenance_path(graph_path: str | Path) -> Path:
     return Path(graph_path).with_suffix(".sg.meta.json")
 
 
-def _graph_conversion_policy_id(provenance: dict) -> str:
+def _graph_conversion_policy_id(
+    provenance: dict,
+    *,
+    include_revision: bool = False,
+) -> str:
+    repository_state = provenance.get("conversion_repository_state", {})
+    if not include_revision:
+        repository_state = repository_scope_semantics(repository_state)
     payload = {
         "schema": "graph_conversion_policy/v1",
         "symmetrized": provenance.get("symmetrized"),
@@ -1367,8 +1375,7 @@ def _graph_conversion_policy_id(provenance: dict) -> str:
         "source_crc32": provenance.get("source_crc32"),
         "output_crc32": provenance.get("output_crc32"),
         "converter_sha256": provenance.get("converter_sha256"),
-        "conversion_repository_state":
-            provenance.get("conversion_repository_state"),
+        "conversion_repository_state": repository_state,
         "expected_nodes": provenance.get("expected_nodes"),
         "expected_undirected_edges":
             provenance.get("expected_undirected_edges"),
@@ -1435,8 +1442,10 @@ def _graph_provenance_valid(
             and provenance.get("random_seed") == RANDOM_BASELINE_SEED
             and provenance.get("converter_sha256")
             == file_sha256(BIN_DIR / "converter")
-            and provenance.get("conversion_repository_state")
-            == _conversion_repository_state()
+            and repository_scope_semantics(
+                provenance.get("conversion_repository_state", {})
+            ) == repository_scope_semantics(
+                _conversion_repository_state())
             and (
                 not source_path.is_file()
                 or (
@@ -1476,8 +1485,11 @@ def _graph_provenance_valid(
             and provenance.get("output_bytes") == graph_path.stat().st_size
             and provenance.get("output_crc32")
             == _file_crc32(graph_path)
-            and provenance.get("conversion_policy_id")
-            == _graph_conversion_policy_id(provenance)
+            and provenance.get("conversion_policy_id") in {
+                _graph_conversion_policy_id(provenance),
+                _graph_conversion_policy_id(
+                    provenance, include_revision=True),
+            }
         )
     except (IndexError, OSError, ValueError, RuntimeError):
         return False
