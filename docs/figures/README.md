@@ -2,7 +2,7 @@
 
 Project logos and algorithm visualization diagrams.
 
-**Logos:** `logo_plain.svg` is the README mark. `logo.svg`, `logo.png`,
+**Logos:** `logo.svg` is the README mark. `logo_plain.svg`, `logo.png`,
 `logo.webp`, and `logo_left.png` are retained source/export variants.
 
 **Algorithm diagrams** (used by `wiki/Reordering-Algorithms.md`):

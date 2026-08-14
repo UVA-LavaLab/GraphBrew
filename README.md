@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/figures/logo_plain.svg" alt="GraphBrew" width="420">
-</p>
+[<p align="center"><img src="./docs/figures/logo.svg" width="200"></p>](#graphbrew)
 
 # GraphBrew
 
