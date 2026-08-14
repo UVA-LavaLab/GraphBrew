@@ -789,9 +789,12 @@ active.
 
 The active contribution is an attributed cost-aware selector, not a relabeled
 ordering. The existing Sprint-1 pilot remains `diagnostic-adaptive` and
-claim-ineligible. Its frozen manifest contains 527 serial commands plus four
-page-cache priming commands, projects 11.109 buffered node-hours at the pilot
-high estimate, and has a 49.428-hour bound if every command cap binds.
+claim-ineligible. Its frozen manifest contains 443 serial commands plus four
+page-cache priming commands, projects 9.37 buffered node-hours at the pilot
+high estimate, and has a 92.56-hour bound if every retry cap binds. The rapid
+path contains only the five deployable selector arms; the 14-arm attributed
+characterization matrix remains frozen for later evaluation and is not
+repeated in every pilot kernel/process cell.
 
 The three graphs formerly reserved as Route-F confirmation may be used only by
 this separately frozen adaptive manifest. No Route-F confirmation analysis,
