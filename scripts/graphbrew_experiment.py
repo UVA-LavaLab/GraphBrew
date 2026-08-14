@@ -2281,14 +2281,12 @@ def main():
     )
     g_paper.add_argument("--vldb", nargs="*", type=int, metavar="EXP",
                          help="Run the frozen study matrix (all or selected compatibility IDs)")
-    g_paper.add_argument("--ecg", nargs="*", type=int, metavar="EXP",
-                         help="Run the ECG study matrix (all or selected IDs)")
     g_paper.add_argument("--evaluate", action="store_true",
                          help="Run in-sample model/criterion diagnostics")
     g_paper.add_argument("--test", nargs="?", const="", metavar="FILTER",
                          help="Run the authoritative make check gate (optional pytest filter)")
     g_paper.add_argument("--paper-preview", action="store_true",
-                         help="Use preview mode for --vldb/--ecg (fewer graphs/benchmarks)")
+                         help="Use preview mode for --vldb (fewer graphs/benchmarks)")
     g_paper.add_argument(
         "--paper-tune-sssp-delta",
         action="store_true",
@@ -2316,7 +2314,7 @@ def main():
             "/media/Data/00_GraphDatasets/GraphBrew",
         ),
         metavar="DIR",
-        help="Graph directory for --vldb/--ecg experiments",
+        help="Graph directory for frozen-study experiments",
     )
     g_paper.add_argument("--paper-algorithms", nargs="+",
                          help="Restrict VLDB runs to exact canonical algorithm keys")
@@ -2345,7 +2343,13 @@ def main():
     g_paper.add_argument("--paper-cache-all-algorithms", action="store_true",
                          help="Sweep the full VLDB algorithm matrix in cache experiment 1")
     g_paper.add_argument("--paper-publish-figures", action="store_true",
-                         help="Copy generated VLDB figures into research/dataCharts/generated/")
+                         help="Copy generated figures into the private paper workspace")
+    g_paper.add_argument(
+        "--paper-dir",
+        default=os.environ.get("GRAPHBREW_PRIVATE_PAPER_ROOT"),
+        metavar="DIR",
+        help="Private paper workspace for optional publication export",
+    )
     g_paper.add_argument(
         "--adaptive-sprint1-plan",
         action="store_true",
@@ -2403,6 +2407,45 @@ def main():
     g_paper.add_argument(
         "--mechanism-discovery-cpu-list",
         help="taskset CPU list for the synthetic mapping screen",
+    )
+    g_paper.add_argument(
+        "--mapping-forensics-plan",
+        action="store_true",
+        help="Freeze the timing-free real-mapping forensic plan",
+    )
+    g_paper.add_argument(
+        "--mapping-forensics-discovery",
+        action="store_true",
+        help="Run the reviewed eight-graph forensic discovery cohort",
+    )
+    g_paper.add_argument(
+        "--mapping-forensics-confirmation",
+        action="store_true",
+        help="Run the locked confirmation cohort after novelty approval",
+    )
+    g_paper.add_argument(
+        "--mapping-forensics-refreeze-plan",
+        action="store_true",
+        help="Replace the forensic plan after explicit review",
+    )
+    g_paper.add_argument(
+        "--mapping-forensics-no-resume",
+        action="store_true",
+        help="Recompute reviewed forensic graph results",
+    )
+    g_paper.add_argument(
+        "--mapping-forensics-signature",
+        metavar="JSON",
+        help="Layered-reviewed signature artifact for confirmation",
+    )
+    g_paper.add_argument(
+        "--mapping-forensics-artifact-root",
+        default=(
+            "/media/Data/00_GraphDatasets/GraphBrew/"
+            "artifacts/mapping_forensics"
+        ),
+        metavar="DIR",
+        help="External output root for forensic plans/results",
     )
     g_paper.add_argument(
         "--adaptive-sprint1-sources",
@@ -2768,6 +2811,70 @@ def main():
         print(f"Wrote: {output}")
         raise SystemExit(0)
 
+    forensic_stages = sum((
+        bool(args.mapping_forensics_plan),
+        bool(args.mapping_forensics_discovery),
+        bool(args.mapping_forensics_confirmation),
+    ))
+    if forensic_stages > 1:
+        parser.error(
+            "Mapping-forensics plan, discovery, and confirmation "
+            "are separate reviewed stages"
+        )
+    if forensic_stages:
+        from scripts.lib.analysis.mapping_forensics import (
+            build_forensics_plan,
+            execute_forensics_confirmation,
+            execute_forensics_discovery,
+            write_forensics_plan,
+        )
+
+        forensic_root = Path(
+            args.mapping_forensics_artifact_root).resolve()
+        plan_path = forensic_root / "plan.json"
+        if args.mapping_forensics_plan:
+            paper_artifact_root = Path(
+                args.paper_artifact_root).resolve()
+            plan = build_forensics_plan(
+                graph_root=Path(args.paper_graph_dir).resolve(),
+                mapping_root=paper_artifact_root / "vldb_mappings",
+                equivalence_root=(
+                    paper_artifact_root
+                    / "vldb_paper" / "exp3_overhead"
+                    / "equivalence_checks"
+                ),
+                artifact_root=forensic_root,
+            )
+            output = write_forensics_plan(
+                plan,
+                forensic_root,
+                refreeze=args.mapping_forensics_refreeze_plan,
+            )
+            print(
+                "Mapping-forensics plan: "
+                f"{len(plan['discovery'])} discovery graphs, "
+                f"{plan['resource_policy']['projected_discovery_seconds'] / 60:.1f} "
+                "projected minutes"
+            )
+        elif args.mapping_forensics_discovery:
+            output = execute_forensics_discovery(
+                plan_path,
+                resume=not args.mapping_forensics_no_resume,
+            )
+        else:
+            if not args.mapping_forensics_signature:
+                parser.error(
+                    "--mapping-forensics-confirmation requires "
+                    "--mapping-forensics-signature"
+                )
+            output = execute_forensics_confirmation(
+                plan_path,
+                Path(args.mapping_forensics_signature).resolve(),
+                resume=not args.mapping_forensics_no_resume,
+            )
+        print(f"Wrote: {output}")
+        raise SystemExit(0)
+
     if args.adaptive_sprint1_plan:
         import subprocess as _sp
         cmd = [
@@ -2917,6 +3024,11 @@ def main():
     ):
         import subprocess as _sp
         cmd = ["python3", "scripts/experiments/vldb/runner.py"]
+        if args.paper_publish_figures and not args.paper_dir:
+            parser.error(
+                "--paper-publish-figures requires --paper-dir or "
+                "GRAPHBREW_PRIVATE_PAPER_ROOT"
+            )
         if args.paper_refresh_corpus:
             cmd += ["--refresh-corpus"]
         elif args.paper_tune_sssp_delta:
@@ -2959,24 +3071,12 @@ def main():
             cmd += ["--cache-all-algorithms"]
         if args.paper_publish_figures:
             cmd += ["--publish-paper-figures"]
+        if args.paper_dir:
+            cmd += ["--paper-dir", args.paper_dir]
         log_section(f"FROZEN STUDY REPRODUCTION: {' '.join(cmd)}")
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)
 
-    if args.ecg is not None:
-        import subprocess as _sp
-        cmd = ["python3", "scripts/experiments/ecg/runner.py"]
-        if args.ecg:  # Specific experiments
-            cmd += ["--exp"] + [str(e) for e in args.ecg]
-        else:  # No numbers = all
-            cmd += ["--all"]
-        if args.paper_preview:
-            cmd += ["--preview"]
-        cmd += ["--graph-dir", args.paper_graph_dir]
-        log_section(f"ECG EXPERIMENTS: {' '.join(cmd)}")
-        _sp.run(cmd)
-        return
-    
     # Handle --clean-reorder-cache early
     if args.clean_reorder_cache:
         clean_reorder_cache(args.graphs_dir)

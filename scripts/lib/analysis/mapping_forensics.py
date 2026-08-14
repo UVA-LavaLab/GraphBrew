@@ -7,22 +7,27 @@ import json
 import math
 import mmap
 import os
+import re
 import resource
 import struct
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping
 
 import numpy as np
 
 from scripts.lib.pipeline.benchmark import file_sha256
+from scripts.lib.pipeline.benchmark import repository_scope_state
 
 FORENSICS_SCHEMA = "graphbrew-mapping-forensics/v1"
 FORENSICS_MODE = "diagnostic-forensic"
 FORENSICS_SAMPLE_SEED = 0
 FORENSICS_RSS_LIMIT_BYTES = 56 * 1024**3
 FORENSICS_WALL_LIMIT_SECONDS = 4 * 60 * 60
+FORENSICS_PLAN_SCHEMA = "graphbrew-mapping-forensics-plan/v1"
+FORENSICS_RESULT_SCHEMA = "graphbrew-mapping-forensics-result/v1"
 EDGE_CHUNK_TARGET = 4_000_000
 M3_SAMPLE_LIMIT = 65_536
 M3_BOOTSTRAP_BUCKETS = 256
@@ -61,6 +66,28 @@ GRAPH_TYPES = {
     "webbase-2001": "web",
     "twitter7": "social",
 }
+DEFAULT_GRAPH_ROOT = Path("/media/Data/00_GraphDatasets/GraphBrew")
+DEFAULT_MAPPING_ROOT = (
+    DEFAULT_GRAPH_ROOT / "artifacts" / "vldb_mappings"
+)
+DEFAULT_EQUIVALENCE_ROOT = (
+    DEFAULT_GRAPH_ROOT
+    / "artifacts" / "vldb_paper" / "exp3_overhead"
+    / "equivalence_checks"
+)
+DEFAULT_FORENSICS_ROOT = (
+    DEFAULT_GRAPH_ROOT / "artifacts" / "mapping_forensics"
+)
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+FORENSICS_IMPLEMENTATION_SCOPE = (
+    "scripts/lib/analysis/mapping_forensics.py",
+    "scripts/graphbrew_experiment.py",
+    "scripts/lib/pipeline/benchmark.py",
+)
+FORENSICS_PROVENANCE_FILES = (
+    "docs/RESEARCH_ROADMAP.md",
+    "scripts/test/test_mapping_forensics.py",
+)
 
 LAYOUT_INPUT = "INPUT-SHUFFLED"
 LAYOUT_SOURCE = "SOURCE-ID-DIAGNOSTIC"
@@ -112,7 +139,6 @@ class GraphArtifactSet:
     rabbit_sidecar: Path
     gorder: MappingArtifact
     gorder_equivalence: Path | None
-    gorder_live_equivalent: Path | None
 
 
 @dataclass(frozen=True)
@@ -123,6 +149,61 @@ class ClassPredicate:
     code: int
     cardinality: int
     detector_work: str
+
+
+def canonical_json_sha256(payload: Any) -> str:
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def discovery_decision_sha256(
+    summary: Mapping[str, Any],
+) -> str:
+    return canonical_json_sha256({
+        "schema": summary.get("schema"),
+        "plan_sha256": summary.get("plan_sha256"),
+        "thresholds_sha256": summary.get("thresholds_sha256"),
+        "status": summary.get("status"),
+        "nomination": summary.get("nomination"),
+    })
+
+
+def _atomic_json(payload: Any, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    os.replace(temporary, path)
+
+
+def _repository_state(
+    *,
+    require_clean: bool,
+) -> dict[str, Any]:
+    state = repository_scope_state(
+        PROJECT_ROOT, FORENSICS_IMPLEMENTATION_SCOPE)
+    if require_clean and (
+        state["relevant_untracked"]
+        or state["relevant_diff_sha256"]
+            != hashlib.sha256(b"").hexdigest()
+    ):
+        raise RuntimeError(
+            "Commit the reviewed Route-F implementation before "
+            "freezing or executing its plan"
+        )
+    return state
+
+
+def _implementation_sha256s() -> dict[str, str]:
+    return {
+        relative: file_sha256(
+            PROJECT_ROOT / relative, use_cache=False)
+        for relative in FORENSICS_IMPLEMENTATION_SCOPE
+    }
 
 
 class SerializedGraphMMap:
@@ -886,7 +967,7 @@ CLASS_SPEC = {
         "exact degree 2..8, unknown code 4 otherwise",
     "positive_bit_cost":
         "1+floor(log2(max(1, absolute_position_gap)))",
-    "gap_thresholds": GAP_THRESHOLDS,
+    "gap_thresholds": list(GAP_THRESHOLDS),
     "u64_definition":
         "class excess above b(64)=7 divided by global bit mass",
     "rabbit_gorder_disagreement":
@@ -1443,6 +1524,40 @@ def scan_multi_layout_metrics(
     }
 
 
+def evaluate_class_gates(
+    class_row: Mapping[str, Any],
+) -> dict[str, Any]:
+    margin = (
+        float(class_row[
+            "rabbit_gorder_disagreement_range"]["min"])
+        - float(class_row["rabbit_pair_disagreement_max"])
+    )
+    h1 = bool(
+        float(class_row["support_fraction"]) >= CLASS_SUPPORT_MIN)
+    h2 = bool(
+        h1
+        and float(class_row[
+            "rabbit_beyond_gap64_bit_fraction_range"]["min"])
+            >= CLASS_GAP64_FRACTION_MIN
+        and float(class_row[
+            "gorder_beyond_gap64_bit_fraction"])
+            >= CLASS_GAP64_FRACTION_MIN
+        and margin >= CLASS_DIVERGENCE_MARGIN_MIN
+    )
+    h3 = bool(
+        h2
+        and float(class_row["rabbit_u64_range"]["min"])
+            >= CLASS_HEADROOM_MIN
+        and float(class_row["gorder_u64"]) >= CLASS_HEADROOM_MIN
+    )
+    return {
+        "h1_pass": h1,
+        "h2_pass": h2,
+        "h3_pass": h3,
+        "divergence_margin": margin,
+    }
+
+
 def nominate_class(
     per_graph_metrics: Iterable[Mapping[str, Any]],
 ) -> dict[str, Any]:
@@ -1483,28 +1598,11 @@ def nominate_class(
     gate_rows: dict[int, list[dict[str, Any]]] = {}
     for graph_row in graph_rows:
         for class_row in graph_row["class_metrics"]:
-            margin = (
-                class_row["rabbit_gorder_disagreement_range"]["min"]
-                - class_row["rabbit_pair_disagreement_max"]
-            )
-            h1 = bool(
-                class_row["support_fraction"] >= CLASS_SUPPORT_MIN
-            )
-            h2 = bool(
-                h1
-                and class_row[
-                    "rabbit_beyond_gap64_bit_fraction_range"]["min"]
-                >= CLASS_GAP64_FRACTION_MIN
-                and class_row["gorder_beyond_gap64_bit_fraction"]
-                >= CLASS_GAP64_FRACTION_MIN
-                and margin >= CLASS_DIVERGENCE_MARGIN_MIN
-            )
-            h3 = bool(
-                h2
-                and class_row["rabbit_u64_range"]["min"]
-                >= CLASS_HEADROOM_MIN
-                and class_row["gorder_u64"] >= CLASS_HEADROOM_MIN
-            )
+            gates = evaluate_class_gates(class_row)
+            margin = gates["divergence_margin"]
+            h1 = gates["h1_pass"]
+            h2 = gates["h2_pass"]
+            h3 = gates["h3_pass"]
             score_component = (
                 min(
                     class_row[
@@ -1622,11 +1720,6 @@ def build_artifact_set(
         else Path(equivalence_root)
         / graph / "9_csr.equivalence.json"
     )
-    live_equivalent = (
-        None if graph == "twitter7"
-        else Path(equivalence_root)
-        / graph / "9_csr.live.lo"
-    )
     return GraphArtifactSet(
         graph=graph,
         graph_type=GRAPH_TYPES[graph],
@@ -1655,7 +1748,6 @@ def build_artifact_set(
             0,
         ),
         gorder_equivalence=equivalence,
-        gorder_live_equivalent=live_equivalent,
     )
 
 
@@ -1674,8 +1766,6 @@ def artifact_input_paths(
     ]
     if artifacts.gorder_equivalence is not None:
         paths.append(artifacts.gorder_equivalence)
-    if artifacts.gorder_live_equivalent is not None:
-        paths.append(artifacts.gorder_live_equivalent)
     resolved = []
     for path in paths:
         if path is None:
@@ -1729,6 +1819,295 @@ def verify_artifact_manifest(
         ):
             raise RuntimeError(
                 f"Forensic input changed after freeze: {path}")
+
+
+def _stat_lockbox(
+    artifacts: GraphArtifactSet,
+) -> dict[str, Any]:
+    paths = artifact_input_paths(artifacts)
+    missing = [str(path) for path in paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(
+            "Confirmation lockbox artifacts are missing: "
+            + " ".join(missing)
+        )
+    return {
+        "schema": "forensic-confirmation-lockbox/v1",
+        "graph": artifacts.graph,
+        "graph_type": artifacts.graph_type,
+        "contents_unopened": True,
+        "inputs": {
+            str(path): {
+                "bytes": path.stat().st_size,
+                "mtime_ns": path.stat().st_mtime_ns,
+            }
+            for path in paths
+        },
+    }
+
+
+def _verify_stat_lockbox(lockbox: Mapping[str, Any]) -> None:
+    if lockbox.get("schema") != "forensic-confirmation-lockbox/v1":
+        raise ValueError("Unsupported confirmation lockbox")
+    inputs = lockbox.get("inputs")
+    if not isinstance(inputs, dict) or not inputs:
+        raise ValueError("Confirmation lockbox has no sealed inputs")
+    for path_text, expected in inputs.items():
+        path = Path(path_text)
+        if (
+            not path.is_file()
+            or path.stat().st_size != int(expected["bytes"])
+            or path.stat().st_mtime_ns != int(expected["mtime_ns"])
+        ):
+            raise RuntimeError(
+                f"Confirmation lockbox changed: {path}")
+
+
+def _read_sg_dimensions(path: Path) -> tuple[int, int]:
+    with path.open("rb") as stream:
+        header = stream.read(struct.calcsize("<?qq"))
+    if len(header) != struct.calcsize("<?qq"):
+        raise ValueError(f"SG header is truncated: {path}")
+    directed, directed_edges, nodes = struct.unpack("<?qq", header)
+    if directed:
+        raise ValueError("Route F requires symmetric SG inputs")
+    return int(nodes), int(directed_edges // 2)
+
+
+def _project_graph_seconds(
+    artifacts: GraphArtifactSet,
+    manifest: Mapping[str, Any],
+) -> dict[str, float]:
+    nodes, undirected_edges = _read_sg_dimensions(artifacts.sg_path)
+    total_bytes = sum(
+        int(record["bytes"])
+        for record in manifest["inputs"].values()
+    )
+    mapping_bytes = sum(
+        int(manifest["inputs"][str(path.resolve())]["bytes"])
+        for path in (
+            artifacts.dbg.path,
+            artifacts.gorder.path,
+            *[draw.path for draw in artifacts.rabbit_draws],
+        )
+    )
+    hash_seconds = 2 * total_bytes / (180 * 1024**2)
+    mapping_parse_seconds = mapping_bytes / (18 * 1024**2)
+    edge_scan_seconds = undirected_edges / 350_000
+    sampled_m3_seconds = min(180.0, nodes / 100_000)
+    projected = (
+        hash_seconds
+        + mapping_parse_seconds
+        + edge_scan_seconds
+        + sampled_m3_seconds
+    )
+    return {
+        "nodes": nodes,
+        "undirected_edges": undirected_edges,
+        "input_bytes": total_bytes,
+        "mapping_bytes": mapping_bytes,
+        "hash_seconds": hash_seconds,
+        "mapping_parse_seconds": mapping_parse_seconds,
+        "edge_scan_seconds": edge_scan_seconds,
+        "sampled_m3_seconds": sampled_m3_seconds,
+        "projected_seconds": projected,
+        "projected_peak_bytes":
+            estimated_peak_bytes(nodes, undirected_edges),
+    }
+
+
+def build_forensics_plan(
+    *,
+    graph_root: Path = DEFAULT_GRAPH_ROOT,
+    mapping_root: Path = DEFAULT_MAPPING_ROOT,
+    equivalence_root: Path = DEFAULT_EQUIVALENCE_ROOT,
+    artifact_root: Path = DEFAULT_FORENSICS_ROOT,
+    discovery_graphs: Iterable[str] = DISCOVERY_GRAPHS,
+    confirmation_graphs: Iterable[str] = CONFIRMATION_GRAPHS,
+    require_full_cohorts: bool = True,
+    require_clean_implementation: bool = True,
+) -> dict[str, Any]:
+    repository_state = _repository_state(
+        require_clean=require_clean_implementation)
+    resolved_artifact_root = Path(artifact_root).resolve()
+    resolved_mapping_root = Path(mapping_root).resolve()
+    resolved_equivalence_root = Path(equivalence_root).resolve()
+    if (
+        resolved_artifact_root.is_relative_to(resolved_mapping_root)
+        or resolved_artifact_root.is_relative_to(
+            resolved_equivalence_root)
+    ):
+        raise ValueError(
+            "Forensic output root cannot be inside campaign artifacts")
+    discovery_names = tuple(discovery_graphs)
+    confirmation_names = tuple(confirmation_graphs)
+    if require_full_cohorts and (
+        discovery_names != DISCOVERY_GRAPHS
+        or confirmation_names != CONFIRMATION_GRAPHS
+    ):
+        raise ValueError("Route-F production cohorts changed")
+    discovery_records = []
+    total_projection = 0.0
+    max_peak = 0
+    for graph in discovery_names:
+        artifacts = build_artifact_set(
+            graph, graph_root, mapping_root, equivalence_root)
+        manifest = freeze_artifact_manifest(artifacts)
+        projection = _project_graph_seconds(artifacts, manifest)
+        total_projection += projection["projected_seconds"]
+        max_peak = max(
+            max_peak, int(projection["projected_peak_bytes"]))
+        discovery_records.append({
+            "graph": graph,
+            "graph_type": GRAPH_TYPES[graph],
+            "manifest": manifest,
+            "manifest_sha256": canonical_json_sha256(manifest),
+            "projection": projection,
+        })
+    confirmation_records = []
+    for graph in confirmation_names:
+        artifacts = build_artifact_set(
+            graph, graph_root, mapping_root, equivalence_root)
+        lockbox = _stat_lockbox(artifacts)
+        confirmation_records.append({
+            "graph": graph,
+            "graph_type": GRAPH_TYPES[graph],
+            "lockbox": lockbox,
+            "lockbox_sha256": canonical_json_sha256(lockbox),
+        })
+    if total_projection > FORENSICS_WALL_LIMIT_SECONDS:
+        raise RuntimeError(
+            "Projected discovery runtime exceeds the four-hour cap")
+    if max_peak > FORENSICS_RSS_LIMIT_BYTES:
+        raise RuntimeError(
+            "Projected forensic memory exceeds the 56-GiB cap")
+    plan = {
+        "schema": FORENSICS_PLAN_SCHEMA,
+        "measurement_mode": FORENSICS_MODE,
+        "claim_eligible": False,
+        "repository_state": repository_state,
+        "implementation_scope": list(FORENSICS_IMPLEMENTATION_SCOPE),
+        "implementation_sha256s": _implementation_sha256s(),
+        "provenance_files": {
+            relative: file_sha256(
+                PROJECT_ROOT / relative, use_cache=False)
+            for relative in FORENSICS_PROVENANCE_FILES
+        },
+        "class_spec": CLASS_SPEC,
+        "class_bank_sha256": CLASS_BANK_SHA256,
+        "nomination": {
+            "maximum_classes": len(CLASS_PREDICATES),
+            "nomination_count": 1,
+            "h0_required_graphs": 7,
+            "h1_min_graphs": 3,
+            "h1_min_graph_types": 2,
+            "support_min": CLASS_SUPPORT_MIN,
+            "beyond_gap64_fraction_min":
+                CLASS_GAP64_FRACTION_MIN,
+            "divergence_margin_min":
+                CLASS_DIVERGENCE_MARGIN_MIN,
+            "u64_min": CLASS_HEADROOM_MIN,
+        },
+        "metrics": {
+            "m1": "exact positive-bit MLogA per undirected non-loop edge",
+            "m2": {
+                "gap_thresholds": list(GAP_THRESHOLDS),
+                "property_bytes": 8,
+                "cache_line_bytes": 64,
+            },
+            "m3": {
+                "diagnostic_only": True,
+                "sample_limit": M3_SAMPLE_LIMIT,
+                "sample_seed": FORENSICS_SAMPLE_SEED,
+                "bootstrap_buckets": M3_BOOTSTRAP_BUCKETS,
+                "bootstrap_replicates": M3_BOOTSTRAP_REPLICATES,
+            },
+            "m4": "actual Rabbit-draw/Gorder bit-bin disagreement",
+            "m5": "three Rabbit draws and three pairwise controls",
+            "m6": "class excess above b(64), falsifier-only",
+        },
+        "resource_policy": {
+            "wall_seconds": FORENSICS_WALL_LIMIT_SECONDS,
+            "rss_bytes": FORENSICS_RSS_LIMIT_BYTES,
+            "projected_discovery_seconds": total_projection,
+            "projected_peak_bytes": max_peak,
+            "projection_model":
+                "2x SHA at 180MiB/s + LO parse at 18MiB/s + "
+                "edges at 350k/s + bounded M3",
+        },
+        "paths": {
+            "graph_root": str(Path(graph_root).resolve()),
+            "mapping_root": str(Path(mapping_root).resolve()),
+            "equivalence_root": str(Path(equivalence_root).resolve()),
+            "artifact_root": str(resolved_artifact_root),
+        },
+        "discovery": discovery_records,
+        "confirmation_lockbox": confirmation_records,
+    }
+    plan["plan_sha256"] = canonical_json_sha256(plan)
+    return plan
+
+
+def write_forensics_plan(
+    plan: Mapping[str, Any],
+    artifact_root: Path = DEFAULT_FORENSICS_ROOT,
+    *,
+    refreeze: bool = False,
+) -> Path:
+    path = Path(artifact_root) / "plan.json"
+    if path.is_file() and not refreeze:
+        existing = json.loads(path.read_text())
+        if (
+            existing.get("plan_sha256")
+                != plan.get("plan_sha256")
+            or canonical_json_sha256({
+                key: value for key, value in existing.items()
+                if key != "plan_sha256"
+            }) != existing.get("plan_sha256")
+        ):
+            raise RuntimeError(
+                "Frozen forensics plan changed; "
+                "refreeze only after review"
+            )
+    _atomic_json(plan, path)
+    return path
+
+
+def _load_bound_plan(
+    path: Path,
+    *,
+    require_clean_implementation: bool,
+) -> dict[str, Any]:
+    plan = json.loads(path.read_text())
+    recorded = plan.pop("plan_sha256", None)
+    if (
+        plan.get("schema") != FORENSICS_PLAN_SCHEMA
+        or recorded != canonical_json_sha256(plan)
+    ):
+        raise ValueError("Forensics plan binding is invalid")
+    plan["plan_sha256"] = recorded
+    current_state = _repository_state(
+        require_clean=require_clean_implementation)
+    if (
+        current_state["relevant_diff_sha256"]
+            != plan["repository_state"]["relevant_diff_sha256"]
+        or current_state["relevant_untracked"]
+            != plan["repository_state"]["relevant_untracked"]
+        or plan.get("implementation_sha256s")
+            != _implementation_sha256s()
+    ):
+        raise RuntimeError(
+            "Route-F implementation changed after plan review")
+    if plan["class_bank_sha256"] != CLASS_BANK_SHA256:
+        raise RuntimeError("Route-F class specification changed")
+    for record in plan["confirmation_lockbox"]:
+        if (
+            record["lockbox_sha256"]
+            != canonical_json_sha256(record["lockbox"])
+        ):
+            raise ValueError("Confirmation lockbox digest changed")
+        _verify_stat_lockbox(record["lockbox"])
+    return plan
 
 
 def validate_artifact_identity(
@@ -1813,24 +2192,23 @@ def validate_artifact_identity(
         ):
             raise ValueError(
                 "Gorder equivalence evidence is invalid")
-        if artifacts.gorder_live_equivalent is None:
-            raise ValueError("Gorder live-equivalent mapping is missing")
-        live_path = artifacts.gorder_live_equivalent.resolve()
         promoted_path = artifacts.gorder.path.resolve()
         if (
-            Path(gorder_equivalence.get("live_path", "")).resolve()
-                != live_path
-            or int(gorder_equivalence.get("live_bytes", -1))
-                != manifest_inputs[str(live_path)]["bytes"]
-            or int(gorder_equivalence.get("promoted_bytes", -1))
+            int(gorder_equivalence.get("promoted_bytes", -1))
                 != manifest_inputs[str(promoted_path)]["bytes"]
-            or manifest_inputs[str(live_path)]["sha256"]
-                != manifest_inputs[str(promoted_path)]["sha256"]
+            or int(gorder_equivalence.get("live_bytes", -1))
+                != int(gorder_equivalence.get("promoted_bytes", -1))
             or gorder_sidecar.get("mapping_origin")
                 != "promoted-mapping-equivalent-legacy-gorder"
         ):
             raise ValueError(
                 "Gorder equivalence is not bound to current bytes")
+        checked_at = datetime.fromisoformat(
+            str(gorder_equivalence.get("checked_at")).replace("Z", "+00:00")
+        ).timestamp()
+        if promoted_path.stat().st_mtime > checked_at:
+            raise ValueError(
+                "Gorder promoted mapping is newer than its receipt")
     elif (
         artifacts.graph != "twitter7"
         or gorder_sidecar.get("mapping_origin")
@@ -1853,6 +2231,11 @@ def validate_artifact_identity(
             len(set(rabbit_draw_sha256s)) == 3,
         "gorder_mapping_origin":
             gorder_sidecar.get("mapping_origin", "direct-generation"),
+        "gorder_equivalence_evidence": (
+            "direct-generation"
+            if artifacts.gorder_equivalence is None
+            else "receipt-only; live scratch deleted by campaign policy"
+        ),
         "gorder_equivalence": gorder_equivalence,
         "inputs": dict(manifest_inputs),
     }
@@ -2048,12 +2431,393 @@ def analyze_graph_artifacts(
         return result
 
 
+def execute_forensics_discovery(
+    plan_path: Path,
+    *,
+    resume: bool = True,
+    require_clean_implementation: bool = True,
+) -> Path:
+    plan = _load_bound_plan(
+        Path(plan_path),
+        require_clean_implementation=require_clean_implementation,
+    )
+    started = time.monotonic()
+    artifact_root = (
+        Path(plan["paths"]["artifact_root"])
+        / plan["plan_sha256"]
+    )
+    per_graph_dir = artifact_root / "per_graph"
+    prior_consumed = 0.0
+    if resume:
+        for record in plan["discovery"]:
+            path = per_graph_dir / f"{record['graph']}.json"
+            if path.is_file():
+                existing = json.loads(path.read_text())
+                if (
+                    existing.get("schema") == FORENSICS_RESULT_SCHEMA
+                    and existing.get("plan_sha256")
+                        == plan["plan_sha256"]
+                ):
+                    prior_consumed += float(
+                        existing.get("elapsed_seconds", 0.0))
+    remaining_budget = (
+        int(plan["resource_policy"]["wall_seconds"])
+        - prior_consumed
+    )
+    if remaining_budget <= 0:
+        raise TimeoutError(
+            "Cumulative forensic wall-clock cap is exhausted")
+    deadline = started + remaining_budget
+    rows = []
+    projected_completed = 0.0
+    executed_projected = 0.0
+    executed_elapsed = 0.0
+    resumed_graphs = []
+    projected_total = sum(
+        float(record["projection"]["projected_seconds"])
+        for record in plan["discovery"]
+    )
+    for index, record in enumerate(plan["discovery"]):
+        _check_deadline(deadline)
+        graph = record["graph"]
+        result_path = per_graph_dir / f"{graph}.json"
+        if result_path.is_file() and resume:
+            existing = json.loads(result_path.read_text())
+            if (
+                existing.get("schema") != FORENSICS_RESULT_SCHEMA
+                or existing.get("plan_sha256") != plan["plan_sha256"]
+                or existing.get("input_manifest_sha256")
+                    != record["manifest_sha256"]
+                or existing.get("post_input_verification") != "pass"
+            ):
+                raise RuntimeError(
+                    f"Stale forensic result requires no-resume: {graph}")
+            rows.append(existing)
+            resumed_graphs.append(graph)
+        else:
+            if (
+                record["manifest_sha256"]
+                != canonical_json_sha256(record["manifest"])
+            ):
+                raise ValueError(
+                    f"Discovery manifest digest changed: {graph}")
+            artifacts = build_artifact_set(
+                graph,
+                Path(plan["paths"]["graph_root"]),
+                Path(plan["paths"]["mapping_root"]),
+                Path(plan["paths"]["equivalence_root"]),
+            )
+            result = analyze_graph_artifacts(
+                artifacts,
+                input_manifest=record["manifest"],
+                deadline_monotonic=deadline,
+                rss_limit_bytes=int(
+                    plan["resource_policy"]["rss_bytes"]),
+            )
+            result.update({
+                "schema": FORENSICS_RESULT_SCHEMA,
+                "plan_sha256": plan["plan_sha256"],
+                "input_manifest_sha256":
+                    record["manifest_sha256"],
+            })
+            _atomic_json(result, result_path)
+            rows.append(result)
+            executed_projected += float(
+                record["projection"]["projected_seconds"])
+            executed_elapsed += float(result["elapsed_seconds"])
+        projected_completed += float(
+            record["projection"]["projected_seconds"])
+        elapsed = time.monotonic() - started
+        if executed_projected > 0 and index + 1 < len(
+            plan["discovery"]
+        ):
+            slowdown = max(
+                1.0, executed_elapsed / executed_projected)
+            remaining = projected_total - projected_completed
+            if elapsed + slowdown * remaining > int(
+                plan["resource_policy"]["wall_seconds"]
+            ):
+                raise TimeoutError(
+                    "Observed forensic throughput projects beyond "
+                    "the four-hour cap"
+                )
+    nomination = nominate_class(rows)
+    summary = {
+        "schema": "graphbrew-mapping-forensics-discovery/v1",
+        "plan": str(Path(plan_path).resolve()),
+        "plan_sha256": plan["plan_sha256"],
+        "measurement_mode": FORENSICS_MODE,
+        "claim_eligible": False,
+        "graphs": [row["graph"] for row in rows],
+        "elapsed_seconds": time.monotonic() - started,
+        "consumed_seconds": sum(
+            float(row.get("elapsed_seconds", 0.0))
+            for row in rows
+        ),
+        "resumed_graphs": resumed_graphs,
+        "rabbit_draw_control": {
+            row["graph"]: {
+                "draws_distinct": row["artifact_identity"][
+                    "rabbit_draws_distinct"],
+                "draw_unique_count": row["artifact_identity"][
+                    "rabbit_draw_unique_count"],
+                "pair_disagreement_max": row[
+                    "rabbit_pair_disagreement_max"],
+            }
+            for row in rows
+        },
+        "peak_rss_bytes": peak_rss_bytes(),
+        "nomination": nomination,
+        "thresholds_sha256":
+            canonical_json_sha256(plan["nomination"]),
+        "result_paths": [
+            str((per_graph_dir / f"{row['graph']}.json").resolve())
+            for row in rows
+        ],
+        "confirmation_lockbox_unopened": True,
+        "status": (
+            "signature-pending-novelty-review"
+            if nomination["status"] == "nominee"
+            else "negative-result"
+        ),
+    }
+    if summary["status"] == "negative-result":
+        summary["negative_result"] = {
+            "failed_gate": nomination["status"],
+            "statement": (
+                "No prevalent, recoverable, novelty-safe shared "
+                "Rabbit/Gorder forensic signature qualified."
+            ),
+        }
+    else:
+        summary["signature_template"] = {
+            "schema": "graphbrew-forensic-signature/v1",
+            "plan_sha256": plan["plan_sha256"],
+            "discovery_decision_sha256":
+                "filled-from-discovery-summary",
+            "class_bank_sha256": CLASS_BANK_SHA256,
+            "thresholds_sha256":
+                canonical_json_sha256(plan["nomination"]),
+            "class_id": nomination["nominee"]["class_id"],
+            "class_name": nomination["nominee"]["class_name"],
+            "mechanism_spec_sha256": "required-after-novelty-review",
+            "independent_review_1": "pending",
+            "independent_review_2": "pending",
+        }
+    summary["discovery_decision_sha256"] = (
+        discovery_decision_sha256(summary)
+    )
+    if "signature_template" in summary:
+        summary["signature_template"]["discovery_decision_sha256"] = (
+            summary["discovery_decision_sha256"]
+        )
+    output = artifact_root / "discovery_summary.json"
+    _atomic_json(summary, output)
+    return output
+
+
+def _validate_frozen_signature(
+    signature: Mapping[str, Any],
+    plan: Mapping[str, Any],
+    discovery_summary: Mapping[str, Any],
+) -> int:
+    if (
+        signature.get("schema")
+            != "graphbrew-forensic-signature/v1"
+        or signature.get("plan_sha256") != plan["plan_sha256"]
+        or signature.get("discovery_decision_sha256")
+            != discovery_decision_sha256(discovery_summary)
+        or signature.get("class_bank_sha256") != CLASS_BANK_SHA256
+        or signature.get("thresholds_sha256")
+            != canonical_json_sha256(plan["nomination"])
+        or signature.get("independent_review_1") != "approved"
+        or signature.get("independent_review_2") != "approved"
+    ):
+        raise ValueError("Frozen forensic signature is not authorized")
+    if (
+        discovery_summary.get("schema")
+            != "graphbrew-mapping-forensics-discovery/v1"
+        or discovery_summary.get("plan_sha256") != plan["plan_sha256"]
+        or discovery_summary.get("status")
+            != "signature-pending-novelty-review"
+    ):
+        raise ValueError(
+            "Discovery did not authorize confirmation")
+    class_id = int(signature.get("class_id", -1))
+    if class_id < 0 or class_id >= len(CLASS_PREDICATES):
+        raise ValueError("Frozen forensic class ID is invalid")
+    if signature.get("class_name") != CLASS_PREDICATES[class_id].name:
+        raise ValueError("Frozen forensic class name changed")
+    nominee = discovery_summary.get("nomination", {}).get("nominee")
+    if (
+        not isinstance(nominee, dict)
+        or int(nominee.get("class_id", -1)) != class_id
+    ):
+        raise ValueError(
+            "Signature does not match the discovery nominee")
+    if not re.fullmatch(
+        r"[0-9a-f]{64}",
+        str(signature.get("mechanism_spec_sha256", "")),
+    ):
+        raise ValueError("Frozen mechanism specification is missing")
+    return class_id
+
+
+def execute_forensics_confirmation(
+    plan_path: Path,
+    signature_path: Path,
+    *,
+    resume: bool = True,
+    require_clean_implementation: bool = True,
+) -> Path:
+    plan = _load_bound_plan(
+        Path(plan_path),
+        require_clean_implementation=require_clean_implementation,
+    )
+    artifact_root = (
+        Path(plan["paths"]["artifact_root"])
+        / plan["plan_sha256"]
+    )
+    discovery_path = artifact_root / "discovery_summary.json"
+    if not discovery_path.is_file():
+        raise FileNotFoundError(
+            "Confirmation requires a completed discovery summary")
+    discovery_summary = json.loads(discovery_path.read_text())
+    signature = json.loads(Path(signature_path).read_text())
+    class_id = _validate_frozen_signature(
+        signature, plan, discovery_summary)
+    started = time.monotonic()
+    per_graph_dir = artifact_root / "confirmation"
+    signature_sha = file_sha256(
+        signature_path, use_cache=False)
+    prior_consumed = 0.0
+    resumed_graphs = []
+    if resume:
+        for record in plan["confirmation_lockbox"]:
+            path = per_graph_dir / f"{record['graph']}.json"
+            if path.is_file():
+                existing = json.loads(path.read_text())
+                if (
+                    existing.get("schema") == FORENSICS_RESULT_SCHEMA
+                    and existing.get("plan_sha256")
+                        == plan["plan_sha256"]
+                    and existing.get("signature_sha256") == signature_sha
+                ):
+                    prior_consumed += float(
+                        existing.get("elapsed_seconds", 0.0))
+    remaining_budget = (
+        int(plan["resource_policy"]["wall_seconds"])
+        - prior_consumed
+    )
+    if remaining_budget <= 0:
+        raise TimeoutError(
+            "Cumulative confirmation wall-clock cap is exhausted")
+    deadline = started + remaining_budget
+    rows = []
+    for record in plan["confirmation_lockbox"]:
+        graph = record["graph"]
+        result_path = per_graph_dir / f"{graph}.json"
+        if result_path.is_file() and resume:
+            existing = json.loads(result_path.read_text())
+            if (
+                existing.get("schema") != FORENSICS_RESULT_SCHEMA
+                or existing.get("plan_sha256") != plan["plan_sha256"]
+                or existing.get("signature_sha256")
+                    != signature_sha
+            ):
+                raise RuntimeError(
+                    f"Stale confirmation result: {graph}")
+            rows.append(existing)
+            resumed_graphs.append(graph)
+            continue
+        artifacts = build_artifact_set(
+            graph,
+            Path(plan["paths"]["graph_root"]),
+            Path(plan["paths"]["mapping_root"]),
+            Path(plan["paths"]["equivalence_root"]),
+        )
+        manifest = freeze_artifact_manifest(artifacts)
+        result = analyze_graph_artifacts(
+            artifacts,
+            input_manifest=manifest,
+            deadline_monotonic=deadline,
+            rss_limit_bytes=int(
+                plan["resource_policy"]["rss_bytes"]),
+        )
+        result.update({
+            "schema": FORENSICS_RESULT_SCHEMA,
+            "plan_sha256": plan["plan_sha256"],
+            "signature_sha256":
+                signature_sha,
+        })
+        _atomic_json(result, result_path)
+        rows.append(result)
+    confirmations = []
+    for row in rows:
+        matches = [
+            item for item in row["class_metrics"]
+            if int(item["class_id"]) == class_id
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                f"Confirmation class row missing or duplicated: "
+                f"{row['graph']}/{class_id}"
+            )
+        class_row = matches[0]
+        gates = evaluate_class_gates(class_row)
+        confirmations.append({
+            "graph": row["graph"],
+            "graph_type": row["graph_type"],
+            **gates,
+            "h4_pass": (
+                CLASS_PREDICATES[class_id].detector_work == "O(m)"
+            ),
+            "class_metrics": class_row,
+        })
+    pass_count = sum(
+        item["h1_pass"]
+        and item["h2_pass"]
+        and item["h3_pass"]
+        and item["h4_pass"]
+        for item in confirmations
+    )
+    output_payload = {
+        "schema": "graphbrew-mapping-forensics-confirmation/v1",
+        "plan_sha256": plan["plan_sha256"],
+        "signature": str(Path(signature_path).resolve()),
+        "signature_sha256":
+            signature_sha,
+        "class_id": class_id,
+        "class_name": CLASS_PREDICATES[class_id].name,
+        "confirmation": confirmations,
+        "required_passes": 2,
+        "observed_passes": int(pass_count),
+        "status": (
+            "n4-replicated" if pass_count >= 2
+            else "negative-result"
+        ),
+        "elapsed_seconds": time.monotonic() - started,
+        "consumed_seconds": sum(
+            float(row.get("elapsed_seconds", 0.0))
+            for row in rows
+        ),
+        "resumed_graphs": resumed_graphs,
+        "peak_rss_bytes": peak_rss_bytes(),
+        "measurement_mode": FORENSICS_MODE,
+        "claim_eligible": False,
+    }
+    output = artifact_root / "confirmation_summary.json"
+    _atomic_json(output_payload, output)
+    return output
+
+
 __all__ = [
     "CLASS_BANK_SHA256",
     "CLASS_PREDICATES",
     "CONFIRMATION_GRAPHS",
     "DISCOVERY_GRAPHS",
     "FORENSICS_MODE",
+    "FORENSICS_PLAN_SCHEMA",
     "FORENSICS_RSS_LIMIT_BYTES",
     "FORENSICS_SCHEMA",
     "FORENSICS_WALL_LIMIT_SECONDS",
@@ -2063,12 +2827,19 @@ __all__ = [
     "SGLayout",
     "SerializedGraphMMap",
     "analyze_graph_artifacts",
+    "artifact_input_paths",
     "array_sha256",
     "build_artifact_set",
+    "build_forensics_plan",
+    "canonical_json_sha256",
     "composed_permutation_fingerprint",
     "compute_vertex_feature_codes",
     "dbg_bucket_codes",
     "enforce_rss_limit",
+    "estimated_peak_bytes",
+    "execute_forensics_confirmation",
+    "execute_forensics_discovery",
+    "freeze_artifact_manifest",
     "frozen_class_predicates",
     "load_text_mapping_positions",
     "nominate_class",
@@ -2078,4 +2849,6 @@ __all__ = [
     "validate_artifact_identity",
     "validate_dbg_semantics",
     "validate_int32_permutation",
+    "verify_artifact_manifest",
+    "write_forensics_plan",
 ]

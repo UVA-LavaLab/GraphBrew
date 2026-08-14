@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import struct
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+from scripts.lib.pipeline.benchmark import file_sha256
 from scripts.lib.analysis.mapping_forensics import (
     CLASS_BANK_SHA256,
     CLASS_PREDICATES,
@@ -20,6 +24,9 @@ from scripts.lib.analysis.mapping_forensics import (
     MappingArtifact,
     SerializedGraphMMap,
     analyze_graph_artifacts,
+    build_forensics_plan,
+    canonical_json_sha256,
+    discovery_decision_sha256,
     compute_vertex_feature_codes,
     dbg_bucket_codes,
     load_text_mapping_positions,
@@ -28,7 +35,12 @@ from scripts.lib.analysis.mapping_forensics import (
     sampled_distinct_lines_per_degree,
     freeze_artifact_manifest,
     validate_dbg_semantics,
+    execute_forensics_discovery,
+    execute_forensics_confirmation,
+    write_forensics_plan,
 )
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _write_sg(
@@ -110,8 +122,10 @@ def _sidecar(
     path.write_text(json.dumps(payload))
 
 
-def _fixture_artifacts(tmp_path: Path) -> GraphArtifactSet:
-    graph = "hollywood-2009"
+def _fixture_artifacts(
+    tmp_path: Path,
+    graph: str = "hollywood-2009",
+) -> GraphArtifactSet:
     nodes = 16
     org_ids = [7, 3, 14, 0, 12, 5, 9, 1, 15, 6, 2, 10, 4, 13, 8, 11]
     edges = [(vertex, vertex + 1) for vertex in range(nodes - 1)]
@@ -169,25 +183,36 @@ def _fixture_artifacts(tmp_path: Path) -> GraphArtifactSet:
         nodes=nodes,
         directed_edges=directed_edges,
         draws=1,
-        origin="promoted-mapping-equivalent-legacy-gorder",
+        origin=(
+            None if graph == "twitter7"
+            else "promoted-mapping-equivalent-legacy-gorder"
+        ),
     )
-    equivalence = tmp_path / "equivalence" / graph / "9_csr.equivalence.json"
-    equivalence.parent.mkdir(parents=True)
-    live_equivalent = equivalence.parent / "9_csr.live.lo"
-    shutil.copyfile(mapping_dir / "9_csr.lo", live_equivalent)
-    equivalence.write_text(json.dumps({
-        "schema": "mapping_equivalence/v1",
-        "graph": graph,
-        "algorithm": "9:csr",
-        "live_path": str(live_equivalent.resolve()),
-        "promoted_path": str((mapping_dir / "9_csr.lo").resolve()),
-        "live_bytes": live_equivalent.stat().st_size,
-        "promoted_bytes": (mapping_dir / "9_csr.lo").stat().st_size,
-        "equal": True,
-    }))
+    equivalence = None
+    if graph != "twitter7":
+        equivalence = (
+            tmp_path / "equivalence"
+            / graph / "9_csr.equivalence.json"
+        )
+        equivalence.parent.mkdir(parents=True)
+        equivalence.write_text(json.dumps({
+            "schema": "mapping_equivalence/v1",
+            "graph": graph,
+            "algorithm": "9:csr",
+            "live_path": str(
+                (equivalence.parent / "9_csr.live.lo").resolve()),
+            "promoted_path": str((mapping_dir / "9_csr.lo").resolve()),
+            "live_bytes": (mapping_dir / "9_csr.lo").stat().st_size,
+            "promoted_bytes": (mapping_dir / "9_csr.lo").stat().st_size,
+            "equal": True,
+            "checked_at": "2099-01-01T00:00:00Z",
+        }))
     return GraphArtifactSet(
         graph=graph,
-        graph_type="collaboration",
+        graph_type={
+            "USA-road-d.USA": "road",
+            "delaunay_n24": "mesh",
+        }.get(graph, "social"),
         sg_path=sg_path,
         dbg=MappingArtifact(
             "5", mapping_dir / "5.lo", mapping_dir / "5.json", 0),
@@ -209,7 +234,6 @@ def _fixture_artifacts(tmp_path: Path) -> GraphArtifactSet:
             0,
         ),
         gorder_equivalence=equivalence,
-        gorder_live_equivalent=live_equivalent,
     )
 
 
@@ -497,3 +521,210 @@ def test_zero_rabbit_pair_control_is_valid():
     assert result["status"] == "nominee"
     assert result["nominee"]["class_name"] == "degree:q0"
     json.dumps(result)
+
+
+def test_forensics_plan_and_discovery_fixture(tmp_path):
+    discovery = (
+        "cit-Patents",
+        "soc-pokec",
+        "USA-road-d.USA",
+        "soc-LiveJournal1",
+        "delaunay_n24",
+        "com-Orkut",
+        "wikipedia_link_en",
+        "Gong-gplus",
+    )
+    for graph in discovery:
+        _fixture_artifacts(tmp_path, graph)
+    plan = build_forensics_plan(
+        graph_root=tmp_path / "graphs",
+        mapping_root=tmp_path / "mappings",
+        equivalence_root=tmp_path / "equivalence",
+        artifact_root=tmp_path / "output",
+        discovery_graphs=discovery,
+        confirmation_graphs=(),
+        require_full_cohorts=False,
+        require_clean_implementation=False,
+    )
+    assert len(plan["discovery"]) == 8
+    assert plan["confirmation_lockbox"] == []
+    assert plan["resource_policy"]["projected_discovery_seconds"] > 0
+    plan_path = write_forensics_plan(
+        plan, tmp_path / "output")
+    assert write_forensics_plan(
+        plan, tmp_path / "output") == plan_path
+    output = execute_forensics_discovery(
+        plan_path,
+        require_clean_implementation=False,
+    )
+    payload = json.loads(output.read_text())
+    assert len(payload["graphs"]) == 8
+    assert payload["confirmation_lockbox_unopened"] is True
+    assert payload["nomination"]["h0_passes"] == 8
+
+
+def test_top_level_forensics_commands_are_exposed():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/graphbrew_experiment.py",
+            "--help",
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "--mapping-forensics-plan" in result.stdout
+    assert "--mapping-forensics-discovery" in result.stdout
+    assert "--mapping-forensics-confirmation" in result.stdout
+
+
+def test_confirmation_requires_bound_discovery_nominee(tmp_path):
+    confirmation = (
+        "hollywood-2009",
+        "webbase-2001",
+        "twitter7",
+    )
+    for graph in confirmation:
+        _fixture_artifacts(tmp_path, graph)
+    plan = build_forensics_plan(
+        graph_root=tmp_path / "graphs",
+        mapping_root=tmp_path / "mappings",
+        equivalence_root=tmp_path / "equivalence",
+        artifact_root=tmp_path / "output",
+        discovery_graphs=(),
+        confirmation_graphs=confirmation,
+        require_full_cohorts=False,
+        require_clean_implementation=False,
+    )
+    plan_path = write_forensics_plan(
+        plan, tmp_path / "output")
+    run_root = tmp_path / "output" / plan["plan_sha256"]
+    discovery = {
+        "schema": "graphbrew-mapping-forensics-discovery/v1",
+        "plan_sha256": plan["plan_sha256"],
+        "status": "signature-pending-novelty-review",
+        "nomination": {
+            "nominee": {
+                "class_id": 0,
+                "class_name": "degree:q0",
+            },
+        },
+    }
+    discovery_path = run_root / "discovery_summary.json"
+    discovery_path.parent.mkdir(parents=True)
+    discovery_path.write_text(json.dumps(discovery))
+    signature = {
+        "schema": "graphbrew-forensic-signature/v1",
+        "plan_sha256": plan["plan_sha256"],
+        "discovery_decision_sha256":
+            discovery_decision_sha256(discovery),
+        "class_bank_sha256": plan["class_bank_sha256"],
+        "thresholds_sha256": canonical_json_sha256(
+            plan["nomination"]),
+        "class_id": 0,
+        "class_name": "degree:q0",
+        "mechanism_spec_sha256": "a" * 64,
+        "independent_review_1": "approved",
+        "independent_review_2": "approved",
+    }
+    signature_path = run_root / "frozen_signature.json"
+    signature_path.write_text(json.dumps(signature))
+    output = execute_forensics_confirmation(
+        plan_path,
+        signature_path,
+        require_clean_implementation=False,
+    )
+    payload = json.loads(output.read_text())
+    assert len(payload["confirmation"]) == 3
+    assert payload["status"] in {"n4-replicated", "negative-result"}
+
+    confirmation_paths = list(
+        (run_root / "confirmation").glob("*.json"))
+    original_confirmation = {}
+    for path in confirmation_paths:
+        record = json.loads(path.read_text())
+        original_confirmation[path] = record
+        record["elapsed_seconds"] = 5000.0
+        path.write_text(json.dumps(record))
+    with pytest.raises(TimeoutError, match="Cumulative confirmation"):
+        execute_forensics_confirmation(
+            plan_path,
+            signature_path,
+            require_clean_implementation=False,
+        )
+    for path, record in original_confirmation.items():
+        path.write_text(json.dumps(record))
+
+    sealed_path = Path(next(iter(
+        plan["confirmation_lockbox"][0]["lockbox"]["inputs"]
+    )))
+    original_bytes = sealed_path.read_bytes()
+    original_stat = sealed_path.stat()
+    sealed_path.write_bytes(original_bytes + b"x")
+    with pytest.raises(RuntimeError, match="lockbox changed"):
+        execute_forensics_confirmation(
+            plan_path,
+            signature_path,
+            resume=False,
+            require_clean_implementation=False,
+        )
+    sealed_path.write_bytes(original_bytes)
+    os.utime(
+        sealed_path,
+        ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns),
+    )
+
+    original_plan = json.loads(plan_path.read_text())
+    broken_plan = json.loads(plan_path.read_text())
+    broken_plan["confirmation_lockbox"][0]["lockbox"]["inputs"] = {}
+    broken_plan["plan_sha256"] = canonical_json_sha256({
+        key: value for key, value in broken_plan.items()
+        if key != "plan_sha256"
+    })
+    plan_path.write_text(json.dumps(broken_plan))
+    with pytest.raises(ValueError, match="lockbox digest changed"):
+        execute_forensics_confirmation(
+            plan_path,
+            signature_path,
+            resume=False,
+            require_clean_implementation=False,
+        )
+    plan_path.write_text(json.dumps(original_plan))
+
+    invalid_signature = dict(signature)
+    invalid_signature["class_id"] = len(CLASS_PREDICATES)
+    signature_path.write_text(json.dumps(invalid_signature))
+    with pytest.raises(ValueError, match="class ID is invalid"):
+        execute_forensics_confirmation(
+            plan_path,
+            signature_path,
+            resume=False,
+            require_clean_implementation=False,
+        )
+    invalid_signature = dict(signature)
+    invalid_signature["independent_review_1"] = "pending"
+    signature_path.write_text(json.dumps(invalid_signature))
+    with pytest.raises(ValueError, match="not authorized"):
+        execute_forensics_confirmation(
+            plan_path,
+            signature_path,
+            resume=False,
+            require_clean_implementation=False,
+        )
+    signature_path.write_text(json.dumps(signature))
+
+    discovery["status"] = "negative-result"
+    discovery_path.write_text(json.dumps(discovery))
+    signature["discovery_decision_sha256"] = (
+        discovery_decision_sha256(discovery)
+    )
+    signature_path.write_text(json.dumps(signature))
+    with pytest.raises(ValueError, match="did not authorize"):
+        execute_forensics_confirmation(
+            plan_path,
+            signature_path,
+            resume=False,
+            require_clean_implementation=False,
+        )
