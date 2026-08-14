@@ -285,10 +285,20 @@ def test_mapping_composes_source_ids_through_org_ids(tmp_path):
 def test_dbg_semantics_rejects_bucket_interleaving():
     degrees = np.array([100, 1, 50, 2], dtype=np.int32)
     valid = np.array([0, 3, 1, 2], dtype=np.int32)
-    assert validate_dbg_semantics(valid, degrees)["valid"]
+    validation = validate_dbg_semantics(valid, degrees)
+    assert validation["valid"]
+    assert validation["semantics"] == "adjacency-degree-average"
     invalid = np.array([0, 1, 2, 3], dtype=np.int32)
-    with pytest.raises(ValueError, match="bucket order"):
+    with pytest.raises(ValueError, match="bucket semantics"):
         validate_dbg_semantics(invalid, degrees)
+
+
+def test_dbg_legacy_half_edge_semantics_are_explicit():
+    degrees = np.array([10, 5, 8, 4, 2, 1], dtype=np.int32)
+    positions = np.arange(6, dtype=np.int32)
+    validation = validate_dbg_semantics(positions, degrees)
+    assert validation["semantics"] == "legacy-half-edge-average"
+    assert validation["average_degree"] == 2
 
 
 def test_positive_bit_cost():

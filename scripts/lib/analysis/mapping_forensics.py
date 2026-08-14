@@ -526,12 +526,20 @@ def load_text_mapping_positions(
     return positions, metadata
 
 
-def dbg_bucket_codes(degrees: np.ndarray) -> np.ndarray:
+def dbg_bucket_codes(
+    degrees: np.ndarray,
+    *,
+    average_degree: int | None = None,
+) -> np.ndarray:
     if degrees.ndim != 1:
         raise ValueError("Degrees must be one-dimensional")
     nodes = degrees.size
-    average = int(np.sum(
-        degrees, dtype=np.int64) // max(1, nodes))
+    average = (
+        int(average_degree)
+        if average_degree is not None
+        else int(np.sum(
+            degrees, dtype=np.int64) // max(1, nodes))
+    )
     thresholds = np.array([
         average // 2,
         average,
@@ -557,19 +565,33 @@ def validate_dbg_semantics(
     inverse = np.empty(positions_by_sg.size, dtype=np.int32)
     inverse[positions_by_sg] = np.arange(
         positions_by_sg.size, dtype=np.int32)
-    ordered_buckets = dbg_bucket_codes(degrees)[inverse]
-    if np.any(ordered_buckets[1:] > ordered_buckets[:-1]):
-        raise ValueError(
-            "DBG mapping violates descending logarithmic bucket order")
-    counts = np.bincount(ordered_buckets, minlength=8)
-    return {
-        "schema": "dbg-bucket-validation/v1",
-        "valid": True,
-        "bucket_counts_low_to_high": counts.tolist(),
-        "ordered_buckets_high_to_low": [
-            int(code) for code in np.flatnonzero(counts)[::-1]
-        ],
-    }
+    directed_average = int(
+        np.sum(degrees, dtype=np.int64)
+        // max(1, degrees.size)
+    )
+    policies = (
+        ("adjacency-degree-average", directed_average),
+        ("legacy-half-edge-average", directed_average // 2),
+    )
+    for policy, average in policies:
+        ordered_buckets = dbg_bucket_codes(
+            degrees, average_degree=average)[inverse]
+        if not np.any(
+            ordered_buckets[1:] > ordered_buckets[:-1]
+        ):
+            counts = np.bincount(ordered_buckets, minlength=8)
+            return {
+                "schema": "dbg-bucket-validation/v2",
+                "valid": True,
+                "semantics": policy,
+                "average_degree": average,
+                "bucket_counts_low_to_high": counts.tolist(),
+                "ordered_buckets_high_to_low": [
+                    int(code) for code in np.flatnonzero(counts)[::-1]
+                ],
+            }
+    raise ValueError(
+        "DBG mapping violates current and legacy bucket semantics")
 
 
 def _quantile_codes(values: np.ndarray) -> tuple[np.ndarray, list[float]]:
