@@ -47,6 +47,14 @@ def add_common_args(p: argparse.ArgumentParser) -> None:
                    help="Override graph list (by name). Otherwise picks from --64gb/--local/--preview/full.")
     p.add_argument("--algorithms", nargs="+",
                    help="Restrict to exact canonical algorithm keys.")
+    p.add_argument(
+        "--benchmarks", nargs="+",
+        help="Override the benchmark subset for a bounded run.",
+    )
+    p.add_argument(
+        "--trials", type=int,
+        help="Override process trials for a bounded run.",
+    )
     p.add_argument("--graph-dir", type=str, default=str(PAPER_GRAPH_ROOT),
                    help="Directory containing graph files (.sg/.el/.mtx).")
     p.add_argument("--artifact-root", type=str, default=str(PAPER_ARTIFACT_ROOT),
@@ -110,6 +118,13 @@ def resolve_config(args: argparse.Namespace) -> dict:
         graphs, benchmarks, trials, timeout = (
             EVAL_GRAPHS, BENCHMARKS, TRIALS_FULL, TIMEOUT_FULL,
         )
+
+    benchmarks, trials = V.resolve_benchmark_policy(
+        benchmarks,
+        trials,
+        args.benchmarks,
+        args.trials,
+    )
 
     if args.graphs:
         pool = EVAL_GRAPHS + EVAL_GRAPHS_64GB + EVAL_GRAPHS_LOCAL + PREVIEW_GRAPHS

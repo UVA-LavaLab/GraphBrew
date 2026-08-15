@@ -488,6 +488,21 @@ def test_bounded_benchmark_and_trial_overrides():
             ["pr"], 1, None, 0)
 
 
+def test_stage_common_forwards_bounded_overrides():
+    parser = argparse.ArgumentParser()
+    _common.add_common_args(parser)
+    args = parser.parse_args([
+        "--exp", "2",
+        "--graphs", "hollywood-2009",
+        "--benchmarks", "pr", "bfs", "cc",
+        "--trials", "3",
+        "--dry-run",
+    ])
+    cfg = _common.resolve_config(args)
+    assert cfg["benchmarks"] == ["pr", "bfs", "cc"]
+    assert cfg["trials"] == 3
+
+
 def test_cache_filter_resolves_ablation_and_chain_keys():
     ablation = ABLATION_CONTRASTS[0]["base"]
     runner.configure_algorithm_filter([
