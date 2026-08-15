@@ -471,6 +471,23 @@ def test_algorithm_filter_accepts_rabbit_emission_screen():
         runner.configure_algorithm_filter(None)
 
 
+def test_bounded_benchmark_and_trial_overrides():
+    benchmarks, trials = runner.resolve_benchmark_policy(
+        ["pr", "bfs"],
+        1,
+        ["pr", "bfs", "cc"],
+        3,
+    )
+    assert benchmarks == ["pr", "bfs", "cc"]
+    assert trials == 3
+    with pytest.raises(ValueError, match="benchmark override"):
+        runner.resolve_benchmark_policy(
+            ["pr"], 1, ["pr", "unknown"], None)
+    with pytest.raises(ValueError, match="positive"):
+        runner.resolve_benchmark_policy(
+            ["pr"], 1, None, 0)
+
+
 def test_cache_filter_resolves_ablation_and_chain_keys():
     ablation = ABLATION_CONTRASTS[0]["base"]
     runner.configure_algorithm_filter([

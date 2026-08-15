@@ -307,6 +307,33 @@ def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
     _ALGORITHM_FILTER = set(algorithms)
 
 
+def resolve_benchmark_policy(
+    default_benchmarks: list[str],
+    default_trials: int,
+    requested_benchmarks: Optional[list[str]],
+    requested_trials: Optional[int],
+) -> tuple[list[str], int]:
+    benchmarks = list(default_benchmarks)
+    trials = int(default_trials)
+    if requested_benchmarks is not None:
+        unknown = sorted(set(requested_benchmarks) - set(BENCHMARKS))
+        if (
+            not requested_benchmarks
+            or len(requested_benchmarks) != len(set(requested_benchmarks))
+            or unknown
+        ):
+            raise ValueError(
+                "Invalid benchmark override: "
+                + ", ".join(unknown or requested_benchmarks)
+            )
+        benchmarks = list(requested_benchmarks)
+    if requested_trials is not None:
+        if requested_trials <= 0:
+            raise ValueError("Trial override must be positive")
+        trials = int(requested_trials)
+    return benchmarks, trials
+
+
 def configure_execution_mode(*, dry_run: bool) -> None:
     global _DRY_RUN_MODE
     _DRY_RUN_MODE = dry_run
@@ -6755,6 +6782,14 @@ def main() -> None:
                         help="Override graph list (by name)")
     parser.add_argument("--algorithms", nargs="+",
                         help="Restrict to exact canonical keys (e.g. 8:csr 12:hrab)")
+    parser.add_argument(
+        "--benchmarks", nargs="+",
+        help="Override the benchmark subset for a bounded run",
+    )
+    parser.add_argument(
+        "--trials", type=int,
+        help="Override process trials for a bounded run",
+    )
     parser.add_argument("--graph-dir", type=str, default=str(PAPER_GRAPH_ROOT),
                         help="Directory containing graph files (.sg, .el)")
     parser.add_argument(
@@ -6877,6 +6912,13 @@ def main() -> None:
         benchmarks = BENCHMARKS
         trials = TRIALS_FULL
         timeout = TIMEOUT_FULL
+
+    benchmarks, trials = resolve_benchmark_policy(
+        benchmarks,
+        trials,
+        args.benchmarks,
+        args.trials,
+    )
 
     # Override graphs if specified
     if args.graphs:
