@@ -2533,6 +2533,21 @@ def main():
         help="Generate the frozen 30-graph CPU selector source bundle",
     )
     g_paper.add_argument(
+        "--adaptive-cpu-rapid-plan",
+        action="store_true",
+        help="Freeze the fresh 30-graph CPU rapid diagnostic",
+    )
+    g_paper.add_argument(
+        "--adaptive-cpu-rapid-authorize",
+        action="store_true",
+        help="Authorize the frozen CPU rapid diagnostic",
+    )
+    g_paper.add_argument(
+        "--adaptive-cpu-rapid-execute",
+        action="store_true",
+        help="Execute the authorized CPU rapid diagnostic",
+    )
+    g_paper.add_argument(
         "--adaptive-authorization-reference",
         help="Reviewed authorization reference for adaptive pilot execution",
     )
@@ -3253,6 +3268,75 @@ def main():
             cmd += ["--refreeze-sources"]
         log_section(
             "ADAPTIVE CPU SELECTOR SOURCES: " + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_cpu_rapid_plan:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/cpu_sprint.py",
+            "--plan-rapid",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--threads",
+            str(args.paper_threads or 16),
+        ]
+        if args.paper_cpu_list:
+            cmd += ["--cpu-list", args.paper_cpu_list]
+        if args.adaptive_refreeze_cpu_scope:
+            cmd += ["--refreeze-rapid"]
+        log_section(
+            "ADAPTIVE CPU RAPID PLAN: " + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_cpu_rapid_authorize:
+        import subprocess as _sp
+        if not args.adaptive_authorization_reference:
+            parser.error(
+                "--adaptive-cpu-rapid-authorize requires "
+                "--adaptive-authorization-reference"
+            )
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/cpu_sprint.py",
+            "--authorize-rapid",
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--authorization-reference",
+            args.adaptive_authorization_reference,
+        ]
+        if args.adaptive_refreeze_authorization:
+            cmd += ["--refreeze-rapid"]
+        log_section(
+            "ADAPTIVE CPU RAPID AUTHORIZE: " + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_cpu_rapid_execute:
+        import subprocess as _sp
+        if not args.adaptive_authorization_reference:
+            parser.error(
+                "--adaptive-cpu-rapid-execute requires "
+                "--adaptive-authorization-reference"
+            )
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/cpu_sprint.py",
+            "--execute-rapid",
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--authorization-reference",
+            args.adaptive_authorization_reference,
+        ]
+        log_section(
+            "ADAPTIVE CPU RAPID EXECUTE: " + " ".join(cmd)
         )
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)

@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,8 @@ CPU_PRIOR_CONSUMED_HOURS = (
 )
 CPU_EXPANSION_TARGET_GRAPHS = 30
 CPU_MDE_LIMIT = 0.05
+CPU_RAPID_KERNELS = ("pr_spmv", "cc", "cc_sv")
+CPU_RAPID_PROJECTED_HIGH_HOURS = 12.0
 
 
 def _sprint_root(artifact_root: Path) -> Path:
@@ -394,14 +397,233 @@ def generate_source_manifests(
     return bundle_path
 
 
+def write_rapid_plan(
+    artifact_root: Path,
+    graph_root: Path,
+    *,
+    cpu_list: str,
+    threads: int,
+    refreeze: bool = False,
+) -> Path:
+    if not cpu_list or threads <= 0:
+        raise ValueError(
+            "Rapid diagnostic requires CPU list and positive threads")
+    sprint_root = _sprint_root(artifact_root)
+    scope_path = sprint_root / "scope_plan.json"
+    source_path = sprint_root / "source_manifest.json"
+    scope = _load_json(scope_path)
+    sources = _load_json(source_path)
+    if (
+        scope.get("schema") != CPU_SPRINT_SCHEMA
+        or sources.get("schema")
+            != "adaptive-cpu-source-bundle/v1"
+        or sources.get("graph_count")
+            != CPU_EXPANSION_TARGET_GRAPHS
+        or sources.get("scope_plan_sha256")
+            != file_sha256(scope_path, use_cache=False)
+    ):
+        raise RuntimeError(
+            "CPU rapid diagnostic inputs are invalid")
+    graph_names = sorted(sources["graphs"])
+    rapid_root = sprint_root / "rapid"
+    common = [
+        "python3",
+        "scripts/graphbrew_experiment.py",
+        "--paper-graphs", *graph_names,
+        "--paper-algorithms", *DEPLOYABLE_ARM_SPECS,
+        "--paper-benchmarks", *CPU_RAPID_KERNELS,
+        "--paper-trials", "1",
+        "--paper-graph-dir", str(graph_root),
+        "--paper-artifact-root", str(rapid_root),
+        "--paper-threads", str(threads),
+        "--paper-cpu-list", cpu_list,
+    ]
+    commands = [
+        [
+            *common[:2],
+            "--paper-verify-gate",
+            *common[2:],
+        ],
+        [
+            *common[:2],
+            "--vldb", "2",
+            *common[2:],
+        ],
+    ]
+    available_hours = (
+        CPU_BUDGET_HOURS
+        - CPU_RESERVE_HOURS
+        - CPU_PRIOR_CONSUMED_HOURS
+    )
+    if CPU_RAPID_PROJECTED_HIGH_HOURS > available_hours:
+        raise RuntimeError(
+            "CPU rapid diagnostic exceeds remaining budget")
+    plan = {
+        "schema": "adaptive-cpu-rapid-plan/v1",
+        "claim_eligible": False,
+        "purpose": (
+            "fresh 30-graph learnability and headroom falsifier "
+            "before full six-kernel collection"
+        ),
+        "scope_plan": str(scope_path),
+        "source_manifest": str(source_path),
+        "input_artifacts": {
+            "scope_plan": _artifact_binding(scope_path),
+            "source_manifest": _artifact_binding(source_path),
+        },
+        "graph_count": len(graph_names),
+        "graphs": graph_names,
+        "algorithms": list(DEPLOYABLE_ARM_SPECS),
+        "benchmarks": list(CPU_RAPID_KERNELS),
+        "trials": 1,
+        "command_count": len(commands),
+        "commands": commands,
+        "cpu_list": cpu_list,
+        "threads": threads,
+        "artifact_root": str(rapid_root),
+        "projected_high_hours":
+            CPU_RAPID_PROJECTED_HIGH_HOURS,
+        "budget_hours": CPU_BUDGET_HOURS,
+        "reserve_hours": CPU_RESERVE_HOURS,
+        "prior_consumed_hours": CPU_PRIOR_CONSUMED_HOURS,
+        "full_collection_authorized": False,
+        "execution_authorization_required": True,
+    }
+    path = sprint_root / "rapid_plan.json"
+    if (
+        path.is_file()
+        and _load_json(path) != plan
+        and not refreeze
+    ):
+        raise RuntimeError(
+            "Frozen CPU rapid plan changed; refreeze after review")
+    _atomic_json(plan, path)
+    return path
+
+
+def authorize_rapid_plan(
+    artifact_root: Path,
+    *,
+    authorization_reference: str,
+    refreeze: bool = False,
+) -> Path:
+    if not authorization_reference:
+        raise ValueError(
+            "CPU rapid authorization reference is required")
+    sprint_root = _sprint_root(artifact_root)
+    plan_path = sprint_root / "rapid_plan.json"
+    plan = _load_json(plan_path)
+    for binding in plan.get("input_artifacts", {}).values():
+        path = Path(binding["path"])
+        if (
+            not path.is_file()
+            or path.stat().st_size != int(binding["bytes"])
+            or file_sha256(path, use_cache=False)
+                != binding["sha256"]
+        ):
+            raise RuntimeError(
+                f"CPU rapid input changed: {path}")
+    payload = {
+        "schema": "adaptive-cpu-rapid-authorization/v1",
+        "execution_enabled": True,
+        "authorization_reference": authorization_reference,
+        "plan": str(plan_path),
+        "plan_sha256": file_sha256(
+            plan_path, use_cache=False),
+        "command_count": plan["command_count"],
+        "projected_high_hours":
+            plan["projected_high_hours"],
+    }
+    path = sprint_root / "rapid_authorization.json"
+    if (
+        path.is_file()
+        and _load_json(path) != payload
+        and not refreeze
+    ):
+        raise RuntimeError(
+            "CPU rapid authorization changed; refreeze after review")
+    _atomic_json(payload, path)
+    return path
+
+
+def execute_rapid_plan(
+    artifact_root: Path,
+    *,
+    authorization_reference: str,
+) -> Path:
+    sprint_root = _sprint_root(artifact_root)
+    plan_path = sprint_root / "rapid_plan.json"
+    authorization_path = sprint_root / "rapid_authorization.json"
+    plan = _load_json(plan_path)
+    authorization = _load_json(authorization_path)
+    if (
+        authorization.get("schema")
+            != "adaptive-cpu-rapid-authorization/v1"
+        or not authorization.get("execution_enabled")
+        or authorization.get("authorization_reference")
+            != authorization_reference
+        or authorization.get("plan") != str(plan_path)
+        or authorization.get("plan_sha256")
+            != file_sha256(plan_path, use_cache=False)
+        or authorization.get("command_count")
+            != plan.get("command_count")
+    ):
+        raise RuntimeError(
+            "CPU rapid execution authorization is invalid")
+    for binding in plan["input_artifacts"].values():
+        path = Path(binding["path"])
+        if (
+            path.stat().st_size != int(binding["bytes"])
+            or file_sha256(path, use_cache=False)
+                != binding["sha256"]
+        ):
+            raise RuntimeError(
+                f"CPU rapid input changed: {path}")
+    results = []
+    for index, command in enumerate(plan["commands"]):
+        started = time.monotonic()
+        completed = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+        )
+        results.append({
+            "index": index,
+            "command": command,
+            "returncode": completed.returncode,
+            "duration_seconds":
+                time.monotonic() - started,
+        })
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"CPU rapid command failed at index {index}")
+    payload = {
+        "schema": "adaptive-cpu-rapid-complete/v1",
+        "authorization_reference": authorization_reference,
+        "plan": str(plan_path),
+        "plan_sha256": file_sha256(
+            plan_path, use_cache=False),
+        "command_count": len(results),
+        "results": results,
+        "status": "complete",
+    }
+    path = sprint_root / "rapid_complete.json"
+    _atomic_json(payload, path)
+    return path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="GraphBrew amortized CPU selector sprint")
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--generate-sources", action="store_true")
+    parser.add_argument("--plan-rapid", action="store_true")
+    parser.add_argument("--authorize-rapid", action="store_true")
+    parser.add_argument("--execute-rapid", action="store_true")
     parser.add_argument("--force-sources", action="store_true")
     parser.add_argument("--refreeze-scope", action="store_true")
     parser.add_argument("--refreeze-sources", action="store_true")
+    parser.add_argument("--refreeze-rapid", action="store_true")
+    parser.add_argument("--authorization-reference")
     parser.add_argument("--threads", type=int, default=16)
     parser.add_argument("--cpu-list")
     parser.add_argument(
@@ -417,7 +639,13 @@ def main() -> int:
             "/media/Data/00_GraphDatasets/GraphBrew/artifacts"),
     )
     args = parser.parse_args()
-    if int(args.plan) + int(args.generate_sources) != 1:
+    if sum((
+        int(args.plan),
+        int(args.generate_sources),
+        int(args.plan_rapid),
+        int(args.authorize_rapid),
+        int(args.execute_rapid),
+    )) != 1:
         parser.error("Select exactly one CPU sprint stage")
     if args.plan:
         path = write_scope_plan(
@@ -425,7 +653,7 @@ def main() -> int:
             args.graph_dir.resolve(),
             refreeze=args.refreeze_scope,
         )
-    else:
+    elif args.generate_sources:
         path = generate_source_manifests(
             args.artifact_root.resolve(),
             args.graph_dir.resolve(),
@@ -433,6 +661,27 @@ def main() -> int:
             cpu_list=args.cpu_list,
             force=args.force_sources,
             refreeze=args.refreeze_sources,
+        )
+    elif args.plan_rapid:
+        path = write_rapid_plan(
+            args.artifact_root.resolve(),
+            args.graph_dir.resolve(),
+            cpu_list=args.cpu_list or "",
+            threads=args.threads,
+            refreeze=args.refreeze_rapid,
+        )
+    elif args.authorize_rapid:
+        path = authorize_rapid_plan(
+            args.artifact_root.resolve(),
+            authorization_reference=(
+                args.authorization_reference or ""),
+            refreeze=args.refreeze_rapid,
+        )
+    else:
+        path = execute_rapid_plan(
+            args.artifact_root.resolve(),
+            authorization_reference=(
+                args.authorization_reference or ""),
         )
     print(f"Wrote: {path}")
     return 0

@@ -8,6 +8,8 @@ from scripts.experiments.adaptive.cpu_sprint import (
     CPU_MAPPING_DRAWS,
     CPU_MDE_LIMIT,
     CPU_PRIMARY_REUSE,
+    CPU_RAPID_KERNELS,
+    CPU_RAPID_PROJECTED_HIGH_HOURS,
     CPU_RESERVE_HOURS,
     CPU_REUSE_REGIMES,
     CPU_SPRINT_GRAPHS,
@@ -43,6 +45,8 @@ def test_cpu_selector_claim_and_budget_scope_is_frozen():
     assert CPU_REUSE_REGIMES == (20, 50, 100)
     assert CPU_PRIMARY_REUSE == 50
     assert CPU_MAPPING_DRAWS == 3
+    assert CPU_RAPID_KERNELS == ("pr_spmv", "cc", "cc_sv")
+    assert CPU_RAPID_PROJECTED_HIGH_HOURS == 12.0
     assert CPU_MDE_LIMIT == 0.05
     assert CPU_BUDGET_HOURS == 168.0
     assert CPU_RESERVE_HOURS == 16.8
