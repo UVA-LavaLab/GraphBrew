@@ -53,6 +53,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.experiments.vldb.config import (
+    ADAPTIVE_CPU_EXPANSION_GRAPHS,
     ABLATION_CONFIGS,
     ALGORITHM_GRAPH_EXCLUSION_EVIDENCE,
     ALGORITHM_GRAPH_EXCLUSIONS,
@@ -6922,7 +6923,15 @@ def main() -> None:
 
     # Override graphs if specified
     if args.graphs:
-        graphs = [g for g in (EVAL_GRAPHS + PREVIEW_GRAPHS) if g["name"] in args.graphs]
+        graph_catalog = (
+            EVAL_GRAPHS
+            + PREVIEW_GRAPHS
+            + ADAPTIVE_CPU_EXPANSION_GRAPHS
+        )
+        graphs = [
+            g for g in graph_catalog
+            if g["name"] in args.graphs
+        ]
         if not graphs:
             graphs = [{"name": g, "short": g, "type": "unknown", "vertices_m": 0, "edges_m": 0}
                       for g in args.graphs]

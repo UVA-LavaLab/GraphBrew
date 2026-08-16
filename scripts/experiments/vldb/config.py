@@ -288,6 +288,31 @@ EVAL_GRAPHS_64GB = [
     {"name": "uk-2002",            "short": "uk02",      "type": "web",            "vertices_m": 18.52,  "edges_m": 298.11},
 ]
 
+# Additive adaptive-selector corpus expansion. These graphs are not part of the
+# frozen VLDB paper matrix; dimensions are source-catalog planning hints until
+# graph_source/v2 conversion records the exact symmetrized graph.
+ADAPTIVE_CPU_EXPANSION_GRAPHS = [
+    {"name": "email-Enron",         "short": "enron",      "type": "communication", "vertices_m": 0.04, "edges_m": 0.18},
+    {"name": "wiki-Talk",           "short": "wikitalk",   "type": "communication", "vertices_m": 2.39, "edges_m": 5.02},
+    {"name": "wiki-topcats",        "short": "topcats",    "type": "content",       "vertices_m": 1.79, "edges_m": 28.51},
+    {"name": "roadNet-CA",          "short": "roadca",     "type": "road",          "vertices_m": 1.97, "edges_m": 2.77},
+    {"name": "roadNet-TX",          "short": "roadtx",     "type": "road",          "vertices_m": 1.39, "edges_m": 1.92},
+    {"name": "amazon0601",          "short": "amazon",     "type": "commerce",      "vertices_m": 0.40, "edges_m": 3.39},
+    {"name": "web-Google",          "short": "google",     "type": "web",           "vertices_m": 0.92, "edges_m": 5.11},
+    {"name": "web-BerkStan",        "short": "berkstan",   "type": "web",           "vertices_m": 0.69, "edges_m": 7.60},
+    {"name": "as-Skitter",          "short": "skitter",    "type": "infrastructure", "vertices_m": 1.70, "edges_m": 11.10},
+    {"name": "coPapersDBLP",        "short": "copapers",   "type": "collaboration", "vertices_m": 0.54, "edges_m": 15.25},
+    {"name": "coPapersCiteseer",    "short": "cociteseer", "type": "citation",      "vertices_m": 0.43, "edges_m": 16.04},
+    {"name": "com-Youtube",         "short": "youtube",    "type": "social",        "vertices_m": 1.13, "edges_m": 2.99},
+    {"name": "in-2004",             "short": "in04",       "type": "web",           "vertices_m": 1.38, "edges_m": 16.92},
+    {"name": "rgg_n_2_20_s0",       "short": "rgg20",      "type": "mesh",          "vertices_m": 1.05, "edges_m": 5.83},
+    {"name": "kron_g500-logn18",    "short": "kron18",     "type": "synthetic",     "vertices_m": 0.26, "edges_m": 21.17},
+    {"name": "soc-Slashdot0811",    "short": "slashdot",   "type": "social",        "vertices_m": 0.08, "edges_m": 0.91},
+    {"name": "cit-HepPh",           "short": "hepph",      "type": "citation",      "vertices_m": 0.03, "edges_m": 0.42},
+    {"name": "cnr-2000",            "short": "cnr",        "type": "web",           "vertices_m": 0.33, "edges_m": 3.22},
+    {"name": "dblp-2010",           "short": "dblp",       "type": "collaboration", "vertices_m": 0.33, "edges_m": 1.62},
+]
+
 # Local evaluation (fits 64GB RAM, covers all topology types from paper Table 5).
 # Results use the same chart pipeline as EVAL_GRAPHS — just swap the list and
 # re-run.  Full suite targets the lab machine with 256GB RAM.
@@ -625,6 +650,24 @@ VLDB_GRAPH_SOURCES = {
     "hollywood-2009":    {"source": "catalog"},
     "webbase-2001":      {"source": "catalog"},
     "twitter7":          {"source": "catalog"},
+    "email-Enron":       {"source": "catalog"},
+    "wiki-Talk":         {"source": "catalog"},
+    "wiki-topcats":      {"source": "catalog"},
+    "roadNet-CA":        {"source": "catalog"},
+    "roadNet-TX":        {"source": "catalog"},
+    "amazon0601":        {"source": "catalog"},
+    "web-Google":        {"source": "catalog"},
+    "web-BerkStan":      {"source": "catalog"},
+    "coPapersDBLP":      {"source": "catalog"},
+    "coPapersCiteseer":  {"source": "catalog"},
+    "com-Youtube":       {"source": "catalog"},
+    "in-2004":           {"source": "catalog"},
+    "rgg_n_2_20_s0":     {"source": "catalog"},
+    "kron_g500-logn18":  {"source": "catalog"},
+    "soc-Slashdot0811":  {"source": "catalog"},
+    "cit-HepPh":         {"source": "catalog"},
+    "cnr-2000":          {"source": "catalog"},
+    "dblp-2010":         {"source": "catalog"},
 
     # ── Additional graphs for EVAL_GRAPHS_64GB ──
     "as-Skitter":        {"source": "catalog"},

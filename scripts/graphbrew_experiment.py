@@ -2331,6 +2331,11 @@ def main():
     )
     g_paper.add_argument("--paper-threads", type=int,
                          help="Base OpenMP threads for VLDB runs")
+    g_paper.add_argument(
+        "--paper-graphs",
+        nargs="+",
+        help="Restrict paper/refresh stages to exact graph names",
+    )
     g_paper.add_argument("--paper-cpu-list", type=str,
                          help="taskset CPU list for VLDB timing isolation")
     g_paper.add_argument("--paper-cache-mode",
@@ -3213,6 +3218,8 @@ def main():
         ]
         if args.paper_threads is not None:
             cmd += ["--threads", str(args.paper_threads)]
+        if args.paper_graphs:
+            cmd += ["--graphs", *args.paper_graphs]
         if args.paper_measurement_generation:
             cmd += [
                 "--measurement-generation",
