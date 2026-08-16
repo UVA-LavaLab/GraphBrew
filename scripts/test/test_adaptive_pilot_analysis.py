@@ -336,6 +336,27 @@ def test_pilot_analysis_rejects_result_digest_mismatch(tmp_path):
         build_pilot_analysis(sprint_root)
 
 
+def test_pilot_analysis_accounts_for_quarantined_attempt(tmp_path):
+    sprint_root = _fixture(tmp_path)
+    result_path = next(
+        (sprint_root / "pilot_runs").glob(
+            "randomized-pilot*/attempt_0/result.json")
+    )
+    quarantined = json.loads(result_path.read_text())
+    quarantined["error_kind"] = "contract-violation"
+    quarantined["contract_violation"] = "parser contract changed"
+    quarantined["duration_seconds"] = 2.0
+    quarantine_path = (
+        result_path.parent / "result.rejected-parser-v1.json")
+    _write_json(quarantine_path, quarantined)
+    analysis = build_pilot_analysis(sprint_root)
+    assert analysis["status"] == "complete-with-quarantine"
+    assert analysis["quarantined_attempt_count"] == 1
+    assert analysis["quarantined_attempt_states"] == {
+        "contract-violation": 1,
+    }
+
+
 def test_censoring_suppresses_headroom(tmp_path):
     sprint_root = _fixture(tmp_path)
     result_path = next(
@@ -373,9 +394,16 @@ def test_feature_rss_and_cache_pilot_gates():
         } for process_id in range(3)],
     }
     feature = summarize_feature_overhead(
-        [original_cell], {("g", "randomized"): 0.1})
+        [original_cell], {
+            ("g", "randomized"): {
+                "selection_seconds": 0.1,
+                "arm_map_seconds": 0.2,
+            },
+        })
     assert feature["eligible"]
     assert feature["all_contexts_within_2pct"]
+    assert feature["maximum_minimum_reuse_for_2pct"] == 1
+    assert feature["rows"][0]["arm_map_seconds"] == 0.2
 
     rss_commands = [{
         "command_id": f"rss|{arm}",

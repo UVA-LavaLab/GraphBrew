@@ -206,6 +206,7 @@ def load_selected_pilot_results(
 
     priming_results = []
     prior_priming_results = []
+    quarantined_attempt_results = []
     if completion is not None:
         session_id = str(completion.get("execution_session_id") or "")
         if not session_id:
@@ -233,6 +234,48 @@ def load_selected_pilot_results(
         str(command["command_id"]): command
         for command in manifest["priming_commands"]
     }
+    manifest_commands = {
+        str(command["command_id"]): command
+        for command in manifest["commands"]
+    }
+    quarantined_attempt_keys: set[tuple[str, int]] = set()
+    for path in (sprint_root / "pilot_runs").glob(
+        "**/result.rejected-*.json"
+    ):
+        result = _load_json(path)
+        if (
+            result.get("authorization_reference")
+                != authorization_reference
+            or result.get("execution_manifest_sha256")
+                != manifest_sha256
+        ):
+            continue
+        command_id = str(result.get("command_id") or "")
+        attempt = int(result.get("attempt", -1))
+        base_command = manifest_commands.get(command_id)
+        if base_command is None:
+            raise ValueError(
+                f"Unknown quarantined pilot result: {path}")
+        command = bind_authorized_command(
+            pilot_command_for_attempt(base_command, attempt),
+            authorization_reference,
+            manifest_sha256,
+            manifest["input_artifacts"],
+        )
+        validate_result_contract(result, command)
+        expected_parent = Path(command["result_path"]).resolve().parent
+        if path.resolve().parent != expected_parent:
+            raise ValueError(
+                f"Quarantined pilot result moved across attempts: {path}")
+        key = (command_id, attempt)
+        if key in quarantined_attempt_keys:
+            raise ValueError(
+                f"Duplicate quarantined pilot attempt: {key}")
+        quarantined_attempt_keys.add(key)
+        quarantined_attempt_results.append(result)
+        validated_paths.add(path.resolve())
+
+    prior_priming_keys: set[tuple[str, str]] = set()
     for path in (sprint_root / "pilot_runs").glob("**/result.json"):
         result = _load_json(path)
         if (
@@ -261,6 +304,16 @@ def load_selected_pilot_results(
                     manifest["input_artifacts"],
                 )
                 validate_result_contract(result, command)
+                if path.resolve() != Path(
+                    command["result_path"]
+                ).resolve():
+                    raise ValueError(
+                        f"Prior priming result path changed: {path}")
+                key = (str(result["command_id"]), session_id)
+                if key in prior_priming_keys:
+                    raise ValueError(
+                        f"Duplicate prior priming result: {key}")
+                prior_priming_keys.add(key)
                 prior_priming_results.append(result)
                 validated_paths.add(path.resolve())
                 continue
@@ -320,6 +373,8 @@ def load_selected_pilot_results(
         "selected_results": selected,
         "priming_results": priming_results,
         "prior_priming_results": prior_priming_results,
+        "quarantined_attempt_results":
+            quarantined_attempt_results,
         "all_attempt_results": all_attempts,
         "missing_command_ids": missing,
         "result_bindings": result_bindings,
@@ -449,8 +504,14 @@ def aggregate_timing_cells(
 
 def _selection_costs(
     results: Iterable[Mapping[str, Any]],
-) -> dict[tuple[str, str], float]:
-    values: dict[tuple[str, str], list[float]] = defaultdict(list)
+) -> dict[tuple[str, str], dict[str, float]]:
+    values: dict[
+        tuple[str, str],
+        dict[str, list[float]],
+    ] = defaultdict(lambda: {
+        "selection_seconds": [],
+        "arm_map_seconds": [],
+    })
     for result in results:
         if (
             result.get("phase") != "feature-cost-pilot"
@@ -462,16 +523,27 @@ def _selection_costs(
         if "adaptive_selection_time" not in extra:
             raise ValueError(
                 "Feature pilot lacks adaptive selection time")
-        values[(
+        if "adaptive_arm_map_time" not in extra:
+            raise ValueError(
+                "Feature pilot lacks adaptive arm map time")
+        key = (
             str(result["graph"]),
             str(result["labeling"]),
-        )].append(_finite_nonnegative(
+        )
+        values[key]["selection_seconds"].append(_finite_nonnegative(
             extra["adaptive_selection_time"],
             "Adaptive selection time",
         ))
+        values[key]["arm_map_seconds"].append(_finite_nonnegative(
+            extra["adaptive_arm_map_time"],
+            "Adaptive arm map time",
+        ))
     return {
-        key: statistics.median(samples)
-        for key, samples in values.items()
+        key: {
+            field: statistics.median(samples)
+            for field, samples in fields.items()
+        }
+        for key, fields in values.items()
     }
 
 
@@ -521,33 +593,74 @@ def summarize_label_sensitivity(
     return rows
 
 
+def summarize_mapping_determinism(
+    timing_cells: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    grouped: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+    for cell in timing_cells:
+        if cell["labeling"] == "randomized":
+            grouped[str(cell["arm"])].append(cell)
+    return [{
+        "arm": arm,
+        "cell_count": len(cells),
+        "cells_with_multiple_fingerprints": sum(
+            int(cell["mapping_fingerprint_count"]) > 1
+            for cell in cells
+        ),
+        "maximum_mapping_fingerprint_count": max(
+            (
+                int(cell["mapping_fingerprint_count"])
+                for cell in cells
+            ),
+            default=0,
+        ),
+    } for arm, cells in sorted(grouped.items())]
+
+
 def summarize_feature_overhead(
     timing_cells: Iterable[Mapping[str, Any]],
-    selection_costs: Mapping[tuple[str, str], float],
+    selection_costs: Mapping[
+        tuple[str, str],
+        Mapping[str, float],
+    ],
 ) -> dict[str, Any]:
-    original_pr = {
-        (str(cell["graph"]), str(cell["labeling"])): cell
+    original_cells = {
+        (
+            str(cell["graph"]),
+            str(cell["labeling"]),
+            str(cell["kernel"]),
+        ): cell
         for cell in timing_cells
         if (
-            cell["kernel"] == "pr"
-            and cell["arm"] == "0"
+            cell["arm"] == "0"
             and cell["eligible"]
         )
     }
     rows = []
-    for key, selection_seconds in sorted(selection_costs.items()):
-        original = original_pr.get(key)
-        if original is None:
-            continue
-        original_kernel = _mean_process_cost(original, "infinity")
-        rows.append({
-            "graph": key[0],
-            "labeling": key[1],
-            "selection_seconds": selection_seconds,
-            "original_pr_kernel_seconds": original_kernel,
-            "selection_over_original_pr_ratio":
-                selection_seconds / original_kernel,
-        })
+    for key, costs in sorted(selection_costs.items()):
+        for (
+            graph,
+            labeling,
+            kernel,
+        ), original in sorted(original_cells.items()):
+            if (graph, labeling) != key:
+                continue
+            selection_seconds = float(costs["selection_seconds"])
+            original_kernel = _mean_process_cost(
+                original, "infinity")
+            ratio = selection_seconds / original_kernel
+            rows.append({
+                "graph": graph,
+                "labeling": labeling,
+                "kernel": kernel,
+                "selection_seconds": selection_seconds,
+                "arm_map_seconds": float(
+                    costs["arm_map_seconds"]),
+                "original_kernel_seconds": original_kernel,
+                "selection_over_original_ratio": ratio,
+                "minimum_reuse_for_2pct": max(
+                    1, math.ceil(ratio / 0.02)),
+            })
     expected = set(selection_costs)
     observed = {
         (row["graph"], row["labeling"]) for row in rows
@@ -559,9 +672,13 @@ def summarize_feature_overhead(
             bool(rows)
             and observed == expected
             and all(
-                row["selection_over_original_pr_ratio"] <= 0.02
+                row["selection_over_original_ratio"] <= 0.02
                 for row in rows
             )
+        ),
+        "maximum_minimum_reuse_for_2pct": (
+            max(row["minimum_reuse_for_2pct"] for row in rows)
+            if rows else None
         ),
         "rows": rows,
     }
@@ -888,12 +1005,14 @@ def _context_crossfit_oracle(
 
     odd_choice = choose(odd)
     even_choice = choose(even)
-    crossfit_cost = statistics.fmean((
-        _mean_process_cost(
-            arm_cells[odd_choice], reuse_regime, even),
-        _mean_process_cost(
-            arm_cells[even_choice], reuse_regime, odd),
-    ))
+    odd_evaluation = _mean_process_cost(
+        arm_cells[even_choice], reuse_regime, odd)
+    even_evaluation = _mean_process_cost(
+        arm_cells[odd_choice], reuse_regime, even)
+    crossfit_cost = (
+        odd_evaluation * len(odd)
+        + even_evaluation * len(even)
+    ) / len(process_ids)
     all_costs = {
         arm: _mean_process_cost(cell, reuse_regime)
         for arm, cell in arm_cells.items()
@@ -959,11 +1078,147 @@ def _logo_static_regret(
     }
 
 
+def _logo_per_kernel_static_regret(
+    contexts: list[dict[str, Any]],
+    portfolio_order: tuple[str, ...],
+) -> dict[str, Any]:
+    graphs = sorted({row["graph"] for row in contexts})
+    heldout_rows = []
+    for heldout in graphs:
+        training = [row for row in contexts if row["graph"] != heldout]
+        testing = [row for row in contexts if row["graph"] == heldout]
+        for test_row in testing:
+            kernel_training = [
+                row for row in training
+                if row["kernel"] == test_row["kernel"]
+            ]
+            if not kernel_training:
+                continue
+            training_ratios = {
+                arm: _geometric_mean(
+                    row["arm_seconds"][arm]
+                    / row["arm_seconds"]["0"]
+                    for row in kernel_training
+                )
+                for arm in portfolio_order
+            }
+            selected_arm = min(
+                portfolio_order,
+                key=lambda arm: (
+                    training_ratios[arm],
+                    portfolio_order.index(arm),
+                ),
+            )
+            heldout_rows.append({
+                "graph": heldout,
+                "kernel": test_row["kernel"],
+                "selected_arm": selected_arm,
+                "regret_ratio":
+                    test_row["arm_seconds"][selected_arm]
+                    / test_row["crossfit_oracle_seconds"],
+            })
+    return {
+        "fold_count": len(graphs),
+        "heldout_context_count": len(heldout_rows),
+        "geomean_regret_ratio": (
+            _geometric_mean(
+                row["regret_ratio"] for row in heldout_rows)
+            if heldout_rows else None
+        ),
+        "heldout_rows": heldout_rows,
+    }
+
+
+def _net_logo_regret(
+    logo: Mapping[str, Any],
+    contexts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    context_by_key = {
+        (row["graph"], row["kernel"]): row
+        for row in contexts
+    }
+    rows = []
+    for heldout in logo["heldout_rows"]:
+        context = context_by_key[(
+            heldout["graph"], heldout["kernel"])]
+        net_oracle = context.get("net_oracle_seconds")
+        if net_oracle is None:
+            continue
+        rows.append({
+            **heldout,
+            "net_regret_ratio":
+                context["arm_seconds"][heldout["selected_arm"]]
+                / net_oracle,
+        })
+    return {
+        "geomean_regret_ratio": (
+            _geometric_mean(
+                row["net_regret_ratio"] for row in rows)
+            if rows and len(rows) == len(logo["heldout_rows"])
+            else None
+        ),
+        "heldout_rows": rows,
+    }
+
+
+def _graph_bootstrap_interval(
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    field: str,
+    replicates: int = 10_000,
+) -> dict[str, Any]:
+    by_graph: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        by_graph[str(row["graph"])].append(float(row[field]))
+    graph_values = {
+        graph: _geometric_mean(values)
+        for graph, values in sorted(by_graph.items())
+    }
+    values = list(graph_values.values())
+    if not values:
+        return {
+            "graph_count": 0,
+            "point": None,
+            "lower_95": None,
+            "upper_95": None,
+            "per_graph": {},
+        }
+    state = 0x9E3779B97F4A7C15
+
+    def next_index(bound: int) -> int:
+        nonlocal state
+        state ^= (state >> 12) & ((1 << 64) - 1)
+        state ^= (state << 25) & ((1 << 64) - 1)
+        state ^= (state >> 27) & ((1 << 64) - 1)
+        state = (
+            state * 2685821657736338717
+        ) & ((1 << 64) - 1)
+        return state % bound
+
+    samples = []
+    for _ in range(replicates):
+        samples.append(_geometric_mean(
+            values[next_index(len(values))]
+            for _ in values
+        ))
+    samples.sort()
+    return {
+        "graph_count": len(values),
+        "point": _geometric_mean(values),
+        "lower_95": samples[int(0.025 * replicates)],
+        "upper_95": samples[int(0.975 * replicates) - 1],
+        "per_graph": graph_values,
+    }
+
+
 def evaluate_policy_headroom(
     timing_cells: Iterable[Mapping[str, Any]],
     *,
     portfolio_order: tuple[str, ...],
-    selection_costs: Mapping[tuple[str, str], float],
+    selection_costs: Mapping[
+        tuple[str, str],
+        Mapping[str, float],
+    ],
 ) -> dict[str, Any]:
     """Evaluate winner's-curse-safe oracle headroom on randomized labels."""
     cells = list(timing_cells)
@@ -1032,7 +1287,11 @@ def evaluate_policy_headroom(
             selection_seconds = (
                 0.0
                 if reuse_regime == "infinity"
-                else selection_costs.get((graph, "randomized"))
+                else (
+                    selection_costs.get(
+                        (graph, "randomized"), {}
+                    ).get("selection_seconds")
+                )
             )
             contexts.append({
                 "graph": graph,
@@ -1049,33 +1308,41 @@ def evaluate_policy_headroom(
             if row["kernel"] not in HEADLINE_EXCLUDED_KERNELS
         ]
         logo = _logo_static_regret(headline, portfolio_order)
-        net_rows = [
-            row for row in headline
-            if row["net_oracle_seconds"] is not None
-        ]
-        net_headroom = None
-        if (
-            logo["heldout_rows"]
-            and len(net_rows) == len(headline)
-        ):
-            net_by_context = {
-                (row["graph"], row["kernel"]):
-                    row["net_oracle_seconds"]
-                for row in net_rows
-            }
-            net_headroom = _geometric_mean(
-                (
-                    next(
-                        context["arm_seconds"][heldout["selected_arm"]]
-                        for context in headline
-                        if context["graph"] == heldout["graph"]
-                        and context["kernel"] == heldout["kernel"]
-                    )
-                    / net_by_context[(
-                        heldout["graph"], heldout["kernel"])]
-                )
-                for heldout in logo["heldout_rows"]
-            )
+        per_kernel_logo = _logo_per_kernel_static_regret(
+            headline, portfolio_order)
+        global_net = _net_logo_regret(logo, headline)
+        per_kernel_net = _net_logo_regret(
+            per_kernel_logo, headline)
+        candidates = {
+            "global-static": global_net["geomean_regret_ratio"],
+            "per-kernel-static":
+                per_kernel_net["geomean_regret_ratio"],
+        }
+        usable = {
+            name: value for name, value in candidates.items()
+            if value is not None
+        }
+        strongest_name = (
+            min(usable, key=lambda name: (usable[name], name))
+            if usable else None
+        )
+        strongest = (
+            global_net
+            if strongest_name == "global-static"
+            else per_kernel_net
+            if strongest_name == "per-kernel-static"
+            else {"heldout_rows": []}
+        )
+        bootstrap = _graph_bootstrap_interval(
+            strongest["heldout_rows"],
+            field="net_regret_ratio",
+        )
+        headroom_threshold = 1.03
+        headroom_pass = (
+            bootstrap["point"] is not None
+            and bootstrap["point"] >= headroom_threshold
+            and bootstrap["lower_95"] > 1.0
+        )
         oracle_counts = Counter(
             arm
             for row in headline
@@ -1088,11 +1355,23 @@ def evaluate_policy_headroom(
             "context_count": len(contexts),
             "headline_context_count": len(headline),
             "logo_best_static": logo,
+            "logo_per_kernel_static": per_kernel_logo,
             "crossfit_oracle_arm_counts":
                 dict(sorted(oracle_counts.items())),
             "crossfit_oracle_arm_diversity": len(oracle_counts),
             "best_static_vs_net_oracle_geomean_ratio":
-                net_headroom,
+                (
+                    usable[strongest_name]
+                    if strongest_name is not None else None
+                ),
+            "global_static_vs_net_oracle_geomean_ratio":
+                global_net["geomean_regret_ratio"],
+            "per_kernel_static_vs_net_oracle_geomean_ratio":
+                per_kernel_net["geomean_regret_ratio"],
+            "strongest_static_baseline": strongest_name,
+            "strongest_static_graph_bootstrap": bootstrap,
+            "headroom_threshold_ratio": headroom_threshold,
+            "timing_headroom_pass": headroom_pass,
             "naive_oracle_bias_geomean_ratio": _geometric_mean(
                 row["crossfit_oracle_seconds"]
                 / row["naive_oracle_seconds"]
@@ -1129,6 +1408,8 @@ def build_pilot_analysis(
         selected, bundle["manifest"])
     selection_costs = _selection_costs(selected)
     label_sensitivity = summarize_label_sensitivity(timing_cells)
+    mapping_determinism = summarize_mapping_determinism(
+        timing_cells)
     feature_overhead = summarize_feature_overhead(
         timing_cells, selection_costs)
     peak_rss = summarize_peak_rss(
@@ -1145,13 +1426,26 @@ def build_pilot_analysis(
     status = "incomplete"
     if bundle["completion"] is not None:
         if set(state_counts) <= {"success"}:
-            status = "complete-clean"
+            status = (
+                "complete-with-quarantine"
+                if bundle["quarantined_attempt_results"]
+                else "complete-clean"
+            )
         elif set(state_counts) <= {"success", "timeout"}:
             status = "complete-with-censoring"
         else:
             status = "complete-with-errors"
+    timing_headroom_pass = (
+        headroom["headroom_eligible"]
+        and any(
+            row.get("timing_headroom_pass")
+            for row in headroom["by_reuse"].values()
+        )
+    )
     pilot_gates = {
-        "timing_headroom": bool(headroom["headroom_eligible"]),
+        "timing_headroom_measurable":
+            bool(headroom["headroom_eligible"]),
+        "timing_headroom": timing_headroom_pass,
         "feature_overhead": bool(
             feature_overhead["all_contexts_within_2pct"]),
         "peak_rss": bool(peak_rss["eligible"]),
@@ -1164,11 +1458,17 @@ def build_pilot_analysis(
         "measurement_mode": "diagnostic-adaptive",
         "claim_eligible": False,
         "headroom_eligible": bool(
-            status == "complete-clean"
+            status in {
+                "complete-clean",
+                "complete-with-quarantine",
+            }
             and headroom["headroom_eligible"]
         ),
         "full_collection_gate_eligible": bool(
-            status == "complete-clean"
+            status in {
+                "complete-clean",
+                "complete-with-quarantine",
+            }
             and all(pilot_gates.values())
         ),
         "pilot_gates": pilot_gates,
@@ -1186,6 +1486,12 @@ def build_pilot_analysis(
         "priming_result_count": len(bundle["priming_results"]),
         "prior_priming_result_count":
             len(bundle["prior_priming_results"]),
+        "quarantined_attempt_count":
+            len(bundle["quarantined_attempt_results"]),
+        "quarantined_attempt_states": dict(Counter(
+            str(result.get("error_kind") or "success")
+            for result in bundle["quarantined_attempt_results"]
+        )),
         "validated_attempt_count":
             len(bundle["all_attempt_results"]),
         "missing_command_ids": bundle["missing_command_ids"],
@@ -1201,14 +1507,16 @@ def build_pilot_analysis(
                 bundle["all_attempt_results"]
                 + bundle["priming_results"]
                 + bundle["prior_priming_results"]
+                + bundle["quarantined_attempt_results"]
             )
         ) / 3600.0,
         "selection_seconds_by_graph_label": {
-            f"{graph}|{labeling}": value
+            f"{graph}|{labeling}": dict(value)
             for (graph, labeling), value
             in sorted(selection_costs.items())
         },
         "label_sensitivity": label_sensitivity,
+        "mapping_determinism": mapping_determinism,
         "feature_overhead": feature_overhead,
         "peak_rss": peak_rss,
         "cache_repricing": cache_repricing,

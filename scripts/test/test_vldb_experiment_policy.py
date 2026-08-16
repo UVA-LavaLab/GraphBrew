@@ -498,9 +498,13 @@ def test_stage_common_forwards_bounded_overrides():
         "--trials", "3",
         "--dry-run",
     ])
-    cfg = _common.resolve_config(args)
-    assert cfg["benchmarks"] == ["pr", "bfs", "cc"]
-    assert cfg["trials"] == 3
+    try:
+        cfg = _common.resolve_config(args)
+        assert cfg["benchmarks"] == ["pr", "bfs", "cc"]
+        assert cfg["trials"] == 3
+    finally:
+        runner.configure_execution_mode(dry_run=False)
+        runner.configure_algorithm_filter(None)
 
 
 def test_cache_filter_resolves_ablation_and_chain_keys():
@@ -692,8 +696,8 @@ def test_mapping_dry_run_reports_applicability_matrix_with_stale_provenance(
 
     output = caplog.text
     assert "provenance must be refreshed before execution" in output
-    assert "cit-Patents: planned 40 mapping(s), 80 named draw(s)" in output
-    assert "twitter7: planned 39 mapping(s), 77 named draw(s)" in output
+    assert "cit-Patents: planned 46 mapping(s), 98 named draw(s)" in output
+    assert "twitter7: planned 45 mapping(s), 95 named draw(s)" in output
     assert "EXCLUDED: twitter7" in output
 
 
