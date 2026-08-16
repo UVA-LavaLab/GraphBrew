@@ -447,7 +447,19 @@ def write_rapid_plan(
         "--paper-threads", str(threads),
         "--paper-cpu-list", cpu_list,
     ]
+    mapping_command = [
+        "python3",
+        "scripts/experiments/vldb/stages/02_reorder.py",
+        "--exp", "2",
+        "--graphs", *graph_names,
+        "--algorithms", *DEPLOYABLE_ARM_SPECS,
+        "--graph-dir", str(graph_root),
+        "--artifact-root", str(rapid_root),
+        "--threads", str(threads),
+        "--cpu-list", cpu_list,
+    ]
     commands = [
+        mapping_command,
         [
             *common[:2],
             "--paper-verify-gate",
@@ -457,6 +469,7 @@ def write_rapid_plan(
             *common[:2],
             "--vldb", "2",
             *common[2:],
+            "--paper-no-figures",
         ],
     ]
     available_hours = (

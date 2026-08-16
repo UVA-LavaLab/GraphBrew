@@ -2328,6 +2328,11 @@ def main():
         type=int,
         help="Override process trials for a bounded VLDB run",
     )
+    g_paper.add_argument(
+        "--paper-no-figures",
+        action="store_true",
+        help="Skip figure generation for a bounded measurement run",
+    )
     g_paper.add_argument("--paper-artifact-root",
                          default=os.environ.get(
                              "GRAPHBREW_VLDB_ROOT",
@@ -3374,6 +3379,8 @@ def main():
             cmd += ["--benchmarks", *args.paper_benchmarks]
         if args.paper_trials is not None:
             cmd += ["--trials", str(args.paper_trials)]
+        if args.paper_no_figures:
+            cmd += ["--no-figures"]
         cmd += [
             "--graph-dir", args.paper_graph_dir,
             "--artifact-root", args.paper_artifact_root,
