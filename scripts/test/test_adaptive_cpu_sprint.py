@@ -20,6 +20,7 @@ from scripts.experiments.vldb.config import (
     VLDB_GRAPH_SOURCES,
 )
 from scripts.lib.pipeline.download import get_graph_info
+from scripts.experiments.vldb.runner import select_requested_graphs
 
 
 def test_cpu_selector_scope_is_unique_and_downloadable():
@@ -35,6 +36,15 @@ def test_cpu_selector_scope_is_unique_and_downloadable():
         and get_graph_info(name) is not None
         for name in expansion_names
     )
+    selected = select_requested_graphs([
+        "cit-Patents",
+        "email-Enron",
+        "cit-Patents",
+    ])
+    assert [graph["name"] for graph in selected] == [
+        "cit-Patents",
+        "email-Enron",
+    ]
 
 
 def test_cpu_selector_claim_and_budget_scope_is_frozen():

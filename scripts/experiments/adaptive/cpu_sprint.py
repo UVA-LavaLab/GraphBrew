@@ -494,6 +494,20 @@ def write_rapid_plan(
             "source_manifest": _artifact_binding(source_path),
             "contract_weights":
                 _artifact_binding(contract_weights_path),
+            "cpu_sprint_code": _artifact_binding(
+                PROJECT_ROOT
+                / "scripts/experiments/adaptive/cpu_sprint.py"),
+            "public_orchestrator": _artifact_binding(
+                PROJECT_ROOT / "scripts/graphbrew_experiment.py"),
+            "vldb_runner": _artifact_binding(
+                PROJECT_ROOT
+                / "scripts/experiments/vldb/runner.py"),
+            "vldb_config": _artifact_binding(
+                PROJECT_ROOT
+                / "scripts/experiments/vldb/config.py"),
+            "mapping_stage": _artifact_binding(
+                PROJECT_ROOT
+                / "scripts/experiments/vldb/stages/02_reorder.py"),
         },
         "graph_count": len(graph_names),
         "graphs": graph_names,

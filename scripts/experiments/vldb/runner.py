@@ -6165,6 +6165,31 @@ def _refresh_graph_corpus(
     return str(graphs_path)
 
 
+def select_requested_graphs(names: list[str]) -> list[dict]:
+    """Resolve exact graph names once, preserving the requested order."""
+    catalog = {}
+    for graph in (
+        EVAL_GRAPHS
+        + PREVIEW_GRAPHS
+        + ADAPTIVE_CPU_EXPANSION_GRAPHS
+    ):
+        catalog.setdefault(str(graph["name"]), graph)
+    selected = []
+    seen = set()
+    for name in names:
+        if name in seen:
+            continue
+        seen.add(name)
+        selected.append(dict(catalog.get(name, {
+            "name": name,
+            "short": name,
+            "type": "unknown",
+            "vertices_m": 0,
+            "edges_m": 0,
+        })))
+    return selected
+
+
 def _setup_build_binaries(
     benchmarks: Optional[list[str]] = None,
     *,
@@ -6923,18 +6948,7 @@ def main() -> None:
 
     # Override graphs if specified
     if args.graphs:
-        graph_catalog = (
-            EVAL_GRAPHS
-            + PREVIEW_GRAPHS
-            + ADAPTIVE_CPU_EXPANSION_GRAPHS
-        )
-        graphs = [
-            g for g in graph_catalog
-            if g["name"] in args.graphs
-        ]
-        if not graphs:
-            graphs = [{"name": g, "short": g, "type": "unknown", "vertices_m": 0, "edges_m": 0}
-                      for g in args.graphs]
+        graphs = select_requested_graphs(args.graphs)
 
     # Determine which experiments to run
     exp_ids = list(range(1, 9)) if args.all else (args.exp or [])
