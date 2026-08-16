@@ -2553,6 +2553,11 @@ def main():
         help="Execute the authorized CPU rapid diagnostic",
     )
     g_paper.add_argument(
+        "--adaptive-cpu-rapid-analyze",
+        action="store_true",
+        help="Seal the completed CPU rapid decision",
+    )
+    g_paper.add_argument(
         "--adaptive-authorization-reference",
         help="Reviewed authorization reference for adaptive pilot execution",
     )
@@ -3342,6 +3347,21 @@ def main():
         ]
         log_section(
             "ADAPTIVE CPU RAPID EXECUTE: " + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_cpu_rapid_analyze:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/cpu_sprint.py",
+            "--analyze-rapid",
+            "--artifact-root",
+            args.paper_artifact_root,
+        ]
+        log_section(
+            "ADAPTIVE CPU RAPID ANALYZE: " + " ".join(cmd)
         )
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)

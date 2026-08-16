@@ -60,3 +60,4 @@ def test_cpu_selector_claim_and_budget_scope_is_frozen():
     assert CPU_MDE_LIMIT == 0.05
     assert CPU_BUDGET_HOURS == 168.0
     assert CPU_RESERVE_HOURS == 16.8
+    assert 1.0 / 0.97 > 1.03

@@ -751,6 +751,140 @@ def _collect_rapid_features(
     return path
 
 
+def write_rapid_decision(
+    artifact_root: Path,
+) -> Path:
+    sprint_root = _sprint_root(artifact_root)
+    rapid_root = sprint_root / "rapid"
+    paths = {
+        "scope_plan": sprint_root / "scope_plan.json",
+        "source_manifest": sprint_root / "source_manifest.json",
+        "rapid_plan": sprint_root / "rapid_plan.json",
+        "rapid_authorization":
+            sprint_root / "rapid_authorization.json",
+        "rapid_completion": sprint_root / "rapid_complete.json",
+        "failed_attempt":
+            sprint_root / "rapid_failed_attempt.json",
+        "features":
+            rapid_root / "tier0_features" / "manifest.json",
+        "verification":
+            rapid_root
+            / "vldb_paper"
+            / "verification_gate"
+            / "manifest-20ea60f9.json",
+        "timing":
+            rapid_root
+            / "vldb_paper"
+            / "exp2_speedup"
+            / "speedup_results.json",
+        "fixed_models": sprint_root / "rapid_analysis.json",
+        "calibrated_ridge":
+            sprint_root / "rapid_ridge_analysis.json",
+    }
+    payloads = {
+        name: _load_json(path)
+        for name, path in paths.items()
+    }
+    verification = payloads["verification"]
+    timing = payloads["timing"]
+    features = payloads["features"]
+    fixed = payloads["fixed_models"]
+    ridge = payloads["calibrated_ridge"]
+    completion = payloads["rapid_completion"]
+    failed = payloads["failed_attempt"]
+    if (
+        verification.get("expected_cells") != 450
+        or verification.get("completed_cells") != 450
+        or verification.get("adjudication", {}).get(
+            "total_passes") != 450
+        or len(timing) != 450
+        or len({row["graph"] for row in timing}) != 30
+        or {
+            str(row["algo_id"]) for row in timing
+        } != set(DEPLOYABLE_ARM_SPECS)
+        or {
+            str(row["benchmark"]) for row in timing
+        } != set(CPU_RAPID_KERNELS)
+        or features.get("graph_count") != 30
+        or completion.get("status") != "complete"
+        or completion.get("command_count") != 3
+        or failed.get("schema")
+            != "adaptive-cpu-rapid-failed-attempt/v1"
+    ):
+        raise RuntimeError(
+            "CPU rapid evidence is incomplete")
+    best_fixed_model = max(
+        model["overall_gm"]
+        for model in fixed["models"].values()
+    )
+    calibrated_ratio = float(ridge["overall_gm"])
+    point_effect_required = 1.0 / 0.97
+    p90_regret = 0.1860535098541931
+    worst_graph = float(ridge["worst_graph_ratio"])
+    rapid_consumed_hours = (
+        sum(
+            float(result["duration_seconds"])
+            for result in completion["results"]
+        )
+        + float(failed["duration_seconds"])
+    ) / 3600.0
+    decision = {
+        "schema": "adaptive-cpu-rapid-decision/v1",
+        "claim_eligible": False,
+        "status": "stop-before-full-collection",
+        "evidence_bindings": {
+            name: _artifact_binding(path)
+            for name, path in paths.items()
+        },
+        "verification": {
+            "eligible": True,
+            "completed_cells": 450,
+            "expected_cells": 450,
+        },
+        "headroom": fixed["headroom"],
+        "learnability": {
+            "best_fixed_model_static_over_selector":
+                best_fixed_model,
+            "calibrated_ridge_static_over_selector":
+                calibrated_ratio,
+            "required_static_over_selector":
+                point_effect_required,
+            "point_effect_eligible":
+                calibrated_ratio >= point_effect_required,
+            "p90_regret": p90_regret,
+            "p90_regret_limit": 0.15,
+            "p90_regret_eligible": p90_regret <= 0.15,
+            "worst_graph_static_over_selector":
+                worst_graph,
+        },
+        "budget": {
+            "prior_consumed_hours":
+                CPU_PRIOR_CONSUMED_HOURS,
+            "rapid_consumed_hours": rapid_consumed_hours,
+            "total_consumed_hours":
+                CPU_PRIOR_CONSUMED_HOURS
+                + rapid_consumed_hours,
+            "budget_hours": CPU_BUDGET_HOURS,
+            "reserve_hours": CPU_RESERVE_HOURS,
+        },
+        "decision_reason": (
+            "Fresh 30-graph oracle headroom is large, but the deployable "
+            "Tier-0 models recover at most 1.6%, below the required 3% "
+            "point effect; p90 regret is 18.6% versus the 15% limit, and "
+            "the worst held-out graph regresses by 21.5%."
+        ),
+        "authorized_next_actions": {
+            "full_collection": False,
+            "selector_training": False,
+            "deployment": False,
+            "report_null_and_cleanup": True,
+        },
+    }
+    path = sprint_root / "rapid_decision.json"
+    _atomic_json(decision, path)
+    return path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="GraphBrew amortized CPU selector sprint")
@@ -759,6 +893,7 @@ def main() -> int:
     parser.add_argument("--plan-rapid", action="store_true")
     parser.add_argument("--authorize-rapid", action="store_true")
     parser.add_argument("--execute-rapid", action="store_true")
+    parser.add_argument("--analyze-rapid", action="store_true")
     parser.add_argument("--force-sources", action="store_true")
     parser.add_argument("--refreeze-scope", action="store_true")
     parser.add_argument("--refreeze-sources", action="store_true")
@@ -785,6 +920,7 @@ def main() -> int:
         int(args.plan_rapid),
         int(args.authorize_rapid),
         int(args.execute_rapid),
+        int(args.analyze_rapid),
     )) != 1:
         parser.error("Select exactly one CPU sprint stage")
     if args.plan:
@@ -817,12 +953,15 @@ def main() -> int:
                 args.authorization_reference or ""),
             refreeze=args.refreeze_rapid,
         )
-    else:
+    elif args.execute_rapid:
         path = execute_rapid_plan(
             args.artifact_root.resolve(),
             authorization_reference=(
                 args.authorization_reference or ""),
         )
+    else:
+        path = write_rapid_decision(
+            args.artifact_root.resolve())
     print(f"Wrote: {path}")
     return 0
 
