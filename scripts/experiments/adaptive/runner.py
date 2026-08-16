@@ -19,7 +19,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -64,6 +64,7 @@ from scripts.lib.pipeline.adaptive_pilot_contract import (
     canonical_json_sha256 as _shared_canonical_json_sha256,
     pilot_command_for_attempt as _shared_pilot_command_for_attempt,
     priming_command_for_session as _shared_priming_command_for_session,
+    validate_result_contract as _shared_validate_result_contract,
 )
 from scripts.lib.pipeline.benchmark import (
     SourceContractError,
@@ -93,6 +94,49 @@ CACHE_MICRO_WALL_CAP_MULTIPLIER = 4.0
 PILOT_DEFAULT_WALL_CAP_MULTIPLIER = 4.0
 PROCESS_STARTUP_ALLOWANCE_SECONDS = 5.0
 CACHE_SETUP_SINGLE_THREAD_FACTOR = 16.0
+CACHE_AMENDMENT_ID = "sprint1-cache-amendment2"
+CACHE_AMENDMENT_SCHEMA = "adaptive-cache-amendment-plan/v1"
+CACHE_AMENDMENT_ARM = "8:csr"
+CACHE_AMENDMENT_CAPACITY_MIB = 22
+CACHE_AMENDMENT_TOTAL_CAP_SECONDS = 77_889
+CACHE_AMENDMENT_RESERVE_FRACTION = 0.10
+CACHE_AMENDMENT_LOGO_MARGIN = 1.25
+CACHE_AMENDMENT_CELL_CAPS = {
+    ("hollywood-2009", "bfs"): 306,
+    ("hollywood-2009", "cc"): 271,
+    ("hollywood-2009", "sssp"): 678,
+    ("webbase-2001", "bfs"): 10_242,
+    ("webbase-2001", "cc"): 4_097,
+    ("webbase-2001", "sssp"): 10_242,
+    ("twitter7", "bfs"): 8_836,
+    ("twitter7", "cc"): 12_348,
+    ("twitter7", "sssp"): 30_869,
+}
+CACHE_AMENDMENT_SOURCE_LISTS = {
+    "hollywood-2009": [
+        283361, 184169, 276633, 462699,
+        54468, 1064456, 876425, 948612,
+    ],
+    "webbase-2001": [
+        42692706, 116056260, 46646081, 16320605,
+        68820433, 5953461, 2665628, 81261754,
+    ],
+    "twitter7": [
+        48243527, 29255403, 54561401, 37611949,
+        34826412, 57644674, 59189816, 30324446,
+    ],
+}
+CONVERSION_REPOSITORY_SCOPE = (
+    "Makefile",
+    "bench/src/converter.cc",
+    "bench/include/external/gapbs",
+    "bench/include/graphbrew/reorder",
+    "bench/include/graphbrew/partition/cagra",
+    "bench/include/external/rabbit",
+    "bench/include/external/gorder",
+    "bench/include/external/corder",
+    "bench/include/external/leiden",
+)
 PILOT_FORBIDDEN_AMBIENT_ENV = (
     "GOMP_CPU_AFFINITY",
     "OMP_WAIT_POLICY",
@@ -238,11 +282,7 @@ def _conversion_repository_state() -> dict[str, object]:
     if _CONVERSION_REPOSITORY_STATE_CACHE is None:
         _CONVERSION_REPOSITORY_STATE_CACHE = repository_scope_state(
             PROJECT_ROOT,
-            (
-                "Makefile",
-                "bench/src/converter.cc",
-                "bench/include",
-            ),
+            CONVERSION_REPOSITORY_SCOPE,
         )
     return dict(_CONVERSION_REPOSITORY_STATE_CACHE)
 
@@ -3476,6 +3516,687 @@ def prepare_sprint1_pilot_execution(
     return manifest_path
 
 
+def _cache_amendment_root(artifact_root: Path) -> Path:
+    return (
+        artifact_root
+        / "adaptive_selector"
+        / "sprint1"
+        / "cache_amendment2"
+    )
+
+
+def _cache_amendment_environment() -> dict[str, str]:
+    capacity = CACHE_AMENDMENT_CAPACITY_MIB * 1024 * 1024
+    return {
+        "GRAPHBREW_DB_DIR": "",
+        "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+        "OMP_NUM_THREADS": "1",
+        "OMP_PROC_BIND": "close",
+        "OMP_PLACES": "cores",
+        "OMP_DYNAMIC": "FALSE",
+        "LD_LIBRARY_PATH": os.environ.get("LD_LIBRARY_PATH", ""),
+        "CACHE_L1_SIZE": str(min(capacity, 32 * 1024)),
+        "CACHE_L2_SIZE": str(min(capacity, 256 * 1024)),
+        "CACHE_L3_SIZE": str(capacity),
+        "CACHE_L3_WAYS": "11",
+        "CACHE_LINE_SIZE": "64",
+        "CACHE_POLICY": "CLOCK",
+        "CACHE_MULTICORE": "0",
+        "CACHE_SAMPLED": "0",
+        "CACHE_ULTRAFAST": "1",
+        "CACHE_FAST": "0",
+    }
+
+
+def _terminal_pilot_result(
+    base_command: Mapping[str, Any],
+    *,
+    authorization_reference: str,
+    execution_manifest_sha256: str,
+    input_artifacts: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    for attempt in base_command["retry_attempts"]:
+        command = _bind_authorized_command(
+            _pilot_command_for_attempt(dict(base_command), attempt),
+            authorization_reference,
+            execution_manifest_sha256,
+            dict(input_artifacts),
+        )
+        result_path = Path(command["result_path"])
+        if not result_path.is_file():
+            continue
+        result = _load_json(result_path)
+        _shared_validate_result_contract(result, command)
+        if result.get("error_kind") == "process-failure":
+            continue
+        return command, result
+    raise RuntimeError(
+        "Pilot command has no terminal result: "
+        + str(base_command["command_id"])
+    )
+
+
+def _cache_amendment_anchor_contract(
+    sprint_root: Path,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    manifest_path = sprint_root / "pilot_execution_manifest.json"
+    authorization_path = (
+        sprint_root / "pilot_execution_authorization.json")
+    analysis_path = sprint_root / "pilot_analysis.json"
+    completion_path = sprint_root / "pilot_execution_complete.json"
+    budget_path = sprint_root / "budget_projection.json"
+    source_path = sprint_root / "source_manifest.json"
+    manifest = _load_json(manifest_path)
+    authorization = _load_json(authorization_path)
+    analysis = _load_json(analysis_path)
+    completion = _load_json(completion_path)
+    budget = _load_json(budget_path)
+    source_bundle = _load_json(source_path)
+    manifest_sha256 = _canonical_json_sha256(manifest)
+    if (
+        authorization.get("execution_manifest_sha256")
+            != manifest_sha256
+        or completion.get("execution_manifest_sha256")
+            != manifest_sha256
+        or analysis.get("execution_manifest_sha256")
+            != manifest_sha256
+        or analysis.get("status") != "complete-with-quarantine"
+    ):
+        raise RuntimeError("Sprint-1 anchor provenance changed")
+    authorization_reference = str(
+        authorization["authorization_reference"])
+
+    commands_by_id = {
+        str(command["command_id"]): command
+        for command in manifest["commands"]
+    }
+    anchors: dict[str, dict[str, Any]] = {}
+    bindings = {
+        "pilot_manifest": _artifact_binding(manifest_path),
+        "pilot_authorization": _artifact_binding(authorization_path),
+        "pilot_completion": _artifact_binding(completion_path),
+        "pilot_analysis": _artifact_binding(analysis_path),
+        "budget_projection": _artifact_binding(budget_path),
+        "source_manifest": _artifact_binding(source_path),
+    }
+    for graph_name in CACHE_AMENDMENT_SOURCE_LISTS:
+        command_id = (
+            f"cache-micro-pilot|{graph_name}|pr|"
+            f"{CACHE_AMENDMENT_ARM}|"
+            f"{CACHE_AMENDMENT_CAPACITY_MIB}MiB|sNone"
+        )
+        base_command = commands_by_id.get(command_id)
+        if base_command is None:
+            raise RuntimeError(
+                f"Sprint-1 PR anchor is missing: {command_id}")
+        command, result = _terminal_pilot_result(
+            base_command,
+            authorization_reference=authorization_reference,
+            execution_manifest_sha256=manifest_sha256,
+            input_artifacts=manifest["input_artifacts"],
+        )
+        stats = result.get("extra", {}).get("cache_stats")
+        environment = command["environment"]
+        if (
+            result.get("error_kind")
+            or result.get("censored")
+            or not isinstance(stats, Mapping)
+            or stats.get("mode") != "ultrafast"
+            or environment.get("CACHE_ULTRAFAST") != "1"
+            or int(environment.get("CACHE_L3_SIZE", 0))
+                != CACHE_AMENDMENT_CAPACITY_MIB * 1024 * 1024
+            or int(environment.get("CACHE_L3_WAYS", 0)) != 11
+            or environment.get("CACHE_POLICY") != "CLOCK"
+        ):
+            raise RuntimeError(
+                f"Sprint-1 PR anchor is ineligible: {command_id}")
+        result_path = Path(command["result_path"])
+        cache_stats_path = Path(command["cache_output_path"])
+        bindings[f"pr_anchor_{graph_name}_result"] = (
+            _artifact_binding(result_path)
+        )
+        bindings[f"pr_anchor_{graph_name}_cache"] = (
+            _artifact_binding(cache_stats_path)
+        )
+        anchors[graph_name] = {
+            "command_id": command_id,
+            "command_contract_sha256":
+                result["command_contract_sha256"],
+            "result_path": str(result_path),
+            "cache_stats_path": str(cache_stats_path),
+            "binary_provenance": command["binary_provenance"],
+            "environment": environment,
+            "duration_seconds": result["duration_seconds"],
+            "average_time": result["average_time"],
+            "reorder_time": result["reorder_time"],
+            "extra": result["extra"],
+        }
+    if (
+        budget.get("policy", {}).get("deployable_pilot_arms")
+            != list(PILOT_TIMING_ARMS)
+        or source_bundle.get("source_lists")
+            != CACHE_AMENDMENT_SOURCE_LISTS
+    ):
+        raise RuntimeError("Cache amendment frozen inputs changed")
+    return {
+        "authorization_reference": authorization_reference,
+        "execution_manifest_sha256": manifest_sha256,
+        "analysis_result_set_sha256":
+            analysis["result_set_sha256"],
+        "pilot_total_consumed_hours":
+            analysis["total_consumed_hours"],
+        "pilot_terminal_command_hours":
+            analysis["terminal_command_hours"],
+        "deployable_arms": list(PILOT_TIMING_ARMS),
+        "anchors": anchors,
+    }, bindings
+
+
+def _write_cache_mode_smoke_receipt(
+    amendment_root: Path,
+    *,
+    refreeze: bool,
+) -> Path:
+    smoke_root = amendment_root / "mode_smoke"
+    smoke_root.mkdir(parents=True, exist_ok=True)
+    graph_path = (
+        PROJECT_ROOT / "scripts" / "test" / "data" / "tiny.el")
+    environment = _cache_amendment_environment()
+    commands = {
+        "pr": ["-n", "1", "-i", "2", "-F"],
+        "bfs": ["-n", "1", "-r", "0", "-v"],
+        "cc": ["-n", "1", "-v"],
+        "sssp": [
+            "-n", "1", "-r", "0", "-W", "unit", "-d", "1", "-v",
+        ],
+    }
+    rows = []
+    for kernel, suffix in commands.items():
+        cache_path = smoke_root / f"{kernel}.cache.json"
+        stdout_path = smoke_root / f"{kernel}.stdout.log"
+        stderr_path = smoke_root / f"{kernel}.stderr.log"
+        command = [
+            str(PROJECT_ROOT / "bench" / "bin_sim" / kernel),
+            "-f", str(graph_path),
+            "-s",
+            *suffix,
+        ]
+        run_environment = {
+            **os.environ,
+            **environment,
+            "CACHE_OUTPUT_JSON": str(cache_path),
+        }
+        completed = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            env=run_environment,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        stdout_path.write_text(completed.stdout)
+        stderr_path.write_text(completed.stderr)
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"Cache mode smoke failed for {kernel}: "
+                f"{stderr_path}")
+        stats = _load_json(cache_path)
+        _validate_cache_stats_contract(
+            {"environment": run_environment},
+            stats,
+        )
+        rows.append({
+            "kernel": kernel,
+            "command": command,
+            "binary_provenance":
+                _command_binary_provenance(command),
+            "mode": stats["mode"],
+            "replacement_policy":
+                stats["replacement_policy"],
+            "geometry": stats["geometry"],
+            "total_accesses": int(stats["total_accesses"]),
+        })
+    geometries = {
+        _canonical_json_sha256(row["geometry"])
+        for row in rows
+    }
+    if (
+        {row["mode"] for row in rows} != {"ultrafast"}
+        or {row["replacement_policy"] for row in rows} != {"CLOCK"}
+        or len(geometries) != 1
+    ):
+        raise RuntimeError(
+            "Cache simulator modes or geometries disagree")
+    payload = {
+        "schema": "adaptive-cache-mode-smoke/v1",
+        "graph_path": str(graph_path),
+        "graph_bytes": graph_path.stat().st_size,
+        "graph_crc32": file_crc32(graph_path),
+        "kernel_count": len(rows),
+        "common_mode": "ultrafast",
+        "common_replacement_policy": "CLOCK",
+        "common_geometry": rows[0]["geometry"],
+        "rows": rows,
+        "status": "pass",
+    }
+    path = amendment_root / "mode_smoke_receipt.json"
+    if (
+        path.is_file()
+        and _load_json(path) != payload
+        and not refreeze
+    ):
+        raise RuntimeError(
+            "Cache mode smoke receipt changed; refreeze after review")
+    _atomic_json(payload, path)
+    return path
+
+
+def _cache_amendment_plan(
+    artifact_root: Path,
+    *,
+    mode_smoke_path: Path,
+) -> dict[str, Any]:
+    sprint_root = (
+        artifact_root / "adaptive_selector" / "sprint1")
+    anchor_contract, bindings = _cache_amendment_anchor_contract(
+        sprint_root)
+    source_bundle = _load_json(
+        sprint_root / "source_manifest.json")
+    source_graphs = source_bundle["graphs"]
+    rows = []
+    for (graph_name, kernel), timeout_seconds in (
+        CACHE_AMENDMENT_CELL_CAPS.items()
+    ):
+        source_records = source_graphs[graph_name]["sources"]
+        expected_sources = (
+            list(CACHE_AMENDMENT_SOURCE_LISTS[graph_name])
+            if kernel in SOURCE_DRIVEN_KERNELS else None
+        )
+        expected_degrees = (
+            [
+                int(source["source_out_degree"])
+                for source in source_records
+            ]
+            if expected_sources else None
+        )
+        if (
+            expected_sources is not None
+            and [
+                int(source["source_id"])
+                for source in source_records
+            ] != expected_sources
+        ):
+            raise RuntimeError(
+                f"Cache amendment sources changed: {graph_name}")
+        rows.append({
+            "graph": graph_name,
+            "kernel": kernel,
+            "arm": CACHE_AMENDMENT_ARM,
+            "capacity_mib": CACHE_AMENDMENT_CAPACITY_MIB,
+            "expected_trials":
+                len(expected_sources) if expected_sources else 1,
+            "expected_sources": expected_sources,
+            "expected_source_out_degrees": expected_degrees,
+            "timeout_seconds": timeout_seconds,
+            "retry_attempts": [0],
+            "authorized_for_collection": True,
+        })
+    if (
+        len(rows) != 9
+        or sum(
+            int(row["timeout_seconds"]) for row in rows
+        ) != CACHE_AMENDMENT_TOTAL_CAP_SECONDS
+    ):
+        raise RuntimeError("Cache amendment cap contract changed")
+    bindings = {
+        **bindings,
+        "mode_smoke_receipt":
+            _artifact_binding(mode_smoke_path),
+    }
+    return {
+        "schema": CACHE_AMENDMENT_SCHEMA,
+        "amendment_id": CACHE_AMENDMENT_ID,
+        "claim_eligible": False,
+        "pilot_only": True,
+        "purpose":
+            "common-mode cache runtime repricing after star-model failure",
+        "input_artifacts": bindings,
+        "anchor_contract": anchor_contract,
+        "source_policy_id": ADAPTIVE_SOURCE_POLICY_ID,
+        "source_lists": CACHE_AMENDMENT_SOURCE_LISTS,
+        "policy": {
+            "arm": CACHE_AMENDMENT_ARM,
+            "capacity_mib": CACHE_AMENDMENT_CAPACITY_MIB,
+            "cache_mode": "ultrafast",
+            "replacement_policy": "CLOCK",
+            "geometry": _load_json(
+                mode_smoke_path)["common_geometry"],
+            "command_count": 9,
+            "retry_attempts": [0],
+            "measurement_hard_cap_seconds":
+                CACHE_AMENDMENT_TOTAL_CAP_SECONDS,
+            "measurement_hard_cap_node_hours":
+                CACHE_AMENDMENT_TOTAL_CAP_SECONDS / 3600.0,
+            "logo_margin": CACHE_AMENDMENT_LOGO_MARGIN,
+            "reserve_fraction":
+                CACHE_AMENDMENT_RESERVE_FRACTION,
+            "budget_hours": SPRINT1_BUDGET_HOURS,
+            "stop_conditions": [
+                "cache-mode-mismatch",
+                "cache-geometry-mismatch",
+                "timeout",
+                "censoring",
+                "source-mismatch",
+                "pr-anchor-provenance-change",
+            ],
+            "phase_budgeting": [
+                "representation-build",
+                "map-and-validation",
+                "apply",
+                "simulator-trials",
+            ],
+            "full_collection_gate":
+                "one-sided graph-LOGO upper envelope covers every "
+                "observed graph-kernel interaction and the five-arm "
+                "CPU/cache projection plus reserve remains within 168h",
+            "failure_policy":
+                "stop full H2/cache collection; do not shrink corpus",
+        },
+        "rows": rows,
+    }
+
+
+def prepare_sprint1_cache_amendment(
+    artifact_root: Path,
+    graph_root: Path,
+    *,
+    cpu_list: str | None,
+    refreeze: bool = False,
+) -> Path:
+    amendment_root = _cache_amendment_root(artifact_root)
+    amendment_root.mkdir(parents=True, exist_ok=True)
+    mode_smoke_path = _write_cache_mode_smoke_receipt(
+        amendment_root,
+        refreeze=refreeze,
+    )
+    plan = _cache_amendment_plan(
+        artifact_root,
+        mode_smoke_path=mode_smoke_path,
+    )
+    plan_path = amendment_root / "plan.json"
+    if (
+        plan_path.is_file()
+        and _load_json(plan_path) != plan
+        and not refreeze
+    ):
+        raise RuntimeError(
+            "Frozen cache amendment plan changed; "
+            "refreeze after review")
+    _atomic_json(plan, plan_path)
+
+    sprint_root = (
+        artifact_root / "adaptive_selector" / "sprint1")
+    source_bundle = _load_json(
+        sprint_root / "source_manifest.json")
+    output_root = amendment_root / "runs"
+    environment = _cache_amendment_environment()
+    commands = []
+    for row_index, row in enumerate(plan["rows"]):
+        graph_name = str(row["graph"])
+        kernel = str(row["kernel"])
+        graph_path = (
+            graph_root / graph_name / f"{graph_name}.sg")
+        source_record = source_bundle["graphs"][graph_name]
+        if source_record.get("graph_path") != str(graph_path):
+            raise RuntimeError(
+                f"Cache amendment graph path changed: {graph_name}")
+        graph = next(
+            graph for graph in EVAL_GRAPHS
+            if graph["name"] == graph_name
+        )
+        graph_metadata = _current_graph_metadata(
+            graph_path,
+            graph_name=graph_name,
+            natural=False,
+            verify_content=True,
+            expected_nodes=int(graph["nodes"]),
+            expected_undirected_edges=int(
+                graph["undirected_edges"]),
+        )
+        command = [
+            str(PROJECT_ROOT / "bench" / "bin_sim" / kernel),
+            "-f", str(graph_path),
+            "-s",
+            "-n", str(row["expected_trials"]),
+            *_kernel_policy_args(kernel, graph_name),
+            "-o", CACHE_AMENDMENT_ARM,
+        ]
+        if row["expected_sources"]:
+            command.extend([
+                "-r",
+                ",".join(map(str, row["expected_sources"])),
+            ])
+        command_id = (
+            f"cache-amendment2|{graph_name}|{kernel}|"
+            f"{CACHE_AMENDMENT_ARM}|"
+            f"{CACHE_AMENDMENT_CAPACITY_MIB}MiB"
+        )
+        safe_id = (
+            command_id.replace("|", "__").replace(":", "_"))
+        attempt_dir = (
+            output_root / safe_id / "attempt_0")
+        cache_output_path = attempt_dir / "cache_stats.json"
+        command_environment = {
+            **environment,
+            "CACHE_OUTPUT_JSON": str(cache_output_path),
+        }
+        first_cpu = (
+            cpu_list.split(",")[0].split("-")[0]
+            if cpu_list else None
+        )
+        command = _taskset_command(command, first_cpu)
+        commands.append({
+            "budget_row_index": row_index,
+            "phase": "cache-micro-pilot",
+            "amendment_id": CACHE_AMENDMENT_ID,
+            "command_id": command_id,
+            "graph": graph_name,
+            "graph_path": str(graph_path),
+            "graph_output_bytes": graph_path.stat().st_size,
+            "graph_mtime_ns": graph_path.stat().st_mtime_ns,
+            "graph_crc32": graph_metadata["output_crc32"],
+            "labeling": "randomized",
+            "arm": CACHE_AMENDMENT_ARM,
+            "kernel": kernel,
+            "order_spec": CACHE_AMENDMENT_ARM,
+            "claim_eligible": False,
+            "pilot_only": True,
+            "process_id": 0,
+            "measurement_mode": "cold-process",
+            "source_policy_id": (
+                ADAPTIVE_SOURCE_POLICY_ID
+                if row["expected_sources"] else None
+            ),
+            "source_repeats": 1,
+            "expected_sources": row["expected_sources"],
+            "expected_source_internals": None,
+            "expected_source_out_degrees":
+                row["expected_source_out_degrees"],
+            "command": command,
+            "environment": command_environment,
+            "environment_mode": "inherit-then-override",
+            "timeout_seconds": int(row["timeout_seconds"]),
+            "wall_clock_cap_seconds":
+                int(row["timeout_seconds"]),
+            "timeout_interpretation":
+                "hard-amendment-cell-cap",
+            "cap_floor_raw_seconds": 0.0,
+            "cap_headroom_seconds":
+                int(row["timeout_seconds"]),
+            "cache_iterations": 1,
+            "cache_output_path": str(cache_output_path),
+            "cpu_list": first_cpu,
+            "host_state_requirements": {
+                "cpu_governor": "performance",
+                "turbo": "disabled",
+                "transparent_hugepage": "madvise",
+            },
+            "attempt": 0,
+            "retry_attempts": [0],
+            "idempotency_key": f"{command_id}|a0",
+            "stdout_path": str(attempt_dir / "stdout.log"),
+            "stderr_path": str(attempt_dir / "stderr.log"),
+            "result_path": str(attempt_dir / "result.json"),
+            "binary_provenance":
+                _command_binary_provenance(command),
+            "rss_from_stderr": False,
+            "depends_on": [
+                f"cache-amendment2-prime|{graph_name}"
+            ],
+        })
+    _validate_command_binaries(commands)
+
+    original_manifest = _load_json(
+        sprint_root / "pilot_execution_manifest.json")
+    original_primes = {
+        str(command["graph"]): command
+        for command in original_manifest["priming_commands"]
+        if command.get("labeling") == "randomized"
+    }
+    priming_commands = []
+    for graph_name in CACHE_AMENDMENT_SOURCE_LISTS:
+        graph_path = (
+            graph_root / graph_name / f"{graph_name}.sg")
+        original = original_primes[graph_name]
+        graph = next(
+            graph for graph in EVAL_GRAPHS
+            if graph["name"] == graph_name
+        )
+        graph_metadata = _current_graph_metadata(
+            graph_path,
+            graph_name=graph_name,
+            natural=False,
+            verify_content=True,
+            expected_nodes=int(graph["nodes"]),
+            expected_undirected_edges=int(
+                graph["undirected_edges"]),
+        )
+        command_id = f"cache-amendment2-prime|{graph_name}"
+        attempt_dir = output_root / f"prime__{graph_name}" / "attempt_0"
+        command = _taskset_command([
+            "dd",
+            f"if={graph_path}",
+            "of=/dev/null",
+            "bs=16M",
+            "status=none",
+        ], cpu_list)
+        priming_commands.append({
+            "command_id": command_id,
+            "phase": "page-cache-prime",
+            "graph": graph_name,
+            "graph_path": str(graph_path),
+            "graph_output_bytes": graph_path.stat().st_size,
+            "graph_mtime_ns": graph_path.stat().st_mtime_ns,
+            "graph_crc32": graph_metadata["output_crc32"],
+            "labeling": "randomized",
+            "command": command,
+            "environment": {},
+            "environment_mode": "inherit-then-override",
+            "timeout_seconds":
+                int(original["timeout_seconds"]),
+            "timeout_interpretation":
+                "hard-preparation-cap",
+            "cap_floor_raw_seconds":
+                float(original["cap_floor_raw_seconds"]),
+            "cap_headroom_seconds":
+                float(original["cap_headroom_seconds"]),
+            "cpu_list": cpu_list,
+            "host_state_requirements": {
+                "cpu_governor": "performance",
+                "turbo": "disabled",
+                "transparent_hugepage": "madvise",
+            },
+            "attempt": 0,
+            "retry_attempts": [0],
+            "idempotency_key": f"{command_id}|a0",
+            "stdout_path": str(attempt_dir / "stdout.log"),
+            "stderr_path": str(attempt_dir / "stderr.log"),
+            "result_path": str(attempt_dir / "result.json"),
+            "binary_provenance":
+                _command_binary_provenance(command),
+            "depends_on": [],
+        })
+
+    input_artifacts = {
+        "amendment_plan": _artifact_binding(plan_path),
+        **plan["input_artifacts"],
+    }
+    manifest = {
+        "schema": "adaptive-cache-amendment-execution/v1",
+        "amendment_id": CACHE_AMENDMENT_ID,
+        "dry_run_only": True,
+        "plan": str(plan_path),
+        "input_artifacts": input_artifacts,
+        "cpu_list": cpu_list,
+        "threads": 1,
+        "command_count": len(commands),
+        "priming_command_count": len(priming_commands),
+        "measurement_hard_cap_seconds":
+            CACHE_AMENDMENT_TOTAL_CAP_SECONDS,
+        "execution_order": ["priming_commands", "commands"],
+        "concurrency": "serial-exclusive",
+        "execution_lock_path": str(
+            amendment_root / "execution.lock"),
+        "execution_authorization_required": True,
+        "source_lists": CACHE_AMENDMENT_SOURCE_LISTS,
+        "cell_caps": {
+            f"{graph}|{kernel}": cap
+            for (graph, kernel), cap
+            in CACHE_AMENDMENT_CELL_CAPS.items()
+        },
+        "host_state_requirements": {
+            "cpu_governor": "performance",
+            "turbo": "disabled",
+            "transparent_hugepage": "madvise",
+            "graphbrew_db_dir": "",
+            "topology_analysis": "disabled",
+        },
+        "priming_commands": priming_commands,
+        "commands": commands,
+    }
+    manifest_path = amendment_root / "execution_manifest.json"
+    if manifest_path.is_file():
+        existing = _load_json(manifest_path)
+        changed = any(
+            existing.get(field) != manifest.get(field)
+            for field in (
+                "schema",
+                "amendment_id",
+                "dry_run_only",
+                "plan",
+                "input_artifacts",
+                "cpu_list",
+                "threads",
+                "command_count",
+                "priming_command_count",
+                "measurement_hard_cap_seconds",
+                "execution_order",
+                "concurrency",
+                "source_lists",
+                "cell_caps",
+                "host_state_requirements",
+                "priming_commands",
+                "commands",
+            )
+        )
+        if changed and not refreeze:
+            raise RuntimeError(
+                "Frozen cache amendment manifest changed; "
+                "refreeze after review")
+    _atomic_json(manifest, manifest_path)
+    return manifest_path
+
+
 def _parse_cpu_list(cpu_list: str) -> list[int]:
     cpus = []
     for token in cpu_list.split(","):
@@ -3743,6 +4464,211 @@ def _validate_execution_manifest(
     host = _host_state_snapshot(manifest["cpu_list"])
     requirements = manifest.get("host_state_requirements", {})
     _assert_host_state(host, requirements)
+    return host
+
+
+def _validate_cache_amendment_manifest(
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    if (
+        manifest.get("schema")
+            != "adaptive-cache-amendment-execution/v1"
+        or manifest.get("amendment_id")
+            != CACHE_AMENDMENT_ID
+        or manifest.get("execution_order")
+            != ["priming_commands", "commands"]
+        or manifest.get("concurrency") != "serial-exclusive"
+        or not manifest.get("execution_authorization_required")
+    ):
+        raise ValueError("Unsupported cache amendment manifest")
+    if (
+        manifest.get("command_count") != 9
+        or manifest.get("priming_command_count") != 3
+        or manifest.get("measurement_hard_cap_seconds")
+            != CACHE_AMENDMENT_TOTAL_CAP_SECONDS
+        or manifest.get("source_lists")
+            != CACHE_AMENDMENT_SOURCE_LISTS
+    ):
+        raise ValueError("Cache amendment frozen scope changed")
+
+    plan_path = Path(str(manifest.get("plan", "")))
+    plan = _load_json(plan_path)
+    if (
+        plan.get("schema") != CACHE_AMENDMENT_SCHEMA
+        or plan.get("amendment_id") != CACHE_AMENDMENT_ID
+        or plan.get("source_lists")
+            != CACHE_AMENDMENT_SOURCE_LISTS
+        or len(plan.get("rows", [])) != 9
+    ):
+        raise ValueError("Cache amendment plan changed")
+    expected_inputs = {
+        "amendment_plan",
+        *plan["input_artifacts"],
+    }
+    input_artifacts = manifest.get("input_artifacts")
+    if (
+        not isinstance(input_artifacts, dict)
+        or set(input_artifacts) != expected_inputs
+        or input_artifacts["amendment_plan"].get("path")
+            != str(plan_path.resolve())
+    ):
+        raise ValueError(
+            "Cache amendment input artifact coverage changed")
+    for binding in input_artifacts.values():
+        _validate_artifact_binding(binding)
+    if {
+        name: binding
+        for name, binding in input_artifacts.items()
+        if name != "amendment_plan"
+    } != plan["input_artifacts"]:
+        raise ValueError(
+            "Cache amendment plan input binding changed")
+
+    sprint_root = plan_path.parents[1]
+    anchor_contract, anchor_bindings = (
+        _cache_amendment_anchor_contract(sprint_root)
+    )
+    if (
+        plan.get("anchor_contract") != anchor_contract
+        or {
+            name: plan["input_artifacts"][name]
+            for name in anchor_bindings
+        } != anchor_bindings
+    ):
+        raise RuntimeError(
+            "Cache amendment PR anchor provenance changed")
+    smoke = _load_json(Path(
+        plan["input_artifacts"]["mode_smoke_receipt"]["path"]))
+    if (
+        smoke.get("status") != "pass"
+        or smoke.get("common_mode") != "ultrafast"
+        or smoke.get("common_replacement_policy") != "CLOCK"
+        or smoke.get("kernel_count") != 4
+        or smoke.get("common_geometry")
+            != plan["policy"]["geometry"]
+    ):
+        raise RuntimeError(
+            "Cache amendment mode smoke changed")
+
+    priming = manifest.get("priming_commands", [])
+    commands = manifest.get("commands", [])
+    expected_priming_ids = {
+        f"cache-amendment2-prime|{graph_name}"
+        for graph_name in CACHE_AMENDMENT_SOURCE_LISTS
+    }
+    if {
+        command.get("command_id") for command in priming
+    } != expected_priming_ids:
+        raise ValueError(
+            "Cache amendment priming coverage changed")
+    expected_rows = {
+        (
+            str(row["graph"]),
+            str(row["kernel"]),
+        ): (index, row)
+        for index, row in enumerate(plan["rows"])
+    }
+    observed_rows = set()
+    result_paths = set()
+    for command in [*priming, *commands]:
+        missing = PILOT_CONSUMER_REQUIRED_KEYS - set(command)
+        if missing:
+            raise ValueError(
+                "Cache amendment command is missing consumer fields: "
+                + " ".join(sorted(missing))
+            )
+        if (
+            command.get("environment_mode")
+                != "inherit-then-override"
+            or command.get("attempt") != 0
+            or command.get("retry_attempts") != [0]
+            or command.get("idempotency_key")
+                != f"{command['command_id']}|a0"
+        ):
+            raise ValueError(
+                "Cache amendment retry/idempotency contract changed")
+        if command["result_path"] in result_paths:
+            raise ValueError(
+                "Cache amendment result path is duplicated")
+        result_paths.add(command["result_path"])
+        if float(command.get("timeout_seconds", 0)) <= 0:
+            raise ValueError(
+                "Cache amendment command has no timeout")
+        graph_path = Path(command["graph_path"])
+        if (
+            not graph_path.is_file()
+            or graph_path.stat().st_size
+                != int(command["graph_output_bytes"])
+            or graph_path.stat().st_mtime_ns
+                != int(command["graph_mtime_ns"])
+            or file_crc32(graph_path) != command["graph_crc32"]
+        ):
+            raise RuntimeError(
+                "Cache amendment graph changed after freeze")
+        _validate_binary_provenance(command)
+        forbidden = _forbidden_ambient_timing_environment(
+            command["environment"],
+            application_surface=(
+                command["phase"] != "page-cache-prime"),
+        )
+        if forbidden:
+            raise RuntimeError(
+                "Forbidden cache amendment environment is set for "
+                f"{command['command_id']}: "
+                + " ".join(forbidden)
+            )
+        if command["phase"] == "page-cache-prime":
+            continue
+        key = (str(command["graph"]), str(command["kernel"]))
+        expected = expected_rows.get(key)
+        if expected is None or key in observed_rows:
+            raise ValueError(
+                "Cache amendment command coverage changed")
+        observed_rows.add(key)
+        row_index, row = expected
+        if (
+            command.get("budget_row_index") != row_index
+            or command.get("amendment_id")
+                != CACHE_AMENDMENT_ID
+            or command.get("phase") != "cache-micro-pilot"
+            or command.get("arm") != CACHE_AMENDMENT_ARM
+            or command.get("order_spec")
+                != CACHE_AMENDMENT_ARM
+            or command.get("timeout_seconds")
+                != row["timeout_seconds"]
+            or command.get("expected_sources")
+                != row["expected_sources"]
+            or command.get("expected_source_out_degrees")
+                != row["expected_source_out_degrees"]
+            or command.get("depends_on")
+                != [f"cache-amendment2-prime|{key[0]}"]
+        ):
+            raise ValueError(
+                "Cache amendment command binding changed")
+        expected_environment = {
+            **_cache_amendment_environment(),
+            "CACHE_OUTPUT_JSON": command["cache_output_path"],
+        }
+        if command.get("environment") != expected_environment:
+            raise ValueError(
+                "Cache amendment environment changed")
+    if observed_rows != set(expected_rows):
+        raise ValueError(
+            "Cache amendment timing coverage changed")
+    if sum(
+        int(command["timeout_seconds"])
+        for command in commands
+    ) != CACHE_AMENDMENT_TOTAL_CAP_SECONDS:
+        raise ValueError(
+            "Cache amendment total hard cap changed")
+    _validate_command_binaries(commands)
+    if not manifest.get("cpu_list"):
+        raise ValueError("Cache amendment CPU list is missing")
+    host = _host_state_snapshot(manifest["cpu_list"])
+    _assert_host_state(
+        host,
+        manifest.get("host_state_requirements", {}),
+    )
     return host
 
 
@@ -4123,8 +5049,10 @@ def _parse_and_validate_pilot_output(
             if not cache_output_path.is_file():
                 raise SourceContractError(
                     "Cache pilot exited without cache JSON sidecar")
+            cache_stats = _load_json(cache_output_path)
+            _validate_cache_stats_contract(command, cache_stats)
             parsed_extra["cache_stats_path"] = str(cache_output_path)
-            parsed_extra["cache_stats"] = _load_json(cache_output_path)
+            parsed_extra["cache_stats"] = cache_stats
     return average_time, reorder_time, parsed_extra
 
 
@@ -4162,6 +5090,59 @@ def _bind_cache_probe_source_metadata(
         int(expected_degrees[0])]
     parsed_extra["source_metadata_origin"] = (
         "authorized-command-singleton")
+
+
+def _validate_cache_stats_contract(
+    command: Mapping[str, Any],
+    cache_stats: Mapping[str, Any],
+) -> None:
+    environment = command.get("environment", {})
+    if cache_stats.get("mode") != "ultrafast":
+        raise SourceContractError(
+            "Cache pilot did not use ultrafast simulation")
+    if cache_stats.get("replacement_policy") != "CLOCK":
+        raise SourceContractError(
+            "Cache pilot replacement policy changed")
+
+    capacity = int(environment["CACHE_L3_SIZE"])
+    expected_geometry = {
+        "line_size_bytes": int(environment["CACHE_LINE_SIZE"]),
+        "L1": {
+            "size_bytes": int(environment["CACHE_L1_SIZE"]),
+            "ways": int(environment.get("CACHE_L1_WAYS", 8)),
+        },
+        "L2": {
+            "size_bytes": int(environment["CACHE_L2_SIZE"]),
+            "ways": int(environment.get("CACHE_L2_WAYS", 8)),
+        },
+        "L3": {
+            "size_bytes": capacity,
+            "ways": int(environment["CACHE_L3_WAYS"]),
+        },
+    }
+    if cache_stats.get("geometry") != expected_geometry:
+        raise SourceContractError(
+            "Cache pilot realized geometry changed")
+
+
+def _cache_hierarchy_lookups(
+    cache_stats: Mapping[str, Any],
+) -> int:
+    try:
+        values = (
+            int(cache_stats["total_accesses"]),
+            int(cache_stats["L1"]["misses"]),
+            int(cache_stats["L2"]["misses"]),
+            int(cache_stats["L3"]["misses"]),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise SourceContractError(
+            "Cache pilot has invalid hierarchy statistics"
+        ) from error
+    if any(value < 0 for value in values):
+        raise SourceContractError(
+            "Cache hierarchy statistics must be non-negative")
+    return sum(values)
 
 
 def _validate_pilot_realized_order(
@@ -4276,6 +5257,622 @@ def _authorization_manifest_contract(
         "host_state_requirements",
     )
     return {field: manifest.get(field) for field in fields}
+
+
+def _cache_amendment_manifest_contract(
+    manifest: Mapping[str, Any],
+) -> dict[str, Any]:
+    fields = (
+        "schema",
+        "amendment_id",
+        "dry_run_only",
+        "plan",
+        "cpu_list",
+        "threads",
+        "command_count",
+        "priming_command_count",
+        "measurement_hard_cap_seconds",
+        "execution_order",
+        "concurrency",
+        "execution_lock_path",
+        "execution_authorization_required",
+        "source_lists",
+        "cell_caps",
+        "host_state_requirements",
+    )
+    return {field: manifest.get(field) for field in fields}
+
+
+def create_sprint1_cache_amendment_authorization(
+    artifact_root: Path,
+    *,
+    authorization_reference: str,
+    refreeze: bool = False,
+) -> Path:
+    if not authorization_reference:
+        raise ValueError(
+            "Cache amendment authorization reference is required")
+    amendment_root = _cache_amendment_root(artifact_root)
+    manifest_path = amendment_root / "execution_manifest.json"
+    manifest = _load_json(manifest_path)
+    _validate_cache_amendment_manifest(manifest)
+    manifest_contract = _cache_amendment_manifest_contract(
+        manifest)
+    payload = {
+        "schema": "adaptive-cache-amendment-authorization/v1",
+        "execution_enabled": True,
+        "authorization_reference": authorization_reference,
+        "execution_manifest": str(manifest_path),
+        "command_count": manifest["command_count"],
+        "priming_command_count":
+            manifest["priming_command_count"],
+        "measurement_hard_cap_seconds":
+            manifest["measurement_hard_cap_seconds"],
+        "execution_manifest_sha256":
+            _canonical_json_sha256(manifest),
+        "authorized_manifest_contract": manifest_contract,
+    }
+    path = amendment_root / "execution_authorization.json"
+    if (
+        path.is_file()
+        and _load_json(path) != payload
+        and not refreeze
+    ):
+        raise RuntimeError(
+            "Cache amendment authorization changed; "
+            "refreeze after review")
+    _atomic_json(payload, path)
+    return path
+
+
+def validate_sprint1_cache_amendment_executor(
+    artifact_root: Path,
+) -> Path:
+    amendment_root = _cache_amendment_root(artifact_root)
+    manifest_path = amendment_root / "execution_manifest.json"
+    manifest = _load_json(manifest_path)
+    host_state = _validate_cache_amendment_manifest(manifest)
+    payload = {
+        "schema": "adaptive-cache-amendment-validation/v1",
+        "amendment_id": CACHE_AMENDMENT_ID,
+        "execution_manifest": str(manifest_path),
+        "execution_manifest_sha256":
+            _canonical_json_sha256(manifest),
+        "authorization_manifest_contract":
+            _cache_amendment_manifest_contract(manifest),
+        "command_count": manifest["command_count"],
+        "priming_command_count":
+            manifest["priming_command_count"],
+        "measurement_hard_cap_seconds":
+            manifest["measurement_hard_cap_seconds"],
+        "host_state": host_state,
+        "literal_consumer": "_run_literal_pilot_command",
+        "status": "pass",
+    }
+    path = amendment_root / "executor_validation.json"
+    _atomic_json(payload, path)
+    return path
+
+
+def execute_sprint1_cache_amendment(
+    artifact_root: Path,
+    *,
+    authorization_reference: str,
+) -> Path:
+    if not authorization_reference:
+        raise ValueError(
+            "Cache amendment execution requires authorization")
+    amendment_root = _cache_amendment_root(artifact_root)
+    manifest_path = amendment_root / "execution_manifest.json"
+    authorization_path = (
+        amendment_root / "execution_authorization.json")
+    manifest = _load_json(manifest_path)
+    authorization = _load_json(authorization_path)
+    manifest_sha256 = _canonical_json_sha256(manifest)
+    manifest_contract = _cache_amendment_manifest_contract(
+        manifest)
+    if (
+        authorization.get("schema")
+            != "adaptive-cache-amendment-authorization/v1"
+        or not authorization.get("execution_enabled")
+        or authorization.get("authorization_reference")
+            != authorization_reference
+        or authorization.get("execution_manifest")
+            != str(manifest_path)
+        or authorization.get("command_count")
+            != manifest.get("command_count")
+        or authorization.get("priming_command_count")
+            != manifest.get("priming_command_count")
+        or authorization.get("measurement_hard_cap_seconds")
+            != CACHE_AMENDMENT_TOTAL_CAP_SECONDS
+        or authorization.get("execution_manifest_sha256")
+            != manifest_sha256
+        or authorization.get("authorized_manifest_contract")
+            != manifest_contract
+    ):
+        raise RuntimeError(
+            "Cache amendment execution authorization is invalid")
+    host_state = _validate_cache_amendment_manifest(manifest)
+    session_id = f"{time.time_ns()}-{os.getpid()}"
+    results = []
+    with _PilotExecutionLock(
+        Path(manifest["execution_lock_path"])
+    ):
+        for base_command in manifest["priming_commands"]:
+            command = _bind_authorized_command(
+                _priming_command_for_session(
+                    base_command, session_id),
+                authorization_reference,
+                manifest_sha256,
+                manifest["input_artifacts"],
+            )
+            result = _run_literal_pilot_command(
+                command, host_state)
+            results.append(result)
+            if result.get("error_kind") or result.get("censored"):
+                raise RuntimeError(
+                    "Cache amendment priming failed: "
+                    + base_command["command_id"])
+        for base_command in manifest["commands"]:
+            command = _bind_authorized_command(
+                _pilot_command_for_attempt(base_command, 0),
+                authorization_reference,
+                manifest_sha256,
+                manifest["input_artifacts"],
+            )
+            result = _run_literal_pilot_command(
+                command, host_state)
+            results.append(result)
+            if result.get("error_kind") or result.get("censored"):
+                raise RuntimeError(
+                    "Cache amendment stopped at "
+                    + base_command["command_id"]
+                    + ": "
+                    + str(result.get("error_kind") or "censored")
+                )
+    state_counts: dict[str, int] = {}
+    for result in results:
+        state = str(result.get("error_kind") or "success")
+        state_counts[state] = state_counts.get(state, 0) + 1
+    completion = {
+        "schema": "adaptive-cache-amendment-complete/v1",
+        "amendment_id": CACHE_AMENDMENT_ID,
+        "execution_manifest": str(manifest_path),
+        "authorization_reference": authorization_reference,
+        "execution_session_id": session_id,
+        "execution_manifest_sha256": manifest_sha256,
+        "authorized_manifest_contract": manifest_contract,
+        "command_count": manifest["command_count"],
+        "priming_command_count":
+            manifest["priming_command_count"],
+        "result_count": len(results),
+        "result_states": state_counts,
+        "measurement_hard_cap_seconds":
+            CACHE_AMENDMENT_TOTAL_CAP_SECONDS,
+        "status": "complete",
+    }
+    path = amendment_root / "execution_complete.json"
+    _atomic_json(completion, path)
+    return path
+
+
+def _cache_phase_breakdown(
+    result: Mapping[str, Any],
+) -> dict[str, float]:
+    extra = result.get("extra", {})
+    trial_times = [
+        float(value) for value in extra.get("trial_times", [])
+    ]
+    representation = float(
+        extra.get("representation_build_time", 0.0))
+    map_validation = (
+        float(extra.get("reorder_core_time", 0.0))
+        + float(extra.get("reorder_validation_time", 0.0))
+    )
+    apply_seconds = float(
+        extra.get("reorder_apply_time", 0.0))
+    simulator = sum(trial_times)
+    accounted = (
+        representation
+        + map_validation
+        + apply_seconds
+        + simulator
+    )
+    duration = float(result.get("duration_seconds", 0.0))
+    return {
+        "representation_build_seconds": representation,
+        "map_validation_seconds": map_validation,
+        "apply_seconds": apply_seconds,
+        "simulator_seconds": simulator,
+        "accounted_seconds": accounted,
+        "process_overhead_seconds": max(0.0, duration - accounted),
+        "duration_seconds": duration,
+    }
+
+
+def _logo_upper_envelope(
+    values: Mapping[str, float],
+) -> dict[str, Any]:
+    rows = []
+    for holdout, observed in sorted(values.items()):
+        training = [
+            float(value)
+            for graph, value in values.items()
+            if graph != holdout
+        ]
+        if len(training) < 2:
+            raise ValueError(
+                "Cache amendment LOGO requires three graphs")
+        upper = max(training) * CACHE_AMENDMENT_LOGO_MARGIN
+        rows.append({
+            "holdout_graph": holdout,
+            "observed": float(observed),
+            "training_max": max(training),
+            "upper": upper,
+            "covered": float(observed) <= upper,
+        })
+    return {
+        "margin": CACHE_AMENDMENT_LOGO_MARGIN,
+        "global_upper":
+            max(float(value) for value in values.values())
+            * CACHE_AMENDMENT_LOGO_MARGIN,
+        "all_holdouts_covered": all(
+            row["covered"] for row in rows),
+        "rows": rows,
+    }
+
+
+def write_sprint1_cache_amendment_analysis(
+    artifact_root: Path,
+) -> Path:
+    amendment_root = _cache_amendment_root(artifact_root)
+    manifest_path = amendment_root / "execution_manifest.json"
+    authorization_path = (
+        amendment_root / "execution_authorization.json")
+    completion_path = amendment_root / "execution_complete.json"
+    manifest = _load_json(manifest_path)
+    authorization = _load_json(authorization_path)
+    completion = _load_json(completion_path)
+    _validate_cache_amendment_manifest(manifest)
+    manifest_sha256 = _canonical_json_sha256(manifest)
+    manifest_contract = _cache_amendment_manifest_contract(
+        manifest)
+    authorization_reference = str(
+        authorization["authorization_reference"])
+    if (
+        authorization.get("schema")
+            != "adaptive-cache-amendment-authorization/v1"
+        or authorization.get("execution_manifest_sha256")
+            != manifest_sha256
+        or authorization.get("authorized_manifest_contract")
+            != manifest_contract
+        or completion.get("schema")
+            != "adaptive-cache-amendment-complete/v1"
+        or completion.get("status") != "complete"
+        or completion.get("execution_manifest_sha256")
+            != manifest_sha256
+        or completion.get("authorization_reference")
+            != authorization_reference
+        or completion.get("result_count") != 12
+        or completion.get("result_states") != {"success": 12}
+    ):
+        raise RuntimeError(
+            "Cache amendment completion contract is invalid")
+
+    session_id = str(completion["execution_session_id"])
+    priming_results = []
+    for base_command in manifest["priming_commands"]:
+        command = _bind_authorized_command(
+            _priming_command_for_session(base_command, session_id),
+            authorization_reference,
+            manifest_sha256,
+            manifest["input_artifacts"],
+        )
+        result = _load_json(Path(command["result_path"]))
+        _shared_validate_result_contract(result, command)
+        if result.get("error_kind") or result.get("censored"):
+            raise RuntimeError(
+                "Cache amendment priming result is ineligible")
+        priming_results.append(result)
+
+    rows = []
+    raw_results = []
+    for base_command in manifest["commands"]:
+        command = _bind_authorized_command(
+            _pilot_command_for_attempt(base_command, 0),
+            authorization_reference,
+            manifest_sha256,
+            manifest["input_artifacts"],
+        )
+        result = _load_json(Path(command["result_path"]))
+        _shared_validate_result_contract(result, command)
+        if result.get("error_kind") or result.get("censored"):
+            raise RuntimeError(
+                "Cache amendment result is ineligible")
+        stats = result.get("extra", {}).get("cache_stats")
+        if not isinstance(stats, Mapping):
+            raise RuntimeError(
+                "Cache amendment result lost cache statistics")
+        _validate_cache_stats_contract(command, stats)
+        trial_times = result["extra"].get("trial_times", [])
+        expected_trials = (
+            len(command["expected_sources"])
+            if command.get("expected_sources") else 1
+        )
+        if len(trial_times) != expected_trials:
+            raise RuntimeError(
+                "Cache amendment trial count changed")
+        if command.get("expected_sources"):
+            if (
+                result["extra"].get("source_originals")
+                    != command["expected_sources"]
+                or result["extra"].get("source_out_degrees")
+                    != command["expected_source_out_degrees"]
+                or len(result["extra"].get(
+                    "source_internals", []))
+                    != expected_trials
+            ):
+                raise RuntimeError(
+                    "Cache amendment source identity changed")
+        phases = _cache_phase_breakdown(result)
+        rows.append({
+            "command_id": command["command_id"],
+            "graph": command["graph"],
+            "kernel": command["kernel"],
+            "source_count": expected_trials,
+            "timeout_seconds": command["timeout_seconds"],
+            "cache_mode": stats["mode"],
+            "cache_geometry": stats["geometry"],
+            "hierarchy_lookups":
+                _cache_hierarchy_lookups(stats),
+            "phases": phases,
+            "simulator_seconds_per_trial":
+                phases["simulator_seconds"] / expected_trials,
+        })
+        raw_results.append(result)
+
+    plan = _load_json(Path(manifest["plan"]))
+    anchor_rows = []
+    for graph_name, anchor in (
+        plan["anchor_contract"]["anchors"].items()
+    ):
+        phases = _cache_phase_breakdown(anchor)
+        trial_times = anchor["extra"].get("trial_times", [])
+        if len(trial_times) != 1:
+            raise RuntimeError(
+                "Sprint-1 PR anchor trial count changed")
+        anchor_rows.append({
+            "graph": graph_name,
+            "kernel": "pr",
+            "source_count": 1,
+            "command_id": anchor["command_id"],
+            "phases": phases,
+            "simulator_seconds_per_trial":
+                phases["simulator_seconds"],
+        })
+
+    budget_path = Path(
+        plan["input_artifacts"]["budget_projection"]["path"])
+    budget = _load_json(budget_path)
+    cache_rows = budget["cache_rows"]
+    rabbit_pr_rows = {
+        str(row["graph"]): row
+        for row in cache_rows
+        if (
+            row["arm"] == CACHE_AMENDMENT_ARM
+            and row["kernel"] == "pr"
+        )
+    }
+    pr_calibration = {}
+    pr_seconds = {}
+    for row in anchor_rows:
+        graph_name = str(row["graph"])
+        projected = float(
+            rabbit_pr_rows[graph_name][
+                "simulated_seconds_high"])
+        observed = float(
+            row["simulator_seconds_per_trial"])
+        if projected <= 0 or observed <= 0:
+            raise RuntimeError(
+                "Cache amendment PR calibration is invalid")
+        pr_calibration[graph_name] = observed / projected
+        pr_seconds[graph_name] = observed
+    pr_envelope = _logo_upper_envelope(pr_calibration)
+
+    kernel_factors: dict[str, dict[str, float]] = {
+        kernel: {} for kernel in ("pr", "bfs", "cc", "sssp")
+    }
+    for graph_name in pr_seconds:
+        kernel_factors["pr"][graph_name] = 1.0
+    for row in rows:
+        graph_name = str(row["graph"])
+        kernel = str(row["kernel"])
+        kernel_factors[kernel][graph_name] = (
+            float(row["simulator_seconds_per_trial"])
+            / pr_seconds[graph_name]
+        )
+    kernel_envelopes = {
+        kernel: _logo_upper_envelope(values)
+        for kernel, values in kernel_factors.items()
+    }
+    logo_eligible = (
+        pr_envelope["all_holdouts_covered"]
+        and all(
+            envelope["all_holdouts_covered"]
+            for envelope in kernel_envelopes.values()
+        )
+    )
+
+    deployable = set(PILOT_TIMING_ARMS)
+    cpu_high_hours = sum(
+        float(row["buffered_node_hours_high"])
+        for row in budget["kernel_rows"]
+        if row["arm"] in deployable
+    )
+    cache_lookup = {
+        (str(row["graph"]), str(row["arm"]), str(row["kernel"])): row
+        for row in cache_rows
+    }
+    safety_factor = float(budget["policy"]["safety_factor"])
+    cache_projection_rows = []
+    for row in cache_rows:
+        if row["arm"] not in deployable:
+            continue
+        key = (
+            str(row["graph"]),
+            str(row["arm"]),
+            "pr",
+        )
+        pr_reference = cache_lookup.get(key)
+        if pr_reference is None:
+            raise RuntimeError(
+                "Five-arm cache projection lost its PR reference")
+        kernel = str(row["kernel"])
+        simulator_per_source_capacity = (
+            float(pr_reference["simulated_seconds_high"])
+            * float(pr_envelope["global_upper"])
+            * float(kernel_envelopes[kernel]["global_upper"])
+        )
+        capacity_count = int(row["capacity_count"])
+        source_multiplier = int(row["source_multiplier"])
+        load_seconds = (
+            capacity_count
+            * float(row["read_seconds_per_capacity"])
+        )
+        map_apply_seconds = (
+            capacity_count
+            * float(row["map_seconds_per_capacity"])
+        )
+        simulator_seconds = (
+            capacity_count
+            * source_multiplier
+            * simulator_per_source_capacity
+        )
+        raw_seconds = (
+            load_seconds
+            + map_apply_seconds
+            + simulator_seconds
+        )
+        cache_projection_rows.append({
+            "graph": row["graph"],
+            "kernel": kernel,
+            "arm": row["arm"],
+            "capacity_count": capacity_count,
+            "source_multiplier": source_multiplier,
+            "load_seconds_high": load_seconds,
+            "map_apply_seconds_high": map_apply_seconds,
+            "simulator_seconds_high": simulator_seconds,
+            "raw_seconds_high": raw_seconds,
+            "buffered_node_hours_high":
+                raw_seconds * safety_factor / 3600.0,
+        })
+    cache_high_hours = sum(
+        float(row["buffered_node_hours_high"])
+        for row in cache_projection_rows
+    )
+    pilot_consumed_hours = float(
+        plan["anchor_contract"]["pilot_total_consumed_hours"])
+    amendment_measurement_hard_cap_hours = (
+        CACHE_AMENDMENT_TOTAL_CAP_SECONDS / 3600.0
+    )
+    amendment_actual_measurement_hours = sum(
+        float(result["duration_seconds"])
+        for result in raw_results
+    ) / 3600.0
+    amendment_priming_hours = sum(
+        float(result["duration_seconds"])
+        for result in priming_results
+    ) / 3600.0
+    reserve_hours = (
+        SPRINT1_BUDGET_HOURS
+        * CACHE_AMENDMENT_RESERVE_FRACTION
+    )
+    total_high_hours = sum((
+        pilot_consumed_hours,
+        amendment_measurement_hard_cap_hours,
+        amendment_priming_hours,
+        cpu_high_hours,
+        cache_high_hours,
+        reserve_hours,
+    ))
+    budget_eligible = total_high_hours <= SPRINT1_BUDGET_HOURS
+    cache_collection_eligible = (
+        logo_eligible and budget_eligible)
+
+    result_set = {
+        result["command_id"]: result["command_contract_sha256"]
+        for result in raw_results
+    }
+    payload = {
+        "schema": "adaptive-cache-amendment-analysis/v1",
+        "amendment_id": CACHE_AMENDMENT_ID,
+        "claim_eligible": False,
+        "pilot_only": True,
+        "execution_manifest": str(manifest_path),
+        "execution_manifest_sha256": manifest_sha256,
+        "authorization_reference": authorization_reference,
+        "result_set_sha256":
+            _canonical_json_sha256(result_set),
+        "status": (
+            "pass" if cache_collection_eligible else "stop"
+        ),
+        "common_mode_gate": {
+            "mode": "ultrafast",
+            "replacement_policy": "CLOCK",
+            "geometry": plan["policy"]["geometry"],
+            "eligible": True,
+        },
+        "rows": sorted(
+            rows,
+            key=lambda row: (row["graph"], row["kernel"]),
+        ),
+        "pr_anchor_rows": sorted(
+            anchor_rows, key=lambda row: row["graph"]),
+        "pr_calibration": {
+            "values": pr_calibration,
+            "logo_upper_envelope": pr_envelope,
+        },
+        "kernel_factors": {
+            kernel: {
+                "values": kernel_factors[kernel],
+                "logo_upper_envelope":
+                    kernel_envelopes[kernel],
+            }
+            for kernel in kernel_factors
+        },
+        "interaction_gate": {
+            "policy":
+                "one-sided graph-LOGO max envelope with 1.25 margin",
+            "eligible": logo_eligible,
+        },
+        "budget_gate": {
+            "budget_hours": SPRINT1_BUDGET_HOURS,
+            "pilot_consumed_hours": pilot_consumed_hours,
+            "amendment_measurement_hard_cap_hours":
+                amendment_measurement_hard_cap_hours,
+            "amendment_actual_measurement_hours":
+                amendment_actual_measurement_hours,
+            "amendment_priming_hours":
+                amendment_priming_hours,
+            "five_arm_cpu_high_hours": cpu_high_hours,
+            "five_arm_cache_high_hours": cache_high_hours,
+            "reserve_hours": reserve_hours,
+            "total_high_hours": total_high_hours,
+            "eligible": budget_eligible,
+        },
+        "cache_projection_rows": cache_projection_rows,
+        "cache_collection_eligible":
+            cache_collection_eligible,
+        "selector_training_eligible": False,
+        "failure_policy": (
+            None
+            if cache_collection_eligible
+            else "stop full H2/cache collection; do not shrink corpus"
+        ),
+    }
+    path = amendment_root / "analysis.json"
+    _atomic_json(payload, path)
+    return path
 
 
 def execute_sprint1_pilot(
@@ -4514,6 +6111,31 @@ def main() -> int:
         help="Validate and summarize a completed Sprint-1 pilot",
     )
     parser.add_argument(
+        "--prepare-sprint1-cache-amendment",
+        action="store_true",
+        help="Freeze the reviewed second cache amendment",
+    )
+    parser.add_argument(
+        "--validate-sprint1-cache-amendment",
+        action="store_true",
+        help="Validate the frozen cache amendment executor",
+    )
+    parser.add_argument(
+        "--authorize-sprint1-cache-amendment",
+        action="store_true",
+        help="Authorize the frozen second cache amendment",
+    )
+    parser.add_argument(
+        "--execute-sprint1-cache-amendment",
+        action="store_true",
+        help="Execute the authorized second cache amendment",
+    )
+    parser.add_argument(
+        "--analyze-sprint1-cache-amendment",
+        action="store_true",
+        help="Analyze the completed second cache amendment",
+    )
+    parser.add_argument(
         "--force-sources",
         action="store_true",
         help="Regenerate existing Sprint-1 source manifests",
@@ -4537,6 +6159,11 @@ def main() -> int:
         "--refreeze-authorization",
         action="store_true",
         help="Replace pilot authorization after manifest re-review",
+    )
+    parser.add_argument(
+        "--refreeze-cache-amendment",
+        action="store_true",
+        help="Replace the cache amendment after explicit review",
     )
     parser.add_argument("--authorization-reference")
     parser.add_argument("--threads", type=int, default=16)
@@ -4572,6 +6199,11 @@ def main() -> int:
         bool(args.authorize_sprint1_pilot),
         bool(args.execute_sprint1_pilot),
         bool(args.analyze_sprint1_pilot),
+        bool(args.prepare_sprint1_cache_amendment),
+        bool(args.validate_sprint1_cache_amendment),
+        bool(args.authorize_sprint1_cache_amendment),
+        bool(args.execute_sprint1_cache_amendment),
+        bool(args.analyze_sprint1_cache_amendment),
     ))
     if selected_stages != 1:
         parser.error("No adaptive stage selected")
@@ -4660,6 +6292,52 @@ def main() -> int:
         path = write_pilot_analysis(
             args.artifact_root.resolve()
             / "adaptive_selector" / "sprint1")
+        print(f"Wrote: {path}")
+    elif args.prepare_sprint1_cache_amendment:
+        path = prepare_sprint1_cache_amendment(
+            args.artifact_root.resolve(),
+            args.graph_dir.resolve(),
+            cpu_list=args.cpu_list,
+            refreeze=args.refreeze_cache_amendment,
+        )
+        payload = _load_json(path)
+        print(
+            "Cache amendment commands: "
+            f"{payload['command_count']}; "
+            "measurement hard cap="
+            f"{payload['measurement_hard_cap_seconds']}s"
+        )
+        print(f"Wrote: {path}")
+    elif args.validate_sprint1_cache_amendment:
+        path = validate_sprint1_cache_amendment_executor(
+            args.artifact_root.resolve())
+        print(f"Wrote: {path}")
+    elif args.authorize_sprint1_cache_amendment:
+        if not args.authorization_reference:
+            parser.error(
+                "--authorize-sprint1-cache-amendment requires "
+                "--authorization-reference"
+            )
+        path = create_sprint1_cache_amendment_authorization(
+            args.artifact_root.resolve(),
+            authorization_reference=args.authorization_reference,
+            refreeze=args.refreeze_authorization,
+        )
+        print(f"Wrote: {path}")
+    elif args.execute_sprint1_cache_amendment:
+        if not args.authorization_reference:
+            parser.error(
+                "--execute-sprint1-cache-amendment requires "
+                "--authorization-reference"
+            )
+        path = execute_sprint1_cache_amendment(
+            args.artifact_root.resolve(),
+            authorization_reference=args.authorization_reference,
+        )
+        print(f"Wrote: {path}")
+    elif args.analyze_sprint1_cache_amendment:
+        path = write_sprint1_cache_amendment_analysis(
+            args.artifact_root.resolve())
         print(f"Wrote: {path}")
     else:
         if not args.authorization_reference:

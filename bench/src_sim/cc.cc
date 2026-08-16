@@ -218,6 +218,8 @@ int main(int argc, char *argv[]) {
     Graph g = b.MakeGraph();
     
     bool multicore = IsMultiCoreMode();
+    bool sampled = IsSampledMode();
+    bool ultrafast = IsUltraFastMode();
     bool fast = IsFastMode();
     
     if (multicore) {
@@ -232,6 +234,50 @@ int main(int argc, char *argv[]) {
         cout << endl;
         cache.printStats();
         
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else if (sampled) {
+        SampledCacheHierarchy cache =
+            SampledCacheHierarchy::fromEnvironment();
+
+        auto CCBound = [&cache](const Graph &g) {
+            return Afforest_Sim(g, cache);
+        };
+
+        BenchmarkKernel(
+            cli, g, CCBound, PrintCompStats, CCVerifier);
+
+        cout << endl;
+        cache.printStats();
+
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else if (ultrafast) {
+        UltraFastCacheHierarchy cache =
+            UltraFastCacheHierarchy::fromEnvironment();
+
+        auto CCBound = [&cache](const Graph &g) {
+            return Afforest_Sim(g, cache);
+        };
+
+        BenchmarkKernel(
+            cli, g, CCBound, PrintCompStats, CCVerifier);
+
+        cout << endl;
+        cache.printStats();
+
         const char* json_file = getenv("CACHE_OUTPUT_JSON");
         if (json_file) {
             ofstream ofs(json_file);

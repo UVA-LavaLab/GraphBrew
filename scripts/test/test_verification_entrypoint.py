@@ -9,16 +9,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_ci_and_harness_delegate_to_make_check():
-    workflow = (
-        PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
-    ).read_text()
+def test_harness_delegates_to_make_check_without_github_workflows():
     harness = (
         PROJECT_ROOT / "scripts" / "graphbrew_experiment.py"
     ).read_text()
 
-    assert "RABBIT_ENABLE=0 make -j2 check" in workflow
-    assert "pytest scripts/test -q" not in workflow
+    assert not (PROJECT_ROOT / ".github").exists()
     assert 'cmd = ["make", "check"]' in harness
     assert 'cmd = ["python3", "-m", "pytest"' not in harness
 

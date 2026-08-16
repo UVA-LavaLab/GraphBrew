@@ -146,6 +146,27 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     return dist;
 }
 
+template<typename CacheType>
+pvector<WeightT> RunSSSP_Sim(
+    const WGraph &g,
+    SourcePicker<WGraph> &source_picker,
+    WeightT delta,
+    CacheType &cache
+) {
+    auto dist = DeltaStep_Sim(
+        g, source_picker.PickNext(), delta, cache);
+    PrintLabel(
+        "Source Original",
+        std::to_string(source_picker.last_original_source()));
+    PrintLabel(
+        "Source Internal",
+        std::to_string(source_picker.last_internal_source()));
+    PrintLabel(
+        "Source Out Degree",
+        std::to_string(source_picker.last_source_out_degree()));
+    return dist;
+}
+
 void PrintSSSPStats(const WGraph &g, const pvector<WeightT> &dist) {
     auto NotInf = [](WeightT d) { return d != kDistInf; };
     int64_t num_reached = count_if(dist.begin(), dist.end(), NotInf);
@@ -190,6 +211,8 @@ int main(int argc, char *argv[]) {
     WGraph g = b.MakeGraph();
     
     bool multicore = IsMultiCoreMode();
+    bool sampled = IsSampledMode();
+    bool ultrafast = IsUltraFastMode();
     bool fast = IsFastMode();
     
     if (multicore) {
@@ -199,7 +222,7 @@ int main(int argc, char *argv[]) {
             g, cli.start_vertices(), cli.num_trials(),
             cli.source_repeats());
         auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
-            return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
+            return RunSSSP_Sim(g, sp, cli.delta(), cache);
         };
         SourcePicker<WGraph> vsp(
             g, cli.start_vertices(), cli.num_trials(),
@@ -221,6 +244,70 @@ int main(int argc, char *argv[]) {
                 ofs.close();
             }
         }
+    } else if (sampled) {
+        SampledCacheHierarchy cache =
+            SampledCacheHierarchy::fromEnvironment();
+
+        SourcePicker<WGraph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
+            return RunSSSP_Sim(g, sp, cli.delta(), cache);
+        };
+        SourcePicker<WGraph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto VerifierBound = [&vsp](
+            const WGraph &g, const pvector<WeightT> &dist) {
+            return SSSPVerifier(g, vsp.PickNext(), dist);
+        };
+
+        BenchmarkKernel(
+            cli, g, SSSPBound, PrintSSSPStats, VerifierBound);
+
+        cout << endl;
+        cache.printStats();
+
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
+    } else if (ultrafast) {
+        UltraFastCacheHierarchy cache =
+            UltraFastCacheHierarchy::fromEnvironment();
+
+        SourcePicker<WGraph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
+            return RunSSSP_Sim(g, sp, cli.delta(), cache);
+        };
+        SourcePicker<WGraph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto VerifierBound = [&vsp](
+            const WGraph &g, const pvector<WeightT> &dist) {
+            return SSSPVerifier(g, vsp.PickNext(), dist);
+        };
+
+        BenchmarkKernel(
+            cli, g, SSSPBound, PrintSSSPStats, VerifierBound);
+
+        cout << endl;
+        cache.printStats();
+
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+            }
+        }
     } else if (fast) {
         // FAST single-core cache simulation (no locks, ~10x faster)
         FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
@@ -229,7 +316,7 @@ int main(int argc, char *argv[]) {
             g, cli.start_vertices(), cli.num_trials(),
             cli.source_repeats());
         auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
-            return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
+            return RunSSSP_Sim(g, sp, cli.delta(), cache);
         };
         SourcePicker<WGraph> vsp(
             g, cli.start_vertices(), cli.num_trials(),
@@ -258,7 +345,7 @@ int main(int argc, char *argv[]) {
             g, cli.start_vertices(), cli.num_trials(),
             cli.source_repeats());
         auto SSSPBound = [&sp, &cli, &cache](const WGraph &g) {
-            return DeltaStep_Sim(g, sp.PickNext(), cli.delta(), cache);
+            return RunSSSP_Sim(g, sp, cli.delta(), cache);
         };
         SourcePicker<WGraph> vsp(
             g, cli.start_vertices(), cli.num_trials(),

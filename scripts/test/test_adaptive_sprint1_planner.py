@@ -14,12 +14,19 @@ import pytest
 from scripts.experiments.adaptive import runner as adaptive_runner
 from scripts.experiments.adaptive.runner import (
     ALL_TIMING_ARMS,
+    CACHE_AMENDMENT_CELL_CAPS,
+    CACHE_AMENDMENT_SOURCE_LISTS,
+    CACHE_AMENDMENT_TOTAL_CAP_SECONDS,
     CACHE_KERNELS,
+    CONVERSION_REPOSITORY_SCOPE,
     H4_DENDROGRAM_ANCHOR,
     PILOT_TIMING_ARMS,
     _kernel_evidence_arm,
     _mapping_evidence_arm,
     _bind_cache_probe_source_metadata,
+    _cache_phase_breakdown,
+    _logo_upper_envelope,
+    _validate_cache_stats_contract,
     _validate_source_manifest,
     _forbidden_ambient_timing_environment,
     _validate_pilot_realized_order,
@@ -154,6 +161,98 @@ def test_cache_probe_binds_singleton_source_metadata():
             "expected_source_internals": None,
             "expected_source_out_degrees": [7, 8],
         }, {"trial_times": [1.0]})
+
+
+def test_cache_stats_contract_requires_ultrafast_geometry():
+    command = {
+        "environment": {
+            "CACHE_L1_SIZE": "32768",
+            "CACHE_L2_SIZE": "262144",
+            "CACHE_L3_SIZE": "23068672",
+            "CACHE_L3_WAYS": "11",
+            "CACHE_LINE_SIZE": "64",
+        },
+    }
+    stats = {
+        "mode": "ultrafast",
+        "replacement_policy": "CLOCK",
+        "geometry": {
+            "line_size_bytes": 64,
+            "L1": {"size_bytes": 32768, "ways": 8},
+            "L2": {"size_bytes": 262144, "ways": 8},
+            "L3": {"size_bytes": 23068672, "ways": 11},
+        },
+    }
+    _validate_cache_stats_contract(command, stats)
+
+    wrong_mode = copy.deepcopy(stats)
+    wrong_mode["mode"] = "accurate"
+    with pytest.raises(SourceContractError, match="ultrafast"):
+        _validate_cache_stats_contract(command, wrong_mode)
+
+    wrong_geometry = copy.deepcopy(stats)
+    wrong_geometry["geometry"]["L3"]["ways"] = 16
+    with pytest.raises(SourceContractError, match="geometry"):
+        _validate_cache_stats_contract(command, wrong_geometry)
+
+
+def test_cache_amendment_scope_and_additive_accounting_are_frozen():
+    assert len(CACHE_AMENDMENT_CELL_CAPS) == 9
+    assert sum(CACHE_AMENDMENT_CELL_CAPS.values()) == (
+        CACHE_AMENDMENT_TOTAL_CAP_SECONDS
+    )
+    assert set(CACHE_AMENDMENT_SOURCE_LISTS) == {
+        "hollywood-2009",
+        "webbase-2001",
+        "twitter7",
+    }
+    assert all(
+        len(sources) == len(set(sources)) == 8
+        for sources in CACHE_AMENDMENT_SOURCE_LISTS.values()
+    )
+    assert "bench/include/cache_sim" not in (
+        CONVERSION_REPOSITORY_SCOPE
+    )
+    assert "bench/include" not in CONVERSION_REPOSITORY_SCOPE
+
+    phases = _cache_phase_breakdown({
+        "duration_seconds": 12.0,
+        "extra": {
+            "representation_build_time": 1.0,
+            "reorder_core_time": 2.0,
+            "reorder_validation_time": 0.5,
+            "reorder_apply_time": 1.5,
+            "trial_times": [2.0, 3.0],
+        },
+    })
+    assert phases == {
+        "representation_build_seconds": 1.0,
+        "map_validation_seconds": 2.5,
+        "apply_seconds": 1.5,
+        "simulator_seconds": 5.0,
+        "accounted_seconds": 10.0,
+        "process_overhead_seconds": 2.0,
+        "duration_seconds": 12.0,
+    }
+
+
+def test_cache_amendment_logo_envelope_is_one_sided():
+    passing = _logo_upper_envelope({
+        "a": 1.0,
+        "b": 1.1,
+        "c": 1.2,
+    })
+    assert passing["all_holdouts_covered"]
+    failing = _logo_upper_envelope({
+        "a": 1.0,
+        "b": 1.1,
+        "c": 2.0,
+    })
+    assert not failing["all_holdouts_covered"]
+    assert not next(
+        row for row in failing["rows"]
+        if row["holdout_graph"] == "c"
+    )["covered"]
 
 
 def test_realized_fallback_and_success_postconditions_fail_closed():

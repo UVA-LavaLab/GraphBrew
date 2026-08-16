@@ -1877,6 +1877,16 @@ public:
         std::ostringstream ss;
         ss << "{\n";
         ss << "  \"mode\": \"ultrafast\",\n";
+        ss << "  \"replacement_policy\": \"CLOCK\",\n";
+        ss << "  \"geometry\": {\n";
+        ss << "    \"line_size_bytes\": " << line_size_ << ",\n";
+        ss << "    \"L1\": { \"size_bytes\": " << l1_->getSizeBytes()
+           << ", \"ways\": " << l1_->getAssociativity() << " },\n";
+        ss << "    \"L2\": { \"size_bytes\": " << l2_->getSizeBytes()
+           << ", \"ways\": " << l2_->getAssociativity() << " },\n";
+        ss << "    \"L3\": { \"size_bytes\": " << l3_->getSizeBytes()
+           << ", \"ways\": " << l3_->getAssociativity() << " }\n";
+        ss << "  },\n";
         ss << "  \"total_accesses\": " << total_accesses_ << ",\n";
         ss << "  \"memory_accesses\": " << memory_accesses_ << ",\n";
         ss << "  \"L1\": { \"hits\": " << l1_->getHits() << ", \"misses\": " << l1_->getMisses() 

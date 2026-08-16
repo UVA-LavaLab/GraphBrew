@@ -2483,6 +2483,31 @@ def main():
         help="Validate and summarize the completed adaptive pilot",
     )
     g_paper.add_argument(
+        "--adaptive-sprint1-cache-amendment-plan",
+        action="store_true",
+        help="Freeze the reviewed second adaptive cache amendment",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-cache-amendment-check",
+        action="store_true",
+        help="Validate the frozen cache amendment executor",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-cache-amendment-authorize",
+        action="store_true",
+        help="Authorize the frozen second cache amendment",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-cache-amendment-execute",
+        action="store_true",
+        help="Execute the authorized second cache amendment",
+    )
+    g_paper.add_argument(
+        "--adaptive-sprint1-cache-amendment-analyze",
+        action="store_true",
+        help="Analyze the completed second cache amendment",
+    )
+    g_paper.add_argument(
         "--adaptive-authorization-reference",
         help="Reviewed authorization reference for adaptive pilot execution",
     )
@@ -2510,6 +2535,11 @@ def main():
         "--adaptive-refreeze-authorization",
         action="store_true",
         help="Replace adaptive pilot authorization after re-review",
+    )
+    g_paper.add_argument(
+        "--adaptive-refreeze-cache-amendment",
+        action="store_true",
+        help="Replace the cache amendment after explicit review",
     )
     g_paper.add_argument(
         "--adaptive-budget-hours",
@@ -3043,6 +3073,108 @@ def main():
             args.paper_artifact_root,
         ]
         log_section(f"ADAPTIVE SPRINT 1 ANALYZE: {' '.join(cmd)}")
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_cache_amendment_plan:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--prepare-sprint1-cache-amendment",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+        ]
+        if args.paper_cpu_list:
+            cmd += ["--cpu-list", args.paper_cpu_list]
+        if args.adaptive_refreeze_cache_amendment:
+            cmd += ["--refreeze-cache-amendment"]
+        log_section(
+            "ADAPTIVE SPRINT 1 CACHE AMENDMENT PLAN: "
+            + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_cache_amendment_check:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--validate-sprint1-cache-amendment",
+            "--artifact-root",
+            args.paper_artifact_root,
+        ]
+        log_section(
+            "ADAPTIVE SPRINT 1 CACHE AMENDMENT CHECK: "
+            + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_cache_amendment_authorize:
+        import subprocess as _sp
+        if not args.adaptive_authorization_reference:
+            parser.error(
+                "--adaptive-sprint1-cache-amendment-authorize "
+                "requires --adaptive-authorization-reference"
+            )
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--authorize-sprint1-cache-amendment",
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--authorization-reference",
+            args.adaptive_authorization_reference,
+        ]
+        if args.adaptive_refreeze_authorization:
+            cmd += ["--refreeze-authorization"]
+        log_section(
+            "ADAPTIVE SPRINT 1 CACHE AMENDMENT AUTHORIZE: "
+            + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_cache_amendment_execute:
+        import subprocess as _sp
+        if not args.adaptive_authorization_reference:
+            parser.error(
+                "--adaptive-sprint1-cache-amendment-execute "
+                "requires --adaptive-authorization-reference"
+            )
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--execute-sprint1-cache-amendment",
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--authorization-reference",
+            args.adaptive_authorization_reference,
+        ]
+        log_section(
+            "ADAPTIVE SPRINT 1 CACHE AMENDMENT EXECUTE: "
+            + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_sprint1_cache_amendment_analyze:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/runner.py",
+            "--analyze-sprint1-cache-amendment",
+            "--artifact-root",
+            args.paper_artifact_root,
+        ]
+        log_section(
+            "ADAPTIVE SPRINT 1 CACHE AMENDMENT ANALYZE: "
+            + " ".join(cmd)
+        )
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)
 

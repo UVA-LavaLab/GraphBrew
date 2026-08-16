@@ -192,6 +192,25 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     return parent;
 }
 
+template<typename CacheType>
+pvector<NodeID> RunBFS_Sim(
+    const Graph &g,
+    SourcePicker<Graph> &source_picker,
+    CacheType &cache
+) {
+    auto parent = DOBFS_Sim(g, source_picker.PickNext(), cache);
+    PrintLabel(
+        "Source Original",
+        std::to_string(source_picker.last_original_source()));
+    PrintLabel(
+        "Source Internal",
+        std::to_string(source_picker.last_internal_source()));
+    PrintLabel(
+        "Source Out Degree",
+        std::to_string(source_picker.last_source_out_degree()));
+    return parent;
+}
+
 void PrintBFSStats(const Graph &g, const pvector<NodeID> &bfs_tree) {
     int64_t tree_size = 0;
     int64_t n_edges = 0;
@@ -252,6 +271,8 @@ int main(int argc, char *argv[]) {
     Graph g = b.MakeGraph();
     
     bool multicore = IsMultiCoreMode();
+    bool sampled = IsSampledMode();
+    bool ultrafast = IsUltraFastMode();
     bool fast = IsFastMode();
     
     if (multicore) {
@@ -261,7 +282,7 @@ int main(int argc, char *argv[]) {
             g, cli.start_vertices(), cli.num_trials(),
             cli.source_repeats());
         auto BFSBound = [&sp, &cache](const Graph &g) {
-            return DOBFS_Sim(g, sp.PickNext(), cache);
+            return RunBFS_Sim(g, sp, cache);
         };
         SourcePicker<Graph> vsp(
             g, cli.start_vertices(), cli.num_trials(),
@@ -284,6 +305,74 @@ int main(int argc, char *argv[]) {
                 cout << "Cache stats exported to: " << json_file << endl;
             }
         }
+    } else if (sampled) {
+        SampledCacheHierarchy cache =
+            SampledCacheHierarchy::fromEnvironment();
+
+        SourcePicker<Graph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto BFSBound = [&sp, &cache](const Graph &g) {
+            return RunBFS_Sim(g, sp, cache);
+        };
+        SourcePicker<Graph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto VerifierBound = [&vsp](
+            const Graph &g, const pvector<NodeID> &parent) {
+            return BFSVerifier(g, vsp.PickNext(), parent);
+        };
+
+        BenchmarkKernel(
+            cli, g, BFSBound, PrintBFSStats, VerifierBound);
+
+        cout << endl;
+        cache.printStats();
+
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+                cout << "Cache stats exported to: "
+                     << json_file << endl;
+            }
+        }
+    } else if (ultrafast) {
+        UltraFastCacheHierarchy cache =
+            UltraFastCacheHierarchy::fromEnvironment();
+
+        SourcePicker<Graph> sp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto BFSBound = [&sp, &cache](const Graph &g) {
+            return RunBFS_Sim(g, sp, cache);
+        };
+        SourcePicker<Graph> vsp(
+            g, cli.start_vertices(), cli.num_trials(),
+            cli.source_repeats());
+        auto VerifierBound = [&vsp](
+            const Graph &g, const pvector<NodeID> &parent) {
+            return BFSVerifier(g, vsp.PickNext(), parent);
+        };
+
+        BenchmarkKernel(
+            cli, g, BFSBound, PrintBFSStats, VerifierBound);
+
+        cout << endl;
+        cache.printStats();
+
+        const char* json_file = getenv("CACHE_OUTPUT_JSON");
+        if (json_file) {
+            ofstream ofs(json_file);
+            if (ofs.is_open()) {
+                ofs << cache.toJSON() << endl;
+                ofs.close();
+                cout << "Cache stats exported to: "
+                     << json_file << endl;
+            }
+        }
     } else if (fast) {
         // FAST single-core cache simulation (no locks, ~10x faster)
         FastCacheHierarchy cache = FastCacheHierarchy::fromEnvironment();
@@ -292,7 +381,7 @@ int main(int argc, char *argv[]) {
             g, cli.start_vertices(), cli.num_trials(),
             cli.source_repeats());
         auto BFSBound = [&sp, &cache](const Graph &g) {
-            return DOBFS_Sim(g, sp.PickNext(), cache);
+            return RunBFS_Sim(g, sp, cache);
         };
         SourcePicker<Graph> vsp(
             g, cli.start_vertices(), cli.num_trials(),
@@ -322,7 +411,7 @@ int main(int argc, char *argv[]) {
             g, cli.start_vertices(), cli.num_trials(),
             cli.source_repeats());
         auto BFSBound = [&sp, &cache](const Graph &g) {
-            return DOBFS_Sim(g, sp.PickNext(), cache);
+            return RunBFS_Sim(g, sp, cache);
         };
         SourcePicker<Graph> vsp(
             g, cli.start_vertices(), cli.num_trials(),
