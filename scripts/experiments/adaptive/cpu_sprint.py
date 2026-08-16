@@ -35,7 +35,10 @@ from scripts.lib.ml.source_policy import (
     ADAPTIVE_SOURCE_POLICY_ID,
     ADAPTIVE_SOURCE_SEED,
 )
-from scripts.lib.pipeline.benchmark import file_sha256
+from scripts.lib.pipeline.benchmark import (
+    file_sha256,
+    parse_benchmark_output,
+)
 
 
 CPU_SPRINT_SCHEMA = "adaptive-cpu-sprint-scope/v1"
@@ -411,6 +414,12 @@ def write_rapid_plan(
     sprint_root = _sprint_root(artifact_root)
     scope_path = sprint_root / "scope_plan.json"
     source_path = sprint_root / "source_manifest.json"
+    contract_weights_path = (
+        artifact_root
+        / "adaptive_selector"
+        / "sprint1"
+        / "tier0_contract_weights.json"
+    )
     scope = _load_json(scope_path)
     sources = _load_json(source_path)
     if (
@@ -470,6 +479,8 @@ def write_rapid_plan(
         "input_artifacts": {
             "scope_plan": _artifact_binding(scope_path),
             "source_manifest": _artifact_binding(source_path),
+            "contract_weights":
+                _artifact_binding(contract_weights_path),
         },
         "graph_count": len(graph_names),
         "graphs": graph_names,
@@ -477,6 +488,7 @@ def write_rapid_plan(
         "benchmarks": list(CPU_RAPID_KERNELS),
         "trials": 1,
         "command_count": len(commands),
+        "feature_command_count": len(graph_names),
         "commands": commands,
         "cpu_list": cpu_list,
         "threads": threads,
@@ -579,6 +591,7 @@ def execute_rapid_plan(
         ):
             raise RuntimeError(
                 f"CPU rapid input changed: {path}")
+    feature_path = _collect_rapid_features(plan)
     results = []
     for index, command in enumerate(plan["commands"]):
         started = time.monotonic()
@@ -603,10 +616,110 @@ def execute_rapid_plan(
         "plan_sha256": file_sha256(
             plan_path, use_cache=False),
         "command_count": len(results),
+        "feature_manifest": str(feature_path),
+        "feature_manifest_sha256":
+            file_sha256(feature_path, use_cache=False),
         "results": results,
         "status": "complete",
     }
     path = sprint_root / "rapid_complete.json"
+    _atomic_json(payload, path)
+    return path
+
+
+def _collect_rapid_features(
+    plan: dict[str, Any],
+) -> Path:
+    rapid_root = Path(plan["artifact_root"])
+    feature_root = rapid_root / "tier0_features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    binary = PROJECT_ROOT / "bench" / "bin" / "pr"
+    subprocess.run(
+        ["make", "-j4", "bench/bin/pr"],
+        cwd=PROJECT_ROOT,
+        check=True,
+    )
+    source_bundle = _load_json(
+        Path(plan["source_manifest"]))
+    weights_path = Path(
+        plan["input_artifacts"]["contract_weights"]["path"])
+    rows = []
+    for graph_name in plan["graphs"]:
+        graph_record = source_bundle["graphs"][graph_name]
+        graph_path = Path(graph_record["graph_path"])
+        log_path = feature_root / f"{graph_name}.log"
+        command = _taskset_command([
+            str(binary),
+            "-f", str(graph_path),
+            "-s",
+            "-n", "1",
+            "-F",
+            "-i", "1",
+            "-t", "0.0001",
+            "-o", "14",
+        ], plan["cpu_list"])
+        environment = {
+            **os.environ,
+            "OMP_NUM_THREADS": str(plan["threads"]),
+            "OMP_PROC_BIND": "close",
+            "OMP_PLACES": "cores",
+            "OMP_DYNAMIC": "FALSE",
+            "GRAPHBREW_DB_DIR": "",
+            "GRAPHBREW_TOPOLOGY_ANALYSIS": "0",
+            "PERCEPTRON_WEIGHTS_FILE": str(weights_path),
+        }
+        completed = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30 * 60,
+        )
+        log_path.write_text(
+            completed.stdout + completed.stderr)
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"CPU Tier-0 feature command failed: {graph_name}")
+        _, _, extra = parse_benchmark_output(completed.stdout)
+        if (
+            extra.get("adaptive_weight_source") != "env-override"
+            or extra.get("adaptive_tier0_trained")
+                != "development-override"
+            or extra.get("adaptive_applied") != "0"
+            or "adaptive_tier0_features" not in extra
+            or "adaptive_selection_time" not in extra
+        ):
+            raise RuntimeError(
+                f"CPU Tier-0 feature contract failed: {graph_name}")
+        rows.append({
+            "graph": graph_name,
+            "graph_path": str(graph_path),
+            "graph_provenance_sha256":
+                _canonical_json_sha256(
+                    graph_record["graph_provenance"]),
+            "command": command,
+            "binary_sha256":
+                file_sha256(binary, use_cache=False),
+            "features": extra["adaptive_tier0_features"],
+            "selection_seconds":
+                float(extra["adaptive_selection_time"]),
+            "log_path": str(log_path),
+            "log_sha256":
+                file_sha256(log_path, use_cache=False),
+        })
+    payload = {
+        "schema": "adaptive-cpu-tier0-features/v1",
+        "claim_eligible": False,
+        "graph_count": len(rows),
+        "source_manifest": plan["source_manifest"],
+        "source_manifest_sha256":
+            plan["input_artifacts"]["source_manifest"]["sha256"],
+        "contract_weights_sha256":
+            plan["input_artifacts"]["contract_weights"]["sha256"],
+        "rows": rows,
+    }
+    path = feature_root / "manifest.json"
     _atomic_json(payload, path)
     return path
 
