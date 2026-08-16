@@ -2318,6 +2318,16 @@ def main():
     )
     g_paper.add_argument("--paper-algorithms", nargs="+",
                          help="Restrict VLDB runs to exact canonical algorithm keys")
+    g_paper.add_argument(
+        "--paper-benchmarks",
+        nargs="+",
+        help="Restrict VLDB runs to a bounded benchmark subset",
+    )
+    g_paper.add_argument(
+        "--paper-trials",
+        type=int,
+        help="Override process trials for a bounded VLDB run",
+    )
     g_paper.add_argument("--paper-artifact-root",
                          default=os.environ.get(
                              "GRAPHBREW_VLDB_ROOT",
@@ -3276,6 +3286,10 @@ def main():
             cmd += ["--freeze-sssp-policy"]
         if args.paper_algorithms:
             cmd += ["--algorithms", *args.paper_algorithms]
+        if args.paper_benchmarks:
+            cmd += ["--benchmarks", *args.paper_benchmarks]
+        if args.paper_trials is not None:
+            cmd += ["--trials", str(args.paper_trials)]
         cmd += [
             "--graph-dir", args.paper_graph_dir,
             "--artifact-root", args.paper_artifact_root,
