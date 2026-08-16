@@ -5561,6 +5561,7 @@ def write_sprint1_cache_amendment_analysis(
 
     session_id = str(completion["execution_session_id"])
     priming_results = []
+    result_bindings = {}
     for base_command in manifest["priming_commands"]:
         command = _bind_authorized_command(
             _priming_command_for_session(base_command, session_id),
@@ -5574,6 +5575,9 @@ def write_sprint1_cache_amendment_analysis(
             raise RuntimeError(
                 "Cache amendment priming result is ineligible")
         priming_results.append(result)
+        result_path = Path(command["result_path"]).resolve()
+        result_bindings[str(result_path)] = file_sha256(
+            result_path, use_cache=False)
 
     rows = []
     raw_results = []
@@ -5630,6 +5634,9 @@ def write_sprint1_cache_amendment_analysis(
                 phases["simulator_seconds"] / expected_trials,
         })
         raw_results.append(result)
+        result_path = Path(command["result_path"]).resolve()
+        result_bindings[str(result_path)] = file_sha256(
+            result_path, use_cache=False)
 
     plan = _load_json(Path(manifest["plan"]))
     anchor_rows = []
@@ -5799,10 +5806,7 @@ def write_sprint1_cache_amendment_analysis(
     cache_collection_eligible = (
         logo_eligible and budget_eligible)
 
-    result_set = {
-        result["command_id"]: result["command_contract_sha256"]
-        for result in raw_results
-    }
+    ordered_result_bindings = sorted(result_bindings.items())
     payload = {
         "schema": "adaptive-cache-amendment-analysis/v1",
         "amendment_id": CACHE_AMENDMENT_ID,
@@ -5812,7 +5816,8 @@ def write_sprint1_cache_amendment_analysis(
         "execution_manifest_sha256": manifest_sha256,
         "authorization_reference": authorization_reference,
         "result_set_sha256":
-            _canonical_json_sha256(result_set),
+            _canonical_json_sha256(ordered_result_bindings),
+        "result_bindings": ordered_result_bindings,
         "status": (
             "pass" if cache_collection_eligible else "stop"
         ),
