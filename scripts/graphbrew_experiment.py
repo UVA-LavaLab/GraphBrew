@@ -2513,6 +2513,16 @@ def main():
         help="Analyze the completed second cache amendment",
     )
     g_paper.add_argument(
+        "--adaptive-cpu-plan",
+        action="store_true",
+        help="Freeze the amortized CPU selector scope",
+    )
+    g_paper.add_argument(
+        "--adaptive-cpu-sources",
+        action="store_true",
+        help="Generate the frozen 30-graph CPU selector source bundle",
+    )
+    g_paper.add_argument(
         "--adaptive-authorization-reference",
         help="Reviewed authorization reference for adaptive pilot execution",
     )
@@ -2545,6 +2555,16 @@ def main():
         "--adaptive-refreeze-cache-amendment",
         action="store_true",
         help="Replace the cache amendment after explicit review",
+    )
+    g_paper.add_argument(
+        "--adaptive-refreeze-cpu-scope",
+        action="store_true",
+        help="Replace the amortized CPU selector scope after review",
+    )
+    g_paper.add_argument(
+        "--adaptive-refreeze-cpu-sources",
+        action="store_true",
+        help="Replace the CPU selector source bundle after review",
     )
     g_paper.add_argument(
         "--adaptive-budget-hours",
@@ -3179,6 +3199,50 @@ def main():
         log_section(
             "ADAPTIVE SPRINT 1 CACHE AMENDMENT ANALYZE: "
             + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_cpu_plan:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/cpu_sprint.py",
+            "--plan",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+        ]
+        if args.adaptive_refreeze_cpu_scope:
+            cmd += ["--refreeze-scope"]
+        log_section(
+            "ADAPTIVE CPU SELECTOR PLAN: " + " ".join(cmd)
+        )
+        result = _sp.run(cmd)
+        raise SystemExit(result.returncode)
+
+    if args.adaptive_cpu_sources:
+        import subprocess as _sp
+        cmd = [
+            "python3",
+            "scripts/experiments/adaptive/cpu_sprint.py",
+            "--generate-sources",
+            "--graph-dir",
+            args.paper_graph_dir,
+            "--artifact-root",
+            args.paper_artifact_root,
+            "--threads",
+            str(args.paper_threads or 16),
+        ]
+        if args.paper_cpu_list:
+            cmd += ["--cpu-list", args.paper_cpu_list]
+        if args.adaptive_force_sources:
+            cmd += ["--force-sources"]
+        if args.adaptive_refreeze_cpu_sources:
+            cmd += ["--refreeze-sources"]
+        log_section(
+            "ADAPTIVE CPU SELECTOR SOURCES: " + " ".join(cmd)
         )
         result = _sp.run(cmd)
         raise SystemExit(result.returncode)
