@@ -780,6 +780,8 @@ def write_rapid_decision(
         "fixed_models": sprint_root / "rapid_analysis.json",
         "calibrated_ridge":
             sprint_root / "rapid_ridge_analysis.json",
+        "ridge_contexts":
+            sprint_root / "rapid_ridge_contexts.json",
     }
     payloads = {
         name: _load_json(path)
@@ -790,6 +792,7 @@ def write_rapid_decision(
     features = payloads["features"]
     fixed = payloads["fixed_models"]
     ridge = payloads["calibrated_ridge"]
+    ridge_contexts = payloads["ridge_contexts"]
     completion = payloads["rapid_completion"]
     failed = payloads["failed_attempt"]
     if (
@@ -819,7 +822,10 @@ def write_rapid_decision(
     )
     calibrated_ratio = float(ridge["overall_gm"])
     point_effect_required = 1.0 / 0.97
-    p90_regret = 0.1860535098541931
+    p90_regret = float(
+        ridge_contexts["oracle_regret_p90"])
+    geomean_regret = float(
+        ridge_contexts["oracle_regret_gm"])
     worst_graph = float(ridge["worst_graph_ratio"])
     rapid_consumed_hours = (
         sum(
@@ -854,6 +860,10 @@ def write_rapid_decision(
             "p90_regret": p90_regret,
             "p90_regret_limit": 0.15,
             "p90_regret_eligible": p90_regret <= 0.15,
+            "geomean_oracle_regret": geomean_regret,
+            "geomean_oracle_regret_limit": 0.05,
+            "geomean_oracle_regret_eligible":
+                geomean_regret <= 0.05,
             "worst_graph_static_over_selector":
                 worst_graph,
         },
@@ -870,8 +880,10 @@ def write_rapid_decision(
         "decision_reason": (
             "Fresh 30-graph oracle headroom is large, but the deployable "
             "Tier-0 models recover at most 1.6%, below the required 3% "
-            "point effect; p90 regret is 18.6% versus the 15% limit, and "
-            "the worst held-out graph regresses by 21.5%."
+            "point effect; geometric-mean oracle regret is 18.0% versus "
+            "the 5% limit, p90 oracle regret is 78.6% versus the 15% "
+            "limit, and the worst held-out graph regresses by 21.5% "
+            "against the strongest static baseline."
         ),
         "authorized_next_actions": {
             "full_collection": False,
