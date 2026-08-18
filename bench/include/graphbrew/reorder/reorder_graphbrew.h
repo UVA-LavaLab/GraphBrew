@@ -702,7 +702,8 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
         "\"max_iterations\":%d,\"max_passes\":%d,"
         "\"refinement_depth\":%d,\"m_computation\":\"%s\","
         "\"deterministic_community_detection\":%s,"
-        "\"gorder_window\":%d,\"final_algo_id\":%d,"
+        "\"gorder_window\":%d,\"gorder_fallback\":%d,"
+        "\"final_algo_id\":%d,"
         "\"recursive_depth\":%d,\"sub_algo_id\":%d,"
         "\"rabbit_degree_sort_preprocess\":%s,"
         "\"use_refinement\":%s,\"dynamic_resolution\":%s,"
@@ -729,6 +730,7 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
             ? "total-edges" : "half-edges",
         config.deterministicCommunityDetection ? "true" : "false",
         config.gorderWindow,
+        config.gorderFallback,
         config.finalAlgoId,
         config.recursiveDepth,
         config.subAlgoId,
@@ -766,6 +768,8 @@ struct GraphBrewRealizedConfig {
     bool recursiveDepthApplicable = false;
     int recursiveDepth = -1;
     bool scheduleSensitive = false;
+    int gorderWindow = 5;
+    int gorderFallback = 0;
     int finalAlgoId = -1;
     int subAlgoId = -1;
     int numPasses = 0;
@@ -816,6 +820,8 @@ inline GraphBrewRealizedConfig makeGraphBrewRealizedConfig(
         ) ||
         config.superGraphOrder == SuperGraphOrder::SuperRabbit ||
         config.superGraphOrder == SuperGraphOrder::TileRabbit;
+    realized.gorderWindow = config.gorderWindow;
+    realized.gorderFallback = config.gorderFallback;
     realized.finalAlgoId = config.finalAlgoId;
     realized.subAlgoId = config.subAlgoId;
     return realized;
@@ -850,9 +856,12 @@ inline void printGraphBrewRealizedConfig(
     }
     printf(
         ",\"schedule_sensitive\":%s,"
+        "\"gorder_window\":%d,\"gorder_fallback\":%d,"
         "\"final_algo_id\":%d,\"sub_algo_id\":%d,"
         "\"num_passes\":%d,\"num_communities\":%zu,\"fallbacks\":[",
         realized.scheduleSensitive ? "true" : "false",
+        realized.gorderWindow,
+        realized.gorderFallback,
         realized.finalAlgoId,
         realized.subAlgoId,
         realized.numPasses,

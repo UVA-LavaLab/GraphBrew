@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Optional
 
 GRAPHBREW_EFFECTIVE_CONFIG_PREFIX = "GraphBrew Effective Config: "
@@ -65,6 +66,62 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
     tokens = spec.split(":")[1:]
     first = tokens[0] if tokens else "leiden"
     rabbit = first in {"rabbit", "rabbitorder"}
+    preset = first in {"leiden", "rabbit", "hubcluster"}
+
+    def is_numeric(token: str) -> bool:
+        try:
+            value = float(token)
+        except ValueError:
+            return False
+        return math.isfinite(value)
+
+    def is_integer(token: str) -> bool:
+        try:
+            value = int(token)
+        except ValueError:
+            return False
+        return str(value) == token
+
+    named_tokens = [first]
+    positional: dict[int, str] = {}
+    for index, token in enumerate(tokens[1:], start=1):
+        if not preset:
+            named_tokens.append(token)
+            continue
+        numeric = is_numeric(token)
+        if (
+            index in {1, 3, 4, 5}
+            and numeric
+            and not is_integer(token)
+        ):
+            raise RuntimeError(
+                f"Malformed positional GraphBrew integer in {spec}: {token}"
+            )
+        is_positional = (
+            (index == 1 and is_integer(token))
+            or (
+                index == 2
+                and (
+                    numeric
+                    or token == "auto"
+                    or token == "dynamic"
+                    or token.startswith("dynamic_")
+                )
+            )
+            or (index in {3, 4} and is_integer(token))
+            or (
+                index == 5
+                and (
+                    is_integer(token)
+                    or token in {"auto", "adaptive"}
+                )
+            )
+        )
+        if is_positional:
+            positional[index] = token
+        else:
+            named_tokens.append(token)
+
     expected: dict[str, object] = {
         "algorithm": "leiden",
         "community_mode": "full-leiden",
@@ -82,6 +139,7 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "m_computation": "half-edges",
         "deterministic_community_detection": True,
         "gorder_window": 5,
+        "gorder_fallback": 0,
         "final_algo_id": 8,
         "recursive_depth": -1,
         "sub_algo_id": 8,
@@ -149,7 +207,7 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "bfs": "dendrogram-bfs",
         "community": "community-sort",
     }
-    for token in tokens[1:]:
+    for token in named_tokens:
         if token in ordering_tokens:
             expected["ordering"] = ordering_tokens[token]
             expected["has_explicit_ordering"] = True
@@ -192,6 +250,9 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         elif token.startswith("gord") and token[4:].isdigit():
             expected["gorder_intra"] = True
             expected["gorder_window"] = int(token[4:])
+        elif token.startswith("gordf") and token[5:].isdigit():
+            expected["gorder_intra"] = True
+            expected["gorder_fallback"] = int(token[5:])
         elif token in {"hsort", "hubsort"}:
             expected["hub_sort"] = True
         elif token in {"merge", "coarsen"}:
@@ -224,6 +285,21 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
             expected["super_graph_resolution"] = float(token[5:])
         elif token.startswith("gw") and token[2:].isdigit():
             expected["gorder_window"] = int(token[2:])
+        elif is_numeric(token):
+            value = float(token)
+            if (
+                0.0 < value <= 3.0
+                and ("." in token or value < 1.0)
+            ):
+                expected["resolution"] = value
+            elif 1.0 <= value <= 100.0:
+                integer = int(value)
+                if expected["max_iterations"] == 10:
+                    expected["max_iterations"] = integer
+                else:
+                    expected["max_passes"] = integer
+            elif 0.0 < value <= 3.0:
+                expected["resolution"] = value
 
     if "compose" in tokens:
         super_graph_tokens = {
@@ -277,6 +353,32 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
                 expected["intra_community_order"] = intra_tokens[token]
             elif token == "refine_2swap":
                 expected["refinement_pass"] = "two-swap"
+
+    if 1 in positional:
+        final_algo = int(positional[1])
+        if not 0 <= final_algo <= 11:
+            raise RuntimeError(
+                f"Invalid GraphBrew final algorithm in {spec}: {final_algo}"
+            )
+        expected["final_algo_id"] = final_algo
+    if 2 in positional:
+        resolution = positional[2]
+        if resolution.startswith("dynamic"):
+            expected["dynamic_resolution"] = True
+            if resolution.startswith("dynamic_"):
+                expected["resolution"] = float(resolution[8:])
+        elif resolution not in {"auto", "0"}:
+            expected["resolution"] = float(resolution)
+    if 3 in positional:
+        expected["max_passes"] = int(positional[3])
+    if 4 in positional:
+        expected["recursive_depth"] = int(positional[4])
+    if 5 in positional:
+        sub_algo = positional[5]
+        expected["sub_algo_id"] = (
+            -1 if sub_algo in {"auto", "adaptive"}
+            else int(sub_algo)
+        )
 
     return expected
 
@@ -374,6 +476,8 @@ def validate_graphbrew_realized_configs(
         "resolution",
         "recursive_depth",
         "schedule_sensitive",
+        "gorder_window",
+        "gorder_fallback",
         "final_algo_id",
         "sub_algo_id",
         "num_passes",
@@ -414,6 +518,8 @@ def validate_graphbrew_realized_configs(
             "refinement_pass": effective["refinement_pass"],
             "resolution": effective["resolution"],
             "schedule_sensitive": expected_schedule_sensitive,
+            "gorder_window": effective["gorder_window"],
+            "gorder_fallback": effective["gorder_fallback"],
             "final_algo_id": effective["final_algo_id"],
             "sub_algo_id": effective["sub_algo_id"],
         }

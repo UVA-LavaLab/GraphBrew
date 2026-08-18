@@ -98,6 +98,30 @@ def test_published_compose_specs_pin_both_block_axes():
         assert any(token.startswith("comm_") for token in tokens)
 
 
+def test_budgeted_mechanism_config_is_fully_bound():
+    spec = (
+        "12:leiden:compose:sg_none:comm_identity:"
+        "intra_gorder:gw32:gordf500:cd_parallel:1:1"
+    )
+    config = runner._expected_graphbrew_config(spec)
+    assert config["aggregation"] == "gve-csr"
+    assert config["intra_community_order"] == "gorder"
+    assert config["gorder_window"] == 32
+    assert config["gorder_fallback"] == 500
+    assert config["deterministic_community_detection"] is False
+    assert config["max_iterations"] == 1
+    assert config["max_passes"] == 1
+    assert runner._mapping_draw_count(["-o", spec]) > 1
+    runner.configure_algorithm_filter([spec])
+    try:
+        assert [
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        ] == [spec]
+    finally:
+        runner.configure_algorithm_filter(None)
+
+
 def test_experiment5_contrasts_change_only_registered_fields():
     for contrast in ABLATION_CONTRASTS:
         base = runner._expected_graphbrew_config(contrast["base"])
@@ -308,6 +332,8 @@ def test_structured_graphbrew_realization_is_validated():
         "resolution": None,
         "recursive_depth": None,
         "schedule_sensitive": True,
+        "gorder_window": 5,
+        "gorder_fallback": 0,
         "final_algo_id": -1,
         "sub_algo_id": 8,
         "num_passes": 1,
@@ -362,6 +388,8 @@ def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
         "resolution": None,
         "recursive_depth": None,
         "schedule_sensitive": True,
+        "gorder_window": 5,
+        "gorder_fallback": 0,
         "final_algo_id": -1,
         "sub_algo_id": 8,
         "num_passes": 1,
@@ -701,8 +729,8 @@ def test_mapping_dry_run_reports_applicability_matrix_with_stale_provenance(
 
     output = caplog.text
     assert "provenance must be refreshed before execution" in output
-    assert "cit-Patents: planned 46 mapping(s), 98 named draw(s)" in output
-    assert "twitter7: planned 45 mapping(s), 95 named draw(s)" in output
+    assert "cit-Patents: planned 51 mapping(s), 111 named draw(s)" in output
+    assert "twitter7: planned 50 mapping(s), 108 named draw(s)" in output
     assert "EXCLUDED: twitter7" in output
 
 

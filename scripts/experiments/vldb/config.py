@@ -511,6 +511,26 @@ _ABLATION_REFINED_HUBSORT = (
     "12:rabbit:compose:"
     "sg_none:comm_identity:intra_hubsort:refine_2swap"
 )
+_BUDGETED_GORDER500 = (
+    "12:leiden:compose:sg_none:comm_identity:"
+    "intra_gorder:gw32:gordf500:cd_parallel:1:1"
+)
+_BUDGETED_BFS = (
+    "12:leiden:compose:sg_none:comm_identity:"
+    "intra_bfs:gw32:gordf500:cd_parallel:1:1"
+)
+_BUDGETED_GORDER_UNCAPPED = (
+    "12:leiden:compose:sg_none:comm_identity:"
+    "intra_gorder:gw32:gord:cd_parallel:1:1"
+)
+_BUDGETED_GORDER_SERIAL = (
+    "12:leiden:compose:sg_none:comm_identity:"
+    "intra_gorder:gw32:gordf500:cd_serial:1:1"
+)
+_BUDGETED_GORDER_SIZE_DESC = (
+    "12:leiden:compose:sg_none:comm_size_desc:"
+    "intra_gorder:gw32:gordf500:cd_parallel:1:1"
+)
 
 ABLATION_CONTRASTS = [
     {
@@ -553,13 +573,49 @@ ABLATION_CONTRASTS = [
         "variant": _ABLATION_REFINED_HUBSORT,
         "effective_fields": ["refinement_pass"],
     },
+    {
+        "name": "Budgeted vertex layout",
+        "base": _BUDGETED_GORDER500,
+        "variant": _BUDGETED_BFS,
+        "effective_fields": ["intra_community_order"],
+    },
+    {
+        "name": "Gorder community budget",
+        "base": _BUDGETED_GORDER500,
+        "variant": _BUDGETED_GORDER_UNCAPPED,
+        "effective_fields": ["gorder_fallback"],
+    },
+    {
+        "name": "Community-detection schedule",
+        "base": _BUDGETED_GORDER500,
+        "variant": _BUDGETED_GORDER_SERIAL,
+        "effective_fields": ["deterministic_community_detection"],
+    },
+    {
+        "name": "Budgeted block order",
+        "base": _BUDGETED_GORDER500,
+        "variant": _BUDGETED_GORDER_SIZE_DESC,
+        "effective_fields": ["community_order"],
+    },
 ]
+
+_BUDGETED_MECHANISM_NAMES = {
+    _BUDGETED_GORDER500: "BudgetedLeiden-Identity-Gorder500",
+    _BUDGETED_BFS: "BudgetedLeiden-Identity-BFS",
+    _BUDGETED_GORDER_UNCAPPED: "BudgetedLeiden-Identity-GorderUncapped",
+    _BUDGETED_GORDER_SERIAL: "BudgetedLeidenSerial-Identity-Gorder500",
+    _BUDGETED_GORDER_SIZE_DESC: "BudgetedLeiden-SizeDesc-Gorder500",
+}
 
 ABLATION_CONFIGS = [
     {"name": "Shuffled", "algo": "0", "desc": "Seeded shuffled input layout"},
     *[
         {
-            "name": GRAPHBREW_DISPLAY_NAMES[spec],
+            "name": (
+                _BUDGETED_MECHANISM_NAMES[spec]
+                if spec in _BUDGETED_MECHANISM_NAMES
+                else GRAPHBREW_DISPLAY_NAMES[spec]
+            ),
             "algo": spec,
             "desc": "Controlled Experiment-5 configuration",
         }
@@ -570,6 +626,12 @@ ABLATION_CONFIGS = [
         )
     ],
 ]
+for config in ABLATION_CONFIGS:
+    if config["algo"] in _BUDGETED_MECHANISM_NAMES:
+        config["name"] = _BUDGETED_MECHANISM_NAMES[config["algo"]]
+        config["desc"] = (
+            "Frozen budgeted Leiden-Gorder mechanism contrast"
+        )
 
 ALGORITHM_GRAPH_EXCLUSIONS = {
     "twitter7": {

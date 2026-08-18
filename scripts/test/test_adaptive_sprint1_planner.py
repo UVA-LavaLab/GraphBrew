@@ -273,6 +273,8 @@ def test_realized_fallback_and_success_postconditions_fail_closed():
         "resolution": None,
         "recursive_depth": None,
         "schedule_sensitive": True,
+        "gorder_window": 5,
+        "gorder_fallback": 0,
         "final_algo_id": -1,
         "sub_algo_id": 8,
         "num_passes": 1,

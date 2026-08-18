@@ -3735,6 +3735,8 @@ public:
             resolved["refinement_depth"] =
                 config.refinementDepth;
             resolved["gorder_window"] = config.gorderWindow;
+            resolved["gorder_fallback"] =
+                config.gorderFallback;
             resolved["final_algo_id"] = config.finalAlgoId;
             resolved["recursive_depth"] = config.recursiveDepth;
             resolved["sub_algo_id"] = config.subAlgoId;

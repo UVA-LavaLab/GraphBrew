@@ -1803,7 +1803,16 @@ def _paper_algorithm_specs(
             for _label, spec in COMPOSE_VARIANTS
         )
     if _ALGORITHM_FILTER is not None:
-        specs = [spec for spec in specs if spec[0] in _ALGORITHM_FILTER]
+        by_key = {spec[0]: spec for spec in specs}
+        specs = []
+        for key in sorted(_ALGORITHM_FILTER):
+            if key.startswith("chain:"):
+                continue
+            specs.append(
+                by_key[key]
+                if key in by_key
+                else _algorithm_spec_for_key(key)
+            )
     return specs
 
 
