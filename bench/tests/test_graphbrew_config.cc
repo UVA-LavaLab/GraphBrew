@@ -125,6 +125,19 @@ void TestBudgetedAdaptiveRule()
         GetSelectionModel("budgeted-rule")
             == SELECTION_MODEL_BUDGETED_RULE,
         "budgeted-rule selection model parsing changed");
+    bool missing_reuse_rejected = false;
+    try
+    {
+        adaptive::ParseDeployableSelectionPolicy(
+            {"", "", "", "budgeted-rule", "best-endtoend"});
+    }
+    catch (const std::invalid_argument&)
+    {
+        missing_reuse_rejected = true;
+    }
+    Require(
+        missing_reuse_rejected,
+        "budgeted-rule accepted an implicit reuse count");
 
     CommunityFeatures features;
     features.num_nodes = 10000;

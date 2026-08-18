@@ -3561,10 +3561,11 @@ public:
     
     /**
      * Main entry point for Adaptive reordering - delegates to standalone.
-     * Format: -o 14[:_[:_[:model[:criterion]]]]
+     * Format: -o 14[:_[:_[:model[:criterion[:reuse-count]]]]]
      *   Positions 0-2: reserved (unused)
      *   Position 3: deployable model
      *   Position 4: independent optimization criterion
+     *   Position 5: expected reuse count (required by budgeted-rule)
      */
     void GenerateAdaptiveMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids, bool useOutdeg,

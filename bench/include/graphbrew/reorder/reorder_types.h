@@ -1133,7 +1133,7 @@ struct CommunityFeatures {
     // ---------- Density Metrics ----------
     double internal_density = 0.0;  ///< edges / possible_edges
     double avg_degree = 0.0;        ///< Mean degree of vertices
-    double degree_variance = 0.0;   ///< Normalized variance in degrees
+    double degree_variance = 0.0;   ///< Degree coefficient of variation
     
     // ---------- Structure Metrics ----------
     double hub_concentration = 0.0;  ///< Fraction of edges from top 10% nodes

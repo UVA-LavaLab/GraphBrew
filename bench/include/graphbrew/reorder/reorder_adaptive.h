@@ -218,6 +218,7 @@ struct DeployableSelectionPolicy {
     SelectionModel model = SELECTION_MODEL_PERCEPTRON;
     SelectionCriterion criterion = CRITERION_FASTEST_EXECUTION;
     double reuse_count = 1.0;
+    bool reuse_count_explicit = false;
 };
 
 inline bool IsDeployableSelectionModel(SelectionModel model) {
@@ -272,6 +273,7 @@ inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
             throw std::invalid_argument(
                 "AdaptiveOrder reuse count must be positive");
         }
+        policy.reuse_count_explicit = true;
     }
 
     for (size_t i = 6; i < options.size(); ++i) {
@@ -285,6 +287,13 @@ inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
         throw std::invalid_argument(
             SelectionModelToString(policy.model)
             + " is offline-only and cannot drive deployable AdaptiveOrder");
+    }
+    if (
+        policy.model == SELECTION_MODEL_BUDGETED_RULE
+        && !policy.reuse_count_explicit
+    ) {
+        throw std::invalid_argument(
+            "budgeted-rule requires an explicit reuse count");
     }
     return policy;
 }
