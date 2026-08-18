@@ -212,6 +212,14 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
             expected["m_computation"] = "half-edges"
         elif token.startswith("refine") and token[6:].isdigit():
             expected["refinement_depth"] = int(token[6:])
+        elif token in {
+            "cd_parallel", "cd:parallel", "community_parallel",
+        }:
+            expected["deterministic_community_detection"] = False
+        elif token in {
+            "cd_serial", "cd:serial", "community_serial",
+        }:
+            expected["deterministic_community_detection"] = True
         elif token.startswith("sgres") or token.startswith("gamma"):
             expected["super_graph_resolution"] = float(token[5:])
         elif token.startswith("gw") and token[2:].isdigit():
@@ -389,6 +397,7 @@ def validate_graphbrew_realized_configs(
         )
         expected_schedule_sensitive = (
             effective["algorithm"] == "rabbit"
+            or not effective["deterministic_community_detection"]
             or effective["ordering"] in {"hrab", "hlr", "tqr"}
             or (
                 effective["ordering"] == "layer"

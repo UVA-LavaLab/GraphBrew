@@ -919,14 +919,20 @@ public:
             meta.thread_policy_sensitive =
                 meta.thread_policy_sensitive || option.first == LeidenOrder;
             if (
-                option.first == GraphBrewOrder
+                (
+                    option.first == GraphBrewOrder
+                    || option.first == AdaptiveOrder
+                )
                 && meta.schedule_sensitive) {
                 PrintLabel(
                     "Reorder Schedule Sensitive",
                     "true");
             }
             if (
-                option.first == GraphBrewOrder
+                (
+                    option.first == GraphBrewOrder
+                    || option.first == AdaptiveOrder
+                )
                 && meta.thread_policy_sensitive) {
                 PrintLabel(
                     "Reorder Thread Policy Sensitive",
@@ -3632,7 +3638,7 @@ public:
     // community. Supports recursive depth (auto or explicit), adaptive
     // sub-algorithm selection, hub extraction, and small-community merging.
     //
-    // All parsing routes through graphbrew::parseGraphBrewConfig() (one parser).
+    // All parsing routes through graphbrew::parseGraphBrewCliConfig().
     // Named presets expand to equivalent tokens:
     //
     //   Preset        Token expansion
@@ -3651,10 +3657,9 @@ public:
     /**
      * Parse GraphBrew CLI options and build a GraphBrewConfig.
      * 
-     * All parsing is routed through graphbrew::parseGraphBrewConfig() in
-     * reorder_graphbrew.h.  Named presets (leiden, rabbit, hubcluster)
-     * are expanded to equivalent tokens before being fed to that parser,
-     * so there is exactly ONE token parser for the whole system.
+     * All parsing is routed through graphbrew::parseGraphBrewCliConfig() in
+     * reorder_graphbrew.h. Named presets (leiden, rabbit, hubcluster) are
+     * expanded before the shared token parser is called.
      * 
      * Formats:
      *   -o 12                                     # Default (leiden preset)
@@ -3664,190 +3669,8 @@ public:
     graphbrew::GraphBrewConfig ParseGraphBrewConfig(
         const std::vector<std::string>& options,
         double auto_resolution) {
-        
-        // ── Default (no options) → leiden preset ────────────────────────
-        if (options.empty() || options[0].empty()) {
-            graphbrew::GraphBrewConfig config = graphbrew::parseGraphBrewConfig(
-                {"gvecsr", "totalm", "refine0", "graphbrew"}, true);
-            config.resolution = auto_resolution;
-            return config;
-        }
-        
-        const std::string& first = options[0];
-        
-        // ── Preset expansion table ──────────────────────────────────────
-        // Each preset maps to tokens understood by parseGraphBrewConfig.
-        // "graphbrew" token → LAYER ordering + finalAlgoId=8 + smallCommunityMerging
-        struct PresetDef {
-            std::vector<std::string> tokens;
-        };
-        static const std::map<std::string, PresetDef> PRESETS = {
-            {"leiden",      {{"gvecsr", "totalm", "refine0", "graphbrew"}}},
-            {"rabbit",      {{"rabbitorder", "0.5"}}},
-            {"hubcluster",  {{"hubcluster"}}},
-        };
-        
-        auto preset_it = PRESETS.find(first);
-        graphbrew::GraphBrewConfig config;
-        auto isNumeric = [](const std::string& token) {
-            try {
-                size_t parsed = 0;
-                double value = std::stod(token, &parsed);
-                return parsed == token.size() && std::isfinite(value);
-            } catch (...) {
-                return false;
-            }
-        };
-        auto dynamicInitial = [&](const std::string& token, double& initial) {
-            if (token == "dynamic") {
-                initial = auto_resolution;
-                return true;
-            }
-            if (token.rfind("dynamic_", 0) != 0 ||
-                !isNumeric(token.substr(8))) {
-                return false;
-            }
-            initial = std::stod(token.substr(8));
-            return initial > 0.0 && initial <= 3.0;
-        };
-        auto isInteger = [](const std::string& token) {
-            try {
-                size_t parsed = 0;
-                std::stoi(token, &parsed);
-                return parsed == token.size();
-            } catch (...) {
-                return false;
-            }
-        };
-        
-        if (preset_it != PRESETS.end()) {
-            // Parse preset expansion and every named tail token together.
-            // Numeric legacy positional fields are applied below.
-            std::vector<std::string> tokens = preset_it->second.tokens;
-            for (size_t i = 1; i < options.size(); ++i) {
-                const std::string& token = options[i];
-                if (token.empty()) continue;
-                bool positional = false;
-                const bool numeric = isNumeric(token);
-                double dynamic_initial = 0.0;
-                if (
-                    ((i == 1 || i == 3 || i == 4 || i == 5) && numeric)
-                    && !isInteger(token))
-                {
-                    throw std::invalid_argument(
-                        "GraphBrew positional integer is malformed: "
-                        + token);
-                }
-                if (i == 1 && isInteger(token)) positional = true;  // final algo
-                if (i == 2 &&
-                    (numeric || token == "auto" ||
-                     dynamicInitial(token, dynamic_initial)))
-                    positional = true;  // resolution
-                if ((i == 3 || i == 4) && isInteger(token))
-                    positional = true;  // passes / depth
-                if (i == 5 &&
-                    (isInteger(token) || token == "auto" || token == "adaptive"))
-                    positional = true;  // sub-algo
-                if (!positional) tokens.push_back(token);
-            }
-            config = graphbrew::parseGraphBrewConfig(tokens, true);
-            
-            // Apply LAYER-mode defaults (only if the preset didn't set another ordering)
-            if (config.algorithm != graphbrew::GraphBrewAlgorithm::RABBIT_ORDER &&
-                config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
-                config.ordering = graphbrew::OrderingStrategy::LAYER;
-            }
-            if (config.ordering == graphbrew::OrderingStrategy::LAYER) {
-                config.useSmallCommunityMerging = true;
-                if (config.finalAlgoId < 0) config.finalAlgoId = 8;
-            }
-            
-            // Apply auto-resolution when the preset/token didn't set an explicit one
-            if (config.resolution == reorder::DEFAULT_RESOLUTION) {
-                config.resolution = auto_resolution;
-            }
-            
-            // Positional overrides: final_algo, resolution, passes, depth, sub
-            if (options.size() > 1 && isInteger(options[1])) {
-                int final_algo = std::stoi(options[1]);
-                if (final_algo < 0 || final_algo > 11) {
-                    throw std::invalid_argument(
-                        "Invalid GraphBrew final algorithm: " + options[1]);
-                }
-                config.finalAlgoId = final_algo;
-            }
-            if (options.size() > 2 && !options[2].empty()) {
-                const std::string& res = options[2];
-                if (res == "auto" || res == "0") {
-                    // keep auto_resolution
-                } else {
-                    double dynamic_initial = 0.0;
-                    if (dynamicInitial(res, dynamic_initial)) {
-                        config.resolution = dynamic_initial;
-                        config.useDynamicResolution = true;
-                    } else if (isNumeric(res)) {
-                        double r = std::stod(res);
-                        if (r <= 0 || r > 3) {
-                            throw std::invalid_argument(
-                                "Invalid GraphBrew resolution: " + res);
-                        }
-                        config.resolution = r;
-                    }
-                }
-            }
-            if (options.size() > 3 && isInteger(options[3])) {
-                int passes = std::stoi(options[3]);
-                if (passes <= 0 || passes > 50) {
-                    throw std::invalid_argument(
-                        "Invalid GraphBrew pass count: " + options[3]);
-                }
-                config.maxPasses = passes;
-            }
-            if (options.size() > 4 && !options[4].empty()) {
-                const std::string& depthStr = options[4];
-                if (depthStr == "recursive" || depthStr == "recurse") {
-                    config.recursiveDepth = std::max(config.recursiveDepth, 1);
-                } else if (isInteger(depthStr)) {
-                    int d = std::stoi(depthStr);
-                    if (d < 0 || d > 10) {
-                        throw std::invalid_argument(
-                            "Invalid GraphBrew recursion depth: " + depthStr);
-                    }
-                    config.recursiveDepth = d;
-                }
-            }
-            if (options.size() > 5 && !options[5].empty()) {
-                const std::string& subStr = options[5];
-                if (subStr == "auto" || subStr == "adaptive") {
-                    config.subAlgoId = -1;
-                } else if (isInteger(subStr)) {
-                    int a = std::stoi(subStr);
-                    if (a < 0 || a > 11) {
-                        throw std::invalid_argument(
-                            "Invalid GraphBrew sub-algorithm: " + subStr);
-                    }
-                    config.subAlgoId = a;
-                }
-            }
-            
-        } else {
-            // ── Direct token mode (hrab, dfs, conn, graphbrew:hrab, etc.) ─
-            config = graphbrew::parseGraphBrewConfig(options, true);
-            
-            if (config.algorithm != graphbrew::GraphBrewAlgorithm::RABBIT_ORDER &&
-                config.ordering == graphbrew::OrderingStrategy::CONNECTIVITY_BFS) {
-                config.ordering = graphbrew::OrderingStrategy::LAYER;
-            }
-            if (config.ordering == graphbrew::OrderingStrategy::LAYER) {
-                config.useSmallCommunityMerging = true;
-                if (config.finalAlgoId < 0) config.finalAlgoId = 8;
-            }
-            if (config.resolution == reorder::DEFAULT_RESOLUTION) {
-                config.resolution = auto_resolution;
-            }
-        }
-        
-        return config;
+        return graphbrew::parseGraphBrewCliConfig(
+            options, auto_resolution);
     }
     
     /**

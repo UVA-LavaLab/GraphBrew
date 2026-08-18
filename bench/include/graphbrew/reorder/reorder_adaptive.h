@@ -457,8 +457,20 @@ void ApplyDeployableAdaptiveArm(
             throw std::invalid_argument(
                 "Deployable GraphBrew adaptive arms require inverse CSR");
         } else {
-            auto config = graphbrew::parseGraphBrewConfig(
-                selected.options, true);
+            auto config = graphbrew::parseGraphBrewCliConfig(
+                selected.options,
+                LeidenAutoResolution<NodeID_, DestID_>(g));
+            const auto realized =
+                graphbrew::makeGraphBrewRealizedConfig(config);
+            auto& staged =
+                graphbrew::database::GetStagedReorderMeta();
+            staged.schedule_sensitive =
+                staged.schedule_sensitive
+                || realized.scheduleSensitive;
+            staged.thread_policy_sensitive =
+                staged.thread_policy_sensitive
+                || config.algorithm ==
+                    graphbrew::GraphBrewAlgorithm::LEIDEN;
             graphbrew::generateGraphBrewMapping<uint32_t>(
                 g, new_ids, config);
             return;

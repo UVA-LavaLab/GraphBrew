@@ -803,6 +803,10 @@ inline GraphBrewRealizedConfig makeGraphBrewRealizedConfig(
     realized.recursiveDepth = config.recursiveDepth;
     realized.scheduleSensitive =
         config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER ||
+        (
+            config.algorithm == GraphBrewAlgorithm::LEIDEN &&
+            !config.deterministicCommunityDetection
+        ) ||
         config.ordering == OrderingStrategy::HYBRID_LEIDEN_RABBIT ||
         config.ordering == OrderingStrategy::HIERARCHICAL_LEIDEN_RABBIT ||
         config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ||
@@ -9717,6 +9721,211 @@ inline GraphBrewConfig parseGraphBrewConfig(
         }
     }
     
+    return config;
+}
+
+/**
+ * Parse the public GraphBrew CLI grammar, including named presets and legacy
+ * positional overrides. All runtime entry points must use this wrapper rather
+ * than feeding CLI options directly to the token parser above.
+ */
+inline GraphBrewConfig parseGraphBrewCliConfig(
+    const std::vector<std::string>& options,
+    double auto_resolution) {
+    if (options.empty() || options[0].empty()) {
+        GraphBrewConfig config = parseGraphBrewConfig(
+            {"gvecsr", "totalm", "refine0", "graphbrew"}, true);
+        config.resolution = auto_resolution;
+        return config;
+    }
+
+    struct PresetDef {
+        std::vector<std::string> tokens;
+    };
+    static const std::map<std::string, PresetDef> presets = {
+        {"leiden", {{"gvecsr", "totalm", "refine0", "graphbrew"}}},
+        {"rabbit", {{"rabbitorder", "0.5"}}},
+        {"hubcluster", {{"hubcluster"}}},
+    };
+
+    auto is_numeric = [](const std::string& token) {
+        try {
+            size_t parsed = 0;
+            const double value = std::stod(token, &parsed);
+            return parsed == token.size() && std::isfinite(value);
+        } catch (...) {
+            return false;
+        }
+    };
+    auto is_integer = [](const std::string& token) {
+        try {
+            size_t parsed = 0;
+            std::stoi(token, &parsed);
+            return parsed == token.size();
+        } catch (...) {
+            return false;
+        }
+    };
+    auto dynamic_initial = [&](const std::string& token, double& initial) {
+        if (token == "dynamic") {
+            initial = auto_resolution;
+            return true;
+        }
+        if (
+            token.rfind("dynamic_", 0) != 0
+            || !is_numeric(token.substr(8))
+        ) {
+            return false;
+        }
+        initial = std::stod(token.substr(8));
+        return initial > 0.0 && initial <= 3.0;
+    };
+
+    const auto preset = presets.find(options[0]);
+    GraphBrewConfig config;
+    if (preset != presets.end()) {
+        std::vector<std::string> tokens = preset->second.tokens;
+        for (size_t i = 1; i < options.size(); ++i) {
+            const std::string& token = options[i];
+            if (token.empty()) {
+                continue;
+            }
+            bool positional = false;
+            const bool numeric = is_numeric(token);
+            double initial = 0.0;
+            if (
+                (i == 1 || i == 3 || i == 4 || i == 5)
+                && numeric
+                && !is_integer(token)
+            ) {
+                throw std::invalid_argument(
+                    "GraphBrew positional integer is malformed: " + token);
+            }
+            if (i == 1 && is_integer(token)) {
+                positional = true;
+            }
+            if (
+                i == 2
+                && (
+                    numeric
+                    || token == "auto"
+                    || dynamic_initial(token, initial)
+                )
+            ) {
+                positional = true;
+            }
+            if ((i == 3 || i == 4) && is_integer(token)) {
+                positional = true;
+            }
+            if (
+                i == 5
+                && (
+                    is_integer(token)
+                    || token == "auto"
+                    || token == "adaptive"
+                )
+            ) {
+                positional = true;
+            }
+            if (!positional) {
+                tokens.push_back(token);
+            }
+        }
+        config = parseGraphBrewConfig(tokens, true);
+
+        if (
+            config.algorithm != GraphBrewAlgorithm::RABBIT_ORDER
+            && config.ordering == OrderingStrategy::CONNECTIVITY_BFS
+        ) {
+            config.ordering = OrderingStrategy::LAYER;
+        }
+        if (config.ordering == OrderingStrategy::LAYER) {
+            config.useSmallCommunityMerging = true;
+            if (config.finalAlgoId < 0) {
+                config.finalAlgoId = 8;
+            }
+        }
+        if (config.resolution == reorder::DEFAULT_RESOLUTION) {
+            config.resolution = auto_resolution;
+        }
+
+        if (options.size() > 1 && is_integer(options[1])) {
+            const int final_algo = std::stoi(options[1]);
+            if (final_algo < 0 || final_algo > 11) {
+                throw std::invalid_argument(
+                    "Invalid GraphBrew final algorithm: " + options[1]);
+            }
+            config.finalAlgoId = final_algo;
+        }
+        if (options.size() > 2 && !options[2].empty()) {
+            const std::string& resolution = options[2];
+            if (resolution != "auto" && resolution != "0") {
+                double initial = 0.0;
+                if (dynamic_initial(resolution, initial)) {
+                    config.resolution = initial;
+                    config.useDynamicResolution = true;
+                } else if (is_numeric(resolution)) {
+                    const double value = std::stod(resolution);
+                    if (value <= 0.0 || value > 3.0) {
+                        throw std::invalid_argument(
+                            "Invalid GraphBrew resolution: " + resolution);
+                    }
+                    config.resolution = value;
+                }
+            }
+        }
+        if (options.size() > 3 && is_integer(options[3])) {
+            const int passes = std::stoi(options[3]);
+            if (passes <= 0 || passes > 50) {
+                throw std::invalid_argument(
+                    "Invalid GraphBrew pass count: " + options[3]);
+            }
+            config.maxPasses = passes;
+        }
+        if (options.size() > 4 && !options[4].empty()) {
+            const std::string& depth = options[4];
+            if (depth == "recursive" || depth == "recurse") {
+                config.recursiveDepth = std::max(config.recursiveDepth, 1);
+            } else if (is_integer(depth)) {
+                const int value = std::stoi(depth);
+                if (value < 0 || value > 10) {
+                    throw std::invalid_argument(
+                        "Invalid GraphBrew recursion depth: " + depth);
+                }
+                config.recursiveDepth = value;
+            }
+        }
+        if (options.size() > 5 && !options[5].empty()) {
+            const std::string& sub_algo = options[5];
+            if (sub_algo == "auto" || sub_algo == "adaptive") {
+                config.subAlgoId = -1;
+            } else if (is_integer(sub_algo)) {
+                const int value = std::stoi(sub_algo);
+                if (value < 0 || value > 11) {
+                    throw std::invalid_argument(
+                        "Invalid GraphBrew sub-algorithm: " + sub_algo);
+                }
+                config.subAlgoId = value;
+            }
+        }
+    } else {
+        config = parseGraphBrewConfig(options, true);
+        if (
+            config.algorithm != GraphBrewAlgorithm::RABBIT_ORDER
+            && config.ordering == OrderingStrategy::CONNECTIVITY_BFS
+        ) {
+            config.ordering = OrderingStrategy::LAYER;
+        }
+        if (config.ordering == OrderingStrategy::LAYER) {
+            config.useSmallCommunityMerging = true;
+            if (config.finalAlgoId < 0) {
+                config.finalAlgoId = 8;
+            }
+        }
+        if (config.resolution == reorder::DEFAULT_RESOLUTION) {
+            config.resolution = auto_resolution;
+        }
+    }
     return config;
 }
 

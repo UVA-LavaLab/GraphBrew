@@ -664,6 +664,11 @@ def test_rabbit_mapping_draw_classification():
     assert runner._mapping_draw_count([
         "-o", "12:leiden:compose:intra_hubsort",
     ]) == 1
+    assert runner._mapping_draw_count([
+        "-o",
+        "12:leiden:compose:sg_none:comm_identity:"
+        "intra_gorder:cd_parallel",
+    ]) > 1
 
 
 def test_mapping_dry_run_reports_applicability_matrix_with_stale_provenance(

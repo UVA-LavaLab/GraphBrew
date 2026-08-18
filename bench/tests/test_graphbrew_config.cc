@@ -157,7 +157,7 @@ void TestBudgetedAdaptiveRule()
             features, BENCH_PR, 20.0),
         "budgeted rule accepted a high-reuse context");
 
-    auto config = graphbrew::parseGraphBrewConfig({
+    auto config = graphbrew::parseGraphBrewCliConfig({
         "leiden",
         "compose",
         "sg_none",
@@ -168,7 +168,17 @@ void TestBudgetedAdaptiveRule()
         "cd_parallel",
         "1",
         "1",
-    }, true);
+    }, 0.75);
+    Require(
+        config.aggregation == graphbrew::AggregationStrategy::GVE_CSR
+            && config.mComputation
+                == graphbrew::MComputation::TOTAL_EDGES
+            && config.refinementDepth == 0
+            && config.resolution == 0.75,
+        "budgeted rule diverged from the public leiden preset");
+    Require(
+        config.ordering == graphbrew::OrderingStrategy::COMPOSE,
+        "budgeted rule lost COMPOSE ordering");
     Require(
         config.maxIterations == 1 && config.maxPasses == 1,
         "budgeted rule iteration budget changed");
@@ -179,6 +189,9 @@ void TestBudgetedAdaptiveRule()
     Require(
         !config.deterministicCommunityDetection,
         "budgeted rule community policy changed");
+    Require(
+        graphbrew::makeGraphBrewRealizedConfig(config).scheduleSensitive,
+        "parallel budgeted rule was not marked schedule-sensitive");
 }
 
 void TestRabbitComposeParsing()

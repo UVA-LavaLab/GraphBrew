@@ -1615,7 +1615,7 @@ def _algorithm_exclusion_evidence_payload(
 
 
 def _mapping_draw_count(algo_flags: list[str]) -> int:
-    """Return repeated mapping draws for schedule-sensitive Rabbit pipelines."""
+    """Return repeated mapping draws for schedule-sensitive pipelines."""
     for index, flag in enumerate(algo_flags[:-1]):
         if flag != "-o":
             continue
@@ -1628,6 +1628,7 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
         expected = _expected_graphbrew_config(spec)
         if (
             expected["algorithm"] == "rabbit"
+            or not expected["deterministic_community_detection"]
             or expected["ordering"] in {"hrab", "hlr", "tqr"}
             or (
                 expected["ordering"] == "layer"
