@@ -1872,7 +1872,8 @@ enum SelectionModel {
     // Label granularity modes (orthogonal to model; controls class count)
     SELECTION_MODEL_FAMILY = 4,            ///< Predict at family level (7 classes)
     SELECTION_MODEL_TOPN = 5,              ///< Predict top-N algorithms (~8 classes)
-    SELECTION_MODEL_INDIVIDUAL = 6         ///< Predict individual algorithm (~17 classes)
+    SELECTION_MODEL_INDIVIDUAL = 6,        ///< Predict individual algorithm (~17 classes)
+    SELECTION_MODEL_BUDGETED_RULE = 7      ///< One-use dense-graph PR rule
 };
 
 /**
@@ -1899,6 +1900,7 @@ inline std::string SelectionModelToString(SelectionModel m) {
         case SELECTION_MODEL_FAMILY:         return "family";
         case SELECTION_MODEL_TOPN:           return "topn";
         case SELECTION_MODEL_INDIVIDUAL:     return "individual";
+        case SELECTION_MODEL_BUDGETED_RULE:  return "budgeted-rule";
         default:                             return "unknown-model";
     }
 }
@@ -1927,6 +1929,11 @@ inline SelectionModel GetSelectionModel(const std::string& name) {
     if (name == "family" || name == "fam") return SELECTION_MODEL_FAMILY;
     if (name == "topn" || name == "top-n" || name == "top") return SELECTION_MODEL_TOPN;
     if (name == "individual" || name == "ind" || name == "all") return SELECTION_MODEL_INDIVIDUAL;
+    if (
+        name == "budgeted-rule"
+        || name == "budgeted"
+        || name == "one-use-rule"
+    ) return SELECTION_MODEL_BUDGETED_RULE;
     throw std::invalid_argument("Unknown adaptive selection model: " + name);
 }
 

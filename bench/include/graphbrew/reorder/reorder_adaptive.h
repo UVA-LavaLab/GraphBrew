@@ -217,10 +217,14 @@ struct AdaptiveConfig {
 struct DeployableSelectionPolicy {
     SelectionModel model = SELECTION_MODEL_PERCEPTRON;
     SelectionCriterion criterion = CRITERION_FASTEST_EXECUTION;
+    double reuse_count = 1.0;
 };
 
 inline bool IsDeployableSelectionModel(SelectionModel model) {
-    return model == SELECTION_MODEL_PERCEPTRON;
+    return (
+        model == SELECTION_MODEL_PERCEPTRON
+        || model == SELECTION_MODEL_BUDGETED_RULE
+    );
 }
 
 inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
@@ -236,6 +240,8 @@ inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
         options.size() > 3 ? options[3] : "");
     const std::string criterion_spec = (
         options.size() > 4 ? options[4] : "");
+    const std::string reuse_spec = (
+        options.size() > 5 ? options[5] : "");
 
     if (!model_spec.empty() && model_spec != "_") {
         if (!criterion_spec.empty() && criterion_spec != "_") {
@@ -255,7 +261,20 @@ inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
             "AdaptiveOrder criterion requires an explicit model");
     }
 
-    for (size_t i = 5; i < options.size(); ++i) {
+    if (!reuse_spec.empty() && reuse_spec != "_") {
+        size_t parsed = 0;
+        policy.reuse_count = std::stod(reuse_spec, &parsed);
+        if (
+            parsed != reuse_spec.size()
+            || !std::isfinite(policy.reuse_count)
+            || policy.reuse_count <= 0.0
+        ) {
+            throw std::invalid_argument(
+                "AdaptiveOrder reuse count must be positive");
+        }
+    }
+
+    for (size_t i = 6; i < options.size(); ++i) {
         if (!options[i].empty() && options[i] != "_") {
             throw std::invalid_argument(
                 "AdaptiveOrder no longer accepts graph identity or "
@@ -268,6 +287,68 @@ inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
             + " is offline-only and cannot drive deployable AdaptiveOrder");
     }
     return policy;
+}
+
+inline bool ShouldUseBudgetedLeidenGorder(
+    const CommunityFeatures& features,
+    BenchmarkType benchmark,
+    double reuse_count
+) {
+    const bool pr_kernel = (
+        benchmark == BENCH_PR
+        || benchmark == BENCH_PR_SPMV
+    );
+    return (
+        pr_kernel
+        && reuse_count <= 1.0
+        && features.num_nodes >= 1000
+        && features.avg_degree >= 45.0
+        && features.degree_variance < 3.0
+        && features.hub_concentration >= 0.3
+    );
+}
+
+inline PerceptronSelection SelectBudgetedOneUseRule(
+    const CommunityFeatures& features,
+    BenchmarkType benchmark,
+    double reuse_count
+) {
+    if (ShouldUseBudgetedLeidenGorder(
+        features, benchmark, reuse_count
+    )) {
+        PerceptronSelection selected;
+        selected.algo = GraphBrewOrder;
+        selected.variant_name = (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_gorder:gw32:gordf500:cd_parallel:1:1"
+        );
+        selected.canonical_spec = selected.variant_name;
+        selected.predicted_spec = selected.variant_name;
+        selected.options = {
+            "leiden",
+            "compose",
+            "sg_none",
+            "comm_identity",
+            "intra_gorder",
+            "gw32",
+            "gordf500",
+            "cd_parallel",
+            "1",
+            "1",
+        };
+        selected.override_reason = "budgeted-one-use-match";
+        selected.confidence = 1.0;
+        return selected;
+    }
+#ifdef RABBIT_ENABLE
+    auto fallback = ResolveDeployableAdaptiveArm("8:csr");
+#else
+    auto fallback = ResolveDeployableAdaptiveArm("5");
+#endif
+    fallback.predicted_spec = fallback.canonical_spec;
+    fallback.override_reason = "budgeted-one-use-fallback";
+    fallback.confidence = 1.0;
+    return fallback;
 }
 
 // ============================================================================
@@ -400,6 +481,8 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     
     const int64_t num_nodes = g.num_nodes();
     const int64_t num_edges = g.num_edges_directed();
+    const auto selection_policy =
+        adaptive::ParseDeployableSelectionPolicy(reordering_options);
     
     std::cout << "=== Full-Graph Adaptive Mode (Standalone) ===\n";
     std::cout << "Nodes: " << num_nodes << ", Edges: " << num_edges << "\n";
@@ -427,7 +510,7 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         ? static_cast<double>(property_bytes) / llc_bytes
         : 0.0);
     tier0_context.kernel_class = benchmark;
-    tier0_context.reuse_count = 1.0;
+    tier0_context.reuse_count = selection_policy.reuse_count;
     global_feat.working_set_ratio =
         tier0_context.property_wsr_llc;
     global_feat.kernel_class =
@@ -478,9 +561,6 @@ void GenerateAdaptiveMappingFullGraphStandalone(
 
     Timer model_timer;
     model_timer.Start();
-    const auto selection_policy =
-        adaptive::ParseDeployableSelectionPolicy(reordering_options);
-
     std::cout << "Selection: model="
               << SelectionModelToString(selection_policy.model)
               << " criterion="
@@ -488,12 +568,31 @@ void GenerateAdaptiveMappingFullGraphStandalone(
               << "\n";
     
     // Select best algorithm
-    PerceptronSelection best =
-        SelectBestReorderingForCommunityWithModelCriterion(
-        global_feat, global_modularity, global_degree_variance, global_hub_concentration,
-        global_avg_degree, static_cast<size_t>(num_nodes), num_edges,
-        selection_policy.model, selection_policy.criterion,
-        benchmark, detected_graph_type);
+    PerceptronSelection best;
+    if (
+        selection_policy.model
+        == SELECTION_MODEL_BUDGETED_RULE
+    ) {
+        if (
+            selection_policy.criterion
+            != CRITERION_BEST_ENDTOEND
+        ) {
+            throw std::invalid_argument(
+                "budgeted-rule requires best-endtoend criterion");
+        }
+        best = adaptive::SelectBudgetedOneUseRule(
+            global_feat,
+            benchmark,
+            selection_policy.reuse_count);
+    } else {
+        best = SelectBestReorderingForCommunityWithModelCriterion(
+            global_feat, global_modularity,
+            global_degree_variance, global_hub_concentration,
+            global_avg_degree, static_cast<size_t>(num_nodes),
+            num_edges, selection_policy.model,
+            selection_policy.criterion,
+            benchmark, detected_graph_type);
+    }
     
     const int top_k = AblationConfig::Get().top_k;
     if (top_k > 1) {
@@ -506,7 +605,12 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         best.predicted_spec.empty()
         ? best.variant_name
         : best.predicted_spec);
-    best = EnforceDeployableAdaptivePortfolio(best);
+    if (
+        selection_policy.model
+        != SELECTION_MODEL_BUDGETED_RULE
+    ) {
+        best = EnforceDeployableAdaptivePortfolio(best);
+    }
     model_timer.Stop();
     PrintTime("Adaptive Model Time", model_timer.Seconds());
     PrintTime(

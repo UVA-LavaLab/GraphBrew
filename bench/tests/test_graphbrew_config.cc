@@ -119,6 +119,55 @@ void TestPresetTailParsing()
         "Leiden-Gorder8 did not retain gw8");
 }
 
+void TestBudgetedAdaptiveRule()
+{
+    Require(
+        GetSelectionModel("budgeted-rule")
+            == SELECTION_MODEL_BUDGETED_RULE,
+        "budgeted-rule selection model parsing changed");
+
+    CommunityFeatures features;
+    features.num_nodes = 10000;
+    features.avg_degree = 60.0;
+    features.degree_variance = 1.5;
+    features.hub_concentration = 0.4;
+    Require(
+        adaptive::ShouldUseBudgetedLeidenGorder(
+            features, BENCH_PR, 1.0),
+        "budgeted rule rejected an eligible PR graph");
+    Require(
+        !adaptive::ShouldUseBudgetedLeidenGorder(
+            features, BENCH_BFS, 1.0),
+        "budgeted rule accepted a non-PR kernel");
+    Require(
+        !adaptive::ShouldUseBudgetedLeidenGorder(
+            features, BENCH_PR, 20.0),
+        "budgeted rule accepted a high-reuse context");
+
+    auto config = graphbrew::parseGraphBrewConfig({
+        "leiden",
+        "compose",
+        "sg_none",
+        "comm_identity",
+        "intra_gorder",
+        "gw32",
+        "gordf500",
+        "cd_parallel",
+        "1",
+        "1",
+    }, true);
+    Require(
+        config.maxIterations == 1 && config.maxPasses == 1,
+        "budgeted rule iteration budget changed");
+    Require(
+        config.gorderWindow == 32
+            && config.gorderFallback == 500,
+        "budgeted rule Gorder budget changed");
+    Require(
+        !config.deterministicCommunityDetection,
+        "budgeted rule community policy changed");
+}
+
 void TestRabbitComposeParsing()
 {
     Builder builder = MakeBuilder();
@@ -865,6 +914,7 @@ int main()
     try
     {
         TestPresetTailParsing();
+        TestBudgetedAdaptiveRule();
         TestRabbitComposeParsing();
         TestNamedDepthAndStrictTokens();
         TestHubSortAliasesAreUnambiguous();
