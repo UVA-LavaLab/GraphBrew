@@ -4368,6 +4368,8 @@ public:
                 sub_config.aggregation = config.aggregation;
                 sub_config.mComputation = config.mComputation;
                 sub_config.refinementDepth = config.refinementDepth;
+                sub_config.deterministicCommunityDetection =
+                    config.deterministicCommunityDetection;
                 sub_config.ordering = graphbrew::OrderingStrategy::LAYER;
                 
                 auto sub_result = graphbrew::runGraphBrew<K>(sub_g, sub_config);

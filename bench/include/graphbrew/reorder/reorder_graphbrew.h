@@ -5506,6 +5506,13 @@ void orderCompose(
     const std::vector<K>& membership = result.membership;
     Timer phaseTimer;
     phaseTimer.Start();
+    Timer composeSectionTimer;
+    composeSectionTimer.Start();
+    double groupingSeconds = 0.0;
+    double communityOrderSeconds = 0.0;
+    double vertexMapSeconds = 0.0;
+    double intraOrderSeconds = 0.0;
+    double finalAssignSeconds = 0.0;
 
     // Group vertices by community; isolated (zero-degree) vertices go to tail.
     // Serial scatter is fast enough (~30-50ms for 3.7M vertices) and avoids
@@ -5557,6 +5564,9 @@ void orderCompose(
             commVertices[membership[v]].push_back(static_cast<K>(v));
         }
     }
+    composeSectionTimer.Stop();
+    groupingSeconds = composeSectionTimer.Seconds();
+    composeSectionTimer.Start();
 
     // -------- Community order --------
     std::vector<K> commOrder(numComm);
@@ -5733,6 +5743,9 @@ void orderCompose(
     for (size_t i = 0; i < (size_t)numComm; ++i) {
         offsets[i + 1] = offsets[i] + commVertices[commOrder[i]].size();
     }
+    composeSectionTimer.Stop();
+    communityOrderSeconds = composeSectionTimer.Seconds();
+    composeSectionTimer.Start();
 
     // -------- Intra-community order (per-community ordering via shared primitives) --------
     std::vector<K> localIds(N, 0);
@@ -5755,6 +5768,11 @@ void orderCompose(
     // pointer chains and never touches it.  Skip the 8*N-byte allocation +
     // init when the dendrogram path will be taken.
     std::vector<size_t> vertToLocal;
+    size_t gorderCommunityCount = 0;
+    size_t gorderVertexCount = 0;
+    size_t gorderMaxCommunity = 0;
+    size_t gorderFallbackCount = 0;
+    size_t gorderFallbackVertices = 0;
     const bool needsVertToLocal =
         !useDendrogram ||
         config.refinementPass == RefinementPass::TwoSwap;
@@ -5768,6 +5786,28 @@ void orderCompose(
             }
         }
     }
+    if (config.intraCommunityOrder == IntraCommunityOrder::Gorder) {
+        for (K c : commOrder) {
+            size_t size = commVertices[c].size();
+            if (size <= 3) continue;
+            if (
+                config.gorderFallback > 0
+                && size > static_cast<size_t>(
+                    config.gorderFallback)
+            ) {
+                ++gorderFallbackCount;
+                gorderFallbackVertices += size;
+                continue;
+            }
+            ++gorderCommunityCount;
+            gorderVertexCount += size;
+            gorderMaxCommunity =
+                std::max(gorderMaxCommunity, size);
+        }
+    }
+    composeSectionTimer.Stop();
+    vertexMapSeconds = composeSectionTimer.Seconds();
+    composeSectionTimer.Start();
 
     #pragma omp parallel
     {
@@ -5795,10 +5835,21 @@ void orderCompose(
                     commVertices[c], c, membership, degrees, g,
                     vertToLocal, visited, bfsQueue, cmOrder, localIds);
             } else if (config.intraCommunityOrder == IntraCommunityOrder::Gorder) {
-                intraGorderGreedy<K, NodeID_T, DestID_T>(
-                    commVertices[c], c, membership, degrees, g,
-                    vertToLocal, config.gorderWindow,
-                    gordPlaced, gordAdj, localIds);
+                if (
+                    config.gorderFallback > 0
+                    && commVertices[c].size()
+                        > static_cast<size_t>(
+                            config.gorderFallback)
+                ) {
+                    intraBFSFromHub<K, NodeID_T, DestID_T>(
+                        commVertices[c], c, membership, degrees, g,
+                        vertToLocal, visited, bfsQueue, localIds);
+                } else {
+                    intraGorderGreedy<K, NodeID_T, DestID_T>(
+                        commVertices[c], c, membership, degrees, g,
+                        vertToLocal, config.gorderWindow,
+                        gordPlaced, gordAdj, localIds);
+                }
             } else if (config.intraCommunityOrder == IntraCommunityOrder::HubSort) {
                 // Sort community vertices by degree descending; cheap O(sz log sz).
                 const auto& verts = commVertices[c];
@@ -6003,6 +6054,8 @@ void orderCompose(
             }
         }
     }
+    composeSectionTimer.Stop();
+    intraOrderSeconds = composeSectionTimer.Seconds();
 
     // -------- Optional post-pass refinement (per-community independent) --------
     if (config.refinementPass == RefinementPass::TwoSwap) {
@@ -6042,6 +6095,7 @@ void orderCompose(
     }
 
     // Compose final newIds = community-offset + local id within community
+    composeSectionTimer.Start();
     #pragma omp parallel for schedule(dynamic, 1)
     for (size_t i = 0; i < (size_t)numComm; ++i) {
         size_t base = offsets[i];
@@ -6055,6 +6109,8 @@ void orderCompose(
     for (size_t i = 0; i < isolated.size(); ++i) {
         newIds[isolated[i]] = static_cast<NodeID_T>(tail + i);
     }
+    composeSectionTimer.Stop();
+    finalAssignSeconds = composeSectionTimer.Seconds();
 
     phaseTimer.Stop();
     const char* s1Name =
@@ -6090,6 +6146,20 @@ void orderCompose(
            s1Name, s2Name, intraName, refineName,
            static_cast<size_t>(numComm), isolated.size(),
            phaseTimer.Seconds());
+    printf(
+        "  compose phases: grouping=%.4fs, community-order=%.4fs, "
+        "vertex-map=%.4fs, intra-order=%.4fs, final-assign=%.4fs\n",
+        groupingSeconds, communityOrderSeconds, vertexMapSeconds,
+        intraOrderSeconds, finalAssignSeconds);
+    if (config.intraCommunityOrder == IntraCommunityOrder::Gorder) {
+        printf(
+            "  compose gorder: communities=%zu, vertices=%zu, "
+            "max-community=%zu, fallback-communities=%zu, "
+            "fallback-vertices=%zu\n",
+            gorderCommunityCount, gorderVertexCount,
+            gorderMaxCommunity, gorderFallbackCount,
+            gorderFallbackVertices);
+    }
 }
 
 //=============================================================================
