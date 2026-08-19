@@ -55,7 +55,7 @@ intervals are recorded in
 
 | Objective | First measured configuration | What is proved |
 |---|---|---|
-| Non-Rabbit all-kernel ordering quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Kernel-only GM is 1.049x over Rabbit CSR and 1.059x over Boost across 11 graphs and 7 kernels; both lower 95% bounds exceed one. Mapping cost is very high. |
+| Non-Rabbit all-kernel ordering quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Kernel-only GM is 1.049x over Rabbit CSR and 1.059x over Boost across 11 graphs and 7 kernels; both lower 95% bounds exceed one. Full Leiden mapping costs about 17–18x Rabbit, and a one-pass replacement failed to retain the quality win. |
 | Non-Rabbit controlled-work quality | `12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp` | About 1.025x over both Rabbit implementations for fixed-work PR/PR-SpMV, fixed-source SSSP, and BC. It is not the all-kernel winner because CC/CC-SV regress. |
 | Low-reuse end-to-end | `12:leiden:compose:sg_none:comm_identity:intra_gorder:gw32:gordf500:cd_parallel:1:1` | Wins reuse-1 on a bounded rapid cohort through lower mapping cost; Rabbit kernels are faster on average, and Boost wins the Friendster holdout. |
 | Road/mesh diagnosis | Compare `12:hrab`, `12:hrab:bfs_intra`, `11:bnf`, and both Rabbits | HRAB-RCM has the best point estimate on the single road and mesh graphs, but each type has one graph, so this is descriptive rather than a general recommendation. |

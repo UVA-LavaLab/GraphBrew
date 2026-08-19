@@ -34,7 +34,9 @@
       "rabbit_csr_lower_95": 1.0074715761031647,
       "rabbit_boost_over_graphbrew": 1.0593080637002434,
       "rabbit_boost_lower_95": 1.0182753628433805,
-      "caveat": "High preprocessing cost; does not beat Rabbit end-to-end through reuse 100 in the full controlled-work matrix."
+      "mapping_cost_over_rabbit_csr": 18.16217429450946,
+      "mapping_cost_over_rabbit_boost": 16.834864277194445,
+      "caveat": "The full multi-pass Leiden partition is required for the quality win. A one-pass replacement mapped below Rabbit cost but lost 4.2-5.6% in kernel quality. The full composition does not beat Rabbit end-to-end through reuse 100 in the controlled-work matrix."
     },
     {
       "objective": "Controlled-work non-Rabbit ordering quality",
@@ -75,6 +77,11 @@
       "claim": "A graph type alone determines the best ordering",
       "status": "rejected",
       "reason": "Kernel choice changes winners within a graph, and most type-specific gains over one fixed Leiden method are small."
+    },
+    {
+      "claim": "One-pass Leiden can replace the full partition in the Gorder8 quality winner",
+      "status": "rejected",
+      "reason": "The one-pass SizeDesc-Gorder8 mapping is cheaper than both Rabbits but Rabbit kernels are 4.2-5.6% faster in the five-graph all-draw confirmation."
     }
   ]
 }

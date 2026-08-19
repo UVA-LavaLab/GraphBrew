@@ -62,7 +62,9 @@ Intra-community picks at a glance:
 - `gorder` — Gorder window-greedy via the per-community subgraph; pair with
   `gw<N>` to set the window. The measured `gw8` SizeDesc composition beats
   both Rabbit implementations in the eleven-graph all-kernel aggregate, but
-  has high preprocessing cost.
+  requires the full multi-pass Leiden partition and has high preprocessing
+  cost. The measured one-pass replacement is cheaper than Rabbit but loses
+  kernel quality.
 
 Examples:
 
