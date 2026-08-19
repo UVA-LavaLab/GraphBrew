@@ -531,6 +531,10 @@ _BUDGETED_GORDER_SIZE_DESC = (
     "12:leiden:compose:sg_none:comm_size_desc:"
     "intra_gorder:gw32:gordf500:cd_parallel:1:1"
 )
+_FAST_LEIDEN_BFS = (
+    "12:leiden:compose:sg_none:comm_identity:"
+    "intra_bfs:cd_parallel:1:1"
+)
 
 ABLATION_CONTRASTS = [
     {
@@ -605,6 +609,7 @@ _BUDGETED_MECHANISM_NAMES = {
     _BUDGETED_GORDER_UNCAPPED: "BudgetedLeiden-Identity-GorderUncapped",
     _BUDGETED_GORDER_SERIAL: "BudgetedLeidenSerial-Identity-Gorder500",
     _BUDGETED_GORDER_SIZE_DESC: "BudgetedLeiden-SizeDesc-Gorder500",
+    _FAST_LEIDEN_BFS: "FastLeiden-Identity-BFS",
 }
 
 ABLATION_CONFIGS = [
@@ -632,6 +637,11 @@ for config in ABLATION_CONFIGS:
         config["desc"] = (
             "Frozen budgeted Leiden-Gorder mechanism contrast"
         )
+ABLATION_CONFIGS.append({
+    "name": _BUDGETED_MECHANISM_NAMES[_FAST_LEIDEN_BFS],
+    "algo": _FAST_LEIDEN_BFS,
+    "desc": "One-pass parallel Leiden with identity blocks and BFS",
+})
 
 ALGORITHM_GRAPH_EXCLUSIONS = {
     "twitter7": {

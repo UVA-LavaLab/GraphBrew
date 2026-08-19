@@ -122,6 +122,26 @@ def test_budgeted_mechanism_config_is_fully_bound():
         runner.configure_algorithm_filter(None)
 
 
+def test_fast_leiden_bfs_is_exactly_registered():
+    spec = (
+        "12:leiden:compose:sg_none:comm_identity:"
+        "intra_bfs:cd_parallel:1:1"
+    )
+    config = runner._expected_graphbrew_config(spec)
+    assert config["intra_community_order"] == "bfs"
+    assert config["deterministic_community_detection"] is False
+    assert config["max_iterations"] == 1
+    assert config["max_passes"] == 1
+    assert config["gorder_fallback"] == 0
+    runner.configure_algorithm_filter([spec])
+    try:
+        assert runner._paper_algorithm_specs(
+            include_compose=True,
+        )[0][0] == spec
+    finally:
+        runner.configure_algorithm_filter(None)
+
+
 def test_experiment5_contrasts_change_only_registered_fields():
     for contrast in ABLATION_CONTRASTS:
         base = runner._expected_graphbrew_config(contrast["base"])
@@ -729,8 +749,8 @@ def test_mapping_dry_run_reports_applicability_matrix_with_stale_provenance(
 
     output = caplog.text
     assert "provenance must be refreshed before execution" in output
-    assert "cit-Patents: planned 51 mapping(s), 111 named draw(s)" in output
-    assert "twitter7: planned 50 mapping(s), 108 named draw(s)" in output
+    assert "cit-Patents: planned 52 mapping(s), 114 named draw(s)" in output
+    assert "twitter7: planned 51 mapping(s), 111 named draw(s)" in output
     assert "EXCLUDED: twitter7" in output
 
 
