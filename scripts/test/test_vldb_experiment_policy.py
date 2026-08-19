@@ -177,11 +177,17 @@ def test_one_pass_composition_controls_are_exact():
 
 def test_parallel_leiden_budget_frontier_is_diagnostic_only():
     specs = [config["algo"] for config in DIAGNOSTIC_CONFIGS]
-    assert len(specs) == 5
+    assert len(specs) == 6
     for spec in specs:
         config = runner._expected_graphbrew_config(spec)
         assert config["deterministic_community_detection"] is False
         assert config["gorder_window"] == 8
+    cost_matched = runner._expected_graphbrew_config(specs[-1])
+    assert cost_matched["supergraph_move_batch"] == 4096
+    assert cost_matched["gorder_fallback"] == 5000
+    assert cost_matched["use_refinement"] is False
+    assert cost_matched["max_iterations"] == 2
+    assert cost_matched["max_passes"] == 2
     runner.configure_algorithm_filter(specs)
     try:
         assert {
