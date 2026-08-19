@@ -543,6 +543,22 @@ _FAST_LEIDEN_BFS = (
     "12:leiden:compose:sg_none:comm_identity:"
     "intra_bfs:cd_parallel:1:1"
 )
+_FULL_LEIDEN_SIZE_BFS = (
+    "12:leiden:compose:sg_none:comm_size_desc:"
+    "intra_bfs:gw8"
+)
+_ONEPASS_LEIDEN_SIZE_GORDER8 = (
+    "12:leiden:compose:sg_none:comm_size_desc:"
+    "intra_gorder:gw8:cd_parallel:1:1"
+)
+_ONEPASS_LEIDEN_IDENTITY_GORDER8 = (
+    "12:leiden:compose:sg_none:comm_identity:"
+    "intra_gorder:gw8:cd_parallel:1:1"
+)
+_ONEPASS_LEIDEN_SIZE_BFS = (
+    "12:leiden:compose:sg_none:comm_size_desc:"
+    "intra_bfs:gw8:cd_parallel:1:1"
+)
 
 ABLATION_CONTRASTS = [
     {
@@ -609,6 +625,29 @@ ABLATION_CONTRASTS = [
         "variant": _BUDGETED_GORDER_SIZE_DESC,
         "effective_fields": ["community_order"],
     },
+    {
+        "name": "One-pass Gorder block order",
+        "base": _ONEPASS_LEIDEN_SIZE_GORDER8,
+        "variant": _ONEPASS_LEIDEN_IDENTITY_GORDER8,
+        "effective_fields": ["community_order"],
+    },
+    {
+        "name": "One-pass vertex layout",
+        "base": _ONEPASS_LEIDEN_SIZE_GORDER8,
+        "variant": _ONEPASS_LEIDEN_SIZE_BFS,
+        "effective_fields": ["intra_community_order"],
+    },
+    {
+        "name": "Leiden execution budget",
+        "base": _FULL_LEIDEN_SIZE_BFS,
+        "variant": _ONEPASS_LEIDEN_SIZE_BFS,
+        "contrast_type": "bundled-budget-substitution",
+        "effective_fields": [
+            "deterministic_community_detection",
+            "max_iterations",
+            "max_passes",
+        ],
+    },
 ]
 
 _BUDGETED_MECHANISM_NAMES = {
@@ -618,6 +657,13 @@ _BUDGETED_MECHANISM_NAMES = {
     _BUDGETED_GORDER_SERIAL: "BudgetedLeidenSerial-Identity-Gorder500",
     _BUDGETED_GORDER_SIZE_DESC: "BudgetedLeiden-SizeDesc-Gorder500",
     _FAST_LEIDEN_BFS: "FastLeiden-Identity-BFS",
+    _FULL_LEIDEN_SIZE_BFS: "LeidenGVE-SizeDesc-BFS",
+    _ONEPASS_LEIDEN_SIZE_GORDER8:
+        "FastLeiden-SizeDesc-Gorder8",
+    _ONEPASS_LEIDEN_IDENTITY_GORDER8:
+        "FastLeiden-Identity-Gorder8",
+    _ONEPASS_LEIDEN_SIZE_BFS:
+        "FastLeiden-SizeDesc-BFS",
 }
 
 ABLATION_CONFIGS = [
