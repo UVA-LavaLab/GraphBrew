@@ -1,44 +1,42 @@
 # GraphBrewOrder
 
-`-o 12` is the framework that produces all ten GraphBrew reordering
-variants from a single three-stage pipeline.
+`-o 12` is the framework that produces the registered GraphBrew reordering
+variants from one configurable pipeline.
 
 ```
-Stage 1               Stage 2                Stage 3
-community detection → intra-community order → inter-community arrangement
-(Leiden / Rabbit)    (BFS, RCM, hub, DBG)   (hierarchy sort, Rabbit,
-                                              RCM, tile, dendrogram)
+Partitioner          Block layout             Vertex layout
+Leiden / Rabbit  ->  community arrangement -> BFS / RCM / Gorder / degree
 ```
 
-The variant you ask for selects which algorithm runs at each stage.
+These decisions interact; COMPOSE makes each one explicit so it can be
+measured without hiding multiple changes behind one variant name.
 
 ## The variants
 
-| Flag | Stage 1 | Stage 2 | Stage 3 | When to use |
+| Flag | Partitioner | Block layout | Vertex layout | Evidence status |
 |---|---|---|---|---|
-| `-o 12:leiden` (default) | multi-pass Leiden | BFS in community | hierarchy sort | general purpose; balanced |
-| `-o 12:rabbit` | single-pass Rabbit | dendrogram DFS | dendrogram order | lowest reorder cost; dynamic graphs |
-| `-o 12:hrab` | multi-pass Leiden | adaptive BFS/RCM | Rabbit on super-graph | iterative workloads, dense graphs |
-| `-o 12:tqr` | cache-line tiling | BFS within tile | Rabbit on tile graph | cache-geometry-sensitive workloads |
-| `-o 12:hcache` | Leiden, all levels | BFS within finest | multi-level | deep hierarchical structure |
-| `-o 12:streaming` | Leiden, lazy aggregation | BFS in community | hierarchy sort | memory-constrained / very large graphs |
-| `-o 12:rcm` | multi-pass Leiden | RCM in community | BNF-RCM super-graph | sparse / mesh graphs (road networks) |
-| `-o 12:hubcluster` | multi-pass Leiden | hub-first by degree | hierarchy sort | power-law graphs with dominant hubs |
-| `-o 12:rabbit:dbg` | single-pass Rabbit | DBG bucketing | dendrogram order | fast reorder + degree refinement |
-| `-o 12:rabbit:hubcluster` | single-pass Rabbit | hub-first by degree | dendrogram order | fast reorder + hub-aware |
+| `-o 12:leiden` (default) | GVE-Leiden | size-desc blocks | per-block Rabbit | Highest controlled-work point estimate in the core matrix; expensive preprocessing. |
+| `-o 12:rabbit` | Rabbit | Rabbit dendrogram | dendrogram DFS | Strong low-to-medium-reuse core result; schedule-sensitive. |
+| `-o 12:hrab` | Leiden | Rabbit super-graph | RCM | Best road/mesh point estimate, but each type has one graph. |
+| `-o 12:hrab:bfs_intra` | Leiden | Rabbit super-graph | BFS | Controlled intra-order comparison for HRAB. |
+| `-o 12:tqr` | Leiden | Rabbit-ordered tiles | BFS | Measured core variant; no universal cache-geometry recommendation is established. |
+| `-o 12:hcache` | Leiden hierarchy | hierarchy levels | BFS | Measured hierarchy diagnostic, not a cache-fit guarantee. |
+| `-o 12:streaming` | lazy Leiden | size-desc blocks | per-block Rabbit | Measured aggregation variant; dynamic-update and peak-memory superiority are not established. |
+| `-o 12:hubcluster` | Leiden | global hub split | degree-desc | Measured hub-layout diagnostic. |
+| `-o 12:rabbit:dbg` | Rabbit | community blocks | DBG | Lower-cost Rabbit composition; report mapping and kernel effects separately. |
+| `-o 12:rabbit:hubcluster` | Rabbit | global hub split | degree-desc | Measured Rabbit hub-layout diagnostic. |
 
-All variants have $O(n\log n + m)$ time complexity. HRAB and TQR
-additionally run RabbitOrder on a super-graph of size $n_c \ll n$;
-that cost is dominated by Leiden on the original graph.
+Actual cost depends on the selected primitives, number of Leiden passes,
+community sizes, and any serial intra-community work. Use measured complete
+mapping time rather than one complexity label for every composition.
 
 ## The `compose` variant (pluggable axes)
 
 `-o 12:compose` exposes the same three pipeline axes — super-graph
-order, community order, intra-community order — as orthogonal CLI
-picks.  Every other variant in the table above is a fixed configuration
-of these axes; `compose` lets you mix them freely and was used to
-prove that HRAB and TQR are literally compositions of the underlying
-primitives (see `results/data/composability_phase6_final_2026_05_19.md`).
+order, community order, intra-community order — as explicit CLI picks.
+Every other variant in the table above is a fixed configuration of these
+interacting axes. `compose` lets experiments change one registered field at a
+time and validate the structured effective and realized configurations.
 
 Three axes, two-or-more picks each:
 
@@ -53,22 +51,26 @@ Intra-community picks at a glance:
 
 - `bfs` / `rcm` — original BFS-from-hub and reverse Cuthill–McKee.
 - `rcmpp` (alias `rcm++`) — RCM++ (Hou/Liu/Zhu, arXiv 2409.04171, 2024). Same CM-BFS body as `rcm` but the initial start vertex is picked by the bi-criteria score `argmin(0.5·deg_rank + 0.5·depth_rank)` instead of plain BNF min-degree. Costs one extra per-community BFS; sometimes finds a more peripheral seed in a single shot. Skipped for `sz ≤ 32` (overhead dominates).
-- `hubsort` (alias `hub`) — sort by degree desc inside the community. Cheap (no traversal), strong for CC.
+- `hubsort` (alias `hub`) — sort by degree desc inside the community. Cheap
+  (no traversal); performance is graph- and kernel-dependent.
 - `deg_asc` — sort by degree asc. Disperses hubs to high IDs; reduces false-sharing on `visited[]`/`father[]` CAS lines for parallel BFS.
 - `alternate` (alias `alt`) — interleave `[hub, leaf, hub, leaf, ...]` after a degree-desc sort.
 - `random` — seeded shuffle, useful as a sanity-check baseline.
 - `bndlast` (alias `boundary_last`) — community-internal vertices first, cross-community boundary vertices last.
 - `core` — k-core order: peel by minimum degree, place the deepest core at the highest IDs.
 - `dendrogram` — DFS over the Rabbit dendrogram (no extra traversal; reuses the merge tree).
-- `gorder` — Gorder window-greedy via the per-community subgraph; pair with `gw<N>` to set the window.
+- `gorder` — Gorder window-greedy via the per-community subgraph; pair with
+  `gw<N>` to set the window. The measured `gw8` SizeDesc composition beats
+  both Rabbit implementations in the eleven-graph all-kernel aggregate, but
+  has high preprocessing cost.
 
 Examples:
 
 ```bash
-# HRAB-equivalent
+# COMPOSE control using a Rabbit super-graph and RCM intra order
 -o 12:compose:sg_super_rabbit:comm_identity:intra_rcm
 
-# TQR-equivalent
+# COMPOSE control using Rabbit-ordered tiles and BFS intra order
 -o 12:compose:sg_tile_rabbit:comm_identity:intra_bfs
 
 # Pure intra (no super-graph), order communities by size, RCM inside
@@ -103,7 +105,7 @@ These compose with any variant after a `:`.
 | `:rcm_intra` | force RCM within communities | on for `hrab`, off elsewhere |
 | `:bfs_intra` | force BFS within communities | off |
 | `:rcm_super` | RCM on super-graph instead of Rabbit dendrogram DFS | off |
-| `:hubx` | extract top-1% hubs and place adjacent to their dominant block | off |
+| `:hubx` | extract the configured hub fraction (default 0.1%) and place it adjacent to the dominant block | off |
 | `:gord` | Gorder-greedy intra-community via UnitHeap | off |
 | `:refine_2swap` | adjacent-swap FM polish after intra-community ordering | off |
 | `:norefine` | skip Leiden refinement phase | off (refine on) |
@@ -134,9 +136,9 @@ Stage 3 give the inter-community layout; Stage 2 gives the intra-community
 layout) so that cache lines fetched for one vertex hold useful data
 for its community neighbours.
 
-## HRAB (the workhorse variant)
+## HRAB
 
-`-o 12:hrab` is the default we benchmark in the paper. Pipeline:
+`-o 12:hrab` is one measured core variant. Pipeline:
 
 1. Multi-pass Leiden produces ~100K communities on a typical 100M-edge
    social graph.
@@ -146,24 +148,22 @@ for its community neighbours.
    ΔQ = w − γ·str(u)·str(v)/(2·M_super) and γ = `:sgres` (default 0.10).
    This merges Leiden's fine communities into ~1-5K cache-sized blocks
    and assigns them a dendrogram-DFS order.
-4. Within each surviving block, apply intra-community ordering.
-   The default is **adaptive**: blocks with > 4096 vertices use BFS
-   (better for dense graphs with huge natural communities), smaller
-   blocks use the full BNF-RCM pipeline (better for sparse graphs).
-   This adaptive split was empirically tuned in May 2026 — see
-   `results/data/empirical_validation_FINAL_2026_05_18.md`.
+4. Within each surviving block, apply RCM by default; use
+   `:bfs_intra` for the controlled BFS counterpart.
 
-For why each step matters, see the paper §3.3.2.
+The super-graph axis was harmful on average in its registered one-axis
+contrast, even though HRAB has the best point estimate on the single road and
+mesh graphs. Treat those topology rows as descriptive, not universal guidance.
 
-## When to override the defaults
+## Evidence-based diagnostics
 
-| Symptom | Try |
+| Question | Compare |
 |---|---|
-| HRAB reorder takes too long on a 1B-edge graph | `-o 12:rabbit` (skip Leiden entirely) or `-o 12:streaming` (lazy aggregation) |
-| HRAB cache quality is great but real kernel is slower than ORIGINAL | force `:bfs_intra` (already adaptive default, but you can pin it) |
-| Memory pressure during build | `-o 12:streaming` cuts aggregation peak to O(n) |
-| Need to compare against a specific γ | `-o 12:hrab:sgres0.05` (more aggressive) or `:sgres1.0` (faithful Rabbit) |
-| Sparse / mesh graph | `-o 12:rcm` — Leiden first then RCM per community |
+| Is super-graph ordering useful? | `sg_none` versus one explicit `sg_*` value with the same `comm_*` and `intra_*`. |
+| Does intra Gorder improve quality enough to amortize? | `intra_bfs` versus `intra_gorder:gw<N>` with identical partition and block axes. |
+| Is a block sort helping? | `comm_identity` versus one explicit sort while holding partition and intra order fixed. |
+| Is a fast mapping preferable to Rabbit? | Report kernel-only ratios and `map + reuse * kernel` against both `8:csr` and `8:boost`. |
+| Is road/mesh behavior general? | Add more than one graph of that type before making a type-level claim. |
 
 ## Implementation files
 
@@ -205,10 +205,8 @@ final number of super-communities:
 Reorder Time:        5.09693
 ```
 
-This is the canonical signal that the pipeline ran correctly. The
-`max=` in `comm-sizes` is the largest single community — if it's >5%
-of N on a sparse graph, something went wrong (Leiden likely collapsed
-the graph into one mega-community; check the input is connected).
+This output confirms which pipeline ran. Community count or maximum size is a
+diagnostic, not by itself a correctness or quality test.
 
 ## Further reading
 

@@ -310,16 +310,21 @@ Results are saved to `results/cache_*.json`:
 }
 ```
 
-### 5. Algorithm Selection
+### 5. Interpreting Cache Patterns
 
-Cache characteristics help predict optimal algorithms:
+Cache characteristics motivate hypotheses; they do not select an ordering by
+themselves. The frozen selector study found that lightweight topology/cache
+features did not reliably recover the ordering oracle.
 
-| Cache Pattern | Recommended Algorithm |
-|---------------|----------------------|
-| High L1 miss, low L3 miss | Random walks tolerable, BFS-based works |
-| High L3 miss rate | Needs locality-focused reordering |
-| Uniform access pattern | Simple reordering sufficient |
-| Skewed hub access | Hub-clustering beneficial |
+| Cache pattern | Hypothesis to test |
+|---------------|-------------------|
+| High L1 miss, low L3 miss | Compare inexpensive BFS/degree layouts before paying for a heavyweight ordering. |
+| High L3 miss rate | Compare a locality-focused composition, but include its complete mapping cost. |
+| Uniform access pattern | Test whether any reorder beats ORIGINAL; a complex mapping may not amortize. |
+| Skewed hub access | Compare a degree-aware intra layout against an otherwise identical control. |
+
+Always confirm the hypothesis with kernel-only timing and
+`mapping + reuse * kernel` end-to-end timing.
 
 ## Instrumented Algorithms
 

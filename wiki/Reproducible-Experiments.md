@@ -184,8 +184,8 @@ experiments in the runner:
 HubSortDBG, HubClusterDBG, RabbitOrder (CSR), RabbitOrder (Boost),
 Gorder (`9:csr`, mapping-equivalent CSR implementation), RCM, GoGraph
 
-**GraphBrew Variants (10):** Leiden, Rabbit, HubCluster, HRAB, TQR, HCache, Streaming,
-Rabbit-DBG, Rabbit-HubCluster, RCM
+**GraphBrew Variants (10):** Leiden, Rabbit, HubCluster, HRAB, HRAB-BFS,
+TQR, HCache, Streaming, Rabbit-DBG, Rabbit-HubCluster
 
 **Chained Orderings (5):** GB-Leiden→DBG, GB-Leiden→HubCluster,
 GB-HRAB→DBG, GB-Leiden→GoGraph, RabbitOrder→DBG
@@ -193,6 +193,25 @@ GB-HRAB→DBG, GB-Leiden→GoGraph, RabbitOrder→DBG
 ### Benchmark Algorithms (7)
 
 BFS, PR (PageRank), PR-SpMV, SSSP, CC (Afforest), CC-SV, BC
+
+### Recommendation proof contract
+
+A “when to use” row is publication-eligible only when it records:
+
+1. the exact ordered `-o` specification, not a development nickname;
+2. whether the objective is kernel-only ordering quality or end-to-end time;
+3. graph, kernel, labeling, thread, source/work, and reuse scope;
+4. mapping generation, validation, and CSR-application cost separately;
+5. both Rabbit CSR and Rabbit Boost when making a Rabbit comparison;
+6. a graph-level paired confidence interval for aggregate claims;
+7. a negative or inconclusive result when the interval crosses one; and
+8. a content hash of the raw result matrix.
+
+Pre-generated mappings are reused byte-for-byte across kernels. BFS, BC, and
+SSSP must report original source IDs; weighted SSSP also validates weight
+checksum, delta, and cross-ordering answer fingerprints. Documentation claims
+are regression-checked against the frozen matrices by
+`scripts/test/test_documented_recommendations.py`.
 
 ### Evaluation Graphs (11)
 

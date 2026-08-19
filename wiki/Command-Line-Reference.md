@@ -263,7 +263,8 @@ The BNF variant uses George-Liu pseudo-peripheral node finder with RCM++ width-m
 
 ### GraphBrewOrder Ordering Strategies (Algorithm 12)
 
-GraphBrewOrder uses Leiden community detection, then applies per-community reordering.
+GraphBrewOrder composes a Leiden or Rabbit partitioner with explicit block and
+per-community ordering choices.
 Options can be passed directly — the `graphbrew` prefix is **not required**.
 
 **Ordering strategies** (passed directly as `-o 12:strategy`):
@@ -271,7 +272,7 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | Strategy | Example | Description |
 |----------|---------|-------------|
 | (default) | `-o 12` | Leiden + per-community RabbitOrder (LAYER mode) |
-| `hrab` | `-o 12:hrab` | Hybrid Leiden+RabbitOrder **(best locality)** |
+| `hrab` | `-o 12:hrab` | Leiden + Rabbit super-graph + RCM intra; measured, not a universal best |
 | `dfs` | `-o 12:dfs` | DFS dendrogram traversal |
 | `bfs` | `-o 12:bfs` | BFS dendrogram traversal |
 | `conn` | `-o 12:conn` | Connectivity BFS within communities |
@@ -298,7 +299,7 @@ Extra compose modifiers (anywhere after `compose:`):
 
 | Token | Effect |
 |-------|--------|
-| `gw<N>` | Gorder window size, only with `intra_gorder` (default 5; `gw8` wins on dense PR cells) |
+| `gw<N>` | Gorder window size, only with `intra_gorder` (default 5); choose through a controlled comparison |
 | `sgres<F>` | Super-graph modularity resolution γ (default 0.10) |
 | `cd_rabbit` / `cd_leiden` | Override the GraphBrewOrder community-detection backend after algorithm ID `12` |
 

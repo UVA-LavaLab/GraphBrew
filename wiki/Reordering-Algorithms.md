@@ -13,13 +13,13 @@ so that frequently co-accessed ones land on nearby cache lines turns
 unpredictable misses into hits. Reordering does **not** change the
 graph's topology — only the integer labels.
 
-Three orthogonal locality dimensions matter:
+Three interacting locality dimensions matter:
 
 | Dimension | Captured by | Example algorithms |
 |---|---|---|
 | Spatial (community structure) | Leiden, Rabbit Order | `12:leiden`, `12:rabbit`, RABBIT (8) |
 | Temporal (degree skew) | hub grouping | HUBCLUSTER (4), DBG (5) |
-| Convergence (forward-edge fraction) | edge-direction optimisation | GoGraph (16), chained `12:leiden → 16` |
+| Directed convergence (separate extension) | edge-direction optimisation | GoGraph (16), chained `12:leiden → 16`; not a claim on the symmetric main corpus |
 
 GraphBrew (`-o 12`) is the framework that composes these dimensions;
 the other IDs are individual primitives or baselines.
@@ -46,17 +46,20 @@ the other IDs are individual primitives or baselines.
 | 15 | `-o 15` | LeidenOrder | O(n log n + m) | GVE-Leiden communities plus an explicit post-layout policy |
 | 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; published Rabbit clustering omitted |
 
-## When to use what
+## Evidence-scoped selection
 
-| Workload | First try | Why |
+Select an objective before selecting an ordering. These rows summarize frozen
+measurements, not universal graph-type rules. Exact evidence and confidence
+intervals are recorded in
+[`docs/recommendation-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/recommendation-evidence.json).
+
+| Objective | First measured configuration | What is proved |
 |---|---|---|
-| Power-law social graph + PR | `12:hrab` or `12:leiden` | best cache quality on community-strong graphs |
-| Mesh / road network | `12:rcm` or `11:bnf` | RCM reduces bandwidth on sparse near-planar graphs |
-| Iterative PR / SpMV with many trials | `12:hrab`, `12:leiden` | high quality amortises preprocessing cost |
-| Single-pass BFS / SSSP from one source | HUBCLUSTERDBG (7) or `12:rabbit` | cheap reorder, hub-cached frontier |
-| Dynamic / frequently-updated graph | `12:streaming` or RABBITORDER (8) | low memory + low reorder time |
-| Quick experimentation, any graph | HUBCLUSTERDBG (7) | O(n), often within 10% of the best |
-| Comparing against Gorder | GORDER (9) | the heavyweight cache-quality baseline |
+| Non-Rabbit all-kernel ordering quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Kernel-only GM is 1.049x over Rabbit CSR and 1.059x over Boost across 11 graphs and 7 kernels; both lower 95% bounds exceed one. Mapping cost is very high. |
+| Non-Rabbit controlled-work quality | `12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp` | About 1.025x over both Rabbit implementations for fixed-work PR/PR-SpMV, fixed-source SSSP, and BC. It is not the all-kernel winner because CC/CC-SV regress. |
+| Low-reuse end-to-end | `12:leiden:compose:sg_none:comm_identity:intra_gorder:gw32:gordf500:cd_parallel:1:1` | Wins reuse-1 on a bounded rapid cohort through lower mapping cost; Rabbit kernels are faster on average, and Boost wins the Friendster holdout. |
+| Road/mesh diagnosis | Compare `12:hrab`, `12:hrab:bfs_intra`, `11:bnf`, and both Rabbits | HRAB-RCM has the best point estimate on the single road and mesh graphs, but each type has one graph, so this is descriptive rather than a general recommendation. |
+| Unknown workload | `0`, `8:csr`, `8:boost`, plus one objective-matched COMPOSE row | Measure kernel-only quality and end-to-end time separately. Graph type alone does not identify the winner. |
 
 ## Algorithm details
 
@@ -70,8 +73,8 @@ permutation. It is a controlled shuffled labeling, not a worst-case claim.
 
 ### Degree-based (2-7)
 
-All cheap (O(n) or O(n log n)) and effective on power-law graphs
-where a small set of hubs dominates access frequency.
+All are cheap (O(n) or O(n log n)) degree-layout controls. Their benefit is
+graph- and kernel-dependent even when a small set of hubs dominates access.
 
 - **SORT** (`-o 2`): sort all vertices by degree, descending.
 - **HUBSORT** (`-o 3`): sort only vertices above average degree, then
@@ -84,12 +87,11 @@ where a small set of hubs dominates access frequency.
 - **HUBSORTDBG** (`-o 6`): compact hubs first, sorted by degree; compact
   non-hubs after them.
 - **HUBCLUSTERDBG** (`-o 7`): compact stable hubs first and stable non-hubs
-  second. Reasonable default for power-law graphs when you want a cheap,
-  predictable speedup.
+  second. Use it as a cheap comparison point, not as a guaranteed default.
 
 ### Community-based (8)
 
-**RABBITORDER** (`-o 8`) — single-pass parallel Louvain that builds
+**RABBITORDER** (`-o 8`) — single-pass parallel incremental aggregation that builds
 a dendrogram of community merges, then orders vertices by DFS of that
 dendrogram. Fast (~2-10× slower than degree-based, much faster than
 Gorder) and produces high-quality cache locality on graphs with clear
@@ -104,16 +106,16 @@ Variants:
 | `-o 8` or `-o 8:csr` | native CSR implementation (default) |
 | `-o 8:boost` | original Boost-based implementation; requires Boost 1.58 |
 
-The CSR variant has no Boost / numa / tcmalloc dependency and
-benchmarks slightly faster.
+The CSR variant has no Boost / numa / tcmalloc dependency. Relative speed is
+graph-dependent: neither implementation is a universal winner.
 
 ### Heavyweight (9, 10)
 
 **GORDER** (`-o 9:csr` for paper runs) — Wei et al. (2016). Sliding window of width 5
 greedy vertex placement maximising a local cache-locality score
-(Gscore). Produces best-in-class cache hits but is serial and
-NP-hard in the limit; reorder time is typically 10-100× a community
-method on the same graph. `-o 9:gograph` forces the mapping-equivalent
+(Gscore). Targets a strong window-locality objective but is serial and
+NP-hard in the limit; its measured reorder time is often much larger than a
+community method on the same graph. `-o 9:gograph` forces the mapping-equivalent
 legacy validation path; bare `-o 9` is compatibility auto mode. `-o 9:fast`
 is a distinct relaxed mapping with fixed batch/window semantics and explicit
 environment overrides.
@@ -145,13 +147,13 @@ ten variants. Variant selection is by flag suffix:
 
 | Flag | Variant | One-line summary |
 |---|---|---|
-| `-o 12:leiden` (default) | Leiden | Leiden + BFS within community + hierarchical sort |
+| `-o 12:leiden` (default) | Leiden | GVE-Leiden blocks + per-block Rabbit |
 | `-o 12:rabbit` | Rabbit | single-pass Rabbit + dendrogram DFS |
-| `-o 12:hrab` | HRAB | Leiden + RabbitOrder on super-graph + adaptive intra |
+| `-o 12:hrab` | HRAB | Leiden + Rabbit super-graph + RCM intra |
+| `-o 12:hrab:bfs_intra` | HRAB-BFS | same super-graph path with BFS intra |
 | `-o 12:tqr` | TQR | cache-line tile + RabbitOrder on tile adjacency |
 | `-o 12:hcache` | HCache | uses every Leiden level as a cache-tier mapping |
 | `-o 12:streaming` | Streaming | lazy-aggregation Leiden; lower memory |
-| `-o 12:rcm` | RCM | Leiden + RCM within community + BNF-RCM super-graph |
 | `-o 12:hubcluster` | HubCluster | Leiden + hub-first intra-community |
 | `-o 12:rabbit:dbg` | Rabbit-DBG | single-pass Rabbit + DBG within community |
 | `-o 12:rabbit:hubcluster` | Rabbit-HubCluster | single-pass Rabbit + hub-first intra |
@@ -231,18 +233,15 @@ so they refine the existing community layout instead of destroying it.
 
 Five chains are formally evaluated in the VLDB paper §4.5.2.
 
-## Algorithm selection cheatsheet
+## Selection checklist
 
-```
-Is your graph mesh-like (road, FE)?
-└── yes → 12:rcm   (or 11:bnf for standalone RCM)
-└── no  → Does it have strong community structure?
-          ├── yes (social, collaboration, web) → 12:hrab or 12:leiden
-          └── no  (citation, sparse) → HUBCLUSTERDBG (7) or 12:rabbit
-```
-
-When in doubt, run HUBCLUSTERDBG (cheap baseline) and `12:hrab`
-(usually best) and compare on your actual workload.
+1. Run `-o 0` to establish the current-layout baseline.
+2. Decide whether the objective is kernel quality or low-reuse time-to-solution.
+3. Include both `8:csr` and `8:boost`; they can reverse order by graph.
+4. Add the exact COMPOSE row from the evidence-scoped table that matches the
+   objective.
+5. Use pre-generated mappings so every kernel sees the same permutation.
+6. Report mapping and kernel time separately before reporting amortized totals.
 
 ## Further reading
 
