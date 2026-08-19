@@ -361,7 +361,12 @@ SSSP_TUNING_PRACTICAL_TIE_RATIO = 1.02
 SSSP_TUNING_T_CRITICAL_95_DF8 = 1.8595480375
 SSSP_TUNING_ORDER_POLICY = "cyclic-shift/v1"
 SSSP_SELECTION_RULE_ID = "pooled-block-median-tie/v2"
-SSSP_POLICY_PATH = Path(__file__).resolve().parent / "sssp_policy.json"
+SSSP_POLICY_PATH = Path(
+    os.environ.get(
+        "GRAPHBREW_SSSP_POLICY_PATH",
+        Path(__file__).resolve().parent / "sssp_policy.json",
+    )
+).resolve()
 SSSP_TUNING_SNAPSHOT_PATH = (
     Path(__file__).resolve().parent / "sssp_delta_tuning.json"
 )

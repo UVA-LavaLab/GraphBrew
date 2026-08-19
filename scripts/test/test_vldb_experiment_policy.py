@@ -536,6 +536,44 @@ def test_bounded_benchmark_and_trial_overrides():
             ["pr"], 1, None, 0)
 
 
+def test_sssp_policy_path_accepts_campaign_override(tmp_path):
+    policy = tmp_path / "scoped-sssp-policy.json"
+    policy.write_text(json.dumps({
+        "schema": "sssp_policy/v1",
+        "selection_rule_id": "test-rule",
+        "policies": {
+            "test-graph": {
+                "conversion_policy_id": "test-conversion",
+                "delta": 4,
+                "weight_checksum": "test-checksum",
+                "weight_scheme": "hash",
+            },
+        },
+    }))
+    environment = {
+        **os.environ,
+        "GRAPHBREW_SSSP_POLICY_PATH": str(policy),
+    }
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from scripts.experiments.vldb.config import "
+                "SSSP_POLICY, SSSP_POLICY_PATH; "
+                "print(SSSP_POLICY_PATH); "
+                "print(SSSP_POLICY['test-graph']['delta'])"
+            ),
+        ],
+        cwd=runner.PROJECT_ROOT,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.stdout.splitlines() == [str(policy.resolve()), "4"]
+
+
 def test_stage_common_forwards_bounded_overrides():
     parser = argparse.ArgumentParser()
     _common.add_common_args(parser)
