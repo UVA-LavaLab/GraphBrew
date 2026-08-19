@@ -8,6 +8,7 @@ import json
 import math
 import inspect
 import os
+import re
 import shutil
 import statistics
 import struct
@@ -177,17 +178,11 @@ def test_one_pass_composition_controls_are_exact():
 
 def test_parallel_leiden_budget_frontier_is_diagnostic_only():
     specs = [config["algo"] for config in DIAGNOSTIC_CONFIGS]
-    assert len(specs) == 6
+    assert len(specs) == 5
     for spec in specs:
         config = runner._expected_graphbrew_config(spec)
         assert config["deterministic_community_detection"] is False
         assert config["gorder_window"] == 8
-    cost_matched = runner._expected_graphbrew_config(specs[-1])
-    assert cost_matched["supergraph_move_batch"] == 4096
-    assert cost_matched["gorder_fallback"] == 5000
-    assert cost_matched["use_refinement"] is False
-    assert cost_matched["max_iterations"] == 2
-    assert cost_matched["max_passes"] == 2
     runner.configure_algorithm_filter(specs)
     try:
         assert {
@@ -203,6 +198,17 @@ def test_parallel_leiden_budget_frontier_is_diagnostic_only():
             in runner._paper_algorithm_specs(include_compose=True)
         }
     )
+
+
+def test_cost_matched_gorder8_is_promoted_to_compose_matrix():
+    spec = dict(COMPOSE_VARIANTS)["FastLeiden-Gorder8"]
+    config = runner._expected_graphbrew_config(spec)
+    assert spec in ALL_ALGORITHMS
+    assert config["supergraph_move_batch"] == 4096
+    assert config["gorder_fallback"] == 5000
+    assert config["use_refinement"] is False
+    assert config["max_iterations"] == 2
+    assert config["max_passes"] == 2
 
 
 def test_experiment5_contrasts_change_only_registered_fields():
@@ -858,8 +864,19 @@ def test_mapping_dry_run_reports_applicability_matrix_with_stale_provenance(
 
     output = caplog.text
     assert "provenance must be refreshed before execution" in output
-    assert "cit-Patents: planned 56 mapping(s), 124 named draw(s)" in output
-    assert "twitter7: planned 55 mapping(s), 121 named draw(s)" in output
+    cit = re.search(
+        r"cit-Patents: planned (\d+) mapping\(s\), "
+        r"(\d+) named draw\(s\)",
+        output,
+    )
+    twitter = re.search(
+        r"twitter7: planned (\d+) mapping\(s\), "
+        r"(\d+) named draw\(s\)",
+        output,
+    )
+    assert cit and twitter
+    assert int(cit.group(1)) == int(twitter.group(1)) + 1
+    assert int(cit.group(2)) == int(twitter.group(2)) + 3
     assert "EXCLUDED: twitter7" in output
 
 

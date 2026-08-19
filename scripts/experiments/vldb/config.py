@@ -96,6 +96,9 @@ GRAPHBREW_VARIANTS = [
 # ---------------------------------------------------------------------------
 COMPOSE_VARIANTS = [
     # label,        order_spec
+    ("FastLeiden-Gorder8",
+     "12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:"
+     "cd_parallel:sgmb4096:gordf5000:norefine:2:2"),
     ("Leiden-Gorder8",
      "12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8"),
     ("Leiden-HubSort",
@@ -160,6 +163,9 @@ GRAPHBREW_DISPLAY_NAMES = {
     "12:rabbit:hubcluster": "Rabbit-HubSplit-CommunityDegree",
     "12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8":
         "LeidenGVE-SizeDesc-Gorder8",
+    "12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:"
+    "cd_parallel:sgmb4096:gordf5000:norefine:2:2":
+        "FastLeiden-SizeDesc-Gorder8",
     "12:leiden:compose:sg_none:comm_size_desc:intra_hubsort":
         "LeidenGVE-SizeDesc-HubSort",
     "12:leiden:compose:sg_none:comm_size_desc:intra_deg_asc":
@@ -714,15 +720,6 @@ DIAGNOSTIC_CONFIGS = [
         (6, 3),
     )
 ]
-DIAGNOSTIC_CONFIGS.append({
-    "name": "FastLeiden-SizeDesc-Gorder8-CostMatched",
-    "algo": (
-        "12:leiden:compose:sg_none:comm_size_desc:"
-        "intra_gorder:gw8:cd_parallel:sgmb4096:"
-        "gordf5000:norefine:2:2"
-    ),
-    "desc": "Diagnostic-only cost-matched GVE composition",
-})
 
 ALGORITHM_GRAPH_EXCLUSIONS = {
     "twitter7": {
