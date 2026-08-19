@@ -697,6 +697,24 @@ ABLATION_CONFIGS.append({
     "desc": "One-pass parallel Leiden with identity blocks and BFS",
 })
 
+DIAGNOSTIC_CONFIGS = [
+    {
+        "name": f"FastLeiden-SizeDesc-Gorder8-{iterations}x{passes}",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_size_desc:"
+            f"intra_gorder:gw8:cd_parallel:{iterations}:{passes}"
+        ),
+        "desc": "Diagnostic-only parallel Leiden budget frontier",
+    }
+    for iterations, passes in (
+        (2, 1),
+        (4, 1),
+        (2, 2),
+        (4, 2),
+        (6, 3),
+    )
+]
+
 ALGORITHM_GRAPH_EXCLUSIONS = {
     "twitter7": {
         _ABLATION_REFINED_HUBSORT: (

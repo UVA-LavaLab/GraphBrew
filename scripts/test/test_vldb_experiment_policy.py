@@ -30,6 +30,7 @@ from scripts.experiments.vldb.config import (
     CACHE_SIZES,
     CACHE_TRIALS,
     COMPOSE_VARIANTS,
+    DIAGNOSTIC_CONFIGS,
     E2E_PAPER_ALGORITHM_KEYS,
     EVALUATION_BASELINES,
     GRAPHBREW_VARIANTS,
@@ -172,6 +173,30 @@ def test_one_pass_composition_controls_are_exact():
         key for key in configs[size_gorder]
         if configs[size_gorder][key] != configs[size_bfs][key]
     } == {"intra_community_order"}
+
+
+def test_parallel_leiden_budget_frontier_is_diagnostic_only():
+    specs = [config["algo"] for config in DIAGNOSTIC_CONFIGS]
+    assert len(specs) == 5
+    for spec in specs:
+        config = runner._expected_graphbrew_config(spec)
+        assert config["deterministic_community_detection"] is False
+        assert config["gorder_window"] == 8
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        } == set(specs)
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert not (
+        set(specs)
+        & {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
+    )
 
 
 def test_experiment5_contrasts_change_only_registered_fields():

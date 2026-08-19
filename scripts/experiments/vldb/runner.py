@@ -82,6 +82,7 @@ from scripts.experiments.vldb.config import (
     GRAPH_TYPE_GROUPS,
     GRAPHBREW_VARIANTS,
     COMPOSE_VARIANTS,
+    DIAGNOSTIC_CONFIGS,
     PREVIEW_GRAPHS,
     PR_CONVERGENCE_MAX_ITERATIONS,
     PR_FIXED_ITERATIONS,
@@ -298,6 +299,7 @@ def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
         return
     known = set(ALL_ALGORITHMS)
     known.update(config["algo"] for config in ABLATION_CONFIGS)
+    known.update(config["algo"] for config in DIAGNOSTIC_CONFIGS)
     known.update(f"chain:{name}" for name, _flags in CHAINED_ORDERINGS)
     unknown = sorted(set(algorithms) - known)
     if unknown:
@@ -1822,6 +1824,9 @@ def _algorithm_spec_for_key(key: str) -> tuple[str, str, list[str]]:
     for config in ABLATION_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
+    for config in DIAGNOSTIC_CONFIGS:
+        if config["algo"] == key:
+            return key, config["name"], get_converter_flags(key)
     for chain_name, chain_flags in CHAINED_ORDERINGS:
         if key == f"chain:{chain_name}":
             return key, chain_name, list(chain_flags)
@@ -1846,6 +1851,12 @@ def _cache_algorithm_specs() -> list[tuple[str, str, list[str]]]:
 def _overhead_algorithm_specs() -> list[tuple[str, str, list[str]]]:
     keys = [key for key, _name, _flags in _paper_algorithm_specs(include_compose=True)]
     keys.extend(config["algo"] for config in ABLATION_CONFIGS)
+    if _ALGORITHM_FILTER is not None:
+        keys.extend(
+            config["algo"]
+            for config in DIAGNOSTIC_CONFIGS
+            if config["algo"] in _ALGORITHM_FILTER
+        )
     keys.extend(f"chain:{name}" for name, _flags in CHAINED_ORDERINGS)
     if _ALGORITHM_FILTER is not None:
         keys = [key for key in keys if key in _ALGORITHM_FILTER]
@@ -1911,6 +1922,14 @@ def _pregenerate_mappings(
             continue
         if not any(k == key for k, _ in algo_list):
             algo_list.append((key, get_converter_flags(key)))
+    if _ALGORITHM_FILTER is not None:
+        for cfg in DIAGNOSTIC_CONFIGS:
+            key = cfg["algo"]
+            if (
+                key in _ALGORITHM_FILTER
+                and not any(k == key for k, _ in algo_list)
+            ):
+                algo_list.append((key, get_converter_flags(key)))
     if _ALGORITHM_FILTER is not None:
         algo_list = [
             (key, flags) for key, flags in algo_list
