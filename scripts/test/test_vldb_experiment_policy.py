@@ -538,6 +538,7 @@ def test_bounded_benchmark_and_trial_overrides():
 
 def test_sssp_policy_path_accepts_campaign_override(tmp_path):
     policy = tmp_path / "scoped-sssp-policy.json"
+    tuning = tmp_path / "scoped-sssp-tuning.json"
     policy.write_text(json.dumps({
         "schema": "sssp_policy/v1",
         "selection_rule_id": "test-rule",
@@ -553,6 +554,7 @@ def test_sssp_policy_path_accepts_campaign_override(tmp_path):
     environment = {
         **os.environ,
         "GRAPHBREW_SSSP_POLICY_PATH": str(policy),
+        "GRAPHBREW_SSSP_TUNING_SNAPSHOT_PATH": str(tuning),
     }
     completed = subprocess.run(
         [
@@ -560,8 +562,10 @@ def test_sssp_policy_path_accepts_campaign_override(tmp_path):
             "-c",
             (
                 "from scripts.experiments.vldb.config import "
-                "SSSP_POLICY, SSSP_POLICY_PATH; "
+                "SSSP_POLICY, SSSP_POLICY_PATH, "
+                "SSSP_TUNING_SNAPSHOT_PATH; "
                 "print(SSSP_POLICY_PATH); "
+                "print(SSSP_TUNING_SNAPSHOT_PATH); "
                 "print(SSSP_POLICY['test-graph']['delta'])"
             ),
         ],
@@ -571,7 +575,11 @@ def test_sssp_policy_path_accepts_campaign_override(tmp_path):
         capture_output=True,
         text=True,
     )
-    assert completed.stdout.splitlines() == [str(policy.resolve()), "4"]
+    assert completed.stdout.splitlines() == [
+        str(policy.resolve()),
+        str(tuning.resolve()),
+        "4",
+    ]
 
 
 def test_stage_common_forwards_bounded_overrides():

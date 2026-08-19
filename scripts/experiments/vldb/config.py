@@ -367,9 +367,12 @@ SSSP_POLICY_PATH = Path(
         Path(__file__).resolve().parent / "sssp_policy.json",
     )
 ).resolve()
-SSSP_TUNING_SNAPSHOT_PATH = (
-    Path(__file__).resolve().parent / "sssp_delta_tuning.json"
-)
+SSSP_TUNING_SNAPSHOT_PATH = Path(
+    os.environ.get(
+        "GRAPHBREW_SSSP_TUNING_SNAPSHOT_PATH",
+        Path(__file__).resolve().parent / "sssp_delta_tuning.json",
+    )
+).resolve()
 if SSSP_POLICY_PATH.is_file():
     _sssp_policy_payload = json.loads(SSSP_POLICY_PATH.read_text())
     if _sssp_policy_payload.get("schema") != "sssp_policy/v1":
