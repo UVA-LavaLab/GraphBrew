@@ -194,6 +194,15 @@ void TestBudgetedAdaptiveRule()
         "parallel budgeted rule was not marked schedule-sensitive");
 }
 
+void TestSuperGraphMoveBatchParsing()
+{
+    auto config = graphbrew::parseGraphBrewConfig(
+        {"sgmb256"}, true);
+    Require(
+        config.superGraphMoveBatch == 256,
+        "super-graph move batch token was ignored");
+}
+
 void TestRabbitComposeParsing()
 {
     Builder builder = MakeBuilder();
@@ -941,6 +950,7 @@ int main()
     {
         TestPresetTailParsing();
         TestBudgetedAdaptiveRule();
+        TestSuperGraphMoveBatchParsing();
         TestRabbitComposeParsing();
         TestNamedDepthAndStrictTokens();
         TestHubSortAliasesAreUnambiguous();

@@ -412,6 +412,7 @@ struct GraphBrewConfig {
     bool usePrefetch = true;           ///< Enable cache prefetching
     bool useParallelSort = true;       ///< Use parallel sorting
     bool deterministicCommunityDetection = true; ///< Serialize Leiden detection; ordering remains parallel
+    int superGraphMoveBatch = 1;       ///< Proposal batch; 1 preserves exact sequential updates
     bool verifyTopology = false;       ///< Verify topology after reordering
     bool useDynamicResolution = false; ///< Enable per-pass resolution adjustment
     bool useDegreeSorting = false;     ///< Process vertices by ascending degree (helps graphbrew:rabbit, not Leiden)
@@ -702,6 +703,7 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
         "\"max_iterations\":%d,\"max_passes\":%d,"
         "\"refinement_depth\":%d,\"m_computation\":\"%s\","
         "\"deterministic_community_detection\":%s,"
+        "\"supergraph_move_batch\":%d,"
         "\"gorder_window\":%d,\"gorder_fallback\":%d,"
         "\"final_algo_id\":%d,"
         "\"recursive_depth\":%d,\"sub_algo_id\":%d,"
@@ -729,6 +731,7 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
         config.mComputation == MComputation::TOTAL_EDGES
             ? "total-edges" : "half-edges",
         config.deterministicCommunityDetection ? "true" : "false",
+        config.superGraphMoveBatch,
         config.gorderWindow,
         config.gorderFallback,
         config.finalAlgoId,
@@ -2107,6 +2110,8 @@ size_t aggregateGVEStyle(
     const GraphBrewConfig& config) {
     
     const int64_t N = g.num_nodes();
+    Timer phase_timer;
+    phase_timer.Start();
     
     // Compute community weights
     std::vector<Weight> super_weight(C, Weight(0));
@@ -2116,29 +2121,21 @@ size_t aggregateGVEStyle(
         #pragma omp atomic
         super_weight[c] += vtot[v];
     }
+    phase_timer.Stop();
+    const double weight_seconds = phase_timer.Seconds();
+    phase_timer.Start();
     
     // Build super-graph adjacency using community-based approach
-    const int num_threads = omp_get_max_threads();
     std::vector<std::vector<std::pair<K, Weight>>> super_adj(C);
-    
-    // Thread-local flat arrays for edge aggregation
-    std::vector<std::vector<Weight>> thread_edge_weights(num_threads);
-    std::vector<std::vector<K>> thread_touched_comms(num_threads);
-    for (int t = 0; t < num_threads; ++t) {
-        thread_edge_weights[t].resize(C, Weight(0));
-        thread_touched_comms[t].reserve(1000);
-    }
     
     // Aggregate edges community by community (parallel)
     #pragma omp parallel
     {
-        int tid = omp_get_thread_num();
-        Weight* edge_weights = thread_edge_weights[tid].data();
-        auto& touched = thread_touched_comms[tid];
+        CommunityScanner<K, Weight> scanner(C);
         
         #pragma omp for schedule(dynamic, 256)
         for (size_t c = 0; c < C; ++c) {
-            touched.clear();
+            scanner.clear();
             
             // Scan all vertices in this community
             for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
@@ -2157,22 +2154,22 @@ size_t aggregateGVEStyle(
                     
                     K cv = vcom[v];
                     if (cv != static_cast<K>(c)) {
-                        if (edge_weights[cv] == Weight(0)) {
-                            touched.push_back(cv);
-                        }
-                        edge_weights[cv] += w;
+                        scanner.add(cv, w);
                     }
                 }
             }
             
             // Build adjacency list for this community
-            super_adj[c].reserve(touched.size());
-            for (K d : touched) {
-                super_adj[c].emplace_back(d, edge_weights[d]);
-                edge_weights[d] = Weight(0);  // Reset for next community
+            super_adj[c].reserve(scanner.keys.size());
+            for (K d : scanner.keys) {
+                super_adj[c].emplace_back(d, scanner.get(d));
             }
         }
     }
+
+    phase_timer.Stop();
+    const double adjacency_seconds = phase_timer.Seconds();
+    phase_timer.Start();
     
     // ================================================================
     // LOCAL-MOVING ON SUPER-GRAPH (from GVE's GVELeidenCSR)
@@ -2196,18 +2193,94 @@ size_t aggregateGVEStyle(
     // Limit super-graph iterations: min(3, maxIterations)
     int super_max_iter = std::min(3, config.maxIterations);
     
-    for (int iter = 0; iter < super_max_iter; ++iter) {
-        int moves = 0;
-        
-        for (size_t c = 0; c < C; ++c) {
+    if (config.superGraphMoveBatch > 1) {
+        std::vector<K> proposed_comm(C);
+        std::vector<Weight> proposed_delta(C);
+        const size_t batch_size =
+            static_cast<size_t>(config.superGraphMoveBatch);
+        for (int iter = 0; iter < super_max_iter; ++iter) {
+            int moves = 0;
+            #pragma omp parallel
+            {
+                CommunityScanner<K, Weight> scanner(C);
+                for (size_t begin = 0; begin < C; begin += batch_size) {
+                    const size_t end = std::min(C, begin + batch_size);
+                    #pragma omp for schedule(static)
+                    for (size_t c = begin; c < end; ++c) {
+                        const K d = super_comm[c];
+                        const Weight kc = super_weight[c];
+                        const Weight sigma_d = super_ctot[d];
+                        const Weight delta_removal =
+                            R * kc * (sigma_d - kc) / M;
+                        scanner.clear();
+                        for (const auto& [nc, w] : super_adj[c]) {
+                            scanner.add(super_comm[nc], w);
+                        }
+                        const Weight kc_to_d = scanner.get(d);
+                        K best_comm = d;
+                        Weight best_delta = Weight(0);
+                        for (K e : scanner.keys) {
+                            const Weight kc_to_e = scanner.get(e);
+                            const Weight delta_addition =
+                                e == d
+                                ? kc_to_d - delta_removal
+                                : kc_to_e
+                                    - R * kc * super_ctot[e] / M;
+                            const Weight delta =
+                                delta_addition
+                                - delta_removal
+                                + kc_to_d;
+                            if (
+                                delta > best_delta
+                                || (
+                                    delta == best_delta
+                                    && e < best_comm
+                                )
+                            ) {
+                                best_delta = delta;
+                                best_comm = e;
+                            }
+                        }
+                        proposed_comm[c] = best_comm;
+                        proposed_delta[c] = best_delta;
+                    }
+                    #pragma omp single
+                    {
+                        for (size_t c = begin; c < end; ++c) {
+                            const K d = super_comm[c];
+                            const K best_comm = proposed_comm[c];
+                            if (
+                                best_comm == d
+                                || proposed_delta[c] <= Weight(0)
+                            ) {
+                                continue;
+                            }
+                            const Weight kc = super_weight[c];
+                            super_ctot[d] -= kc;
+                            super_ctot[best_comm] += kc;
+                            super_comm[c] = best_comm;
+                            moves++;
+                        }
+                    }
+                }
+            }
+            if (moves == 0) break;
+        }
+    } else {
+        for (int iter = 0; iter < super_max_iter; ++iter) {
+            int moves = 0;
+
+            for (size_t c = 0; c < C; ++c) {
             K d = super_comm[c];
             Weight kc = super_weight[c];
             Weight sigma_d = super_ctot[d];
-            
+            const Weight delta_removal =
+                R * kc * (sigma_d - kc) / M;
+
             // Scan neighbor communities
             int num_touched = 0;
             Weight kc_to_d = Weight(0);
-            
+
             for (auto& [nc, w] : super_adj[c]) {
                 K snc = super_comm[nc];
                 if (sg_comm_weights[snc] == Weight(0)) {
@@ -2216,37 +2289,36 @@ size_t aggregateGVEStyle(
                 sg_comm_weights[snc] += w;
                 if (snc == d) kc_to_d += w;
             }
-            
+
             // Find best community using simplified delta formula
             K best_comm = d;
             Weight best_delta = Weight(0);
-            
+
             for (int i = 0; i < num_touched; ++i) {
                 K e = sg_touched[i];
                 Weight kc_to_e = sg_comm_weights[e];
                 Weight sigma_e = super_ctot[e];
-                
-                Weight delta_removal = R * kc * (sigma_d - kc) / M;
+
                 Weight delta_addition;
                 if (e == d) {
                     delta_addition = kc_to_d - delta_removal;
                 } else {
                     delta_addition = kc_to_e - R * kc * sigma_e / M;
                 }
-                
+
                 Weight delta = delta_addition - delta_removal + kc_to_d;
-                
+
                 if (delta > best_delta || (delta == best_delta && e < best_comm)) {
                     best_delta = delta;
                     best_comm = e;
                 }
             }
-            
+
             // Clear touched communities
             for (int i = 0; i < num_touched; ++i) {
                 sg_comm_weights[sg_touched[i]] = Weight(0);
             }
-            
+
             // Move if better
             if (best_comm != d && best_delta > Weight(0)) {
                 super_ctot[d] -= kc;
@@ -2255,9 +2327,13 @@ size_t aggregateGVEStyle(
                 moves++;
             }
         }
-        
-        if (moves == 0) break;
+
+            if (moves == 0) break;
+        }
     }
+    phase_timer.Stop();
+    const double local_move_seconds = phase_timer.Seconds();
+    phase_timer.Start();
     
     // Map back to original vertices: vcom[v] = super_comm[old_vcom[v]]
     #pragma omp parallel for
@@ -2294,6 +2370,14 @@ size_t aggregateGVEStyle(
         #pragma omp atomic
         ctot[vcom[v]] += vtot[v];
     }
+    phase_timer.Stop();
+    printf(
+        "  gve-aggregate phases: weights=%.4fs, adjacency=%.4fs, "
+        "super-move=%.4fs, remap=%.4fs\n",
+        weight_seconds,
+        adjacency_seconds,
+        local_move_seconds,
+        phase_timer.Seconds());
     
     return numFinal;
 }
@@ -9222,6 +9306,21 @@ inline GraphBrewConfig parseGraphBrewConfig(
         if (opt == "cd_serial" || opt == "cd:serial" ||
             opt == "community_serial") {
             config.deterministicCommunityDetection = true;
+            continue;
+        }
+        if (
+            opt.size() > 4
+            && opt.substr(0, 4) == "sgmb"
+        ) {
+            int batch = 0;
+            if (
+                !parseExactInt(opt.substr(4), batch)
+                || batch <= 0
+            ) {
+                reject(opt);
+                continue;
+            }
+            config.superGraphMoveBatch = batch;
             continue;
         }
         

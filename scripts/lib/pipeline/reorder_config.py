@@ -138,6 +138,7 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "refinement_depth": -1,
         "m_computation": "half-edges",
         "deterministic_community_detection": True,
+        "supergraph_move_batch": 1,
         "gorder_window": 5,
         "gorder_fallback": 0,
         "final_algo_id": 8,
@@ -281,6 +282,8 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
             "cd_serial", "cd:serial", "community_serial",
         }:
             expected["deterministic_community_detection"] = True
+        elif token.startswith("sgmb") and token[4:].isdigit():
+            expected["supergraph_move_batch"] = int(token[4:])
         elif token.startswith("sgres") or token.startswith("gamma"):
             expected["super_graph_resolution"] = float(token[5:])
         elif token.startswith("gw") and token[2:].isdigit():

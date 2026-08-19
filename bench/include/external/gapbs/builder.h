@@ -3737,6 +3737,8 @@ public:
             resolved["gorder_window"] = config.gorderWindow;
             resolved["gorder_fallback"] =
                 config.gorderFallback;
+            resolved["supergraph_move_batch"] =
+                config.superGraphMoveBatch;
             resolved["final_algo_id"] = config.finalAlgoId;
             resolved["recursive_depth"] = config.recursiveDepth;
             resolved["sub_algo_id"] = config.subAlgoId;
@@ -4196,6 +4198,8 @@ public:
                 sub_config.refinementDepth = config.refinementDepth;
                 sub_config.deterministicCommunityDetection =
                     config.deterministicCommunityDetection;
+                sub_config.superGraphMoveBatch =
+                    config.superGraphMoveBatch;
                 sub_config.ordering = graphbrew::OrderingStrategy::LAYER;
                 
                 auto sub_result = graphbrew::runGraphBrew<K>(sub_g, sub_config);
