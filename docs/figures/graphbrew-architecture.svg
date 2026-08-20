@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860" role="img" aria-labelledby="title desc" fill="#27313A">
+  <title id="title">GraphBrew architecture</title>
+  <desc id="desc">A graph, kernel, machine context, and reuse count enter lightweight analysis. Users either provide an explicit composition or use a frozen deterministic rule. GraphBrew then applies a partitioner, block layout, vertex layout, validates the permutation, and runs graph kernels on relabeled CSR.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 13 11" markerWidth="13" markerHeight="11" refX="13" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L13 5.5 L0 11 Z" fill="#1769C2"/>
+    </marker>
+    <style>
+      :root{color-scheme:light dark}
+      @media(prefers-color-scheme:dark){
+        [fill="#27313A"]{fill:#ECE7DD}[stroke="#27313A"]{stroke:#ECE7DD}
+        [fill="#F8F6EC"]{fill:#252A2E}[fill="#EDF5FF"]{fill:#273846}
+        [fill="#E7F7EA"]{fill:#24382A}[fill="#FFF0D8"]{fill:#3B3122}
+        [fill="#F7DEDC"]{fill:#3D292A}[fill="#EEE9FF"]{fill:#302C3C}
+        [stroke="#9AA3AD"]{stroke:#747D86}
+      }
+      .sans{font-family:Arial,Helvetica,sans-serif}.mono{font-family:"SFMono-Regular",Consolas,monospace}
+      .title{font-size:42px;font-weight:700}.subtitle{font-size:20px}
+      .domain{font-size:15px;font-weight:700;letter-spacing:1.3px}
+      .heading{font-size:24px;font-weight:700}.label{font-size:18px;font-weight:700}
+      .body{font-size:17px}.small{font-size:15px}.tiny{font-size:13px}
+      .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
+    </style>
+  </defs>
+
+  <text x="45" y="58" class="sans title">GraphBrew: composable, cost-aware graph reordering</text>
+  <text x="45" y="92" class="sans subtitle">Explicit compositions for research; one frozen deterministic policy for validated reuse-1/2 deployment</text>
+  <line x1="45" y1="118" x2="1555" y2="118" stroke="#27313A" stroke-width="2"/>
+
+  <rect x="35" y="140" width="320" height="590" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="52" y="166" class="sans domain">INPUT AND CONTEXT</text>
+  <rect x="55" y="185" width="280" height="215" rx="9" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <text x="195" y="220" text-anchor="middle" class="sans heading">Workload</text>
+  <text x="80" y="262" class="sans body">Graph in CSR</text>
+  <text x="80" y="296" class="sans body">Kernel identity</text>
+  <text x="80" y="330" class="sans body">CPU / LLC capacity</text>
+  <text x="80" y="364" class="sans body">Declared mapping reuse</text>
+
+  <rect x="55" y="430" width="280" height="255" rx="9" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <text x="195" y="468" text-anchor="middle" class="sans heading">Lightweight analysis</text>
+  <text x="80" y="510" class="sans body">nodes and edges</text>
+  <text x="80" y="544" class="sans body">average degree and CV</text>
+  <text x="80" y="578" class="sans body">hub concentration</text>
+  <text x="80" y="612" class="sans body">property working set / LLC</text>
+  <text x="195" y="658" text-anchor="middle" class="sans small">sampled Tier-0 features; no graph name</text>
+
+  <rect x="385" y="140" width="350" height="590" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="402" y="166" class="sans domain">CONFIGURATION</text>
+  <rect x="405" y="185" width="310" height="205" rx="9" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
+  <text x="560" y="220" text-anchor="middle" class="sans heading">Explicit composition</text>
+  <text x="430" y="260" class="sans body">User selects exact axes</text>
+  <text x="430" y="296" class="mono small">partitioner : block : vertex</text>
+  <text x="430" y="332" class="sans body">Used for controlled experiments</text>
+  <text x="560" y="370" text-anchor="middle" class="sans small">hand configured; never searched at runtime</text>
+
+  <rect x="405" y="425" width="310" height="260" rx="9" fill="#F7DEDC" stroke="#27313A" stroke-width="3"/>
+  <text x="560" y="462" text-anchor="middle" class="sans heading">Frozen runtime policy</text>
+  <text x="430" y="505" class="sans body">Deterministic feature rule</text>
+  <text x="430" y="539" class="sans body">Candidate or Boost Rabbit</text>
+  <text x="430" y="573" class="sans body">Validated only for reuse 1–2</text>
+  <text x="430" y="607" class="sans body">Seven measured kernels</text>
+  <text x="560" y="655" text-anchor="middle" class="sans small">not ML; no runtime training or oracle lookup</text>
+
+  <rect x="765" y="140" width="500" height="590" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="782" y="166" class="sans domain">GRAPHBREW ORDERING PIPELINE</text>
+  <rect x="790" y="190" width="450" height="115" rx="9" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
+  <text x="1015" y="225" text-anchor="middle" class="sans heading">1. Partitioner</text>
+  <text x="1015" y="260" text-anchor="middle" class="sans body">Leiden / Rabbit / bounded FastLeiden</text>
+  <text x="1015" y="286" text-anchor="middle" class="sans small">discovers vertex groups</text>
+
+  <rect x="790" y="335" width="450" height="115" rx="9" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
+  <text x="1015" y="370" text-anchor="middle" class="sans heading">2. Block layout</text>
+  <text x="1015" y="405" text-anchor="middle" class="sans body">identity / size / degree / super-graph order</text>
+  <text x="1015" y="431" text-anchor="middle" class="sans small">places groups globally</text>
+
+  <rect x="790" y="480" width="450" height="115" rx="9" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <text x="1015" y="515" text-anchor="middle" class="sans heading">3. Vertex layout</text>
+  <text x="1015" y="550" text-anchor="middle" class="sans body">BFS / RCM / degree / Gorder</text>
+  <text x="1015" y="576" text-anchor="middle" class="sans small">orders vertices inside each block</text>
+
+  <rect x="790" y="625" width="450" height="65" rx="9" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <text x="1015" y="665" text-anchor="middle" class="sans label">Validate permutation + relocate CSR</text>
+
+  <rect x="1295" y="140" width="270" height="590" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="1312" y="166" class="sans domain">OUTPUT</text>
+  <rect x="1315" y="190" width="230" height="180" rx="9" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <text x="1430" y="228" text-anchor="middle" class="sans heading">Relabeled CSR</text>
+  <text x="1430" y="272" text-anchor="middle" class="sans body">same topology</text>
+  <text x="1430" y="306" text-anchor="middle" class="sans body">new vertex IDs</text>
+  <text x="1430" y="340" text-anchor="middle" class="sans body">mapping fingerprint</text>
+
+  <rect x="1315" y="410" width="230" height="245" rx="9" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <text x="1430" y="448" text-anchor="middle" class="sans heading">Graph kernels</text>
+  <text x="1430" y="490" text-anchor="middle" class="sans body">PR / PR-SpMV</text>
+  <text x="1430" y="524" text-anchor="middle" class="sans body">BFS / CC / CC-SV</text>
+  <text x="1430" y="558" text-anchor="middle" class="sans body">BC / SSSP</text>
+  <text x="1430" y="607" text-anchor="middle" class="sans small">kernel quality and end-to-end</text>
+  <text x="1430" y="632" text-anchor="middle" class="sans small">are reported separately</text>
+
+  <path d="M335 292 H405" class="arrow"/>
+  <path d="M335 560 H405" class="arrow"/>
+  <path d="M715 285 H765" class="arrow"/>
+  <path d="M715 555 H765" class="arrow"/>
+  <path d="M1015 305 V335" class="arrow"/>
+  <path d="M1015 450 V480" class="arrow"/>
+  <path d="M1015 595 V625" class="arrow"/>
+  <path d="M1240 657 H1315" class="arrow"/>
+  <path d="M1430 370 V410" class="arrow"/>
+
+  <rect x="55" y="765" width="1490" height="62" rx="8" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="80" y="802" class="sans body">Scientific contract: exact configuration + graph/kernel/reuse scope + mapping cost + kernel time + held-out validation. Detailed rows live in evidence JSON, not in the landing pages.</text>
+</svg>

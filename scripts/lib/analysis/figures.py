@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate reordering algorithm visualization figures for GraphBrew wiki.
+Generate exploratory reordering visualizations.
 
 Creates SVG figures showing:
 1. Adjacency matrix spy plots (before/after reordering)
@@ -275,9 +275,9 @@ def plot_algorithm_overview(filename='reorder_overview.svg'):
         {'name': 'Classic (9–11)', 'x': 3.5, 'y': 3.5, 'w': 2.5, 'h': 1.2,
          'color': COLORS['locality'], 'algos': 'GORDER\nCORDER\nRCM'},
         {'name': 'GraphBrew (12)', 'x': 6.5, 'y': 3.5, 'w': 2.5, 'h': 1.2,
-         'color': COLORS['hybrid'], 'algos': 'GraphBrewOrder\n(Leiden+RabbitOrder)'},
+         'color': COLORS['hybrid'], 'algos': 'Explicit\ncomposition'},
         {'name': 'Adaptive (14)', 'x': 1.5, 'y': 1.5, 'w': 3.0, 'h': 1.2,
-         'color': COLORS['adaptive'], 'algos': 'AdaptiveOrder\n(ML perceptron)'},
+         'color': COLORS['adaptive'], 'algos': 'Frozen low-reuse\nrule'},
         {'name': 'Leiden (15)', 'x': 5.5, 'y': 1.5, 'w': 3.0, 'h': 1.2,
          'color': '#a8dadc', 'algos': 'LeidenOrder (15)'},
     ]
@@ -295,10 +295,9 @@ def plot_algorithm_overview(filename='reorder_overview.svg'):
                 cat['algos'], ha='center', va='bottom',
                 fontsize=8, color='white', linespacing=1.3)
 
-    # Arrow from categories to "Better Cache Performance"
     ax.annotate('', xy=(5.5, 0.7), xytext=(1.5, 0.7),
                 arrowprops=dict(arrowstyle='->', lw=2, color=COLORS['edge']))
-    ax.text(3.5, 0.55, 'More Sophisticated → Better Cache Locality',
+    ax.text(3.5, 0.55, 'Measure mapping cost and kernel locality',
             ha='center', fontsize=10, style='italic', color=COLORS['edge'])
 
     fig.suptitle('GraphBrew: Algorithm Categories', fontsize=16, fontweight='bold', y=0.98)
@@ -318,10 +317,10 @@ def plot_graphbrew_pipeline(filename='graphbrew_pipeline.svg'):
 
     steps = [
         {'name': '1. Input\nGraph', 'x': 0.3, 'color': '#adb5bd'},
-        {'name': '2. Topology\nAnalysis', 'x': 2.3, 'color': COLORS['locality']},
-        {'name': '3. Leiden\nCommunity\nDetection', 'x': 4.5, 'color': COLORS['community']},
-        {'name': '4. Community\nClassification\n(small/large)', 'x': 6.9, 'color': COLORS['adaptive']},
-        {'name': '5. Per-Community\nReordering\n(RabbitOrder)', 'x': 9.3, 'color': COLORS['hub']},
+        {'name': '2. Lightweight\nStatistics', 'x': 2.3, 'color': COLORS['locality']},
+        {'name': '3. Community\nDetector', 'x': 4.5, 'color': COLORS['community']},
+        {'name': '4. Block\nLayout', 'x': 6.9, 'color': COLORS['adaptive']},
+        {'name': '5. Vertex\nLayout', 'x': 9.3, 'color': COLORS['hub']},
         {'name': '6. Final\nPermutation', 'x': 11.7, 'color': COLORS['locality']},
     ]
 
@@ -353,7 +352,7 @@ def plot_graphbrew_pipeline(filename='graphbrew_pipeline.svg'):
 
 
 def plot_adaptive_pipeline(filename='adaptive_pipeline.svg'):
-    """Create AdaptiveOrder pipeline diagram."""
+    """Create the deterministic low-reuse policy diagram."""
     fig, ax = plt.subplots(figsize=(14, 4.5))
     ax.set_xlim(0, 14)
     ax.set_ylim(0, 4.8)
@@ -361,11 +360,11 @@ def plot_adaptive_pipeline(filename='adaptive_pipeline.svg'):
 
     # Main pipeline
     steps = [
-        {'name': '1. Extract\nGraph\nFeatures', 'x': 0.3, 'y': 2.0, 'color': COLORS['locality']},
-        {'name': '2. ML\nPerceptron\nScore', 'x': 3.0, 'y': 2.0, 'color': COLORS['adaptive']},
-        {'name': '3. Select\nBest\nAlgorithm', 'x': 5.7, 'y': 2.0, 'color': COLORS['hub']},
-        {'name': '4. Execute\nSelected\nAlgorithm', 'x': 8.4, 'y': 2.0, 'color': COLORS['community']},
-        {'name': '5. Reordered\nGraph', 'x': 11.1, 'y': 2.0, 'color': COLORS['locality']},
+        {'name': '1. Sample\nGraph\nStatistics', 'x': 0.3, 'y': 2.0, 'color': COLORS['locality']},
+        {'name': '2. Read\nKernel and\nReuse', 'x': 3.0, 'y': 2.0, 'color': COLORS['adaptive']},
+        {'name': '3. Apply\nFrozen\nPredicate', 'x': 5.7, 'y': 2.0, 'color': COLORS['hub']},
+        {'name': '4. Execute\nCandidate or\nFallback', 'x': 8.4, 'y': 2.0, 'color': COLORS['community']},
+        {'name': '5. Validated\nMapping', 'x': 11.1, 'y': 2.0, 'color': COLORS['locality']},
     ]
 
     bw = 2.2
@@ -386,18 +385,20 @@ def plot_adaptive_pipeline(filename='adaptive_pipeline.svg'):
                     arrowprops=dict(arrowstyle='->', lw=2, color=COLORS['edge']))
 
     # Feature list
-    features = 'Features: avg_degree, clustering_coeff, community_count,\nhub_concentration, degree_variance, packing_factor'
+    features = ('Inputs: nodes, avg_degree, degree_cv, property_wsr_llc,\n'
+                'kernel identity, mapping reuse')
     ax.text(1.4, 0.8, features, fontsize=8, style='italic', color='#555',
             ha='center', va='center',
             bbox=dict(boxstyle='round,pad=0.3', facecolor='#f0f0f0', edgecolor='#ccc'))
 
     # Algorithm candidates
-    candidates = 'Candidates: GraphBrewOrder (12), RabbitOrder (8),\nHubClusterDBG (7), Gorder (9), RCM (11), LeidenOrder (15)'
+    candidates = ('Decision: FastLeiden-Gorder8 composition\n'
+                  'or Boost Rabbit fallback')
     ax.text(8.4 + bw/2, 0.8, candidates, fontsize=8, style='italic', color='#555',
             ha='center', va='center',
             bbox=dict(boxstyle='round,pad=0.3', facecolor='#f0f0f0', edgecolor='#ccc'))
 
-    fig.suptitle('AdaptiveOrder (Algorithm 14) Pipeline — ML-Guided Selection',
+    fig.suptitle('AdaptiveOrder (Algorithm 14) — Frozen Low-Reuse Rule',
                  fontsize=14, fontweight='bold', y=0.98)
     filepath = OUT_DIR / filename
     plt.savefig(filepath, format='svg', bbox_inches='tight')
@@ -448,7 +449,7 @@ def main():
                         'reorder_community.svg', COLORS['community'],
                         'Community Reordering: Vertices grouped by community')
 
-    # GraphBrew (Community + per-community RabbitOrder)
+    # Illustrative community plus local-order composition
     adj_gb, _ = reorder_graphbrew(adj_input)
     plot_spy_comparison(adj_input, adj_gb,
                         'Before (Original Order)', 'After GraphBrewOrder',

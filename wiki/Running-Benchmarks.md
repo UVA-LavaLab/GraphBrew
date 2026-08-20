@@ -291,7 +291,7 @@ See [[Troubleshooting]] for solutions to common issues (file not found, invalid 
 
 - [[Graph-Benchmarks]] - Deep dive into each algorithm
 - [[Reordering-Algorithms]] - All reordering techniques
-- [[AdaptiveOrder-ML]] - ML-powered selection
+- [AdaptiveOrder](AdaptiveOrder) - deterministic runtime policy
 - [[Supported-Graph-Formats]] - Input format details
 
 ---

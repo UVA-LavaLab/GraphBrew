@@ -367,9 +367,9 @@ numactl --cpunodebind=0 --membind=0 ./bench/bin/pr -f graph.el -s
 - Some road networks
 
 **Try**:
-1. Different algorithms
-2. AdaptiveOrder (14)
-3. Check if graph has community structure
+1. Compare ORIGINAL, CSR Rabbit, and Boost Rabbit.
+2. Measure mapping time separately from kernel time.
+3. Use the frozen reuse-1/2 policy only within its documented kernel scope.
 
 ---
 
@@ -400,54 +400,29 @@ make all
 --bin-dir /full/path/to/GraphBrew/bench/bin
 ```
 
-### JSON decode error in model weights
+### Unexpected low-reuse policy decision
+
+Use the complete algorithm-14 string and provide reuse 1 or 2:
 
 ```bash
-# Validate JSON
-python3 -c "import json; json.load(open('results/data/adaptive_models.json'))"
+./bench/bin/pr -f graph.sg -s \
+  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' -n 3
+```
 
-# Pretty-print to find error
+The policy falls back when the graph is too small, the kernel is outside the
+validated set, reuse exceeds 2, or the frozen structural predicate is false.
+This is expected behavior. See [AdaptiveOrder](AdaptiveOrder).
+
+### Historical offline-model artifact errors
+
+`results/data/adaptive_models.json` is used only by retained offline-model
+experiments. Validate it with:
+
+```bash
 python3 -m json.tool results/data/adaptive_models.json
 ```
 
-### Wrong algorithm selected
-
-The offline-produced model or perceptron fallback may select a suboptimal algorithm. To debug:
-
-```bash
-# Check what properties were detected
-cat results/data/graph_properties.json | python3 -m json.tool | grep -A 10 "your_graph_name"
-
-# Re-run training to regenerate weights
-python3 scripts/graphbrew_experiment.py --train --size small
-```
-
-For decision tree and hybrid issues, check
-`results/data/adaptive_models.json`. Re-run the offline `--train`/export flow
-to regenerate it; C++ benchmark binaries never fit models at runtime.
-
-**Auto-clustering system:**
-Uses 7 features and Euclidean distance to match graphs to the nearest cluster centroid.
-
-| Type | Typical Properties |
-|------|----------|
-| road | modularity < 0.1, degree_variance < 0.5, avg_degree < 10 |
-| social | modularity > 0.3, degree_variance > 0.8 |
-| web | hub_concentration > 0.5, degree_variance > 1.0 |
-| powerlaw | degree_variance > 1.5, modularity < 0.3 |
-| uniform | degree_variance < 0.5, hub_concentration < 0.3, modularity < 0.1 |
-
-### Adaptive models not generated
-
-Ensure `--train` completes all phases and enough graphs (≥3) are benchmarked:
-
-```bash
-# Check training output
-grep "train_all_models" results/logs/*.log
-
-# Re-run training to regenerate from benchmark data
-python3 scripts/graphbrew_experiment.py --train --size small
-```
+The validated `allkernel-lowreuse-rule` does not require this file.
 
 ---
 

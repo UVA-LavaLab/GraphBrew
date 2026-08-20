@@ -245,36 +245,18 @@ for size in 16384 32768 65536 131072; do
 done
 ```
 
-### 3. Perceptron Training Features
+### 3. Offline feature export
 
-The cache simulator provides features for the ML-based algorithm selector. The unified experiment script automatically collects these:
+The experiment pipeline can export cache measurements for offline analyses:
 
 ```bash
-# Run cache simulation as part of the full pipeline
-python3 scripts/graphbrew_experiment.py --full --size small
-
-# Or just the cache phase
 python3 scripts/graphbrew_experiment.py --phase cache
 ```
 
-Cache features are stored in `results/cache_*.json` and integrated into perceptron weights:
-
-```json
-{
-  "ALGORITHM_NAME": {
-    "bias": ...,
-    "w_modularity": ...,
-    "cache_l1_impact": ...,
-    "cache_l2_impact": ...,
-    "cache_l3_impact": ...,
-    "cache_dram_penalty": ...
-  }
-}
-```
-
-Run `--phase cache` on your graphs to generate actual cache impact values. See [[AdaptiveOrder-ML]] for the full weight schema.
-
-The perceptron uses these weights to factor cache performance into algorithm selection.
+These files support diagnostics and historical model experiments. They are
+not inputs to the validated `allkernel-lowreuse-rule`; that runtime rule uses
+lightweight graph statistics and machine LLC capacity without running the
+cache simulator.
 
 ### 4. Automated Cache Benchmark Suite
 
@@ -355,27 +337,10 @@ The cache policies have been validated against the original reference implementa
 - ECG(POPT_PRIMARY) ≈ P-OPT: 0.1% relative difference
 - P-OPT ≤ ECG(DBG_PRIMARY) ≤ GRASP: hierarchy holds
 
-## Perceptron Integration
-
-Cache features integrate with the perceptron-based algorithm selector. See [[AdaptiveOrder-ML]] for the full feature vector.
-
-**Cache-specific features:** `cache_l1_impact`, `cache_l2_impact`, `cache_l3_impact`, `cache_dram_penalty` — automatically collected during `--phase cache` and integrated into weight files.
-
-```bash
-# Run cache simulation as part of full pipeline
-python3 scripts/graphbrew_experiment.py --full --size small
-
-# Or just the cache phase
-python3 scripts/graphbrew_experiment.py --phase cache
-```
-
-C++ access: `cache_sim::GlobalCache().getFeatures()` or `CACHE_FEATURES()` macro.
-
 ## Related Pages
 
-- [[AdaptiveOrder-ML]] - Using cache features for algorithm selection
-- [[Benchmark-Suite]] - Correlating cache stats with performance
-- [[Benchmark-Suite]] - Running performance experiments
+- [AdaptiveOrder](AdaptiveOrder) - validated deterministic runtime policy
+- [Benchmark Suite](Benchmark-Suite) - correlating cache stats with performance
 
 ---
 

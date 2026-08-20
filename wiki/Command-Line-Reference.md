@@ -6,17 +6,18 @@ Complete reference for all GraphBrew command-line options.
 
 ## Quick Reference
 
-### One-Command Mode (Recommended)
+### One-command experiment mode
 
 ```bash
-# Download N graphs per size, run full pipeline + ML evaluation
+# Download N graphs per size and run the configured experiment pipeline
 python3 scripts/graphbrew_experiment.py --target-graphs 150
 
 # Preview without executing
 python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
 ```
 
-`--target-graphs N` auto-enables: `--full`, `--catalog-size N`, `--auto`, `--all-variants`, `--size all`.
+`--target-graphs N` auto-enables the catalog, build, reorder, benchmark, and
+analysis stages for the selected graph sizes.
 
 Combine with `--size` to target a specific size category:
 
@@ -33,17 +34,21 @@ python3 scripts/graphbrew_experiment.py --target-graphs 200 --size small
 | `large` | 5M – 50M | ~70 |
 | `xlarge` | 50M – 500M | ~37 |
 
-### Evaluation Modes (No Weight Updates)
+### Evaluation modes
 
 | Mode | Command | Description |
 |------|---------|-------------|
-| **One-Command** | `--target-graphs 150` | Download + build + benchmark + ML eval |
+| **One-Command** | `--target-graphs 150` | Download, build, reorder, benchmark, and analyze |
 | **Reorder Only** | `--phase reorder --size small` | Test reordering algorithms only |
 | **Benchmark Only** | `--phase benchmark --size small --skip-cache` | Run graph algorithm benchmarks (BFS, PR, etc.) |
 | **End-to-End** | `--full --size small --auto` | Full evaluation pipeline without training |
-| **Validation** | `--brute-force --validation-benchmark pr` | Compare AdaptiveOrder vs all algorithms |
+| **Validation** | `--brute-force --validation-benchmark pr` | Compare configured orderings for one kernel |
 
-### Training Modes (Updates Weights)
+### Historical offline-model modes
+
+These commands are retained for research compatibility. They are not required
+by the validated deterministic runtime rule documented in
+[AdaptiveOrder](AdaptiveOrder).
 
 | Mode | Command | Description |
 |------|---------|-------------|
@@ -55,9 +60,9 @@ python3 scripts/graphbrew_experiment.py --target-graphs 200 --size small
 
 | Flag | Description |
 |------|-------------|
-| `--target-graphs N` | One-command mode: download N graphs/size, run full pipeline + ML eval |
+| `--target-graphs N` | One-command mode: download N graphs/size and run the pipeline |
 | `--dry-run` | Print planned stages and resource requirements, then exit |
-| `--skip-eval` | Skip ML evaluation phase at end of `--full` / `--target-graphs` |
+| `--skip-eval` | Skip the optional offline-model evaluation phase |
 
 ### Common Modifiers
 
@@ -82,8 +87,8 @@ You can run each phase independently. Later phases automatically load results fr
 | **Phase 1** | `--phase reorder` | Generate reordered graphs (.lo label maps) |
 | **Phase 2** | `--phase benchmark` | Run graph algorithm benchmarks (BFS, PR, etc.) |
 | **Phase 3** | `--phase cache` | Run cache simulation |
-| **Phase 4** | `--phase weights` | _(legacy)_ Generate/export offline selector weights |
-| **Phase 5** | `--phase adaptive` | _(deprecated)_ Adaptive order analysis — use `--eval-weights` instead |
+| **Phase 4** | `--phase weights` | Historical offline-model export |
+| **Phase 5** | `--phase adaptive` | Deprecated offline-model analysis |
 
 ```bash
 # Run each phase separately
@@ -97,9 +102,11 @@ python3 scripts/graphbrew_experiment.py --phase benchmark --size small && \
 python3 scripts/graphbrew_experiment.py --phase cache --size small
 ```
 
-**Note:** Results are saved to `results/` directory after each phase. Later phases automatically load:
-- Phase 2 & 3: Load `.lo` label maps from Phase 1
-- Adaptive runtime: Loads the offline `adaptive_models.json` artifact
+**Note:** Results are saved to `results/` after each phase. Later benchmark
+and cache phases load pregenerated `.lo` mappings from the reorder phase.
+Historical model commands may also read
+`results/data/adaptive_models.json`; the validated
+`allkernel-lowreuse-rule` does not.
 
 ---
 
@@ -209,7 +216,7 @@ Use with `-o <id>`:
 | 11 | RCMOrder | Classic (has variants, see below) |
 | 12 | GraphBrewOrder | Community (has variants, see below) |
 | 13 | MAP | External mapping |
-| 14 | AdaptiveOrder | ML |
+| 14 | AdaptiveOrder | deterministic validated rule plus legacy offline-model modes |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
 | 16 | GoGraphOrder | Flow-edge (has variants, see below) |
 
@@ -248,7 +255,8 @@ GoGraphOrder maximises M(σ) — the count of edges where source precedes destin
 | `fast` | `-o 16:fast` | Iterative flow-score sorting — heuristic O(n log n + m) per iteration |
 | `naive` | `-o 16:naive` | Original faithful (per-call map, for validation) |
 
-All three variants produce *different* orderings and get separate perceptron weights in the ML pipeline.
+All three variants produce different orderings and must be treated as separate
+experimental configurations.
 
 ### RCMOrder Variants (Algorithm 11)
 
@@ -544,19 +552,9 @@ export OMP_NUM_THREADS=8
 ./bench/bin/pr -f graph.el -s -n 5
 ```
 
-### Perceptron Weights
+### AdaptiveOrder
 
-```bash
-# Override default weights file
-export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
-./bench/bin/pr -f graph.el -s -o 14 -n 3
-```
-
-**Note:** AdaptiveOrder loads an offline-produced model artifact. Deployable
-`-o 14` rejects graph names, exact-name oracle lookup, and
-runtime kNN/database selection. See [[AdaptiveOrder-ML]].
-
-Frozen all-kernel low-reuse selection:
+Validated frozen all-kernel low-reuse selection:
 
 ```bash
 ./bench/bin/bfs -f graph.sg -s \
@@ -564,8 +562,18 @@ Frozen all-kernel low-reuse selection:
 ```
 
 The final field is the declared mapping reuse count and is mandatory for this
-model. Supported values are at most 2; other contexts fall back to Boost
-Rabbit.
+rule. Supported values are 1 and 2; other contexts use the fallback. The rule
+does not load an offline model or perform runtime training. See
+[AdaptiveOrder](AdaptiveOrder).
+
+Historical model-emulation modes can use:
+
+```bash
+export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
+```
+
+Those modes are research compatibility surfaces, not the validated deployed
+result.
 
 ### NUMA Binding
 
@@ -614,17 +622,6 @@ Trial   Time(s)   Edges Visited   MTEPS
 3       X.XXXX    ...             ...
 
 Average: X.XXXX seconds, XX.X MTEPS
-```
-
-### AdaptiveOrder Output
-
-```
-=== Adaptive Reordering Selection ===
-Comm    Nodes   Edges   Density Selected
-...     ...     ...     ...     ...
-
-=== Algorithm Selection Summary ===
-(shows how many communities selected each algorithm)
 ```
 
 ---
@@ -689,7 +686,7 @@ See [[Python-Scripts]] for complete script documentation and module reference.
 | Size/Resources | `--size small\|medium\|large`, `--auto`, `--max-memory GB` |
 | Speed | `--quick`, `--skip-cache`, `--skip-expensive`, `--skip-slow` |
 | Variants | `--all-variants`, `--rabbit-variants LIST`, `--gorder-variants LIST`, `--graphbrew-variants LIST`, `--resolution VALUE` |
-| Weights | *(automatic via `adaptive_models.json`)* |
+| Offline models | `--train`, `--eval-weights` (historical research path) |
 | Labels | `--precompute`, `--generate-maps`, `--use-maps` |
 | Validation | `--brute-force`, `--validation-benchmark NAME` |
 | Dependencies | `--check-deps`, `--install-deps`, `--install-boost` |

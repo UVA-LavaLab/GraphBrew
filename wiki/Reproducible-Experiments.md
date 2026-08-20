@@ -100,7 +100,7 @@ e.g. `cit-Patents`, `soc-pokec`, `hollywood-2009`, `USA-road-d.USA`,
 <artifact-root>/vldb_runs/<name>/<algo>__<bench>.json
 <artifact-root>/vldb_paper/exp<N>_<name>/*.json
 <artifact-root>/INDEX.json
-results/data/graph_properties.json         # lib ML-feature cache (auto-managed)
+results/data/graph_properties.json         # sampled graph-property cache
 ```
 
 Use `python3 -m scripts.lib.analysis.results_index --build-index` to refresh

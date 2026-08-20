@@ -2,69 +2,144 @@
 
 # GraphBrew
 
-GraphBrew is a C++17/OpenMP graph-reordering framework built on the
-[GAP Benchmark Suite](https://github.com/sbeamer/gapbs). It provides canonical
-graph kernels, multiple reordering baselines, cache simulation, reproducible
-experiment orchestration, and infrastructure for developing new
-GraphBrew-native orderings.
+GraphBrew is a C++17/OpenMP framework for **composable vertex reordering**.
+Its purpose is to study and deploy the trade-off between:
 
-The primary project surfaces are:
+- the cost of constructing a new vertex layout; and
+- the graph-kernel locality obtained from that layout.
 
-- canonical kernels in `bench/src/`;
-- reordering quality and cost in `bench/include/graphbrew/reorder/`;
-- reproducible experiment policy in `scripts/graphbrew_experiment.py`;
-- reusable Python infrastructure in `scripts/lib/`.
+GraphBrew does not hide this trade-off behind one algorithm name. It records
+three explicit decisions:
 
-RabbitOrder, Gorder, and Leiden are comparison baselines and diagnostic
-anchors. GraphBrew keeps their implementations and costs explicit so new
-orderings can be evaluated fairly.
+| Decision | Examples | Purpose |
+|---|---|---|
+| Partitioner | Leiden, Rabbit | discover vertex groups |
+| Block layout | identity, size/degree sort, super-graph order | place groups globally |
+| Vertex layout | BFS, RCM, degree order, Gorder | order vertices inside each block |
 
-See the [wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki) for detailed
-algorithm, CLI, cache-simulation, and architecture documentation.
+![GraphBrew architecture](./docs/figures/graphbrew-architecture.svg)
 
-## Build and Run
+## Manual composition versus automatic selection
 
-RabbitOrder is enabled by default and requires Boost, libnuma, and
-google-perftools.
+GraphBrew has two distinct interfaces.
+
+### Explicit composition
+
+Algorithm 12 executes the exact configuration supplied by the user:
 
 ```bash
-# Check dependencies through the orchestrator
+./bench/bin/pr -f graph.sg -s \
+  -o '12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8' \
+  -n 3
+```
+
+This path is **hand configured**. GraphBrew does not search compositions at
+runtime. It is used for controlled experiments and for applications that
+already know their desired layout.
+
+### Frozen low-reuse policy
+
+Algorithm 14 can apply one validated deterministic rule:
+
+```bash
+./bench/bin/pr -f graph.sg -s \
+  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' \
+  -n 3
+```
+
+This current deployed policy is **not machine learning**. It uses cheap graph
+statistics, machine LLC capacity, kernel identity, and an explicit reuse count
+to choose between:
+
+- the promoted FastLeiden-Gorder8 composition; and
+- Boost Rabbit.
+
+There is no runtime training, graph-name lookup, database oracle, or trial of
+multiple reorderers.
+
+## Validated low-reuse result
+
+The promoted composition is:
+
+```text
+12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:
+cd_parallel:sgmb4096:gordf5000:norefine:2:2
+```
+
+It uses two parallel Leiden iterations and passes, ordered super-graph
+proposal batches, SizeDesc block placement, Gorder8 for communities up to
+5000 vertices, and BFS fallback for larger communities.
+
+The rule was derived on 18 graphs and frozen before 12 additional graphs were
+opened. It selected GraphBrew on seven holdouts and Boost Rabbit on five.
+
+| Reuse | Selected holdouts: Boost/GraphBrew | Lower 95% | Full selector/always-Boost |
+|---:|---:|---:|---:|
+| 1 | 1.696x | 1.502x | 1.361x |
+| 2 | 1.642x | 1.460x | 1.336x |
+
+Scope:
+
+- kernels: PR, PR-SpMV, BFS, CC, CC-SV, BC, and SSSP;
+- mapping reuse: 1 or 2, supplied explicitly;
+- fallback: Boost Rabbit;
+- known limitation: CC-SV can regress even when aggregate end-to-end time
+  improves.
+
+See the
+[architecture and evidence guide](https://github.com/UVA-LavaLab/GraphBrew/wiki/All-Kernel-Low-Reuse-Selector)
+and [`docs/allkernel-lowreuse-evidence.json`](docs/allkernel-lowreuse-evidence.json).
+
+## Build
+
+```bash
+# Dependency check
 python3 scripts/graphbrew_experiment.py --check-deps
 
-# Full build
+# Standard build
 make -j"$(nproc)" all
 
-# Reduced-dependency build
-RABBIT_ENABLE=0 make -j"$(nproc)" all
-
-# Small PageRank smoke test
-./bench/bin/pr -f scripts/test/data/tiny.el -s -o 0 -n 1
+# Core validation
+make check
 ```
 
-Run one ordering with a canonical kernel:
+Boost Rabbit requires the standard dependency-enabled build. A reduced build
+is available with `RABBIT_ENABLE=0`.
+
+## Run a benchmark
 
 ```bash
+# Input layout
+./bench/bin/pr -f graph.sg -s -o 0 -n 3
+
+# Rabbit baselines
 ./bench/bin/pr -f graph.sg -s -o 8:csr -n 3
-./bench/bin/bfs -f graph.sg -s -o 12:leiden:flat -n 3
+./bench/bin/pr -f graph.sg -s -o 8:boost -n 3
+
+# Explicit GraphBrew composition
+./bench/bin/bfs -f graph.sg -s \
+  -o '12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8' \
+  -n 3
+
+# Frozen reuse-2 policy
+./bench/bin/bfs -f graph.sg -s \
+  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:2' \
+  -n 3
 ```
 
-Repeated `-o` flags form an ordered composition:
+`reuse=2` means one materialized mapping is used by two separate kernel
+invocations. It does not mean two internal PageRank iterations.
 
-```bash
-./bench/bin/pr -f graph.sg -s -o 2 -o 8:csr -n 3
+## Reproducible experiments
+
+Use `scripts/graphbrew_experiment.py` as the public orchestration entry point.
+Large graphs, mappings, and result artifacts belong under:
+
+```text
+/media/Data/00_GraphDatasets/GraphBrew
 ```
 
-## Experiment Harness
-
-Use `scripts/graphbrew_experiment.py` as the public Python entry point. Do not
-create one-off experiment runners or duplicate algorithm, graph, benchmark, or
-cache registries.
-
-Large graphs and generated mappings belong outside the repository filesystem.
-The canonical graph root is `/media/Data/00_GraphDatasets/GraphBrew`, with
-large artifacts under its `artifacts/` directory.
-
-### Rapid controlled check
+Rapid checks are for debugging and candidate narrowing:
 
 ```bash
 python3 scripts/graphbrew_experiment.py --vldb 2 --paper-preview \
@@ -73,168 +148,35 @@ python3 scripts/graphbrew_experiment.py --vldb 2 --paper-preview \
   --paper-threads 4 --paper-cpu-list 24-27
 ```
 
-Rapid runs are for smoke testing, bug detection, and candidate narrowing. They
-must not replace full evaluation results.
+Final campaigns use frozen protocols, pre-generated mappings, verification
+gates, repeated trials, fixed affinity, and content-bound result files. See
+[Reproducible Experiments](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reproducible-Experiments).
 
-### Full evaluation
-
-```bash
-python3 scripts/graphbrew_experiment.py --vldb \
-  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
-  --paper-threads 16 --paper-cpu-list 0-15
-```
-
-The full path uses frozen manifests, fixed thread/affinity policy,
-pre-generated mappings, repeated trials, verification gates, and complete
-provenance. Independent stage runners under
-`scripts/experiments/vldb/stages/` are for restartable long runs.
-
-Generic collection remains available through `--full`, `--phase`, `--quick`,
-and `--target-graphs`. Use `--dry-run` before broad collection.
-
-## Reordering Algorithms
-
-Use `-o <id[:options]>` to select an ordering.
-
-| ID | Algorithm | Role |
-|---:|---|---|
-| 0 | ORIGINAL | Input-label baseline |
-| 1 | RANDOM | Thread-independent SplitMix64 shuffled control, seed 0 |
-| 2 | SORT | Degree sort |
-| 3 | HUBSORT | Upstream-style hub sort with non-hub ID preservation |
-| 4 | HUBCLUSTER | Upstream-style hub cluster with non-hub ID preservation |
-| 5 | DBG | Degree-based grouping |
-| 6 | HUBSORTDBG | Compact two-bucket DBG with sorted hubs |
-| 7 | HUBCLUSTERDBG | Compact two-bucket DBG with stable hubs |
-| 8 | RABBITORDER | Rabbit CSR/Boost baseline |
-| 9 | GORDER | Exact `gograph`/`csr` baselines plus deterministic relaxed `fast` |
-| 10 | CORDER | Historical 1K baseline; `10:canonical` uses upstream 1 MiB segments |
-| 11 | RCM | `11` historical double-pass; `11:mind` single-pass; `11:bnf` CSR-native BNF |
-| 12 | GraphBrewOrder | Configurable GraphBrew pipeline |
-| 13 | MAP | Load a pre-generated `.lo` mapping |
-| 14 | AdaptiveOrder | Load-only offline selector |
-| 15 | LeidenOrder | GVE-Leiden communities plus explicit GraphBrew post-layout |
-| 16 | GoGraphOrder | M-maximizing core diagnostic; published Rabbit clustering omitted |
-
-Algorithm IDs, option parsing, C++ dispatch, Python canonical names, and
-experiment matrices must remain synchronized.
-
-## Evidence-Scoped Ordering Guidance
-
-There is no universal default. Choose an objective first, then measure on the
-target graph and kernel. The recommendations below are bound to
-[`docs/recommendation-evidence.json`](docs/recommendation-evidence.json).
-
-| Objective | First measured configuration | Evidence scope and caveat |
-|---|---|---|
-| Non-Rabbit all-kernel ordering quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Beats Rabbit CSR by 4.9% and Boost by 5.9% in the eleven-graph, seven-kernel kernel-only geometric mean. Full Leiden mapping costs about 17–18× Rabbit; a one-pass replacement failed to retain the quality win. |
-| Non-Rabbit controlled-work quality | `12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp` | Beats both Rabbit implementations by about 2.5% over fixed-work PR/PR-SpMV, fixed-source SSSP, and BC; CC/CC-SV regress. |
-| Low-reuse time-to-solution | `12:leiden:compose:sg_none:comm_identity:intra_gorder:gw32:gordf500:cd_parallel:1:1` | Wins reuse-1 end-to-end on the rapid cohort through cheaper mapping, not better average kernel quality. It does not beat Boost Rabbit on Friendster. |
-| Automatic all-kernel reuse 1–2 | `14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Frozen feature rule selects the promoted cost-matched composition or Boost Rabbit. Seven selected untouched graphs all pass; aggregate gains are 1.696× and 1.642× at reuse 1 and 2. |
-| Unknown workload | `0`, `8:csr`, `8:boost`, and one objective-matched COMPOSE row | Measure kernel-only and end-to-end results separately; do not infer a winner from graph type alone. |
-
-“Ordering quality” excludes mapping time. “End-to-end” includes mapping
-generation, validation, CSR relocation, and the declared number of kernel
-invocations.
-
-See the
-[All-Kernel Low-Reuse Selector wiki page](https://github.com/UVA-LavaLab/GraphBrew/wiki/All-Kernel-Low-Reuse-Selector)
-for architecture figures, the frozen rule, and all 30 per-graph outcomes.
-
-## Canonical Kernels
-
-| Binary | Kernel |
-|---|---|
-| `pr` | Pull PageRank |
-| `pr_spmv` | SpMV PageRank |
-| `bfs` | Direction-optimizing BFS |
-| `cc` | Afforest connected components |
-| `cc_sv` | Shiloach-Vishkin connected components |
-| `sssp` | Delta-stepping SSSP |
-| `bc` | Betweenness centrality |
-| `tc` | Triangle counting |
-
-The default reordering study excludes `tc`; it remains available for explicit
-experiments.
-
-## Measurement Contract
-
-New observations are immutable, versioned raw attempts keyed by graph,
-algorithm family, exact ordered `-o` specification, benchmark, labeling,
-measurement mode, thread policy, mapping
-identity, exact permutation fingerprint, and attempt. Failures and timeouts
-are retained.
-
-Preprocessing timing is explicit:
-
-- canonical representation build;
-- reorder core;
-- permutation validation;
-- CSR application;
-- total preprocessing.
-
-`reorder_time` remains the complete core + validation + application
-compatibility metric. Aggregation is performed downstream; raw evidence is
-never reduced to a fastest-run record.
-
-The generic Python harness is the official result writer. C++ self-recording is
-available only through explicit `-D/--db-dir` or `GRAPHBREW_DB_DIR` use.
-
-The shuffled control is a fixed seeded labeling, not a worst-case claim.
-
-## Adaptive Selection
-
-Benchmark binaries never train models at runtime. They load versioned artifacts
-exported offline from measured Tier-0 features.
-
-Legacy non-nested LOGO evaluation is retired and fails closed. Evaluation uses
-nested leave-one-topology-out folds with fold-local portfolio selection, model
-fitting, and OOD calibration.
-
-## Optional Partitioning
-
-- Compact CSR partitioning and `graph.shard.v1` are separate from normal
-  kernels; validate changes with `make check-partition`.
-
-## Project Layout
+## Repository map
 
 ```text
-bench/src/                         canonical kernels
-bench/src_sim/                     cache-instrumented kernels
-bench/include/graphbrew/reorder/   reordering implementations
-bench/include/external/gapbs/      CLI, builder, benchmark lifecycle
+bench/src/                         canonical graph kernels
+bench/include/graphbrew/reorder/   reordering implementations and policies
+bench/include/external/gapbs/      graph builder and benchmark lifecycle
 scripts/graphbrew_experiment.py    public experiment orchestrator
-scripts/lib/                       shared Python policy and pipeline modules
-scripts/experiments/               frozen/restartable evaluation runners
-scripts/test/                      Python regression suite
-wiki/                              detailed documentation
+scripts/experiments/               frozen and restartable campaigns
+scripts/test/                      regression and evidence checks
+docs/                              public figures and evidence manifests
+wiki/                              detailed documentation source
 ```
 
-Generated binaries, graphs, mappings, and results are ignored. Do not place
-large datasets in repository-local `results/graphs/`.
+## Documentation
 
-## Verification
+- [Wiki home](https://github.com/UVA-LavaLab/GraphBrew/wiki)
+- [GraphBrew composition](https://github.com/UVA-LavaLab/GraphBrew/wiki/GraphBrewOrder)
+- [Runtime policy](https://github.com/UVA-LavaLab/GraphBrew/wiki/AdaptiveOrder)
+- [Algorithms and evidence](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms)
+- [Command-line reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)
 
-```bash
-# Authoritative core gate: required binaries, core native tests, include lint,
-# and the Python suite
-make check
+## Attribution and license
 
-# Reduced-dependency gate
-RABBIT_ENABLE=0 make check
+GraphBrew includes or compares against GAPBS, Rabbit Order, Gorder,
+Leiden/GVE-Leiden, RCM, and related locality methods. Exact attributions are
+recorded in source headers and the wiki.
 
-# Extended partition/shard integration
-make check-partition
-```
-
-Edge/GAS validation suites remain explicit and are not part of the primary
-core gate.
-
-## Citation and License
-
-GraphBrew integrates ideas and reference implementations from GAPBS,
-RabbitOrder, Gorder, Leiden/GVE-Leiden, and related graph-locality work.
-Consult the bundled source headers and wiki references for exact attribution.
-
-See [LICENSE](LICENSE) for licensing terms.
+See [LICENSE](LICENSE).

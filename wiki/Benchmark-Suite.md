@@ -17,7 +17,9 @@ scripts/
     └── tools/                  # Standalone CLI utilities
 ```
 
-Weight files are stored under `results/data/adaptive_models.json` (not `scripts/`).
+Historical offline-model files are stored under
+`results/data/adaptive_models.json`; the validated deterministic policy does
+not require them.
 
 ---
 
@@ -25,7 +27,6 @@ Weight files are stored under `results/data/adaptive_models.json` (not `scripts/
 
 ```bash
 python3 scripts/graphbrew_experiment.py --full --size small          # Full pipeline
-python3 scripts/graphbrew_experiment.py --train --size small         # Training pipeline
 python3 scripts/graphbrew_experiment.py --size small --quick         # Quick test
 python3 scripts/graphbrew_experiment.py --brute-force               # Validation
 ```
@@ -34,9 +35,9 @@ Sizes: `small`, `medium`, `large`, `xlarge`, or `all`. Auto-discovery
 searches the configured graph catalogs; use `--dry-run` to inspect the exact
 resolved corpus before execution.
 
-Generic raw observations are stored in `results/data/benchmarks.json`; exported
-load-only models use `results/data/adaptive_models.json`. Large frozen-study
-artifacts belong under the configured external artifact root.
+Generic raw observations are stored in `results/data/benchmarks.json`.
+Large frozen-study artifacts belong under the configured external artifact
+root.
 
 ---
 
@@ -46,7 +47,7 @@ artifacts belong under the configured external artifact root.
 python3 scripts/graphbrew_experiment.py --phase reorder --size small
 python3 scripts/graphbrew_experiment.py --phase benchmark --size small --skip-cache
 python3 scripts/graphbrew_experiment.py --phase cache --size small
-python3 scripts/graphbrew_experiment.py --phase weights
+python3 scripts/graphbrew_experiment.py --phase weights  # Historical offline path
 ```
 
 See [[Command-Line-Reference]] for all options including `--min-mb`, `--max-graphs`, `--trials`, `--quick`.
@@ -55,7 +56,8 @@ See [[Command-Line-Reference]] for all options including `--min-mb`, `--max-grap
 
 ## Output Format
 
-Results are JSON arrays. See [[Python-Scripts]] for the complete schema of `benchmark_*.json`, `cache_*.json`, and `reorder_*.json`. Weight data is consolidated in `results/data/adaptive_models.json`.
+Results are JSON arrays. See [[Python-Scripts]] for the complete schema of
+`benchmark_*.json`, `cache_*.json`, and `reorder_*.json`.
 
 ### Amortization Analysis
 
@@ -125,7 +127,7 @@ See [[Troubleshooting]] for common issues. Quick fixes:
 ## Next Steps
 
 - [[Benchmark-Suite]] - Analyze benchmark results
-- [[AdaptiveOrder-ML]] - Train the perceptron
+- [AdaptiveOrder](AdaptiveOrder) - validated runtime policy
 - [[Running-Benchmarks]] - Manual benchmark commands
 - [[Python-Scripts]] - Full script documentation
 

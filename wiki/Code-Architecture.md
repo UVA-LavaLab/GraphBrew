@@ -35,7 +35,7 @@ GraphBrew/
 │
 ├── results/                  # Experiment outputs
 │   ├── data/                 # Structured data store
-│   │   ├── adaptive_models.json     # Unified model store
+│   │   ├── adaptive_models.json     # Historical offline-model store
 │   │   ├── benchmarks.json          # Benchmark database
 │   │   └── graph_properties.json    # Graph feature cache
 │   ├── graphs/               # Downloaded graphs
@@ -100,14 +100,14 @@ The reorder module is a modular header library with standalone template function
 
 ```
 reorder/
-├── reorder_types.h      # Base: types, perceptron, feature computation (~6,293 lines)
+├── reorder_types.h      # Base types, feature computation, legacy model types
 ├── reorder_basic.h      # Original, Random, Sort (algo 0-2) (~324 lines)
 ├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~641 lines)
 ├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,117 lines)
 ├── reorder_classic.h    # GOrder, COrder, RCMOrder dispatch (algo 9-11) (~521 lines)
 ├── reorder_gorder.h     # GOrder CSR variants: serial (-o 9:csr) + parallel (-o 9:fast) (~926 lines)
 ├── reorder_rcm.h        # RCM BNF variant (-o 11:bnf) (~645 lines)
-├── reorder_adaptive.h   # ML-based selection (algo 14) (~932 lines)
+├── reorder_adaptive.h   # deterministic rules + legacy model modes (algo 14)
 ├── reorder_database.h   # Offline oracle diagnostics + compiled model storage
 ├── reorder_graphbrew.h  # GraphBrew + Leiden unified reordering (algo 12, 15) (~7,359 lines)
 └── reorder.h            # Main dispatcher (~633 lines)
@@ -118,11 +118,11 @@ reorder/
 | File | Lines | Purpose |
 |------|-------|---------|
 | `reorder_graphbrew.h` | ~7,359 | GraphBrew + Leiden unified reordering framework (algo 12, 15) |
-| `reorder_types.h` | ~6,293 | Common types, perceptron model, `EdgeList`, threshold functions, `GetLLCSizeBytes()`, `getAlgorithmNameMap()` (~16 base names), `lookupAlgorithm()`, `ResolveVariantSelection()` |
+| `reorder_types.h` | ~6,293 | Common types, sampled features, retained model types, `EdgeList`, LLC detection, and variant resolution |
 | `reorder_database.h` | ~1,221 | Offline `OracleUpperBound`, historical kNN diagnostics, and compiled model storage |
 | `reorder_rabbit.h` | ~1,117 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
 | `reorder_gorder.h` | ~926 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
-| `reorder_adaptive.h` | ~932 | `AdaptiveConfig`, ML-based algorithm selection (full-graph default) |
+| `reorder_adaptive.h` | ~932 | `AdaptiveConfig`, frozen deterministic rules, and retained offline-model modes |
 | `reorder_rcm.h` | ~645 | RCM BNF variant: parallel component processing + tiered BNF + serial CM BFS. Also used by GraphBrew-RCM variant (`-o 12:rcm`) for per-community RCM |
 | `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
 | `reorder.h` | ~633 | Main dispatcher, `ApplyBasicReorderingStandalone` |
@@ -131,7 +131,7 @@ reorder/
 
 **Key Utilities in reorder_types.h:**
 
-- `PerceptronWeights` / `GraphType` enum — ML scoring & graph type classification (see [[AdaptiveOrder-ML]])
+- `PerceptronWeights` / `GraphType` — retained offline-model research types
 - `SampledDegreeFeatures` — 8-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, estimated_modularity, packing_factor, forward_edge_fraction, working_set_ratio
 - `ComputeSampledDegreeFeatures()` — Auto-scaled sampling (max(5000, min(√N, 50000))) for fast feature extraction
 - `GetLLCSizeBytes()` — LLC detection (sysconf on Linux, 30MB fallback) for working_set_ratio
@@ -145,7 +145,8 @@ reorder/
 | `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
-All configs parse from CLI options via `FromOptions()`. Defaults are centralized constants in `reorder_types.h` (see [[AdaptiveOrder-ML]]).
+All configs parse from CLI options via `FromOptions()`. Runtime-policy
+semantics are documented in [AdaptiveOrder](AdaptiveOrder).
 
 > Note: use `graphbrew::leiden::DEFAULT_RESOLUTION` or
 > `adaptive::DEFAULT_RESOLUTION` explicitly — they are separate namespaces.
@@ -310,7 +311,7 @@ See [[Python-Scripts]] for full documentation of the Python tooling.
 Key entry points:
 - `graphbrew_experiment.py` — Public experiment orchestrator
 - `lib/tools/evaluate_all_modes.py` — In-sample model × criterion diagnostics; legacy LOGO flags fail closed
-- `lib/ml/weights.py` — **SSO** for scoring (`PerceptronWeight.compute_score()`) and type-based weight training
+- `lib/ml/weights.py` — historical offline scoring and fitting SSOT
 - `lib/core/datastore.py` — Versioned raw observations and graph properties
 - `lib/pipeline/benchmark.py` — Benchmark execution and timing parsing
 - `lib/pipeline/reorder_config.py` — Effective/realized reorder config validation
@@ -324,42 +325,18 @@ Key entry points:
 - `lib/pipeline/cache.py` — Cache simulation
 - `lib/` — 5 sub-packages, 27 modules (~21,000 lines total)
 
-#### Adaptive model boundary
+#### Adaptive selection boundary
 
-Deployable AdaptiveOrder consumes an offline-produced perceptron, decision
-tree, or hybrid artifact. It does not use graph filenames, exact-name oracle
-lookup, runtime kNN, or benchmark-row training. Database oracle/kNN routines
-remain offline diagnostics only.
+The validated deployment path is
+`allkernel-lowreuse-rule:best-endtoend:<reuse>`. It computes lightweight
+sampled graph features, reads machine LLC capacity, and applies one frozen
+predicate before choosing the promoted GraphBrew composition or Boost Rabbit.
+It does not load `adaptive_models.json`, train at runtime, use graph names, or
+query benchmark rows.
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  DEPLOYABLE: offline model artifact                              │
-│    → perceptron / decision tree / hybrid                         │
-│    → no graph identity or benchmark-row lookup                   │
-├──────────────────────────────────────────────────────────────────┤
-│  OFFLINE ONLY: OracleUpperBound / kNN diagnostics                │
-│                                                                  │
-│  weights.py  →  PerceptronWeight.compute_score()                │
-│                 (26 fields: bias + 15 linear + 3 quadratic      │
-│                  + convergence + cache + reorder_time + bench)   │
-│                 SOLE scoring implementation in Python             │
-├──────────────────────────────────────────────────────────────────┤
-│  eval_weights.py  →  load_all_results()                          │
-│                      build_performance_matrix()                   │
-│                      compute_graph_features()                     │
-│                      find_best_algorithm()                        │
-│                 SOLE data-loading implementation                  │
-├──────────────────────────────────────────────────────────────────┤
-│  adaptive_emulator.py  →  delegates to PerceptronWeight          │
-│  training.py           →  delegates to PerceptronWeight           │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-**C++ selection flow:** `ParseDeployableSelectionPolicy()` parses model and
-criterion independently, rejects offline-only models, and dispatches through
-`SelectReorderingWithModelCriterion()`.
-
-**C++ fallback alignment:** `PerceptronWeight.compute_score()` mirrors `scoreBase() × getBenchmarkMultiplier()` in `reorder_types.h`. Both apply identical transforms (log₁₀, /100, /10, /50, log₂, log₁₀) and the same 17-feature dot product + convergence bonus.
+Perceptron, decision-tree, hybrid, oracle, and kNN code remains under
+`scripts/lib/ml/` and the C++ compatibility headers for offline research.
+Those components are not the validated runtime contribution.
 
 **Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/core/utils.py`:
 
@@ -371,9 +348,12 @@ criterion independently, rejects offline-only models, and dispatches through
 | `chain_canonical_name(converter_opts)` | Multi-step chain name | `chain_canonical_name("-o 12:leiden -o 5")` → `"GraphBrewOrder_leiden+DBG"` |
 | `get_algo_variants(algo_id)` | Variant tuple (or `None`) | `get_algo_variants(12)` → `("leiden", "rabbit", "hubcluster")` |
 
-**Chained Orderings:** `CHAINED_ORDERINGS` is auto-populated at module load from `_CHAINED_ORDERING_OPTS` via `chain_canonical_name()`. These are pregeneration-only (not used in perceptron training). Each entry is a `(canonical_name, converter_opts)` tuple. Current chains: `GraphBrewOrder_leiden+DBG`, `GraphBrewOrder_leiden+HUBCLUSTER`, `GraphBrewOrder_hrab+DBG`, `GraphBrewOrder_leiden+GoGraphOrder`, `RABBITORDER_csr+DBG`.
+**Chained Orderings:** `CHAINED_ORDERINGS` is auto-populated at module load from `_CHAINED_ORDERING_OPTS` via `chain_canonical_name()`. These are explicit pregeneration treatments. Each entry is a `(canonical_name, converter_opts)` tuple.
 
-**Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algo IDs 8, 11, 12 to `(prefix, variants, default)` tuples. GOrder variants (9: default/gograph/csr/fast) are tracked separately in `GORDER_VARIANTS` and share one perceptron weight; `gograph` and `csr` are faithful and mapping-equivalent, while `fast` is a relaxed parallel heuristic.
+**Variant Registry:** `_VARIANT_ALGO_REGISTRY` maps algorithm IDs to
+canonical names and converter options. Faithful and relaxed variants remain
+separate experimental configurations even when historical model tooling
+shares metadata.
 
 See [[Python-Scripts]].
 
@@ -462,7 +442,10 @@ C++ benchmark binaries now write directly to `benchmarks.json` and
 
 JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Python-Scripts]] for format.
 
-Weight files: `results/data/adaptive_models.json` (see [[AdaptiveOrder-ML]]). Results: `results/graphs/`, `results/logs/`, `results/mappings/` (see [[Python-Scripts#output-structure]]). Data store: `results/data/` (adaptive_models.json, benchmarks.json, graph_properties.json, runs/).
+Historical offline-model files may use `results/data/adaptive_models.json`.
+The validated deterministic rule does not require it. Results live under
+`results/graphs/`, `results/logs/`, and `results/mappings/`; see
+[[Python-Scripts#output-structure]].
 
 ---
 

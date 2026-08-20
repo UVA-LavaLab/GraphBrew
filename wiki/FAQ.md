@@ -50,13 +50,13 @@ Three common reasons:
 | Explicit C++ self-recording (`-D DIR`) | `DIR/benchmarks.json` |
 | Pipeline (`graphbrew_experiment.py`) | `results/data/benchmarks.json` |
 | Frozen-study runs | the configured `--paper-artifact-root` |
-| Trained adaptive models | `results/data/adaptive_models.json` |
+| Historical offline models | `results/data/adaptive_models.json` |
 
-## Where do trained AdaptiveOrder models live?
+## Does AdaptiveOrder require a trained model?
 
-`results/data/adaptive_models.json`. Models are trained/exported offline;
-algorithm 14 only loads the artifact. See
-[AdaptiveOrder-ML](AdaptiveOrder-ML).
+No. The validated `allkernel-lowreuse-rule` is a frozen deterministic
+predicate and does not load `adaptive_models.json`. Historical model
+experiments can still read that file. See [AdaptiveOrder](AdaptiveOrder).
 
 ## How do I add a new algorithm or benchmark?
 
@@ -105,9 +105,9 @@ Cite the repository:
 }
 ```
 
-## Where is the AdaptiveOrder / ML documentation?
+## Where is the runtime selection documentation?
 
-[AdaptiveOrder-ML](AdaptiveOrder-ML).
+[AdaptiveOrder](AdaptiveOrder).
 
 ## Common errors
 
@@ -118,6 +118,6 @@ Cite the repository:
 | `g++ unrecognized command line option '-std=c++17'` | install GCC 7+ |
 | `Cannot allocate memory` while building | `make -j2` instead of `-j` |
 | `*.sg file not found` after rebuild | re-run with `-f graph.el`; the binary will regenerate `.sg` |
-| AdaptiveOrder picks the same algorithm every time | The load-only model artifact is missing, untrained, or intentionally abstaining; fit/export it offline with the orchestrator and inspect the Tier-0 weights |
+| The low-reuse rule always picks Rabbit | Confirm the exact algorithm-14 string, supported kernel, reuse 1 or 2, and graph size; fallback is expected when the frozen predicate is false |
 
 More in [Troubleshooting](Troubleshooting).

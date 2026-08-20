@@ -1,16 +1,8 @@
-# docs/figures/ — Logos & Diagrams
+# Public figures
 
-Project logos and algorithm visualization diagrams.
+- `logo.svg` — project mark used by the README
+- `graphbrew-architecture.svg` — canonical system architecture
 
-**Logos:** `logo.svg` is the README mark. `logo.png` and `logo_left.png` are
-retained raster variants.
-
-**Algorithm diagrams** (used by `wiki/Reordering-Algorithms.md`):
-- `reorder_overview.png` — algorithm comparison overview
-- `reorder_comparison.png` — adjacency matrix comparison
-- `reorder_hubsort.png` / `reorder_hubcluster.png` — hub-based reordering
-- `reorder_community.png` — community detection reordering
-- `reorder_rcm.png` — RCM bandwidth reduction
-- `reorder_graphbrew.png` — GraphBrewOrder pipeline result
-- `graphbrew_pipeline.png` — GraphBrewOrder pipeline diagram
-- `adaptive_pipeline.png` — AdaptiveOrder pipeline diagram
+The architecture SVG is the single source for the public mechanism diagram.
+Experiment-specific plots are generated into content-bound artifact
+directories and are not committed as duplicate PNG/SVG pairs.

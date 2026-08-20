@@ -1,223 +1,127 @@
 # All-Kernel Low-Reuse Selector
 
-GraphBrew's final low-reuse contribution has two parts:
+GraphBrew's validated automatic path is a frozen decision rule for mappings
+reused once or twice. It chooses between a cost-matched GraphBrew composition
+and Boost Rabbit.
 
-1. **FastLeiden-SizeDesc-Gorder8**, a cost-matched non-Rabbit composition.
-2. **`allkernel-lowreuse-rule`**, a frozen feature rule that invokes that
-   composition only where it beat Boost Rabbit during graph-held-out
-   validation.
+![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
 
-The composition is not a universal winner. The selector is essential.
+## Why this design
 
-## Result summary
+Rabbit is inexpensive to construct, so a more elaborate layout is useful only
+when its kernel savings recover the extra preprocessing cost. Full
+Leiden-Gorder composition improved locality but was approximately 17-18 times
+more expensive to build than Rabbit. The promoted composition removes the
+dominant cost while preserving the useful layout structure:
 
-The rule was derived from 18 graphs, frozen, and then evaluated on 12
-additional graphs. It selected GraphBrew on seven holdouts and Boost Rabbit on
-five.
+- two parallel Leiden iterations and passes;
+- ordered super-graph proposal batches of 4096;
+- no refinement phase;
+- communities placed by descending size;
+- Gorder8 inside communities of at most 5000 vertices;
+- BFS fallback inside larger communities.
 
-| Reuse | Selected holdouts: Boost/GraphBrew | Lower 95% | Full 12-graph selector/always-Boost |
-|---:|---:|---:|---:|
-| 1 | 1.696x | 1.502x | 1.361x |
-| 2 | 1.642x | 1.460x | 1.336x |
-
-Every selected holdout graph won at both reuse counts.
-
-## System overview
-
-```mermaid
-flowchart LR
-    A[Graph + kernel + declared reuse] --> B[Sample Tier-0 features]
-    B --> C{Frozen low-reuse predicate}
-    C -->|match| D[FastLeiden-SizeDesc-Gorder8]
-    C -->|fallback| E[Boost Rabbit]
-    D --> F[Reordered CSR]
-    E --> F
-    F --> G[Run graph kernel]
-```
-
-The selector does not use a graph filename, benchmark identity, or runtime
-trial of multiple reorderers.
-
-## The promoted composition
+Exact configuration:
 
 ```text
 12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:
 cd_parallel:sgmb4096:gordf5000:norefine:2:2
 ```
 
-```mermaid
-flowchart TD
-    A[Randomized/current CSR] --> B[Parallel Leiden: 2 iterations x 2 passes]
-    B --> C[Ordered super-graph proposal batches: 4096]
-    C --> D[No refinement]
-    D --> E[Sort communities by size descending]
-    E --> F{Community size <= 5000?}
-    F -->|yes| G[Gorder window 8]
-    F -->|no| H[BFS-from-hub fallback]
-    G --> I[Compose final permutation]
-    H --> I
-```
+On the five-graph cost-matched confirmation set, this composition was 10.4%
+cheaper to construct than CSR Rabbit and 21.1% cheaper than Boost Rabbit while
+remaining faster across the seven-kernel aggregate.
 
-### Why these pieces work
+## What is automatic
 
-- **Two Leiden passes** recover multi-level community structure that the
-  one-pass fast path lost.
-- **Ordered proposal batches** evaluate modularity moves in parallel but
-  commit each batch in community order. This removes most of the sequential
-  super-graph bottleneck without using a whole-graph synchronous update, which
-  lost locality quality.
-- **No refinement** removes a costly phase whose low-reuse benefit did not
-  amortize.
-- **SizeDesc blocks** place large working regions contiguously and was the
-  strongest block-order point effect in the controlled cost audit.
-- **Gorder8** improves locality inside small/medium communities.
-- **BFS fallback above 5000 vertices** prevents Gorder from dominating mapping
-  time on large communities.
+The composition above is fixed. The runtime does not search the partitioner,
+block layout, or vertex-layout space. Automation is limited to choosing
+between that fixed composition and Boost Rabbit.
 
-## Frozen selection rule
-
-The candidate is selected only for the seven measured kernels, reuse at most
-2, and:
+The deployable interface is:
 
 ```text
-property_wsr_llc <= 3.2
-and (
-  (
-    degree_cv <= 2.68
-    and (avg_degree <= 60 or property_wsr_llc <= 0.82)
-  )
-  or degree_cv > 8
-)
+14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>
 ```
 
-Otherwise GraphBrew uses Boost Rabbit. Builds without Boost use the reduced
-fallback compiled into AdaptiveOrder.
+where `<reuse>` is `1` or `2`.
 
-### Interpretation
+## Frozen predicate
 
-- **Property WSR/LLC** estimates whether the kernel's property working set is
-  small enough for mapping savings and locality to matter.
-- **Degree CV** separates moderate-skew community graphs, extreme-skew graphs,
-  and the unstable middle region.
-- **Average degree** prevents a low-skew but very dense graph from being
-  selected unless its property working set is close to LLC.
-- **Reuse** is explicit because Rabbit's faster steady-state kernel can
-  overtake a cheaper mapping after repeated invocations.
+The candidate is eligible only when:
 
-## Figures
+- the graph has at least 1000 vertices;
+- reuse is at most 2;
+- the kernel is PR, PR-SpMV, BFS, CC, CC-SV, BC, or SSSP; and
+- the following predicate is true:
 
-![Feature decision map](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/allkernel-selector-feature-map.svg)
-
-Circles are graphs selected by the frozen rule; crosses are Rabbit fallbacks.
-Green means the candidate beats Boost Rabbit at reuse 1. The plotted
-boundaries are projections of the full rule; average degree supplies the
-remaining branch.
-
-![Untouched holdout speedups](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/allkernel-selector-holdout-speedup.svg)
-
-Fallback graphs remain at 1.0 because the selector executes Boost Rabbit.
-
-![Mapping and end-to-end decomposition](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/allkernel-selector-cost-breakdown.svg)
-
-The selected graphs generally win through both cheaper mapping and useful
-kernel locality. A few graphs have slower candidate kernels but still win
-reuse-1/2 end-to-end because mapping is much cheaper.
-
-## How to run it
-
-Reuse must be explicit:
-
-```bash
-# One invocation of the reordered graph
-./bench/bin/pr -f graph.sg -s \
-  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' -n 3
-
-# Two invocations reusing the same materialized mapping
-./bench/bin/bfs -f graph.sg -s \
-  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:2' -n 3
+```text
+property_wsr_llc <= 3.2 && ((degree_cv <= 2.68 && (avg_degree <= 60 || property_wsr_llc <= 0.82)) || degree_cv > 8)
 ```
 
-`reuse=1` does not mean one PageRank iteration. One fixed-work PR invocation
-still executes 20 internal iterations; reuse counts separate kernel
-invocations that share one mapping.
+Otherwise the selector uses Boost Rabbit. Reduced builds without Boost use
+DBG as an explicit fallback.
 
-## Reading the per-graph tables
+`property_wsr_llc` is the estimated kernel-property working set divided by
+machine last-level-cache capacity. The structural statistics come from the
+lightweight graph-analysis pass.
 
-- **Map C/B**: candidate mapping time divided by Boost mapping time. Below 1
-  means GraphBrew maps faster.
-- **Kernel B/C**: Boost kernel time divided by candidate kernel time. Above 1
-  means GraphBrew's ordering runs the kernel faster.
-- **Reuse B/C**: Boost end-to-end time divided by candidate end-to-end time.
-  Above 1 means the candidate would win.
-- A fallback row can show B/C above 1. That is deliberately unclaimed
-  headroom left by the conservative frozen rule.
+This rule is deterministic. It uses no graph names, runtime training, learned
+weights, nearest-neighbor lookup, or trial reorderings.
 
-## Eleven-graph derivation matrix
+## Validation protocol
 
-| Graph | Rule choice | Why | Map C/B | Kernel B/C | Reuse 1 B/C | Reuse 2 B/C |
-|---|---|---|---:|---:|---:|---:|
-| Gong-gplus | Rabbit Boost | working set exceeds 3.2x LLC | 1.664 | 1.121 | 0.619 | 0.634 |
-| USA-road-d.USA | Rabbit Boost | working set exceeds 3.2x LLC | 1.795 | 0.566 | 0.555 | 0.554 |
-| cit-Patents | FastLeiden-Gorder8 | moderate skew and degree | 0.727 | 0.988 | 1.352 | 1.333 |
-| com-Orkut | Rabbit Boost | intermediate/high skew outside frozen region | 1.192 | 1.099 | 0.848 | 0.856 |
-| delaunay_n24 | Rabbit Boost | working set exceeds 3.2x LLC | 1.465 | 0.751 | 0.685 | 0.687 |
-| hollywood-2009 | FastLeiden-Gorder8 | property working set near/below LLC | 0.524 | 0.996 | 1.821 | 1.758 |
-| soc-LiveJournal1 | FastLeiden-Gorder8 | moderate skew and degree | 0.940 | 1.308 | 1.074 | 1.083 |
-| soc-pokec | FastLeiden-Gorder8 | moderate skew and degree | 0.850 | 1.253 | 1.180 | 1.183 |
-| twitter7 | Rabbit Boost | working set exceeds 3.2x LLC | 1.861 | 1.125 | 0.564 | 0.585 |
-| webbase-2001 | Rabbit Boost | working set exceeds 3.2x LLC | 1.151 | 1.074 | 0.876 | 0.883 |
-| wikipedia_link_en | Rabbit Boost | working set exceeds 3.2x LLC | 1.351 | 1.128 | 0.754 | 0.766 |
+The predicate was derived on 18 graphs. It was frozen before 12 additional
+graphs were opened. Mapping construction and all seven kernels were measured
+with fixed affinity and repeated trials.
 
-## Rule-correction graphs
+Seven holdouts selected GraphBrew and all seven passed at reuse 1 and 2. Five
+holdouts used Boost Rabbit fallback.
 
-The first rule failed on YouTube and Enron. Those outcomes were added to
-training, the first rule was closed without editing its thresholds, and rule
-version 2 was frozen before the final holdouts were opened.
+| Reuse | Selected holdouts: Boost/GraphBrew | Lower 95% | Full selector/always-Boost |
+|---:|---:|---:|---:|
+| 1 | 1.696x | 1.502x | 1.361x |
+| 2 | 1.642x | 1.460x | 1.336x |
 
-| Graph | Rule-v2 choice | Why | Map C/B | Kernel B/C | Reuse 1 B/C | Reuse 2 B/C |
-|---|---|---|---:|---:|---:|---:|
-| as-Skitter | FastLeiden-Gorder8 | extreme degree skew | 0.793 | 1.106 | 1.247 | 1.236 |
-| cit-HepPh | FastLeiden-Gorder8 | moderate skew and degree | 0.910 | 1.109 | 1.086 | 1.081 |
-| com-Youtube | Rabbit Boost | intermediate/high skew outside frozen region | 1.232 | 1.105 | 0.823 | 0.832 |
-| email-Enron | Rabbit Boost | intermediate/high skew outside frozen region | 0.975 | 0.974 | 0.990 | 0.974 |
-| rgg_n_2_20_s0 | FastLeiden-Gorder8 | moderate skew and degree | 0.500 | 1.105 | 1.928 | 1.868 |
-| roadNet-CA | FastLeiden-Gorder8 | moderate skew and degree | 0.790 | 0.734 | 1.224 | 1.190 |
-| web-Google | FastLeiden-Gorder8 | moderate skew and degree | 0.601 | 0.945 | 1.596 | 1.543 |
+### Final holdout decisions
 
-## Twelve untouched rule-v2 holdouts
+| Graph | Decision |
+|---|---|
+| soc-BlogCatalog | GraphBrew; pass |
+| soc-LiveMocha | GraphBrew; pass |
+| web-Stanford | GraphBrew; pass |
+| Amazon0601 | GraphBrew; pass |
+| web-Google | GraphBrew; pass |
+| web-NotreDame | GraphBrew; pass |
+| loc-gowalla_edges | GraphBrew; pass |
+| soc-pokec | Boost Rabbit fallback |
+| as-skitter | Boost Rabbit fallback |
+| cit-Patents | Boost Rabbit fallback |
+| citeseer | Boost Rabbit fallback |
+| ca-AstroPh | Boost Rabbit fallback |
 
-| Graph | Frozen choice | Why | Map C/B | Kernel B/C | Reuse 1 B/C | Reuse 2 B/C |
-|---|---|---|---:|---:|---:|---:|
-| amazon0601 | FastLeiden-Gorder8 | moderate skew and degree | 0.550 | 1.279 | 1.778 | 1.745 |
-| cnr-2000 | FastLeiden-Gorder8 | moderate skew and degree | 0.656 | 1.016 | 1.447 | 1.396 |
-| coPapersCiteseer | FastLeiden-Gorder8 | property working set near/below LLC | 0.462 | 1.119 | 2.049 | 1.969 |
-| coPapersDBLP | FastLeiden-Gorder8 | moderate skew and degree | 0.477 | 1.219 | 2.018 | 1.961 |
-| dblp-2010 | FastLeiden-Gorder8 | moderate skew and degree | 0.609 | 0.932 | 1.584 | 1.536 |
-| in-2004 | FastLeiden-Gorder8 | extreme degree skew | 0.532 | 1.074 | 1.817 | 1.770 |
-| kron_g500-logn18 | Rabbit Boost | intermediate/high skew outside frozen region | 0.743 | 0.650 | 1.188 | 1.104 |
-| roadNet-TX | FastLeiden-Gorder8 | moderate skew and degree | 0.716 | 0.861 | 1.359 | 1.328 |
-| soc-Slashdot0811 | Rabbit Boost | intermediate/high skew outside frozen region | 1.519 | 0.862 | 0.646 | 0.644 |
-| web-BerkStan | Rabbit Boost | intermediate/high skew outside frozen region | 0.622 | 0.977 | 1.552 | 1.509 |
-| wiki-Talk | Rabbit Boost | intermediate/high skew outside frozen region | 0.660 | 0.919 | 1.478 | 1.448 |
-| wiki-topcats | Rabbit Boost | intermediate/high skew outside frozen region | 1.177 | 1.002 | 0.854 | 0.857 |
+The full 30-graph derivation and validation rows are in the
+[machine-readable evidence file](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/allkernel-lowreuse-evidence.json).
 
-## Limitations
+## Interpretation
+
+The result is an end-to-end low-reuse result, not a claim that GraphBrew always
+produces faster kernels. The selector wins by balancing mapping cost against
+the aggregate kernel savings for the declared reuse.
+
+`reuse=2` means two complete kernel invocations share one materialized
+mapping. It does not mean two PageRank iterations; one PageRank invocation
+still performs its fixed internal iteration count.
+
+## Limits
 
 - The rule is validated only for reuse 1 and 2.
-- Supported kernels are PR, PR-SpMV, BFS, CC, CC-SV, BC, and SSSP.
-- CC-SV can regress even when the seven-kernel end-to-end aggregate wins.
-- Boost Rabbit is the validated fallback.
-- The rule is intentionally conservative and leaves some candidate wins on
-  fallback graphs unclaimed.
+- It is a fallback policy, not a universal GraphBrew recommendation.
+- Road and mesh-like graphs exposed failures of the universal static
+  composition and are intentionally routed away by the rule.
+- CC-SV can regress even when the seven-kernel end-to-end aggregate improves.
+- Mapping construction and kernel time must remain separate in reported
+  results.
 
-## Evidence and implementation
-
-- Public per-graph data:
-  [`docs/allkernel-lowreuse-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/allkernel-lowreuse-evidence.json)
-- Recommendation manifest:
-  [`docs/recommendation-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/recommendation-evidence.json)
-- Runtime selector:
-  `bench/include/graphbrew/reorder/reorder_adaptive.h`
-- GVE ordered batching:
-  `bench/include/graphbrew/reorder/reorder_graphbrew.h`
-
+See [AdaptiveOrder](AdaptiveOrder) for the runtime boundary and
+[GraphBrewOrder](GraphBrewOrder) for explicit composition.

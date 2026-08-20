@@ -42,7 +42,7 @@ the other IDs are individual primitives or baselines.
 | 11 | `-o 11` | RCM | O(n log n + m) | historical double-pass; variants `mind`, `bnf` expose explicit single-pass methods |
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
-| 14 | `-o 14` | AdaptiveOrder | varies | offline-model selector; see [AdaptiveOrder-ML](AdaptiveOrder-ML) |
+| 14 | `-o 14` | AdaptiveOrder | varies | validated deterministic rule plus legacy offline-model modes; see [AdaptiveOrder](AdaptiveOrder) |
 | 15 | `-o 15` | LeidenOrder | O(n log n + m) | GVE-Leiden communities plus an explicit post-layout policy |
 | 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; published Rabbit clustering omitted |
 
@@ -58,7 +58,7 @@ intervals are recorded in
 | Non-Rabbit all-kernel ordering quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Kernel-only GM is 1.049x over Rabbit CSR and 1.059x over Boost across 11 graphs and 7 kernels; both lower 95% bounds exceed one. Full Leiden mapping costs about 17–18x Rabbit, and a one-pass replacement failed to retain the quality win. |
 | Non-Rabbit controlled-work quality | `12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp` | About 1.025x over both Rabbit implementations for fixed-work PR/PR-SpMV, fixed-source SSSP, and BC. It is not the all-kernel winner because CC/CC-SV regress. |
 | Low-reuse end-to-end | `12:leiden:compose:sg_none:comm_identity:intra_gorder:gw32:gordf500:cd_parallel:1:1` | Wins reuse-1 on a bounded rapid cohort through lower mapping cost; Rabbit kernels are faster on average, and Boost wins the Friendster holdout. |
-| Automatic all-kernel reuse 1–2 | `14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Frozen graph-feature rule selects the cost-matched FastLeiden-Gorder8 composition or Boost Rabbit. Seven selected untouched graphs all pass; aggregate gains are 1.696x/1.642x. |
+| Automatic all-kernel reuse 1–2 | `14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Frozen deterministic rule selects the cost-matched FastLeiden-Gorder8 composition or Boost Rabbit. Seven selected untouched graphs pass at 1.696x/1.642x over Boost; including five Rabbit fallbacks, the full policy reaches 1.361x/1.336x over always-Boost. |
 | Road/mesh diagnosis | Compare `12:hrab`, `12:hrab:bfs_intra`, `11:bnf`, and both Rabbits | HRAB-RCM has the best point estimate on the single road and mesh graphs, but each type has one graph, so this is descriptive rather than a general recommendation. |
 | Unknown workload | `0`, `8:csr`, `8:boost`, plus one objective-matched COMPOSE row | Measure kernel-only quality and end-to-end time separately. Graph type alone does not identify the winner. |
 
@@ -142,37 +142,22 @@ Variants:
 
 ### Composable (12 — the GraphBrew framework)
 
-`-o 12` is the framework that combines community detection,
-intra-community ordering, and inter-community arrangement into
-ten variants. Variant selection is by flag suffix:
+`-o 12` explicitly composes a community detector, community-block layout,
+and intra-community layout. These parameters are hand selected; GraphBrew
+does not search them at runtime.
 
-| Flag | Variant | One-line summary |
-|---|---|---|
-| `-o 12:leiden` (default) | Leiden | GVE-Leiden blocks + per-block Rabbit |
-| `-o 12:rabbit` | Rabbit | single-pass Rabbit + dendrogram DFS |
-| `-o 12:hrab` | HRAB | Leiden + Rabbit super-graph + RCM intra |
-| `-o 12:hrab:bfs_intra` | HRAB-BFS | same super-graph path with BFS intra |
-| `-o 12:tqr` | TQR | cache-line tile + RabbitOrder on tile adjacency |
-| `-o 12:hcache` | HCache | uses every Leiden level as a cache-tier mapping |
-| `-o 12:streaming` | Streaming | lazy-aggregation Leiden; lower memory |
-| `-o 12:hubcluster` | HubCluster | Leiden + hub-first intra-community |
-| `-o 12:rabbit:dbg` | Rabbit-DBG | single-pass Rabbit + DBG within community |
-| `-o 12:rabbit:hubcluster` | Rabbit-HubCluster | single-pass Rabbit + hub-first intra |
+Two evidence-bound examples are:
 
-Modifier tokens that compose with the variants:
-
-| Token | Effect |
+| Objective | Exact configuration |
 |---|---|
-| `:sgres0.10` | super-graph modularity resolution γ (default 0.10) |
-| `:gamma0.10` | alias for `:sgres` |
-| `:rcm_intra` | force RCM within communities (HRAB default) |
-| `:bfs_intra` | force BFS within communities |
-| `:rcm_super` | RCM on super-graph instead of dendrogram DFS |
-| `:hubx` | extract top-1% hubs first, place adjacent to their best block |
-| `:gord` | Gorder-greedy intra-community (with UnitHeap) |
+| Kernel-only all-kernel quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` |
+| Cost-matched low-reuse candidate | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:cd_parallel:sgmb4096:gordf5000:norefine:2:2` |
 
-Example: `-o 12:hrab:sgres0.25:hubx`. See [GraphBrewOrder](GraphBrewOrder)
-for the pipeline and how variants compose.
+Named historical presets such as `hrab`, `tqr`, and `hcache` remain callable
+for reproduction. They are not aliases for the promoted composition and
+should not be treated as automatic recommendations. See
+[GraphBrewOrder](GraphBrewOrder) for stage tokens and the measurement
+contract.
 
 ### Meta (13, 14)
 
@@ -180,8 +165,10 @@ for the pipeline and how variants compose.
 (`.lo` or `.so` file). Used by the benchmark pipeline to apply a
 pregenerated reordering without redoing the work.
 
-**AdaptiveOrder** (`-o 14`) — runtime ML selector. Not part of the
-VLDB submission; see [AdaptiveOrder-ML](AdaptiveOrder-ML).
+**AdaptiveOrder** (`-o 14`) — runtime selection boundary. The validated path
+is the frozen deterministic `allkernel-lowreuse-rule`, not ML. Historical
+offline-model modes remain for compatibility; see
+[AdaptiveOrder](AdaptiveOrder).
 
 ### Reference Leiden (15)
 
@@ -232,7 +219,8 @@ so they refine the existing community layout instead of destroying it.
 ./bench/bin/pr -f g.el -s -o 8 -o 5 -n 5
 ```
 
-Five chains are formally evaluated in the VLDB paper §4.5.2.
+Chains are also explicit, hand-configured treatments. Record the complete
+sequence and measure its combined mapping cost.
 
 ## Selection checklist
 

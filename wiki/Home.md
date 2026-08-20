@@ -1,55 +1,53 @@
-# GraphBrew Wiki
+# GraphBrew
 
-GraphBrew is a graph-reordering framework with canonical GAP-style
-kernels, multiple baseline reorderers, cache simulation, reproducible
-experiment orchestration, and infrastructure for developing new orderings.
+GraphBrew is a research and deployment framework for **composable graph
+reordering**. It separates three decisions that monolithic ordering names
+usually combine:
 
-## Documentation
+1. **Partitioner** — discover vertex groups.
+2. **Block layout** — place groups in the global ID space.
+3. **Vertex layout** — order vertices inside each block.
 
-**Start here**
-- [Getting-Started](Getting-Started) — build, run your first benchmark
-- [Reordering-Algorithms](Reordering-Algorithms) — every algorithm explained
-- [Running-Benchmarks](Running-Benchmarks) — command-line workflow
+![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
 
-**Reference**
-- [Command-Line-Reference](Command-Line-Reference) — all flags
-- [Supported-Graph-Formats](Supported-Graph-Formats) — `.sg`, `.el`, `.wel`
-- [Graph-Benchmarks](Graph-Benchmarks) — graph catalog
-- [Troubleshooting](Troubleshooting) — common errors and fixes
-- [FAQ](FAQ) — short answers to common questions
+## Two ways to use GraphBrew
 
-**Deep dives**
-- [GraphBrewOrder](GraphBrewOrder) — the composable pipeline
-- [All-Kernel-Low-Reuse-Selector](All-Kernel-Low-Reuse-Selector) — figures, frozen rule, and per-graph evidence
-- [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
-- [Partitioning-and-Shards](Partitioning-and-Shards) — compact CSR packages
-- [Code-Architecture](Code-Architecture) — codebase map
-- [Reproducible-Experiments](Reproducible-Experiments) — frozen study reproduction
+| Interface | Meaning |
+|---|---|
+| `-o 12:<configuration>` | Explicit, hand-configured composition for controlled experiments or known workloads. |
+| `-o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Frozen deterministic reuse-1/2 policy. This is the validated automatic path and is **not ML**. |
 
-**Developer**
-- [Contributing](Contributing) — adding algorithms and benchmarks
-- [Python-Scripts](Python-Scripts) — analysis tools
+The runtime policy uses cheap graph statistics and declared reuse to choose
+the promoted FastLeiden-Gorder8 composition or Boost Rabbit. It does not train
+at runtime, use graph names, query an oracle database, or trial multiple
+orderings.
 
-**Selection**
-- [AdaptiveOrder-ML](AdaptiveOrder-ML) — offline-model runtime selector
-- [All-Kernel-Low-Reuse-Selector](All-Kernel-Low-Reuse-Selector) — validated reuse-1/2 runtime policy
+## Start here
 
-## What GraphBrew gives you
+- [Getting Started](Getting-Started)
+- [GraphBrewOrder](GraphBrewOrder) — composition axes and exact configuration
+- [AdaptiveOrder](AdaptiveOrder) — deterministic runtime policy and scope
+- [All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector) — mechanism,
+  figure, frozen rule, and evidence
+- [Reordering Algorithms](Reordering-Algorithms) — baselines and measured
+  guidance
+- [Running Benchmarks](Running-Benchmarks)
+- [Reproducible Experiments](Reproducible-Experiments)
 
-| Pipeline stage | Choices | What it controls |
-|---|---|---|
-| Partitioner | Leiden, Rabbit Order | vertex groups |
-| Block layout | identity, size/degree sort, Rabbit/RCM/tile super-graph | global placement |
-| Vertex layout | BFS, RCM, HubCluster, DBG, Gorder | within-block locality |
+## Reference
 
-Variants ship as flags: `-o 12:leiden`, `-o 12:rabbit`, `-o 12:hrab`,
-`-o 12:tqr`, `-o 12:hcache`, `-o 12:hrab:bfs_intra`,
-`-o 12:hubcluster`, `-o 12:streaming`.
+- [Command-Line Reference](Command-Line-Reference)
+- [Supported Graph Formats](Supported-Graph-Formats)
+- [Graph Benchmarks](Graph-Benchmarks)
+- [Cache Simulation](Cache-Simulation)
+- [Code Architecture](Code-Architecture)
+- [Troubleshooting](Troubleshooting)
+- [FAQ](FAQ)
 
-See [Reordering-Algorithms](Reordering-Algorithms) for the full list.
+## Development
 
-## Repository
+- [Contributing](Contributing)
+- [Python Scripts](Python-Scripts)
+- [Partitioning and Shards](Partitioning-and-Shards)
 
-- Code: https://github.com/UVA-LavaLab/GraphBrew
-- Issues: https://github.com/UVA-LavaLab/GraphBrew/issues
-- Reproducibility: use `graphbrew_experiment.py` and the frozen-study guide
+Repository: https://github.com/UVA-LavaLab/GraphBrew

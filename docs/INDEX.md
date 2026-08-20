@@ -1,87 +1,70 @@
-# GraphBrew Documentation Index
+# GraphBrew documentation index
 
-## Project Folder Hierarchy
-```
-GraphBrew/
-├── bench/                          # C++ benchmark suite
-│   ├── src/                        # Algorithm source (pr, bfs, sssp, cc, cc_sv, pr_spmv, bc, tc)
-│   ├── src_sim/                    # Cache-instrumented versions (8 algorithms)
-│   ├── bin/                        # Compiled benchmark binaries
-│   ├── bin_sim/                    # Compiled simulation binaries
-│   └── include/                    # Headers (see Include Structure below)
-├── scripts/                        # Python experiment infrastructure
-│   ├── graphbrew_experiment.py      # Main pipeline entry point (single top-level script)
-│   ├── experiments/                 # Frozen and restartable evaluation runners
-│   ├── lib/                         # 5 sub-packages (core, pipeline, ml, analysis, tools)
-│   └── test/                        # pytest test suite
-├── wiki/                           # Detailed public documentation
-├── docs/                           # Quick guides + INDEX.md
-└── Makefile                        # Build and verification SSOT
-```
+## Public story
 
-## Top-Level Guides
-- `README.md` — Quick start, CLI overview
-- `wiki/` — Detailed guides (Quick Start, Command-Line Reference, Benchmarks)
+- [`README.md`](../README.md) — purpose, architecture, validated result, build,
+  and experiment entry points
+- [`wiki/Home.md`](../wiki/Home.md) — documentation navigation
+- [`wiki/GraphBrewOrder.md`](../wiki/GraphBrewOrder.md) — explicit composition
+  axes and configuration
+- [`wiki/AdaptiveOrder.md`](../wiki/AdaptiveOrder.md) — deterministic runtime
+  policy and legacy boundary
+- [`wiki/All-Kernel-Low-Reuse-Selector.md`](../wiki/All-Kernel-Low-Reuse-Selector.md)
+  — mechanism and frozen validation
 
-## Include Structure
-```
-bench/include/
-├── graphbrew/                  # GraphBrew extensions
-│   ├── graphbrew.h             # Umbrella header (includes everything)
-│   ├── reorder/                # Reordering algorithms
-│   │   ├── reorder.h           # Main dispatcher (resolveVariant, hasVariants, etc.)
-│   │   ├── reorder_types.h     # Enums, perceptron weights, variant resolution
-│   │   ├── reorder_basic.h     # ORIGINAL, Sort, Random
-│   │   ├── reorder_hub.h       # HubSort, HubCluster, DBG, HubSortDBG, HubClusterDBG
-│   │   ├── reorder_classic.h   # COrder (10)
-│   │   ├── reorder_rabbit.h    # RabbitOrder CSR (8:csr) + Boost (8:boost)
-│   │   ├── reorder_gorder.h    # GOrder CSR (9:csr) + parallel (9:fast)
-│   │   ├── reorder_rcm.h       # RCM default + BNF (11:bnf)
-│   │   ├── reorder_graphbrew.h # GraphBrewOrder (12) — Leiden + per-community pipeline
-│   │   └── reorder_adaptive.h  # AdaptiveOrder (14) — perceptron-based selection
-│   └── partition/              # Partitioning
-│       ├── trust.h             # TRUST partitioning
-│       └── cagra/popt.h        # Cagra/P-OPT partitioning
-├── external/                   # External libraries (bundled)
-│   ├── gapbs/                  # Core GAPBS runtime (builder, graph, benchmark, cli)
-│   ├── rabbit/                 # RabbitOrder community clustering
-│   ├── gorder/                 # GOrder graph ordering (GoGraph baseline)
-│   ├── corder/                 # COrder cache-aware ordering
-│   └── leiden/                 # GVE-Leiden community detection
-└── cache_sim/                  # Cache simulation
-    ├── cache_sim.h             # 9 eviction policies (LRU,FIFO,RANDOM,LFU,PLRU,SRRIP,GRASP,P-OPT,ECG)
-    ├── graph_sim.h             # Graph wrappers + SIM_CACHE_READ/WRITE/SET_VERTEX macros
-    └── graph_cache_context.h   # Unified context: PropertyRegion, FatIDConfig, GraphTopology
+## Evidence
+
+- [`recommendation-evidence.json`](recommendation-evidence.json) — aggregate
+  evidence and source hashes for recommendation claims
+- [`allkernel-lowreuse-evidence.json`](allkernel-lowreuse-evidence.json) —
+  30-graph derivation and holdout rows for the frozen policy
+- [`figures/graphbrew-architecture.svg`](figures/graphbrew-architecture.svg) —
+  canonical architecture figure
+
+Detailed raw matrices and large mappings are external artifacts; public claims
+are checked against the manifests above.
+
+## Repository map
+
+```text
+bench/src/                         canonical graph kernels
+bench/src_sim/                     cache-instrumented kernels
+bench/include/graphbrew/reorder/   ordering implementations and policies
+bench/include/graphbrew/partition/ partitioning implementations
+bench/include/external/gapbs/      graph builder and benchmark lifecycle
+bench/include/external/            bundled comparison implementations
+bench/include/cache_sim/           cache simulator
+scripts/graphbrew_experiment.py    public experiment orchestrator
+scripts/experiments/               frozen and restartable campaigns
+scripts/lib/                       shared experiment infrastructure
+scripts/test/                      regression and evidence checks
+wiki/                              detailed documentation source
 ```
 
-## Core C++ Modules
-- `bench/include/external/gapbs/` — GAPBS runtime (builder.h, graph.h, benchmark.h, command_line.h, etc.)
-- `bench/include/graphbrew/` — GraphBrew extensions (graphbrew.h umbrella, reorder/, partition/)
-- `bench/include/graphbrew/reorder/` — All reordering algorithms (0–15), variant dispatch, perceptron weights
-- `bench/include/graphbrew/partition/` — TRUST partitioning (`trust.h`), Cagra/P-OPT (`cagra/popt.h`)
-- `bench/include/cache_sim/` — Cache simulation: 9 eviction policies, `GraphCacheContext` (multi-region 4-tier classification, `FatIDConfig` adaptive fat-ID encoding), `graph_sim.h` macros
+## Key implementation files
 
-## External Libraries
-- `bench/include/external/rabbit/` — RabbitOrder community clustering
-- `bench/include/external/gorder/` — GOrder graph ordering (GoGraph reference)
-- `bench/include/external/corder/` — COrder cache-aware ordering
-- `bench/include/external/leiden/` — GVE-Leiden community detection
+| File | Role |
+|---|---|
+| `bench/include/graphbrew/reorder/reorder.h` | algorithm dispatcher and variant resolution |
+| `bench/include/graphbrew/reorder/reorder_graphbrew.h` | GraphBrew composition and GVE-Leiden mechanisms |
+| `bench/include/graphbrew/reorder/reorder_adaptive.h` | deterministic rules and retained offline-model modes |
+| `bench/include/graphbrew/reorder/reorder_rabbit.h` | CSR and Boost Rabbit |
+| `bench/include/graphbrew/reorder/reorder_gorder.h` | faithful and relaxed Gorder variants |
+| `scripts/experiments/vldb/` | publication campaign SSOT |
 
-## Python Tooling
-- `scripts/graphbrew_experiment.py` — Main orchestration pipeline (reorder, benchmark, cache)
-- `scripts/lib/` — 5 sub-packages (core, pipeline, ml, analysis, tools); see `scripts/lib/README.md`
-- `scripts/lib/ml/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
-- `scripts/lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)
-- `scripts/test/` — Pytest suite (algorithm variants, cache sim, weights, GraphBrew experiment)
+## Interfaces
 
-## Tooling
-- `make check` — authoritative core build, native-test, include-lint, and pytest gate
-- `make lint-includes` — check for legacy includes
-- `python3 -m scripts.lib.tools.check_includes` — same as above
+- `-o 12:<configuration>` is an explicit hand-configured composition.
+- `-o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` is the
+  validated deterministic reuse-1/2 policy.
+- Historical perceptron, decision-tree, and emulator code remains available
+  for research compatibility but is not the validated deployed contribution.
 
-## Conventions
-- CLI `-j type:n:m`
-  - `0` = Cagra/GraphIT (`MakeCagraPartitionedGraph`, honors `-z`) 
-  - `1` = TRUST (`TrustPartitioner::MakeTrustPartitionedGraph`)
-- CLI `-o` reordering IDs (0–15) — see `wiki/Command-Line-Reference.md`
-- Variants via colon: `-o 9:fast`, `-o 8:boost`, `-o 11:bnf`, `-o 12:leiden`
+## Validation
+
+```bash
+make check
+```
+
+`make check` is the authoritative core build, native-test, include-lint, and
+Python regression gate.
