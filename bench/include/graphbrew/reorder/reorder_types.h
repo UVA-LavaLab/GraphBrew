@@ -1873,7 +1873,8 @@ enum SelectionModel {
     SELECTION_MODEL_FAMILY = 4,            ///< Predict at family level (7 classes)
     SELECTION_MODEL_TOPN = 5,              ///< Predict top-N algorithms (~8 classes)
     SELECTION_MODEL_INDIVIDUAL = 6,        ///< Predict individual algorithm (~17 classes)
-    SELECTION_MODEL_BUDGETED_RULE = 7      ///< One-use dense-graph PR rule
+    SELECTION_MODEL_BUDGETED_RULE = 7,     ///< One-use dense-graph PR rule
+    SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE = 8 ///< Frozen all-kernel reuse <=2 rule
 };
 
 /**
@@ -1901,6 +1902,8 @@ inline std::string SelectionModelToString(SelectionModel m) {
         case SELECTION_MODEL_TOPN:           return "topn";
         case SELECTION_MODEL_INDIVIDUAL:     return "individual";
         case SELECTION_MODEL_BUDGETED_RULE:  return "budgeted-rule";
+        case SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE:
+            return "allkernel-lowreuse-rule";
         default:                             return "unknown-model";
     }
 }
@@ -1934,6 +1937,11 @@ inline SelectionModel GetSelectionModel(const std::string& name) {
         || name == "budgeted"
         || name == "one-use-rule"
     ) return SELECTION_MODEL_BUDGETED_RULE;
+    if (
+        name == "allkernel-lowreuse-rule"
+        || name == "allkernel-rule"
+        || name == "lowreuse-rule"
+    ) return SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE;
     throw std::invalid_argument("Unknown adaptive selection model: " + name);
 }
 

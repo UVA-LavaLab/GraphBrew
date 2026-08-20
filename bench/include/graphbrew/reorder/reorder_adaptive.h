@@ -225,6 +225,7 @@ inline bool IsDeployableSelectionModel(SelectionModel model) {
     return (
         model == SELECTION_MODEL_PERCEPTRON
         || model == SELECTION_MODEL_BUDGETED_RULE
+        || model == SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE
     );
 }
 
@@ -289,11 +290,16 @@ inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
             + " is offline-only and cannot drive deployable AdaptiveOrder");
     }
     if (
-        policy.model == SELECTION_MODEL_BUDGETED_RULE
+        (
+            policy.model == SELECTION_MODEL_BUDGETED_RULE
+            || policy.model
+                == SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE
+        )
         && !policy.reuse_count_explicit
     ) {
         throw std::invalid_argument(
-            "budgeted-rule requires an explicit reuse count");
+            SelectionModelToString(policy.model)
+            + " requires an explicit reuse count");
     }
     return policy;
 }
@@ -356,6 +362,91 @@ inline PerceptronSelection SelectBudgetedOneUseRule(
 #endif
     fallback.predicted_spec = fallback.canonical_spec;
     fallback.override_reason = "budgeted-one-use-fallback";
+    fallback.confidence = 1.0;
+    return fallback;
+}
+
+inline bool ShouldUseAllKernelLowReuseRule(
+    const CommunityFeatures& features,
+    BenchmarkType benchmark,
+    double reuse_count
+) {
+    const bool supported_kernel = (
+        benchmark == BENCH_PR
+        || benchmark == BENCH_PR_SPMV
+        || benchmark == BENCH_BFS
+        || benchmark == BENCH_CC
+        || benchmark == BENCH_CC_SV
+        || benchmark == BENCH_BC
+        || benchmark == BENCH_SSSP
+    );
+    const double wsr = features.working_set_ratio;
+    return (
+        supported_kernel
+        && reuse_count <= 2.0
+        && features.num_nodes >= 1000
+        && wsr <= 3.2
+        && (
+            (
+                features.degree_variance <= 2.68
+                && (
+                    features.avg_degree <= 60.0
+                    || wsr <= 0.82
+                )
+            )
+            || features.degree_variance > 8.0
+        )
+    );
+}
+
+inline PerceptronSelection SelectAllKernelLowReuseRule(
+    const CommunityFeatures& features,
+    BenchmarkType benchmark,
+    double reuse_count
+) {
+    if (ShouldUseAllKernelLowReuseRule(
+        features, benchmark, reuse_count
+    )) {
+        PerceptronSelection selected;
+        selected.algo = GraphBrewOrder;
+        selected.variant_name = (
+            "12:leiden:compose:sg_none:comm_size_desc:"
+            "intra_gorder:gw8:cd_parallel:sgmb4096:"
+            "gordf5000:norefine:2:2"
+        );
+        selected.canonical_spec = selected.variant_name;
+        selected.predicted_spec = selected.variant_name;
+        selected.options = {
+            "leiden",
+            "compose",
+            "sg_none",
+            "comm_size_desc",
+            "intra_gorder",
+            "gw8",
+            "cd_parallel",
+            "sgmb4096",
+            "gordf5000",
+            "norefine",
+            "2",
+            "2",
+        };
+        selected.override_reason =
+            "allkernel-lowreuse-match";
+        selected.confidence = 1.0;
+        return selected;
+    }
+#ifdef RABBIT_ENABLE
+    PerceptronSelection fallback;
+    fallback.algo = RabbitOrder;
+    fallback.variant_name = "8:boost";
+    fallback.canonical_spec = fallback.variant_name;
+    fallback.predicted_spec = fallback.variant_name;
+    fallback.options = {"boost"};
+#else
+    auto fallback = ResolveDeployableAdaptiveArm("5");
+#endif
+    fallback.override_reason =
+        "allkernel-lowreuse-fallback";
     fallback.confidence = 1.0;
     return fallback;
 }
@@ -605,6 +696,22 @@ void GenerateAdaptiveMappingFullGraphStandalone(
             global_feat,
             benchmark,
             selection_policy.reuse_count);
+    } else if (
+        selection_policy.model
+        == SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE
+    ) {
+        if (
+            selection_policy.criterion
+            != CRITERION_BEST_ENDTOEND
+        ) {
+            throw std::invalid_argument(
+                "allkernel-lowreuse-rule requires "
+                "best-endtoend criterion");
+        }
+        best = adaptive::SelectAllKernelLowReuseRule(
+            global_feat,
+            benchmark,
+            selection_policy.reuse_count);
     } else {
         best = SelectBestReorderingForCommunityWithModelCriterion(
             global_feat, global_modularity,
@@ -629,6 +736,8 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     if (
         selection_policy.model
         != SELECTION_MODEL_BUDGETED_RULE
+        && selection_policy.model
+            != SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE
     ) {
         best = EnforceDeployableAdaptivePortfolio(best);
     }

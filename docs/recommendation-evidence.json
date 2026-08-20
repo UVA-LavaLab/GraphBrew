@@ -23,6 +23,10 @@
     "low_reuse_rapid_matrix": {
       "path": "multikernel_quality_rapid/analysis.json",
       "sha256": "99ff52461be5b3399c18e4215ae1eb4bf216249b899afa3eb4d798086bf07a53"
+    },
+    "allkernel_lowreuse_rule2": {
+      "path": "allkernel_lowreuse_rule2/analysis.json",
+      "sha256": "e01ebba0088a145af394d901f338c116ce8c4a5e5afda6dfb79ee3f143c762d9"
     }
   },
   "validated_recommendations": [
@@ -55,6 +59,19 @@
       "rabbit_csr_over_graphbrew": 1.3259256646505633,
       "rabbit_boost_over_graphbrew": 1.4469281626789388,
       "caveat": "Rabbit kernels are about 5% faster; the gain comes from cheaper mapping and does not generalize to Friendster versus Rabbit Boost."
+    },
+    {
+      "objective": "Automatic all-kernel reuse-1/2 selection",
+      "model": "allkernel-lowreuse-rule",
+      "candidate": "12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:cd_parallel:sgmb4096:gordf5000:norefine:2:2",
+      "fallback": "8:boost",
+      "scope": "Rule derived on 18 graphs and frozen before 12 untouched holdouts; seven measured kernels",
+      "selected_holdout_graphs": 7,
+      "reuse1_boost_over_candidate_gm": 1.6958966100311321,
+      "reuse1_lower_95": 1.5023899677130779,
+      "reuse2_boost_over_candidate_gm": 1.6423825059840471,
+      "reuse2_lower_95": 1.4599748680269227,
+      "caveat": "Requires explicit reuse <=2 and Boost Rabbit fallback; the candidate is not a universal static winner."
     }
   ],
   "rejected_or_unvalidated_recommendations": [
@@ -82,6 +99,11 @@
       "claim": "One-pass Leiden can replace the full partition in the Gorder8 quality winner",
       "status": "rejected",
       "reason": "The one-pass SizeDesc-Gorder8 mapping is cheaper than both Rabbits but Rabbit kernels are 4.2-5.6% faster in the five-graph all-draw confirmation."
+    },
+    {
+      "claim": "The promoted cost-matched composition is a universal static winner",
+      "status": "rejected",
+      "reason": "The eleven-graph gate fails on road/mesh quality and large-graph mapping cost; the validated contribution is the frozen graph-feature and reuse selector."
     }
   ]
 }

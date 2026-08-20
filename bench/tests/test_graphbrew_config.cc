@@ -194,6 +194,79 @@ void TestBudgetedAdaptiveRule()
         "parallel budgeted rule was not marked schedule-sensitive");
 }
 
+void TestAllKernelLowReuseRule()
+{
+    Require(
+        GetSelectionModel("allkernel-lowreuse-rule")
+            == SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE,
+        "all-kernel low-reuse model parsing changed");
+
+    bool missing_reuse_rejected = false;
+    try
+    {
+        adaptive::ParseDeployableSelectionPolicy({
+            "", "", "", "allkernel-lowreuse-rule",
+            "best-endtoend",
+        });
+    }
+    catch (const std::invalid_argument&)
+    {
+        missing_reuse_rejected = true;
+    }
+    Require(
+        missing_reuse_rejected,
+        "all-kernel low-reuse rule accepted implicit reuse");
+
+    CommunityFeatures features;
+    features.num_nodes = 10000;
+    features.avg_degree = 25.0;
+    features.degree_variance = 1.5;
+    features.hub_concentration = 0.4;
+    features.working_set_ratio = 0.5;
+    Require(
+        adaptive::ShouldUseAllKernelLowReuseRule(
+            features, BENCH_CC, 2.0),
+        "all-kernel rule rejected an eligible CC context");
+    Require(
+        !adaptive::ShouldUseAllKernelLowReuseRule(
+            features, BENCH_TC, 2.0),
+        "all-kernel rule accepted an unmeasured kernel");
+    Require(
+        !adaptive::ShouldUseAllKernelLowReuseRule(
+            features, BENCH_CC, 3.0),
+        "all-kernel rule accepted high reuse");
+
+    auto selected = adaptive::SelectAllKernelLowReuseRule(
+        features, BENCH_BFS, 1.0);
+    Require(
+        selected.canonical_spec.find(
+            "sgmb4096:gordf5000:norefine:2:2"
+        ) != std::string::npos,
+        "all-kernel rule selected the wrong composition");
+    auto config = graphbrew::parseGraphBrewCliConfig(
+        selected.options, 0.75);
+    Require(
+        config.superGraphMoveBatch == 4096
+            && config.gorderFallback == 5000
+            && !config.useRefinement
+            && config.maxIterations == 2
+            && config.maxPasses == 2,
+        "all-kernel selected config changed");
+
+    features.working_set_ratio = 4.0;
+    auto fallback = adaptive::SelectAllKernelLowReuseRule(
+        features, BENCH_BFS, 1.0);
+#ifdef RABBIT_ENABLE
+    Require(
+        fallback.canonical_spec == "8:boost",
+        "all-kernel rule lost Boost fallback");
+#else
+    Require(
+        fallback.canonical_spec == "5",
+        "all-kernel rule lost no-Boost fallback");
+#endif
+}
+
 void TestSuperGraphMoveBatchParsing()
 {
     auto config = graphbrew::parseGraphBrewConfig(
@@ -950,6 +1023,7 @@ int main()
     {
         TestPresetTailParsing();
         TestBudgetedAdaptiveRule();
+        TestAllKernelLowReuseRule();
         TestSuperGraphMoveBatchParsing();
         TestRabbitComposeParsing();
         TestNamedDepthAndStrictTokens();

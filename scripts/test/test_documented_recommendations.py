@@ -98,6 +98,7 @@ def test_public_recommendations_match_frozen_evidence():
     claims = {
         record["spec"]: record
         for record in evidence["validated_recommendations"]
+        if "spec" in record
     }
     gorder = (
         "12:leiden:compose:sg_none:"
@@ -151,4 +152,25 @@ def test_public_recommendations_match_frozen_evidence():
             "rabbit_over_graphbrew_gm"
         ]
         == pytest.approx(low_reuse["rabbit_boost_over_graphbrew"])
+    )
+
+    selector_claim = next(
+        record
+        for record in evidence["validated_recommendations"]
+        if record["objective"].startswith("Automatic all-kernel")
+    )
+    selector = json.loads(
+        resolved["allkernel_lowreuse_rule2"].read_text()
+    )
+    assert selector["reuse1"]["boost_over_candidate_gm"] == pytest.approx(
+        selector_claim["reuse1_boost_over_candidate_gm"]
+    )
+    assert selector["reuse1"]["lower_95"] == pytest.approx(
+        selector_claim["reuse1_lower_95"]
+    )
+    assert selector["reuse2"]["boost_over_candidate_gm"] == pytest.approx(
+        selector_claim["reuse2_boost_over_candidate_gm"]
+    )
+    assert selector["reuse2"]["lower_95"] == pytest.approx(
+        selector_claim["reuse2_lower_95"]
     )

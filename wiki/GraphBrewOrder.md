@@ -157,6 +157,22 @@ The super-graph axis was harmful on average in its registered one-axis
 contrast, even though HRAB has the best point estimate on the single road and
 mesh graphs. Treat those topology rows as descriptive, not universal guidance.
 
+## Cost-matched FastLeiden-Gorder8
+
+The promoted low-reuse composition is:
+
+```text
+12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:
+cd_parallel:sgmb4096:gordf5000:norefine:2:2
+```
+
+It uses two parallel Leiden iterations and two passes, commits GVE
+super-graph proposals in ordered batches of 4096, skips refinement, and falls
+back to BFS for communities above 5000 vertices. It is not a universal static
+winner: the frozen eleven-graph matrix rejects that claim. It is deployed
+through `allkernel-lowreuse-rule`, which selects it only for frozen
+graph-feature and reuse conditions and otherwise uses Boost Rabbit.
+
 ## Evidence-based diagnostics
 
 | Question | Compare |

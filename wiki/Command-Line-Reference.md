@@ -556,6 +556,17 @@ export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 `-o 14` rejects graph names, exact-name oracle lookup, and
 runtime kNN/database selection. See [[AdaptiveOrder-ML]].
 
+Frozen all-kernel low-reuse selection:
+
+```bash
+./bench/bin/bfs -f graph.sg -s \
+  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' -n 3
+```
+
+The final field is the declared mapping reuse count and is mandatory for this
+model. Supported values are at most 2; other contexts fall back to Boost
+Rabbit.
+
 ### NUMA Binding
 
 ```bash

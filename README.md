@@ -131,6 +131,7 @@ target graph and kernel. The recommendations below are bound to
 | Non-Rabbit all-kernel ordering quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Beats Rabbit CSR by 4.9% and Boost by 5.9% in the eleven-graph, seven-kernel kernel-only geometric mean. Full Leiden mapping costs about 17–18× Rabbit; a one-pass replacement failed to retain the quality win. |
 | Non-Rabbit controlled-work quality | `12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp` | Beats both Rabbit implementations by about 2.5% over fixed-work PR/PR-SpMV, fixed-source SSSP, and BC; CC/CC-SV regress. |
 | Low-reuse time-to-solution | `12:leiden:compose:sg_none:comm_identity:intra_gorder:gw32:gordf500:cd_parallel:1:1` | Wins reuse-1 end-to-end on the rapid cohort through cheaper mapping, not better average kernel quality. It does not beat Boost Rabbit on Friendster. |
+| Automatic all-kernel reuse 1–2 | `14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Frozen feature rule selects the promoted cost-matched composition or Boost Rabbit. Seven selected untouched graphs all pass; aggregate gains are 1.696× and 1.642× at reuse 1 and 2. |
 | Unknown workload | `0`, `8:csr`, `8:boost`, and one objective-matched COMPOSE row | Measure kernel-only and end-to-end results separately; do not infer a winner from graph type alone. |
 
 “Ordering quality” excludes mapping time. “End-to-end” includes mapping

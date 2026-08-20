@@ -38,16 +38,27 @@ offline `OracleUpperBound` analysis.
 ./bench/bin/pr -f graph.el -s \
   -o 14::::perceptron:best-endtoend -n 3
 
+# Frozen all-kernel reuse-1/2 rule (reuse is mandatory)
+./bench/bin/pr -f graph.el -s \
+  -o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1 -n 3
+
 ```
 
-Current deployable model:
+Current deployable models:
 
 | Model | CLI |
 |---|---|
 | Perceptron | `perceptron` |
+| Frozen PR-only one-use rule | `budgeted-rule` |
+| Frozen seven-kernel reuse-1/2 rule | `allkernel-lowreuse-rule` |
 
 Decision-tree and hybrid artifacts remain offline-only until they are
 retrained on the Tier-0 schema; the runtime rejects legacy 24-feature models.
+
+Both frozen rules require an explicit positive reuse value and the
+`best-endtoend` criterion. The all-kernel rule supports PR, PR-SpMV, BFS, CC,
+CC-SV, BC, and SSSP; reuse above 2 or unsupported kernels fall back to Boost
+Rabbit (DBG in builds without Boost).
 
 Criteria:
 
