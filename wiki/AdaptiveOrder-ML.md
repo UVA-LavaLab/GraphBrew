@@ -60,6 +60,10 @@ Both frozen rules require an explicit positive reuse value and the
 CC-SV, BC, and SSSP; reuse above 2 or unsupported kernels fall back to Boost
 Rabbit (DBG in builds without Boost).
 
+See [All-Kernel-Low-Reuse-Selector](All-Kernel-Low-Reuse-Selector) for
+pipeline figures, the frozen predicate, validation results, and all 30
+per-graph outcomes.
+
 Criteria:
 
 | Criterion | CLI |

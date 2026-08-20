@@ -20,6 +20,7 @@ experiment orchestration, and infrastructure for developing new orderings.
 
 **Deep dives**
 - [GraphBrewOrder](GraphBrewOrder) — the composable pipeline
+- [All-Kernel-Low-Reuse-Selector](All-Kernel-Low-Reuse-Selector) — figures, frozen rule, and per-graph evidence
 - [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
 - [Partitioning-and-Shards](Partitioning-and-Shards) — compact CSR packages
 - [Code-Architecture](Code-Architecture) — codebase map
@@ -31,17 +32,19 @@ experiment orchestration, and infrastructure for developing new orderings.
 
 **Selection**
 - [AdaptiveOrder-ML](AdaptiveOrder-ML) — offline-model runtime selector
+- [All-Kernel-Low-Reuse-Selector](All-Kernel-Low-Reuse-Selector) — validated reuse-1/2 runtime policy
 
 ## What GraphBrew gives you
 
 | Pipeline stage | Choices | What it controls |
 |---|---|---|
-| Community detection | Leiden, Rabbit Order | spatial locality |
-| Intra-community ordering | BFS, RCM, HubCluster, DBG, Gorder | temporal locality |
-| Inter-community arrangement | hierarchical sort, Rabbit on super-graph, RCM, tile | global layout |
+| Partitioner | Leiden, Rabbit Order | vertex groups |
+| Block layout | identity, size/degree sort, Rabbit/RCM/tile super-graph | global placement |
+| Vertex layout | BFS, RCM, HubCluster, DBG, Gorder | within-block locality |
 
 Variants ship as flags: `-o 12:leiden`, `-o 12:rabbit`, `-o 12:hrab`,
-`-o 12:tqr`, `-o 12:hcache`, `-o 12:rcm`, `-o 12:hubcluster`, `-o 12:streaming`.
+`-o 12:tqr`, `-o 12:hcache`, `-o 12:hrab:bfs_intra`,
+`-o 12:hubcluster`, `-o 12:streaming`.
 
 See [Reordering-Algorithms](Reordering-Algorithms) for the full list.
 

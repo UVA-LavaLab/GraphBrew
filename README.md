@@ -138,6 +138,10 @@ target graph and kernel. The recommendations below are bound to
 generation, validation, CSR relocation, and the declared number of kernel
 invocations.
 
+See the
+[All-Kernel Low-Reuse Selector wiki page](https://github.com/UVA-LavaLab/GraphBrew/wiki/All-Kernel-Low-Reuse-Selector)
+for architecture figures, the frozen rule, and all 30 per-graph outcomes.
+
 ## Canonical Kernels
 
 | Binary | Kernel |
