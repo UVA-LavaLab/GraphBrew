@@ -1,67 +1,67 @@
 {
   "policies": {
     "Gong-gplus": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "66c1c60f",
       "delta": 1,
       "weight_checksum": "7ec1e7d8995f73ffd9c68ba2e4f61867",
       "weight_scheme": "hash"
     },
     "USA-road-d.USA": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "f8c5e8fb",
       "delta": 512,
       "weight_checksum": "2d5a27b40ee2b02930e0252a78385c6d",
       "weight_scheme": "hash"
     },
     "cit-Patents": {
-      "conversion_policy_id": "911aa1cf",
-      "delta": 8,
+      "conversion_policy_id": "6eba88f3",
+      "delta": 4,
       "weight_checksum": "99b9b857f0e0a3a0ce16cce5ba98358e",
       "weight_scheme": "hash"
     },
     "com-Orkut": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "c018b646",
       "delta": 1,
       "weight_checksum": "5895a9948f45a09c8654b6e9a68036c0",
       "weight_scheme": "hash"
     },
     "delaunay_n24": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "e1df9165",
       "delta": 64,
       "weight_checksum": "cd5642bc7f097b967e9db11917475364",
       "weight_scheme": "hash"
     },
     "hollywood-2009": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "4d590736",
       "delta": 1,
       "weight_checksum": "e410a000a48a5785ee14e9341c39fd0f",
       "weight_scheme": "hash"
     },
     "soc-LiveJournal1": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "8026f6c3",
       "delta": 2,
       "weight_checksum": "87d5d4da90b82566aee3f87988aa02c0",
       "weight_scheme": "hash"
     },
     "soc-pokec": {
-      "conversion_policy_id": "911aa1cf",
-      "delta": 4,
+      "conversion_policy_id": "f489e0bf",
+      "delta": 2,
       "weight_checksum": "3bf1aa37aaf7a3856f33f1b9764e0dcb",
       "weight_scheme": "hash"
     },
     "twitter7": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "817c9de1",
       "delta": 1,
       "weight_checksum": "f50965f61f3e34cbe8021459ff028de1",
       "weight_scheme": "hash"
     },
     "webbase-2001": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "b0440335",
       "delta": 4,
       "weight_checksum": "e86309adf94c3b956ffaefb4747c36cb",
       "weight_scheme": "hash"
     },
     "wikipedia_link_en": {
-      "conversion_policy_id": "911aa1cf",
+      "conversion_policy_id": "591fc6b0",
       "delta": 1,
       "weight_checksum": "6aa23048de21c5e44b79ee8520f38382",
       "weight_scheme": "hash"
