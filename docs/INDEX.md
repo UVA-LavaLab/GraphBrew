@@ -11,6 +11,8 @@
   policy and legacy boundary
 - [`wiki/All-Kernel-Low-Reuse-Selector.md`](../wiki/All-Kernel-Low-Reuse-Selector.md)
   — mechanism and frozen validation
+- [`wiki/Reordering-Figure-Catalog.md`](../wiki/Reordering-Figure-Catalog.md)
+  — one transformation figure per algorithm ID
 
 ## Evidence
 
@@ -38,6 +40,10 @@
   community-size Gorder/BFS decision
 - [`figures/graphbrew-norefine.svg`](figures/graphbrew-norefine.svg) —
   refinement bypass
+- [`figures/reordering/manifest.json`](figures/reordering/manifest.json) —
+  algorithm-to-SVG/editable-source index
+- [`figures/editable/README.md`](figures/editable/README.md) — Lucidchart
+  import and manual-editing workflow
 
 Detailed raw matrices and large mappings are external artifacts; public claims
 are checked against the manifests above.

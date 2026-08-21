@@ -178,6 +178,7 @@ wiki/                              detailed documentation source
 - [GraphBrew composition](https://github.com/UVA-LavaLab/GraphBrew/wiki/GraphBrewOrder)
 - [Runtime policy](https://github.com/UVA-LavaLab/GraphBrew/wiki/AdaptiveOrder)
 - [Algorithms and evidence](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Algorithms)
+- [Reordering figure catalog](https://github.com/UVA-LavaLab/GraphBrew/wiki/Reordering-Figure-Catalog)
 - [Command-line reference](https://github.com/UVA-LavaLab/GraphBrew/wiki/Command-Line-Reference)
 
 ## Attribution and license

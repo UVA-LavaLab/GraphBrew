@@ -1,0 +1,175 @@
+{
+  "schema": "graphbrew-reordering-figures/v1",
+  "techniques": [
+    {
+      "id": 0,
+      "slug": "original",
+      "name": "ORIGINAL",
+      "flag": "-o 0",
+      "family": "identity",
+      "mechanism": "Keep the input labels unchanged.",
+      "svg": "docs/figures/reordering/00-original.svg",
+      "drawio": "docs/figures/editable/00-original.drawio"
+    },
+    {
+      "id": 1,
+      "slug": "random",
+      "name": "RANDOM",
+      "flag": "-o 1",
+      "family": "random",
+      "mechanism": "Apply the fixed seed-0 shuffled control.",
+      "svg": "docs/figures/reordering/01-random.svg",
+      "drawio": "docs/figures/editable/01-random.drawio"
+    },
+    {
+      "id": 2,
+      "slug": "sort",
+      "name": "SORT",
+      "flag": "-o 2",
+      "family": "degree",
+      "mechanism": "Sort every vertex by descending degree.",
+      "svg": "docs/figures/reordering/02-sort.svg",
+      "drawio": "docs/figures/editable/02-sort.drawio"
+    },
+    {
+      "id": 3,
+      "slug": "hubsort",
+      "name": "HUBSORT",
+      "flag": "-o 3",
+      "family": "degree",
+      "mechanism": "Sort the hub subset; preserve non-hub IDs when possible.",
+      "svg": "docs/figures/reordering/03-hubsort.svg",
+      "drawio": "docs/figures/editable/03-hubsort.drawio"
+    },
+    {
+      "id": 4,
+      "slug": "hubcluster",
+      "name": "HUBCLUSTER",
+      "flag": "-o 4",
+      "family": "degree",
+      "mechanism": "Place stable hubs first and retain non-hub order.",
+      "svg": "docs/figures/reordering/04-hubcluster.svg",
+      "drawio": "docs/figures/editable/04-hubcluster.drawio"
+    },
+    {
+      "id": 5,
+      "slug": "dbg",
+      "name": "DBG",
+      "flag": "-o 5",
+      "family": "buckets",
+      "mechanism": "Group vertices into logarithmic degree buckets.",
+      "svg": "docs/figures/reordering/05-dbg.svg",
+      "drawio": "docs/figures/editable/05-dbg.drawio"
+    },
+    {
+      "id": 6,
+      "slug": "hubsortdbg",
+      "name": "HUBSORTDBG",
+      "flag": "-o 6",
+      "family": "buckets",
+      "mechanism": "Compact hubs first and sort the hub bucket.",
+      "svg": "docs/figures/reordering/06-hubsortdbg.svg",
+      "drawio": "docs/figures/editable/06-hubsortdbg.drawio"
+    },
+    {
+      "id": 7,
+      "slug": "hubclusterdbg",
+      "name": "HUBCLUSTERDBG",
+      "flag": "-o 7",
+      "family": "buckets",
+      "mechanism": "Compact stable hubs first and stable non-hubs second.",
+      "svg": "docs/figures/reordering/07-hubclusterdbg.svg",
+      "drawio": "docs/figures/editable/07-hubclusterdbg.drawio"
+    },
+    {
+      "id": 8,
+      "slug": "rabbitorder",
+      "name": "RABBITORDER",
+      "flag": "-o 8:csr",
+      "family": "community",
+      "mechanism": "Detect communities and emit dendrogram DFS order.",
+      "svg": "docs/figures/reordering/08-rabbitorder.svg",
+      "drawio": "docs/figures/editable/08-rabbitorder.drawio"
+    },
+    {
+      "id": 9,
+      "slug": "gorder",
+      "name": "GORDER",
+      "flag": "-o 9:csr",
+      "family": "window",
+      "mechanism": "Greedily maximize neighbor overlap in a sliding window.",
+      "svg": "docs/figures/reordering/09-gorder.svg",
+      "drawio": "docs/figures/editable/09-gorder.drawio"
+    },
+    {
+      "id": 10,
+      "slug": "corder",
+      "name": "CORDER",
+      "flag": "-o 10:canonical",
+      "family": "hotcold",
+      "mechanism": "Partition the output into hot and cold workload segments.",
+      "svg": "docs/figures/reordering/10-corder.svg",
+      "drawio": "docs/figures/editable/10-corder.drawio"
+    },
+    {
+      "id": 11,
+      "slug": "rcm",
+      "name": "RCM",
+      "flag": "-o 11:bnf",
+      "family": "bandwidth",
+      "mechanism": "Use a peripheral BFS order and reverse it to reduce bandwidth.",
+      "svg": "docs/figures/reordering/11-rcm.svg",
+      "drawio": "docs/figures/editable/11-rcm.drawio"
+    },
+    {
+      "id": 12,
+      "slug": "graphbreworder",
+      "name": "GraphBrewOrder",
+      "flag": "-o 12:<recipe>",
+      "family": "composed",
+      "mechanism": "Compose partitioner, block layout, and local vertex layout.",
+      "svg": "docs/figures/reordering/12-graphbreworder.svg",
+      "drawio": "docs/figures/editable/12-graphbreworder.drawio"
+    },
+    {
+      "id": 13,
+      "slug": "map",
+      "name": "MAP",
+      "flag": "-o 13:<file>",
+      "family": "map",
+      "mechanism": "Load and apply an external .lo or .so permutation.",
+      "svg": "docs/figures/reordering/13-map.svg",
+      "drawio": "docs/figures/editable/13-map.drawio"
+    },
+    {
+      "id": 14,
+      "slug": "adaptiveorder",
+      "name": "AdaptiveOrder",
+      "flag": "-o 14:<policy>",
+      "family": "selector",
+      "mechanism": "Select one validated reordering arm, then execute that arm.",
+      "svg": "docs/figures/reordering/14-adaptiveorder.svg",
+      "drawio": "docs/figures/editable/14-adaptiveorder.drawio"
+    },
+    {
+      "id": 15,
+      "slug": "leidenorder",
+      "name": "LeidenOrder",
+      "flag": "-o 15:<layout>",
+      "family": "community",
+      "mechanism": "Detect Leiden communities and apply an explicit post-layout.",
+      "svg": "docs/figures/reordering/15-leidenorder.svg",
+      "drawio": "docs/figures/editable/15-leidenorder.drawio"
+    },
+    {
+      "id": 16,
+      "slug": "gographorder",
+      "name": "GoGraphOrder",
+      "flag": "-o 16",
+      "family": "directed",
+      "mechanism": "Reassign IDs to increase directed edges with src < dst.",
+      "svg": "docs/figures/reordering/16-gographorder.svg",
+      "drawio": "docs/figures/editable/16-gographorder.drawio"
+    }
+  ]
+}

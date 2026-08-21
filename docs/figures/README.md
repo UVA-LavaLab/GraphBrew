@@ -11,9 +11,15 @@
 - `graphbrew-sgmb4096.svg` — parallel proposals and ordered commits
 - `graphbrew-gordf5000.svg` — community-size Gorder/BFS selection
 - `graphbrew-norefine.svg` — refinement bypass
+- `reordering/` — one standardized SVG transformation per algorithm ID
+- `editable/` — paired `.drawio` sources for Lucidchart/manual editing
 
-The diagrams are hand-authored SVGs with one source per concept. Experimental
-plots remain in content-bound artifact directories rather than being
-committed as duplicate PNG/SVG pairs. The GraphBrewOrder transformation and
-control figures reuse the architecture's dashed domains, pastel cards,
+The core diagrams are hand-authored SVGs with one source per concept. The
+algorithm catalog uses paired publication SVG and editable draw.io sources.
+Experimental plots remain in content-bound artifact directories rather than
+being committed as duplicate PNG/SVG pairs. The GraphBrewOrder transformation
+and control figures reuse the architecture's dashed domains, pastel cards,
 charcoal typography, thin blue arrows, and dark-mode behavior.
+
+The full algorithm catalog is indexed by
+[`reordering/manifest.json`](reordering/manifest.json).

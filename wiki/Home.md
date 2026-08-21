@@ -40,6 +40,7 @@ their cost and locality effects can be measured independently.
 - [Command-Line Reference](Command-Line-Reference)
 - [Supported Graph Formats](Supported-Graph-Formats)
 - [Graph Benchmarks](Graph-Benchmarks)
+- [Reordering Figure Catalog](Reordering-Figure-Catalog)
 - [Cache Simulation](Cache-Simulation)
 - [Code Architecture](Code-Architecture)
 - [Troubleshooting](Troubleshooting)

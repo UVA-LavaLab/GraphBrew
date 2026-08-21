@@ -26,6 +26,10 @@ the other IDs are individual primitives or baselines.
 
 ## Quick reference
 
+See the [Reordering Figure Catalog](Reordering-Figure-Catalog) for a
+before/after graph transformation and Lucidchart-editable source for every
+algorithm ID.
+
 | ID | Flag | Algorithm | Complexity | Notes |
 |---|---|---|---|---|
 | 0 | `-o 0` | ORIGINAL | O(1) | input ordering, baseline |

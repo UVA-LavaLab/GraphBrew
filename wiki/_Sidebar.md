@@ -9,6 +9,7 @@
 - [Low-Reuse Selector](All-Kernel-Low-Reuse-Selector)
 - [AdaptiveOrder](AdaptiveOrder)
 - [Reordering Algorithms](Reordering-Algorithms)
+- [Reordering Figure Catalog](Reordering-Figure-Catalog)
 
 ## Experiments
 
