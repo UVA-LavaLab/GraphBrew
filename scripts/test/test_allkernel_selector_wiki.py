@@ -1,5 +1,6 @@
 """Bind the low-reuse visual explanation to public evidence."""
 
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -17,6 +18,16 @@ FIGURES = (
     "graphbrew-sgmb4096.svg",
     "graphbrew-gordf5000.svg",
     "graphbrew-norefine.svg",
+)
+MECHANISM_FIGURES = (
+    "graphbrew-relabeling-example.svg",
+    "graphbrew-cd-parallel.svg",
+    "graphbrew-sgmb4096.svg",
+    "graphbrew-gordf5000.svg",
+    "graphbrew-norefine.svg",
+)
+ARCHITECTURE_SHA256 = (
+    "3cfe1e0b1c8cf14b2a5b9db152de0ccd1f2def428fbe225a421bc93dfc639891"
 )
 README = PROJECT_ROOT / "README.md"
 WIKI_HOME = PROJECT_ROOT / "wiki/Home.md"
@@ -93,14 +104,28 @@ def test_selector_documentation_uses_evidence_bound_figures():
         path = FIGURE_DIR / filename
         assert path.stat().st_size > 3000
         assert ET.parse(path).getroot().tag.endswith("svg")
+
+    architecture = FIGURE_DIR / "graphbrew-architecture.svg"
+    assert hashlib.sha256(architecture.read_bytes()).hexdigest() == (
+        ARCHITECTURE_SHA256
+    )
+
+    for filename in MECHANISM_FIGURES:
+        path = FIGURE_DIR / filename
+        source = path.read_text()
         font_sizes = [
             int(value)
             for value in re.findall(
                 r"font-size:(\d+)px",
-                path.read_text(),
+                source,
             )
         ]
         assert font_sizes and min(font_sizes) >= 20
+        assert 'stroke="#9AA3AD"' in source
+        assert 'fill="#FFF0D8"' in source
+        assert 'fill="#EDF5FF"' in source
+        assert "#1769C2" in source
+        assert "prefers-color-scheme:dark" in source
 
     assert "graphbrew-lowreuse-policy.svg" in selector
     assert "graphbrew-relabeling-example.svg" in graphbrew

@@ -12,5 +12,6 @@
 The diagrams are hand-authored SVGs with one source per concept. Experimental
 plots remain in content-bound artifact directories rather than being
 committed as duplicate PNG/SVG pairs. All public diagrams reuse the
-architecture figure's orange/blue/teal palette, typography, card geometry,
-and arrow style.
+architecture palette. The GraphBrewOrder mechanism figures additionally reuse
+its dashed domains, pastel cards, charcoal typography, blue arrows, and
+dark-mode behavior.
