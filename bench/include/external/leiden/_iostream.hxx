@@ -4,6 +4,7 @@
 #include <iterator>
 #include <array>
 #include <vector>
+#include <cstdio>
 #include <ostream>
 #include <iostream>
 #include <chrono>
@@ -133,6 +134,14 @@ inline ostream& operator<<(ostream& a, const vector<T>& x) {
 
 
 /**
+ * Explicit stream wrapper for formatted time_t output.
+ */
+struct FormattedTime {
+  time_t value;
+};
+
+
+/**
  * Write a time to a stream.
  * @param a the stream
  * @param x the time
@@ -141,7 +150,7 @@ inline void writeTime(ostream& a, const time_t& x) {
   const int BUF = 64;
   char  buf[BUF];
   tm* t = localtime(&x);
-  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d",
+  std::snprintf(buf, BUF, "%04d-%02d-%02d %02d:%02d:%02d",
     t->tm_year + 1900,
     t->tm_mon  + 1,
     t->tm_mday,
@@ -164,13 +173,23 @@ inline void writeTimePoint(ostream& a, const time_point<system_clock>& x) {
 
 
 /**
- * Write a time to a stream.
- * @param a the stream
+ * Wrap a time for explicit formatted streaming.
  * @param x the time
+ * @returns the wrapper
+ */
+inline FormattedTime formattedTime(const time_t& x) {
+  return FormattedTime{x};
+}
+
+
+/**
+ * Write a formatted time wrapper to a stream.
+ * @param a the stream
+ * @param x the formatted time wrapper
  * @returns the stream
  */
-inline ostream& operator<<(ostream& a, const time_t& x) {
-  writeTime(a, x); return a;
+inline ostream& operator<<(ostream& a, const FormattedTime& x) {
+  writeTime(a, x.value); return a;
 }
 
 
@@ -215,4 +234,3 @@ inline void println(const T& x) {
 inline void println() {
   cout << "\n";
 }
-

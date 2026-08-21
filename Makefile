@@ -116,7 +116,7 @@ UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) $(GAS_KERNELS) converter edge_view_benchmark edge-all edge-dense edge-frontier edge-irregular gas-all all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular check-edge check-gas-runtime check-gas check-edge-gas-repeatability check-edge-gas check-edge-structure report-edge-gas-performance run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) $(GAS_KERNELS) converter edge_view_benchmark edge-all edge-dense edge-frontier edge-irregular gas-all all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-leiden-gorder check-edge-dense check-edge-frontier check-edge-irregular check-edge check-gas-runtime check-gas check-edge-gas-repeatability check-edge-gas check-edge-structure report-edge-gas-performance run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 ownership_analysis: $(BIN_DIR)/ownership_analysis
 edge_view_benchmark: $(BIN_DIR)/edge_view_benchmark
 edge-all: $(EDGE_KERNELS_BIN)
@@ -137,6 +137,9 @@ check-edge-primitives: $(TEST_BIN_DIR)/test_edge_primitives $(BIN_DIR)/edge_view
 		OMP_NUM_THREADS=$$threads $(TEST_BIN_DIR)/test_edge_primitives; \
 	done
 	@OMP_NUM_THREADS=4 $(BIN_DIR)/edge_view_benchmark -g 8 >/dev/null
+
+check-leiden-gorder: $(TEST_BIN_DIR)/test_leiden_gorder_regression
+	$(TEST_BIN_DIR)/test_leiden_gorder_regression
 
 check-edge-dense: $(DENSE_EDGE_KERNELS_BIN) $(addprefix $(BIN_DIR)/,cc cc_sv pr pr_spmv)
 	$(PYTHON) scripts/test/run_edge_dense_profiles.py
@@ -315,7 +318,7 @@ $(GAS_KERNELS_BIN): $(BIN_DIR)/%: $(SRC_GAS_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBR
 $(BIN_DIR)/graph_shard_export: $(SRC_DIR)/graph_shard_export.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS_GAP) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
 
-$(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) | $(TEST_BIN_DIR)
+$(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_LEIDEN) | $(TEST_BIN_DIR)
 	@$(CXX) $(CXXFLAGS_GAP) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
 
 # =========================================================
