@@ -21,7 +21,6 @@ def _clean_environment() -> dict[str, str]:
 def test_experiment_runners_do_not_load_unprefixed_package_aliases():
     code = """
 import sys
-import scripts.experiments.adaptive.runner
 import scripts.experiments.vldb.runner
 import scripts.experiments.vldb.figures
 import scripts.lib.analysis.cold_start_sim

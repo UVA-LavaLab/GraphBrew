@@ -684,20 +684,6 @@ class AlgorithmSelector:
                         return best_algo, scores  # explore
                 
                 best_algo = "ORIGINAL"  # exploit
-        
-        # DON-Lite neural ordering override.
-        # When enabled and the perceptron margin is low on a large community,
-        # override with DON_LITE (the C++ side dispatches to GenerateDonLiteMapping).
-        DON_LITE_MIN_COMMUNITY = 50000
-        DON_LITE_MARGIN_THRESHOLD = 0.1
-        if os.environ.get('ADAPTIVE_DON_LITE', '') in ('1', 'true'):
-            num_nodes = feature_dict.get('num_nodes', 0)
-            if num_nodes >= DON_LITE_MIN_COMMUNITY and scores:
-                sorted_scores = sorted(scores.values(), reverse=True)
-                margin = (sorted_scores[0] - sorted_scores[1]) if len(sorted_scores) >= 2 else abs(sorted_scores[0])
-                if margin < DON_LITE_MARGIN_THRESHOLD:
-                    best_algo = "DON_LITE"
-        
         return best_algo, scores
 
 

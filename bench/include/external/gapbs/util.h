@@ -36,7 +36,7 @@ enum ReorderingAlgo
     RCMOrder = 11,
     GraphBrewOrder = 12,    // -o 12:cluster:final:res:levels (leiden=default, rabbit, hubcluster)
     MAP = 13,               // Load reordering from file
-    AdaptiveOrder = 14,     // ML-based perceptron selector
+    AdaptiveOrder = 14,     // Frozen rule + retained offline model modes
     // Leiden algorithms
     LeidenOrder = 15,       // -o 15:resolution (GVE-Leiden baseline)
     // Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.

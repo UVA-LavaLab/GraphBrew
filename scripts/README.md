@@ -4,13 +4,13 @@
 scripts/
 ├── experiments/               isolated, restartable study runners
 │   ├── vldb/                   frozen study reproduction
-│   ├── adaptive_ml/            model diagnostics
+│   ├── adaptive_ml/            retired offline-model ablation
 │   └── legacy/                 archived (no live imports)
 ├── lib/                       ← reusable Python modules (imported, not run)
 │   ├── core/                   ResultsStore, parsing, run helpers
 │   ├── pipeline/               download.py (catalog auto-download), build, convert
-│   ├── analysis/               amortise, figures, cold-start sim
-│   ├── ml/                     adaptive ordering model
+│   ├── analysis/               metrics and offline diagnostics
+│   ├── ml/                     retained offline-model tooling
 │   └── tools/                  misc CLIs
 ├── test/                      ← pytest tests
 ├── graphbrew_experiment.py    public experiment orchestrator

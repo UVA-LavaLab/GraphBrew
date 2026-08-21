@@ -1491,11 +1491,11 @@ inline std::pair<bool, ReorderingAlgo> lookupAlgorithm(const std::string& name) 
 }
 
 // ============================================================================
-// PERCEPTRON SELECTION RESULT
+// RETAINED OFFLINE-MODEL SELECTION RESULT
 // ============================================================================
 
 /**
- * @brief Result of perceptron-based algorithm selection.
+ * @brief Result shared by retained model tooling and runtime arm dispatch.
  *
  * Carries both the base enum (for dispatch) and the variant name
  * (so the perceptron can distinguish between e.g. GraphBrewOrder_leiden
@@ -2154,7 +2154,6 @@ struct AblationConfig {
     double bandit_epsilon;   // Initial ε (probability of exploring), default 0.1
     bool don_tiebreak;       // DON-augmented Gorder tiebreaking
     bool hierarchical_gate;   // Two-level model: graph-type gate + regime-specific expert
-    bool don_lite;            // MLP-based vertex ordering for uncertain communities
     int top_k;               // Number of candidate orderings to try (default 1)
     
     static const AblationConfig& Get() {
@@ -2167,7 +2166,7 @@ struct AblationConfig {
                force_algo >= 0 || zero_packing || zero_fef ||
                zero_wsr || zero_quadratic || cost_model || packing_skip ||
                overhead_filter || fef_validate || platt_scaling ||
-               bandit_explore || don_tiebreak || hierarchical_gate || don_lite || top_k > 1;
+               bandit_explore || don_tiebreak || hierarchical_gate || top_k > 1;
     }
     
     void print() const {
@@ -2190,7 +2189,6 @@ struct AblationConfig {
         if (bandit_explore) printf("  BANDIT_EXPLORE: ε-greedy exploration, ε₀=%.3f\n", bandit_epsilon);
         if (don_tiebreak)   printf("  DON_TIEBREAK: DON-augmented Gorder tiebreaking\n");
         if (hierarchical_gate) printf("  HIERARCHICAL: two-level regime-specific gating\n");
-        if (don_lite)       printf("  DON_LITE: MLP-based vertex ordering\n");
         if (top_k > 1)      printf("  TOP_K: try %d candidate orderings\n", top_k);
         printf("===============================\n");
     }
@@ -2240,7 +2238,6 @@ private:
         cfg.bandit_epsilon = env_double("ADAPTIVE_BANDIT_EPSILON", 0.1);
         cfg.don_tiebreak   = env_bool("ADAPTIVE_DON_TIEBREAK");
         cfg.hierarchical_gate = env_bool("ADAPTIVE_HIERARCHICAL");
-        cfg.don_lite       = env_bool("ADAPTIVE_DON_LITE");
         cfg.top_k          = env_int("ADAPTIVE_TOP_K", 1);
         if (cfg.top_k < 1) cfg.top_k = 1;
         return cfg;
@@ -2248,11 +2245,11 @@ private:
 };
 
 // ============================================================================
-// PERCEPTRON WEIGHTS FOR ADAPTIVE ORDER
+// RETAINED PERCEPTRON WEIGHTS
 // ============================================================================
 
 /**
- * @brief Perceptron weights for ML-based algorithm selection
+ * @brief Perceptron weights retained for offline model compatibility.
  * 
  * AdaptiveOrder uses these weights to compute a score for each
  * reordering algorithm based on graph features. The algorithm
@@ -2724,12 +2721,8 @@ size_t countUniqueCommunities(const std::vector<K>& communities) {
     return unique.size();
 }
 
-/**
- * @brief Auto-compute Leiden resolution based on graph density
- * 
- * Higher resolution = more communities
  /**
- * @brief Compute auto-resolution for Leiden based on graph properties
+  * @brief Compute auto-resolution for Leiden based on graph properties
  * 
  * Higher resolution = more, smaller communities
  * Lower resolution = fewer, larger communities
@@ -4819,7 +4812,7 @@ inline std::map<std::string, PerceptronWeights> LoadPerceptronWeightsForFeatures
 }
 
 // ============================================================================
-// PERCEPTRON-BASED ALGORITHM SELECTION
+// RETAINED PERCEPTRON ALGORITHM SELECTION
 // ============================================================================
 
 #define GRAPHBREW_ADAPTIVE_POLICY(name, value) \
@@ -5835,9 +5828,7 @@ inline size_t ComputeDynamicLocalReorderThreshold(size_t num_nodes,
 /**
  * Select best reordering algorithm for a community/subgraph.
  * 
- * This is the main entry point for community-aware algorithm selection.
- * It handles small community optimization and delegates to the perceptron-based
- * selection system for larger communities.
+ * Legacy entry point for community-aware offline-model selection.
  * 
  * @param feat Community features for scoring
  * @param global_modularity Global graph modularity
@@ -5874,7 +5865,6 @@ inline PerceptronSelection SelectBestReorderingForCommunityWithModelCriterion(
         || ablation.packing_skip
         || ablation.hierarchical_gate
         || ablation.fef_validate
-        || ablation.don_lite
     ) {
         throw std::invalid_argument(
             "Adaptive runtime override/ablation paths are offline-only");
@@ -5956,24 +5946,6 @@ inline PerceptronSelection SelectBestReorderingForCommunityWithModelCriterion(
                     selected = topk[1];
                 }
             }
-        }
-    }
-    
-    // DON-Lite neural ordering override.
-    // When the perceptron is uncertain (low margin) on a large community,
-    // override with the DON-Lite MLP-based ordering which can capture
-    // nonlinear feature interactions that the linear perceptron misses.
-    // DON-Lite constants (mirrored from reorder_don_lite.h to avoid circular include)
-    constexpr size_t kDonLiteMinCommunity = 50000;
-    constexpr double kDonLiteMarginThreshold = 0.1;
-
-    if (AblationConfig::Get().don_lite &&
-        feat.num_nodes >= kDonLiteMinCommunity) {
-        // Check selection margin: |best_score - runner_up_score|
-        // If below threshold, perceptron is uncertain → DON-Lite may do better.
-        if (selected.margin < kDonLiteMarginThreshold) {
-            selected.variant_name = "DON_LITE";
-            // Keep selected.algo as-is (fallback if dispatch doesn't catch name)
         }
     }
     

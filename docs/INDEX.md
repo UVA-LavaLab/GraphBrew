@@ -71,6 +71,8 @@ wiki/                              detailed documentation source
 |---|---|
 | `bench/include/graphbrew/reorder/reorder.h` | algorithm dispatcher and variant resolution |
 | `bench/include/graphbrew/reorder/reorder_graphbrew.h` | GraphBrew composition and GVE-Leiden mechanisms |
+| `bench/include/graphbrew/reorder/reorder_graphbrew_diagnostics.h` | Callable diagnostic GraphBrew ordering families |
+| `bench/include/graphbrew/reorder/reorder_graphbrew_parser.h` | GraphBrew option parser |
 | `bench/include/graphbrew/reorder/reorder_adaptive.h` | deterministic rules and retained offline-model modes |
 | `bench/include/graphbrew/reorder/reorder_rabbit.h` | CSR and Boost Rabbit |
 | `bench/include/graphbrew/reorder/reorder_gorder.h` | faithful and relaxed Gorder variants |

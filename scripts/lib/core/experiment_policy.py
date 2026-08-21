@@ -36,7 +36,6 @@ PAPER_BENCHMARK_ORDER = (
 )
 
 PREVIEW_BENCHMARK_ORDER = ("pr", "bfs")
-ADAPTIVE_CACHE_BENCHMARK_ORDER = ("pr", "bfs", "cc", "sssp")
 MODEL_ABLATION_BENCHMARK_ORDER = (
     "bc",
     "bfs",
@@ -48,29 +47,16 @@ MODEL_ABLATION_BENCHMARK_ORDER = (
     "tc",
 )
 
-# Candidate capacity ladder in MiB. Convert to bytes only at runtime/API edges.
-CACHE_CAPACITY_CANDIDATES_MIB = (
-    2,
-    8,
-    22,
-    32,
-    64,
-    128,
-    256,
-    512,
-)
-PAPER_CACHE_CAPACITIES_MIB = CACHE_CAPACITY_CANDIDATES_MIB[:5]
+PAPER_CACHE_CAPACITIES_MIB = (2, 8, 22, 32, 64)
 PAPER_CACHE_PREVIEW_CAPACITIES_MIB = (2, 8, 64)
 CACHE_PR_ITERATIONS = 5
 END_TO_END_REUSE_COUNTS = (1, 5, 10, 20, 50, 100)
-ADAPTIVE_REUSE_REGIMES = (*END_TO_END_REUSE_COUNTS, "infinity")
 SHUFFLED_LABEL_SEED = 0
 REORDER_SEMANTICS_VERSION = "graphbrew-reorder/v2"
 
 LEGACY_NON_NESTED_LOGO_ERROR = (
-    "Legacy non-nested LOGO is retired for adaptive claims; use the "
-    "nested leave-one-topology-out evaluator with fold-local portfolio "
-    "selection, model fitting, and OOD calibration"
+    "Legacy non-nested LOGO is retired and is not valid evidence for the "
+    "deployed selector"
 )
 
 
@@ -120,7 +106,6 @@ for _subset in (
     REORDER_BENCHMARKS,
     PAPER_BENCHMARK_ORDER,
     PREVIEW_BENCHMARK_ORDER,
-    ADAPTIVE_CACHE_BENCHMARK_ORDER,
     MODEL_ABLATION_BENCHMARK_ORDER,
 ):
     validate_benchmark_subset(_subset)

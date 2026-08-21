@@ -14,7 +14,7 @@ bench/include/
 │   │   ├── reorder_gorder.h  # GOrder variants (9:default, 9:csr, 9:fast)
 │   │   ├── reorder_rcm.h     # RCM variants (11:default, 11:bnf)
 │   │   ├── reorder_graphbrew.h # GraphBrew unified reordering framework
-│   │   └── reorder_adaptive.h # Adaptive ML-based selection
+│   │   └── reorder_adaptive.h # Deterministic rule + legacy model modes
 │   └── partition/          # Partitioning algorithms
 │       ├── trust.h         # TRUST partitioning
 │       └── cagra/popt.h    # Cagra/GraphIT P-OPT helpers

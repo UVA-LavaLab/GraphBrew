@@ -1,16 +1,16 @@
 /**
  * @file reorder_graphbrew.h
  * @brief GraphBrew: Graph Reordering for Better Efficiency
- * 
+ *
  * A modular, configurable graph reordering library that combines the best
  * techniques from Leiden, RabbitOrder, and cache optimization literature.
- * 
+ *
  * =============================================================================
  * UNIFIED CONFIGURATION
  * =============================================================================
- * 
+ *
  * GraphBrew uses the unified reorder::ReorderConfig system from reorder_types.h:
- * 
+ *
  * │ Parameter              │ Default │ Description                          │
  * ├────────────────────────┼─────────┼──────────────────────────────────────┤
  * │ resolution             │ 1.0     │ Modularity (auto-computed from graph)│
@@ -21,34 +21,34 @@
  * │ maxPasses              │ 10      │ Max aggregation passes               │
  * │ tileSize               │ 4096    │ Cache blocking tile size             │
  * │ prefetchDistance       │ 8       │ Prefetch lookahead                   │
- * 
+ *
  * GraphBrewConfig uses reorder::DEFAULT_* constants and provides conversion:
  *   GraphBrewConfig::FromReorderConfig(cfg)  - Convert unified → GraphBrew
  *   graphBrewConfig.toReorderConfig()        - Convert GraphBrew → unified
- * 
+ *
  * =============================================================================
  * ALGORITHMS
  * =============================================================================
- * 
+ *
  * GraphBrew supports two main algorithmic approaches:
- * 
+ *
  * 1. LEIDEN-BASED (default): Multi-pass community detection with configurable
  *    aggregation and ordering strategies.
  *    - Local moving phase: vertices move to best neighboring community
  *    - Refinement phase: split and merge communities for better modularity
  *    - Aggregation: build super-graph and repeat until convergence
- * 
+ *
  * 2. RABBIT ORDER: Single-pass parallel incremental aggregation from the paper
  *    "Rabbit Order: Just-in-time Parallel Reordering for Fast Graph Analysis"
  *    - Vertices processed in ascending degree order
  *    - Lock-free parallel merging via 64-bit CAS
  *    - Dendrogram built on-the-fly during merges
  *    - Faster reordering, coarser communities
- * 
+ *
  * =============================================================================
  * ARCHITECTURE
  * =============================================================================
- * 
+ *
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │                    GraphBrew (graphbrew) - Leiden Pipeline                        │
  * ├─────────────────────────────────────────────────────────────────────────┤
@@ -61,7 +61,7 @@
  * │        └── HYBRID:      Lazy early, CSR later                          │
  * │  Then apply ordering strategy to final communities                     │
  * └─────────────────────────────────────────────────────────────────────────┘
- * 
+ *
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │                 RABBIT ORDER (12:rabbit) - Single Pass                  │
  * ├─────────────────────────────────────────────────────────────────────────┤
@@ -74,13 +74,13 @@
  * │     └── Atomic CAS merge (single 64-bit: strength + child)             │
  * │  4. DFS from top-level vertices → final ordering                       │
  * └─────────────────────────────────────────────────────────────────────────┘
- * 
+ *
  * =============================================================================
  * ORDERING STRATEGIES (for Leiden-based GraphBrew)
  * =============================================================================
- * 
+ *
  * After community detection, vertices are ordered using one of:
- * 
+ *
  * │ Strategy        │ Option           │ Description                       │
  * ├─────────────────┼──────────────────┼───────────────────────────────────┤
  * │ HIERARCHICAL    │ (default)        │ Sort by community, then degree    │
@@ -97,13 +97,13 @@
  * │ RABBIT          │                  │ cache-line-aligned tile graph     │
  * │ LAYER           │ 12:leiden        │ Per-community external algo       │
  * │                 │                  │ dispatch (0-11, default: Rabbit)  │
- * 
+ *
  * =============================================================================
  * COMMAND LINE USAGE
  * =============================================================================
- * 
+ *
  * Format: -o 12:[ordering]:[options...]
- * 
+ *
  * Leiden-based GraphBrew (the "graphbrew" prefix is optional):
  *   ./bench/bin/pr -f graph.mtx -o 12 -n 5                    # Default (leiden + per-community RabbitOrder)
  *   ./bench/bin/pr -f graph.mtx -o 12:dfs -n 5                # DFS ordering
@@ -115,19 +115,19 @@
  *   ./bench/bin/pr -f graph.mtx -o 12:tqr -n 5                # Tile-Quantized RabbitOrder (cache-aligned)
  *   ./bench/bin/pr -f graph.mtx -o 12:0.75 -n 5               # Fixed resolution (0.75)
  *   ./bench/bin/pr -f graph.mtx -o 12:dfs:streaming:0.75 -n 5 # Combined
- * 
+ *
  * RabbitOrder:
  *   ./bench/bin/pr -f graph.mtx -o 12:rabbit -n 5             # RabbitOrder algorithm
  *   ./bench/bin/pr -f graph.mtx -o 12:rabbit:dfs -n 5         # + DFS post-ordering
  *   ./bench/bin/pr -f graph.mtx -o 12:rabbit:dbg -n 5         # + DBG post-ordering
  *   # Note: RabbitOrder does not support dynamic resolution (falls back to auto)
- * 
+ *
  * =============================================================================
  * RESOLUTION MODES
  * =============================================================================
- * 
+ *
  * GraphBrew supports three resolution modes for community detection:
- * 
+ *
  * │ Mode         │ Syntax         │ Description                              │
  * ├──────────────┼────────────────┼──────────────────────────────────────────┤
  * │ Auto         │ auto or 0      │ Compute once from graph density/CV       │
@@ -137,14 +137,14 @@
  * │              │                │   - Convergence speed                    │
  * │ Dynamic+Init │ dynamic_2.0    │ Start at 2.0, then adjust each pass      │
  * │ Fixed        │ 1.5            │ Use specified value unchanged            │
- * 
+ *
  * Dynamic resolution is recommended for unknown graphs where optimal resolution
  * is not known ahead of time. The algorithm adapts based on runtime metrics.
- * 
+ *
  * =============================================================================
  * COMPARISON: GraphBrew (Leiden) vs RABBIT ORDER
  * =============================================================================
- * 
+ *
  * │ Aspect          │ graphbrew (Leiden)           │ graphbrew:rabbit (RabbitOrder)  │
  * ├─────────────────┼─────────────────────────┼────────────────────────────┤
  * │ Passes          │ Multi-pass (2-5)        │ Single-pass                │
@@ -155,28 +155,28 @@
  * │ Communities     │ Many fine (~50K)        │ Fewer coarse (~2K)         │
  * │ Ordering        │ Configurable            │ DFS (configurable post)    │
  * │ Best For        │ Quality communities     │ Fast reordering            │
- * 
+ *
  * =============================================================================
  * CONFIGURATION STRUCT
  * =============================================================================
- * 
+ *
  * struct GraphBrewConfig {
  *     // Algorithm Selection
  *     GraphBrewAlgorithm algorithm = LEIDEN;     // LEIDEN or RABBIT_ORDER
- *     
+ *
  *     // Community Detection (Leiden)
  *     double resolution = 1.0;              // Modularity resolution
  *     int maxIterations = 20;               // Per-pass iteration limit
  *     int maxPasses = 10;                   // Maximum aggregation passes
  *     bool useRefinement = true;            // Enable refinement phase
- *     
+ *
  *     // Aggregation Strategy (Leiden)
  *     AggregationStrategy aggregation = LEIDEN_CSR;  // CSR, RABBIT_LAZY, HYBRID
- *     
- *     // Ordering Strategy  
+ *
+ *     // Ordering Strategy
  *     OrderingStrategy ordering = HIERARCHICAL;      // See table above
  * };
- * 
+ *
  * @author GraphBrew
  * @date 2026
  */
@@ -382,9 +382,9 @@ enum class CommunityMode {
     HYBRID           ///< LP for first pass, Leiden for refinement
 };
 
-/** 
- * Algorithm configuration 
- * 
+/**
+ * Algorithm configuration
+ *
  * Uses unified defaults from reorder::ReorderConfig for consistency with
  * Leiden, GraphBrew, and other community-based reordering algorithms.
  */
@@ -394,17 +394,17 @@ struct GraphBrewConfig {
     double tolerance = reorder::DEFAULT_TOLERANCE;             ///< Convergence tolerance
     double aggregationTolerance = reorder::DEFAULT_AGGREGATION_TOLERANCE; ///< When to stop aggregating
     double toleranceDrop = reorder::DEFAULT_TOLERANCE_DROP;    ///< Tolerance reduction per pass
-    
+
     // Iteration limits - use unified defaults
     int maxIterations = reorder::DEFAULT_MAX_ITERATIONS;       ///< Max iterations per pass
     int maxPasses = reorder::DEFAULT_MAX_PASSES;               ///< Max aggregation passes
-    
+
     // Algorithm selection
     GraphBrewAlgorithm algorithm = GraphBrewAlgorithm::LEIDEN; ///< Main algorithm
     CommunityMode communityMode = CommunityMode::FULL_LEIDEN;
     AggregationStrategy aggregation = AggregationStrategy::LEIDEN_CSR;
     OrderingStrategy ordering = OrderingStrategy::CONNECTIVITY_BFS;  ///< Default: BFS within communities (best cache locality)
-    
+
     // Feature flags
     bool useRefinement = true;         ///< Enable Leiden refinement step
     int  refinementDepth = -1;         ///< Which passes to refine: -1=all, 0=pass 0 only (GVE style), N=passes 0..N
@@ -420,7 +420,7 @@ struct GraphBrewConfig {
     size_t targetCommunities = 0;      ///< Target community count after merging (0 = auto)
     bool useHubExtraction = false;     ///< Extract high-degree hubs before community ordering (graphbrew:hubx)
     double hubExtractionPct = 0.001;   ///< Fraction of vertices to extract as hubs (default 0.1%, use hubx0.5 for 0.5%)
-    
+
     // Gorder-inspired improvements (apply to hrab ordering)
     bool useGorderIntra = false;       ///< Replace BFS with Gorder-greedy within communities (graphbrew:gord)
     int  gorderWindow = 5;             ///< Sliding window size for Gorder-greedy intra-community ordering
@@ -464,27 +464,27 @@ struct GraphBrewConfig {
     // Override via -o 12:hrab:sgres0.5  (sets γ=0.5)
     // or          -o 12:tqr:sgres0.1
     double superGraphResolution = 0.10;
-    
+
     // GraphBrew mode: per-community external algorithm dispatch
     int  finalAlgoId = -1;             ///< Final reordering algorithm ID (0-11) for LAYER ordering. -1 = not set (uses GraphBrew ordering)
     bool useSmallCommunityMerging = false; ///< Merge small communities and apply heuristic algorithm selection
     size_t smallCommunityThreshold = 0;    ///< Min community size for individual reordering (0 = dynamic)
     int  recursiveDepth = -1;          ///< Recursive sub-community depth: -1=auto (default), 0=flat, 1+=recurse into large communities
     int  subAlgoId = 8;                ///< Algo for sub-communities: -1=adaptive, 0-11=fixed algo ID (default=8 RabbitOrder)
-    
+
     // Pipeline control
     bool hasExplicitOrdering = false;  ///< True when user specified an ordering token (e.g. :dbg, :hrab). Used to distinguish 12:rabbit (native DFS) from 12:rabbit:conn (explicit ordering override).
     bool rabbitDegreeSortPreprocess = false; ///< Physical CSR degree sort applied by the builder before Rabbit community detection.
-    
+
     // Memory optimizations
     bool useLazyUpdates = false;       ///< Batch community weight updates (reduces atomics in non-REFINE phase)
     bool useRelaxedMemory = false;     ///< Use relaxed memory ordering in LazyUpdateBuffer [requires useLazyUpdates]
     bool reuseBuffers = true;          ///< Reuse SuperGraph buffers across passes (avoids reallocation)
-    
+
     // Cache optimization - use unified defaults
     size_t tileSize = reorder::DEFAULT_TILE_SIZE;              ///< Tile size for cache blocking
     size_t prefetchDistance = reorder::DEFAULT_PREFETCH_DISTANCE;  ///< Prefetch lookahead
-   
+
     /**
      * Create GraphBrewConfig from unified ReorderConfig
      * Enables seamless interop with unified configuration
@@ -503,7 +503,7 @@ struct GraphBrewConfig {
         vc.verifyTopology = cfg.verifyTopology;
         vc.tileSize = cfg.tileSize;
         vc.prefetchDistance = cfg.prefetchDistance;
-        
+
         // Map ordering strategies
         switch (cfg.ordering) {
             case reorder::OrderingStrategy::DFS:
@@ -521,7 +521,7 @@ struct GraphBrewConfig {
             default:
                 vc.ordering = OrderingStrategy::CONNECTIVITY_BFS; break;  // Best default
         }
-        
+
         // Map aggregation strategies
         switch (cfg.aggregation) {
             case reorder::AggregationStrategy::LAZY_STREAMING:
@@ -533,10 +533,10 @@ struct GraphBrewConfig {
             default:
                 vc.aggregation = AggregationStrategy::LEIDEN_CSR; break;
         }
-        
+
         return vc;
     }
-    
+
     /**
      * Convert to unified ReorderConfig
      * Enables interop with other algorithms
@@ -555,7 +555,7 @@ struct GraphBrewConfig {
         cfg.verifyTopology = verifyTopology;
         cfg.tileSize = tileSize;
         cfg.prefetchDistance = prefetchDistance;
-        
+
         // Map ordering strategies
         switch (ordering) {
             case OrderingStrategy::DENDROGRAM_DFS:
@@ -575,8 +575,8 @@ struct GraphBrewConfig {
             default:
                 cfg.ordering = reorder::OrderingStrategy::HIERARCHICAL; break;
         }
-        
-        // Map aggregation strategies  
+
+        // Map aggregation strategies
         switch (aggregation) {
             case AggregationStrategy::RABBIT_LAZY:
                 cfg.aggregation = reorder::AggregationStrategy::LAZY_STREAMING; break;
@@ -587,7 +587,7 @@ struct GraphBrewConfig {
             default:
                 cfg.aggregation = reorder::AggregationStrategy::CSR_BUFFER; break;
         }
-        
+
         return cfg;
     }
 };
@@ -941,11 +941,11 @@ struct GraphBrewResult {
     // Community structure
     std::vector<K> membership;                     ///< Final community per vertex
     std::vector<std::vector<K>> membershipPerPass; ///< Membership at each level
-    
+
     // Dendrogram (for tree-based ordering)
     std::vector<DendrogramNode<K>> dendrogram;     ///< Community tree
     std::vector<K> roots;                          ///< Root community IDs
-    
+
     // Optional Rabbit dendrogram, populated by runRabbitOrder when the
     // downstream pipeline requests dendrogram-based intra-community order
     // (IntraCommunityOrder::Dendrogram).  Stored as parallel arrays so the
@@ -960,17 +960,17 @@ struct GraphBrewResult {
     std::vector<K> rabbitSibling;
     std::vector<K> rabbitToplevel;
     bool hasRabbitDendrogram = false;
-    
+
     // Weights
     std::vector<Weight> vertexWeight;              ///< Total weight per vertex
     std::vector<Weight> communityWeight;           ///< Total weight per community
-    
+
     // Statistics
     double modularity = 0.0;
     int totalIterations = 0;
     int totalPasses = 0;
     size_t numCommunities = 0;
-    
+
     // Timing breakdown
     double localMoveTime = 0.0;
     double refinementTime = 0.0;
@@ -998,14 +998,14 @@ struct SuperGraph {
     size_t numEdges = 0;           ///< Number of edges
     size_t reservedNodes = 0;      ///< Reserved capacity for nodes
     size_t reservedEdges = 0;      ///< Reserved capacity for edges
-    
+
     void resize(size_t n, size_t e) {
         offsets.resize(n + 1);
         degrees.resize(n);
         neighbors.resize(e);
         weights.resize(e);
     }
-    
+
     /**
      * Reserve capacity for reuse across passes
      * Avoids repeated allocations when graph shrinks
@@ -1022,7 +1022,7 @@ struct SuperGraph {
             reservedEdges = e;
         }
     }
-    
+
     /**
      * Soft clear - reset sizes but keep allocated memory
      */
@@ -1031,7 +1031,7 @@ struct SuperGraph {
         numEdges = 0;
         // Don't shrink vectors - keep reserved capacity
     }
-    
+
     void clear() {
         std::fill(degrees.begin(), degrees.end(), K(0));
         numNodes = 0;
@@ -1173,11 +1173,11 @@ private:
 
 /**
  * Thread-local batch update buffer for lazy community weight updates
- * 
+ *
  * Instead of atomically updating ctot on every vertex move,
  * we batch updates and apply them at the end of each iteration.
  * This reduces atomic contention significantly.
- * 
+ *
  * Used in non-REFINE phase when config.useLazyUpdates=true.
  * REFINE phase still uses immediate atomics due to read-modify dependency
  * (must check ctot before deciding to move).
@@ -1186,26 +1186,26 @@ template <typename K, typename W>
 struct LazyUpdateBuffer {
     std::vector<std::pair<K, W>> decrements;  ///< (community, weight) to subtract
     std::vector<std::pair<K, W>> increments;  ///< (community, weight) to add
-    
+
     LazyUpdateBuffer() {
         decrements.reserve(1024);
         increments.reserve(1024);
     }
-    
+
     void recordMove(K old_comm, K new_comm, W weight) {
         decrements.emplace_back(old_comm, weight);
         increments.emplace_back(new_comm, weight);
     }
-    
+
     void clear() {
         decrements.clear();
         increments.clear();
     }
-    
+
     bool empty() const {
         return decrements.empty() && increments.empty();
     }
-    
+
     /**
      * Apply batched updates to community weights
      * Uses relaxed memory ordering for better performance
@@ -1229,7 +1229,7 @@ struct LazyUpdateBuffer {
 
 /**
  * Delta modularity for moving vertex u to community c
- * 
+ *
  * FAITHFUL to leiden.hxx deltaModularity()
  */
 template <typename W>
@@ -1249,16 +1249,16 @@ void computeVertexWeights(
     std::vector<Weight>& vtot,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     const GraphBrewConfig& config) {
-    
+
     const int64_t N = g.num_nodes();
     vtot.assign(N, Weight(0));
-    
+
     GRAPHBREW_TRACE("computeVertexWeights: N=%ld", N);
-    
+
     #pragma omp parallel for schedule(dynamic, config.tileSize)
     for (int64_t u = 0; u < N; ++u) {
         Weight total = 0;
-        
+
         for (auto neighbor : g.out_neigh(u)) {
             if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
                 total += Weight(1);
@@ -1278,10 +1278,10 @@ void computeVertexWeightsSuperGraph(
     std::vector<W>& vtot,
     const SuperGraph<K, W>& sg,
     const GraphBrewConfig& config) {
-    
+
     const size_t N = sg.numNodes;
     vtot.assign(N, W(0));
-    
+
     #pragma omp parallel for schedule(dynamic, std::min(config.tileSize, size_t(256)))
     for (size_t u = 0; u < N; ++u) {
         W total = 0;
@@ -1307,12 +1307,12 @@ void initializeCommunities(
     std::vector<Weight>& ctot,
     const std::vector<Weight>& vtot,
     size_t N) {
-    
+
     vcom.resize(N);
     ctot.resize(N);
-    
+
     GRAPHBREW_TRACE("initializeCommunities: N=%zu", N);
-    
+
     #pragma omp parallel for schedule(static, 4096)
     for (size_t u = 0; u < N; ++u) {
         vcom[u] = static_cast<K>(u);
@@ -1326,7 +1326,7 @@ void initializeCommunities(
 
 /**
  * Scan communities connected to vertex u
- * 
+ *
  * @tparam REFINE If true, only scan within community bounds
  */
 template <bool REFINE, typename K, typename W, typename NodeID_T, typename DestID_T>
@@ -1337,10 +1337,8 @@ void scanCommunities(
     const std::vector<K>& vcom,
     const std::vector<K>& vcob,
     const GraphBrewConfig& config) {
-    
+
     scanner.clear();
-    K bound_u = vcob[u];
-    
     // Prefetch community data for neighbors
     if (config.usePrefetch) {
         size_t count = 0;
@@ -1355,7 +1353,7 @@ void scanCommunities(
             __builtin_prefetch(&vcom[v], 0, 1);
         }
     }
-    
+
     for (auto neighbor : g.out_neigh(u)) {
         NodeID_T v;
         W w;
@@ -1366,21 +1364,21 @@ void scanCommunities(
             v = neighbor.v;
             w = static_cast<W>(neighbor.w);
         }
-        
+
         if (v == u) continue;  // Skip self-loops
-        
+
         // REFINE: only scan within same community bound
         if constexpr (REFINE) {
-            if (vcob[v] != bound_u) continue;
+            if (vcob[v] != vcob[u]) continue;
         }
-        
+
         scanner.add(vcom[v], w);
     }
 }
 
 /**
  * Scan communities on super-graph
- * 
+ *
  * Optimization: Prefetch neighbor community data ahead of access
  */
 template <bool REFINE, typename K, typename W>
@@ -1391,13 +1389,11 @@ void scanCommunitiesSuperGraph(
     const std::vector<K>& vcom,
     const std::vector<K>& vcob,
     const GraphBrewConfig& config) {
-    
+
     scanner.clear();
-    K bound_u = vcob[u];
-    
     size_t start = sg.offsets[u];
     size_t end = sg.offsets[u] + sg.degrees[u];
-    
+
     // Prefetch community data for upcoming neighbors
     if (config.usePrefetch && end > start) {
         const size_t prefetchAhead = std::min(config.prefetchDistance, end - start);
@@ -1405,25 +1401,25 @@ void scanCommunitiesSuperGraph(
             __builtin_prefetch(&vcom[sg.neighbors[start + i]], 0, 1);
         }
     }
-    
+
     for (size_t i = start; i < end; ++i) {
         // Prefetch next batch of community data
         if (config.usePrefetch && i + config.prefetchDistance < end) {
             __builtin_prefetch(&vcom[sg.neighbors[i + config.prefetchDistance]], 0, 1);
         }
-        
+
         K v = sg.neighbors[i];
         W w = sg.weights[i];
-        
+
         if (v == u) {
             scanner.add(vcom[v], w);  // Self-loop contributes
             continue;
         }
-        
+
         if constexpr (REFINE) {
-            if (vcob[v] != bound_u) continue;
+            if (vcob[v] != vcob[u]) continue;
         }
-        
+
         scanner.add(vcom[v], w);
     }
 }
@@ -1443,22 +1439,22 @@ std::pair<K, W> chooseCommunityGreedy(
     const std::vector<W>& vtot,
     const std::vector<W>& ctot,
     W M, W R) {
-    
+
     K best_c = current_comm;
     W best_delta = W(0);
     bool found_move = false;
     W k_u = vtot[u];
     W k_u_d = scanner.get(current_comm);
     W sigma_d = ctot[current_comm];
-    
+
     for (K c : scanner.keys) {
         if (c == current_comm) continue;
-        
+
         W k_u_c = scanner.get(c);
         W sigma_c = ctot[c];
-        
+
         W delta = deltaModularity<W>(k_u_c, k_u_d, k_u, sigma_c, sigma_d, M, R);
-        
+
         if (delta > best_delta ||
             (found_move && delta == best_delta && c < best_c)) {
             best_delta = delta;
@@ -1466,7 +1462,7 @@ std::pair<K, W> chooseCommunityGreedy(
             found_move = true;
         }
     }
-    
+
     return {best_c, best_delta};
 }
 
@@ -1476,7 +1472,7 @@ std::pair<K, W> chooseCommunityGreedy(
 
 /**
  * Move vertex to new community
- * 
+ *
  * @tparam REFINE If true, check singleton constraint
  */
 template <bool REFINE, typename K, typename W>
@@ -1485,10 +1481,10 @@ bool changeCommunity(
     std::vector<W>& ctot,
     K u, K new_comm,
     const std::vector<W>& vtot) {
-    
+
     K old_comm = vcom[u];
     W k_u = vtot[u];
-    
+
     if constexpr (REFINE) {
         // In refinement, only move if we're the only member (singleton)
         // Use 1.001 tolerance for floating-point rounding
@@ -1498,7 +1494,7 @@ bool changeCommunity(
             old_ctot = ctot[old_comm];
             ctot[old_comm] -= k_u;
         }
-        
+
         if (old_ctot > k_u * W(1.001)) {
             #pragma omp atomic
             ctot[old_comm] += k_u;
@@ -1508,10 +1504,10 @@ bool changeCommunity(
         #pragma omp atomic
         ctot[old_comm] -= k_u;
     }
-    
+
     #pragma omp atomic
     ctot[new_comm] += k_u;
-    
+
     vcom[u] = new_comm;
     return true;
 }
@@ -1522,11 +1518,11 @@ bool changeCommunity(
 
 /**
  * Leiden local-moving phase on original graph
- * 
+ *
  * Optimization: Process vertices in ascending degree order (low-degree first)
  * This reduces contention since high-degree hubs are processed after
  * low-degree vertices have settled into communities.
- * 
+ *
  * @tparam REFINE If true, this is refinement phase
  */
 template <bool REFINE, typename K, typename NodeID_T, typename DestID_T>
@@ -1539,10 +1535,10 @@ int localMovingPhase(
     const std::vector<Weight>& vtot,
     Weight M, Weight R,
     const GraphBrewConfig& config) {
-    
+
     const int64_t N = g.num_nodes();
     int iterations = 0;
-    
+
     // Allocate per-thread scanners and lazy update buffers
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, Weight>> scanners;
@@ -1551,17 +1547,17 @@ int localMovingPhase(
         scanners.emplace_back(N);
         lazyBuffers.emplace_back();
     }
-    
+
     // Decide whether to use lazy updates this phase
     // REFINE phase cannot use lazy due to read-modify dependency on ctot
     const bool useLazy = config.useLazyUpdates && !REFINE;
-    
+
     // Build degree-sorted vertex order (ascending - low degree first)
     // This is a key optimization from RabbitOrder: process low-degree vertices
     // first so they settle into communities before high-degree hubs
     std::vector<NodeID_T> vertexOrder(N);
     std::iota(vertexOrder.begin(), vertexOrder.end(), 0);
-    
+
     if (config.useDegreeSorting) {
         if (config.useParallelSort) {
             // Parallel sort by degree
@@ -1581,9 +1577,9 @@ int localMovingPhase(
         }
         GRAPHBREW_TRACE("localMovingPhase: using degree-sorted order");
     }
-    
+
     GRAPHBREW_TRACE("localMovingPhase<%s>: N=%ld", REFINE ? "REFINE" : "NORMAL", N);
-    
+
     // Set OpenMP schedule based on whether degree sorting is enabled
     // Degree sorting creates uniform work distribution -> static,1 is optimal
     // Leiden's affectedness check makes work irregular -> dynamic is better
@@ -1592,45 +1588,45 @@ int localMovingPhase(
     } else {
         omp_set_schedule(omp_sched_dynamic, config.tileSize);
     }
-    
+
     for (int iter = 0; iter < config.maxIterations; ++iter) {
         Weight totalDelta = Weight(0);
-        
+
         #pragma omp parallel reduction(+:totalDelta)
         {
             int tid = omp_get_thread_num();
             auto& scanner = scanners[tid];
             auto& lazyBuffer = lazyBuffers[tid];
-            
+
             if (useLazy) {
                 lazyBuffer.clear();
             }
-            
+
             // Use static scheduling when degree-sorted (uniform work distribution)
             // Use dynamic scheduling otherwise (variable work per vertex)
             #pragma omp for schedule(runtime)
             for (int64_t i = 0; i < N; ++i) {
                 NodeID_T u = vertexOrder[i];
                 if (!vaff[u]) continue;
-                
+
                 K d = vcom[u];
-                
+
                 // REFINE: Skip if community has more than one member
                 // Use 1.001 tolerance factor to handle
                 // floating-point accumulation rounding errors
                 if constexpr (REFINE) {
                     if (ctot[d] > vtot[u] * Weight(1.001)) continue;
                 }
-                
-                scanCommunities<REFINE>(scanner, g, static_cast<NodeID_T>(u), 
+
+                scanCommunities<REFINE>(scanner, g, static_cast<NodeID_T>(u),
                                         vcom, vcob, config);
-                
+
                 auto [best_c, delta] = chooseCommunityGreedy<K, Weight>(
                     static_cast<K>(u), d, scanner, vtot, ctot, M, R);
-                
+
                 if (best_c != d) {
                     bool moved = false;
-                    
+
                     if (useLazy) {
                         // Lazy mode: record move, defer ctot update
                         K old_comm = vcom[u];
@@ -1641,7 +1637,7 @@ int localMovingPhase(
                         // Immediate mode: atomic ctot update
                         moved = changeCommunity<REFINE>(vcom, ctot, static_cast<K>(u), best_c, vtot);
                     }
-                    
+
                     if (moved) {
                         for (auto neighbor : g.out_neigh(static_cast<NodeID_T>(u))) {
                             NodeID_T v;
@@ -1654,11 +1650,11 @@ int localMovingPhase(
                         }
                     }
                 }
-                
+
                 vaff[u] = 0;
                 totalDelta += delta;
             }
-            
+
             // Barrier before applying lazy updates
             if (useLazy) {
                 #pragma omp barrier
@@ -1666,14 +1662,14 @@ int localMovingPhase(
                 lazyBuffer.applyTo(ctot);
             }
         }
-        
+
         ++iterations;
         GRAPHBREW_TRACE("  iter %d: totalDelta=%.6f%s", iter, totalDelta, useLazy ? " (lazy)" : "");
-        
+
         if constexpr (REFINE) break;  // Refinement: single pass
         if (totalDelta <= config.tolerance) break;
     }
-    
+
     return iterations;
 }
 
@@ -1690,10 +1686,10 @@ int localMovingPhaseSuperGraph(
     const std::vector<Weight>& vtot,
     Weight M, Weight R,
     const GraphBrewConfig& config) {
-    
+
     const size_t N = sg.numNodes;
     int iterations = 0;
-    
+
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, Weight>> scanners;
     std::vector<LazyUpdateBuffer<K, Weight>> lazyBuffers;
@@ -1701,43 +1697,43 @@ int localMovingPhaseSuperGraph(
         scanners.emplace_back(N);
         lazyBuffers.emplace_back();
     }
-    
+
     // Decide whether to use lazy updates this phase
     const bool useLazy = config.useLazyUpdates && !REFINE;
-    
+
     GRAPHBREW_TRACE("localMovingPhaseSuperGraph<%s>: N=%zu%s", REFINE ? "REFINE" : "NORMAL", N, useLazy ? " (lazy)" : "");
-    
+
     for (int iter = 0; iter < config.maxIterations; ++iter) {
         Weight totalDelta = Weight(0);
-        
+
         #pragma omp parallel reduction(+:totalDelta)
         {
             int tid = omp_get_thread_num();
             auto& scanner = scanners[tid];
             auto& lazyBuffer = lazyBuffers[tid];
-            
+
             if (useLazy) {
                 lazyBuffer.clear();
             }
-            
+
             #pragma omp for schedule(dynamic, std::min(config.tileSize, size_t(256)))
             for (size_t u = 0; u < N; ++u) {
                 if (!vaff[u]) continue;
-                
+
                 K d = vcom[u];
-                
+
                 if constexpr (REFINE) {
                     if (ctot[d] > vtot[u]) continue;
                 }
-                
+
                 scanCommunitiesSuperGraph<REFINE>(scanner, sg, static_cast<K>(u), vcom, vcob, config);
-                
+
                 auto [best_c, delta] = chooseCommunityGreedy<K, Weight>(
                     static_cast<K>(u), d, scanner, vtot, ctot, M, R);
-                
+
                 if (best_c != d) {
                     bool moved = false;
-                    
+
                     if (useLazy) {
                         // Lazy mode: record move, defer ctot update
                         K old_comm = vcom[u];
@@ -1748,7 +1744,7 @@ int localMovingPhaseSuperGraph(
                         // Immediate mode: atomic ctot update
                         moved = changeCommunity<REFINE>(vcom, ctot, static_cast<K>(u), best_c, vtot);
                     }
-                    
+
                     if (moved) {
                         size_t start = sg.offsets[u];
                         size_t end = sg.offsets[u] + sg.degrees[u];
@@ -1757,23 +1753,23 @@ int localMovingPhaseSuperGraph(
                         }
                     }
                 }
-                
+
                 vaff[u] = 0;
                 totalDelta += delta;
             }
-            
+
             // Barrier before applying lazy updates
             if (useLazy) {
                 #pragma omp barrier
                 lazyBuffer.applyTo(ctot);
             }
         }
-        
+
         ++iterations;
         if constexpr (REFINE) break;
         if (totalDelta <= config.tolerance) break;
     }
-    
+
     return iterations;
 }
 
@@ -1789,10 +1785,10 @@ size_t countCommunities(
     std::vector<K>& exists,
     const std::vector<K>& vcom,
     size_t N) {
-    
+
     std::fill(exists.begin(), exists.end(), K(0));
     size_t count = 0;
-    
+
     #pragma omp parallel for schedule(static, 4096) reduction(+:count)
     for (size_t u = 0; u < N; ++u) {
         K c = vcom[u];
@@ -1804,7 +1800,7 @@ size_t countCommunities(
         }
         if (!old) ++count;
     }
-    
+
     return count;
 }
 
@@ -1816,19 +1812,19 @@ size_t renumberCommunities(
     std::vector<K>& vcom,
     std::vector<K>& cmap,
     size_t N) {
-    
+
     K next = 0;
     for (size_t i = 0; i < cmap.size(); ++i) {
         if (cmap[i]) {
             cmap[i] = next++;
         }
     }
-    
+
     #pragma omp parallel for schedule(static, 4096)
     for (size_t u = 0; u < N; ++u) {
         vcom[u] = cmap[vcom[u]];
     }
-    
+
     return next;
 }
 
@@ -1839,7 +1835,7 @@ template <typename K>
 void lookupCommunities(
     std::vector<K>& ucom,
     const std::vector<K>& vcom) {
-    
+
     #pragma omp parallel for schedule(static, 4096)
     for (size_t u = 0; u < ucom.size(); ++u) {
         ucom[u] = vcom[ucom[u]];
@@ -1859,12 +1855,12 @@ void buildCommunityVertices(
     std::vector<K>& cvtx,
     const std::vector<K>& vcom,
     size_t N, size_t C) {
-    
+
     coff.assign(C + 1, 0);
     for (size_t u = 0; u < N; ++u) {
         coff[vcom[u]]++;
     }
-    
+
     size_t sum = 0;
     for (size_t c = 0; c < C; ++c) {
         size_t count = coff[c];
@@ -1872,13 +1868,13 @@ void buildCommunityVertices(
         sum += count;
     }
     coff[C] = sum;
-    
+
     cvtx.resize(N);
     std::vector<size_t> pos(C);
     for (size_t c = 0; c < C; ++c) {
         pos[c] = coff[c];
     }
-    
+
     for (size_t u = 0; u < N; ++u) {
         K c = vcom[u];
         cvtx[pos[c]++] = static_cast<K>(u);
@@ -1897,9 +1893,9 @@ void aggregateGraphLeiden(
     const std::vector<K>& cvtx,
     size_t C,
     const GraphBrewConfig& config) {
-    
+
     GRAPHBREW_TRACE("aggregateGraphLeiden: C=%zu", C);
-    
+
     // Estimate edges per community
     std::vector<size_t> estDegree(C, 0);
     #pragma omp parallel for schedule(dynamic, 256)
@@ -1910,39 +1906,39 @@ void aggregateGraphLeiden(
         }
         estDegree[c] = deg;
     }
-    
+
     // Build offsets
     sg.offsets.resize(C + 1);
     sg.offsets[0] = 0;
     for (size_t c = 0; c < C; ++c) {
         sg.offsets[c + 1] = sg.offsets[c] + estDegree[c];
     }
-    
+
     size_t totalEdges = sg.offsets[C];
     sg.neighbors.resize(totalEdges);
     sg.weights.resize(totalEdges);
     sg.degrees.assign(C, 0);
     sg.numNodes = C;
-    
+
     // Aggregate edges
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, Weight>> scanners;
     for (int t = 0; t < numThreads; ++t) {
         scanners.emplace_back(C);
     }
-    
+
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
         auto& scanner = scanners[tid];
-        
+
         #pragma omp for schedule(dynamic, 256)
         for (size_t c = 0; c < C; ++c) {
             scanner.clear();
-            
+
             const size_t commStart = coff[c];
             const size_t commEnd = coff[c + 1];
-            
+
             // Prefetch community membership data for upcoming vertices
             if (config.usePrefetch && commEnd > commStart) {
                 const size_t prefetchCount = std::min(config.prefetchDistance, commEnd - commStart);
@@ -1950,13 +1946,13 @@ void aggregateGraphLeiden(
                     __builtin_prefetch(&vcom[cvtx[commStart + p]], 0, 1);
                 }
             }
-            
+
             for (size_t i = commStart; i < commEnd; ++i) {
                 // Prefetch community membership for next vertex's neighbors
                 if (config.usePrefetch && i + config.prefetchDistance < commEnd) {
                     __builtin_prefetch(&vcom[cvtx[i + config.prefetchDistance]], 0, 1);
                 }
-                
+
                 K u = cvtx[i];
                 for (auto neighbor : g.out_neigh(u)) {
                     NodeID_T v;
@@ -1972,7 +1968,7 @@ void aggregateGraphLeiden(
                     scanner.add(d, w);
                 }
             }
-            
+
             size_t offset = sg.offsets[c];
             for (K d : scanner.keys) {
                 sg.neighbors[offset] = d;
@@ -1982,7 +1978,7 @@ void aggregateGraphLeiden(
             sg.degrees[c] = scanner.keys.size();
         }
     }
-    
+
     sg.numEdges = 0;
     for (size_t c = 0; c < C; ++c) {
         sg.numEdges += sg.degrees[c];
@@ -2001,9 +1997,9 @@ void aggregateSuperGraphLeiden(
     const std::vector<K>& cvtx,
     size_t C,
     const GraphBrewConfig& config) {
-    
+
     GRAPHBREW_TRACE("aggregateSuperGraphLeiden: C=%zu", C);
-    
+
     std::vector<size_t> estDegree(C, 0);
     #pragma omp parallel for schedule(dynamic, 256)
     for (size_t c = 0; c < C; ++c) {
@@ -2013,34 +2009,34 @@ void aggregateSuperGraphLeiden(
         }
         estDegree[c] = deg;
     }
-    
+
     out.offsets.resize(C + 1);
     out.offsets[0] = 0;
     for (size_t c = 0; c < C; ++c) {
         out.offsets[c + 1] = out.offsets[c] + estDegree[c];
     }
-    
+
     size_t totalEdges = out.offsets[C];
     out.neighbors.resize(totalEdges);
     out.weights.resize(totalEdges);
     out.degrees.assign(C, 0);
     out.numNodes = C;
-    
+
     const int numThreads = omp_get_max_threads();
     std::vector<CommunityScanner<K, Weight>> scanners;
     for (int t = 0; t < numThreads; ++t) {
         scanners.emplace_back(C);
     }
-    
+
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
         auto& scanner = scanners[tid];
-        
+
         #pragma omp for schedule(dynamic, 256)
         for (size_t c = 0; c < C; ++c) {
             scanner.clear();
-            
+
             for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
                 K u = cvtx[i];
                 size_t start = in.offsets[u];
@@ -2050,7 +2046,7 @@ void aggregateSuperGraphLeiden(
                     scanner.add(d, in.weights[j]);
                 }
             }
-            
+
             size_t offset = out.offsets[c];
             for (K d : scanner.keys) {
                 out.neighbors[offset] = d;
@@ -2060,7 +2056,7 @@ void aggregateSuperGraphLeiden(
             out.degrees[c] = scanner.keys.size();
         }
     }
-    
+
     out.numEdges = 0;
     for (size_t c = 0; c < C; ++c) {
         out.numEdges += out.degrees[c];
@@ -2079,12 +2075,12 @@ void aggregateSuperGraphLeiden(
 
 /**
  * GVE-style aggregation: build explicit adjacency lists + super-graph local-moving
- * 
+ *
  * Unlike standard aggregation which builds a SuperGraph struct for the next pass,
  * GVE builds std::vector<std::pair<K,W>> adjacency lists per community and runs
  * local-moving directly on them. This merges refined sub-communities more
  * aggressively, producing better kernel performance.
- * 
+ *
  * @param vcom IN/OUT: community assignment (updated to merged communities)
  * @param ctot OUT: community total weights (updated)
  * @param g Original graph
@@ -2108,11 +2104,11 @@ size_t aggregateGVEStyle(
     const std::vector<K>& cvtx,
     Weight M, Weight R,
     const GraphBrewConfig& config) {
-    
+
     const int64_t N = g.num_nodes();
     Timer phase_timer;
     phase_timer.Start();
-    
+
     // Compute community weights
     std::vector<Weight> super_weight(C, Weight(0));
     #pragma omp parallel for
@@ -2124,23 +2120,23 @@ size_t aggregateGVEStyle(
     phase_timer.Stop();
     const double weight_seconds = phase_timer.Seconds();
     phase_timer.Start();
-    
+
     // Build super-graph adjacency using community-based approach
     std::vector<std::vector<std::pair<K, Weight>>> super_adj(C);
-    
+
     // Aggregate edges community by community (parallel)
     #pragma omp parallel
     {
         CommunityScanner<K, Weight> scanner(C);
-        
+
         #pragma omp for schedule(dynamic, 256)
         for (size_t c = 0; c < C; ++c) {
             scanner.clear();
-            
+
             // Scan all vertices in this community
             for (size_t i = coff[c]; i < coff[c + 1]; ++i) {
                 K u = cvtx[i];
-                
+
                 for (auto neighbor : g.out_neigh(u)) {
                     NodeID_T v;
                     Weight w;
@@ -2151,14 +2147,14 @@ size_t aggregateGVEStyle(
                         v = neighbor.v;
                         w = static_cast<Weight>(neighbor.w);
                     }
-                    
+
                     K cv = vcom[v];
                     if (cv != static_cast<K>(c)) {
                         scanner.add(cv, w);
                     }
                 }
             }
-            
+
             // Build adjacency list for this community
             super_adj[c].reserve(scanner.keys.size());
             for (K d : scanner.keys) {
@@ -2170,29 +2166,29 @@ size_t aggregateGVEStyle(
     phase_timer.Stop();
     const double adjacency_seconds = phase_timer.Seconds();
     phase_timer.Start();
-    
+
     // ================================================================
     // LOCAL-MOVING ON SUPER-GRAPH (from GVE's GVELeidenCSR)
     // Merge refined communities using parallel local-moving
     // ================================================================
-    
+
     std::vector<K> super_comm(C);
     std::vector<Weight> super_ctot(C);
-    
+
     #pragma omp parallel for
     for (size_t c = 0; c < C; ++c) {
         super_comm[c] = static_cast<K>(c);
         super_ctot[c] = super_weight[c];
     }
-    
+
     // Sequential flat arrays for super-graph local move
     // Sequential super-graph local move with simplified delta, limited iterations
     std::vector<Weight> sg_comm_weights(C, Weight(0));
     std::vector<K> sg_touched(C);
-    
+
     // Limit super-graph iterations: min(3, maxIterations)
     int super_max_iter = std::min(3, config.maxIterations);
-    
+
     if (config.superGraphMoveBatch > 1) {
         std::vector<K> proposed_comm(C);
         std::vector<Weight> proposed_delta(C);
@@ -2334,20 +2330,20 @@ size_t aggregateGVEStyle(
     phase_timer.Stop();
     const double local_move_seconds = phase_timer.Seconds();
     phase_timer.Start();
-    
+
     // Map back to original vertices: vcom[v] = super_comm[old_vcom[v]]
     #pragma omp parallel for
     for (int64_t v = 0; v < N; ++v) {
         K rc = vcom[v];
         vcom[v] = super_comm[rc];
     }
-    
+
     // Renumber final communities contiguously
     K max_final_comm = 0;
     for (int64_t v = 0; v < N; ++v) {
         max_final_comm = std::max(max_final_comm, vcom[v]);
     }
-    
+
     std::vector<K> final_renumber(max_final_comm + 1, K(-1));
     K next_final_id = 0;
     for (int64_t v = 0; v < N; ++v) {
@@ -2356,12 +2352,12 @@ size_t aggregateGVEStyle(
             final_renumber[c] = next_final_id++;
         }
     }
-    
+
     #pragma omp parallel for
     for (int64_t v = 0; v < N; ++v) {
         vcom[v] = final_renumber[vcom[v]];
     }
-    
+
     // Update ctot for the merged communities
     size_t numFinal = static_cast<size_t>(next_final_id);
     ctot.assign(ctot.size(), Weight(0));
@@ -2378,7 +2374,7 @@ size_t aggregateGVEStyle(
         adjacency_seconds,
         local_move_seconds,
         phase_timer.Seconds());
-    
+
     return numFinal;
 }
 
@@ -2400,7 +2396,7 @@ size_t aggregateGVEStyle(
 /**
  * Packed atomic structure for single-CAS lazy aggregation
  * From original rabbit_order.hpp - packs strength + child into 64 bits
- * 
+ *
  * Layout: [strength: 32 bits (float)] [child: 32 bits (uint32)]
  * This allows atomic compare_exchange on the full 64-bit value
  */
@@ -2408,12 +2404,12 @@ struct RabbitAtom {
     using vint = uint32_t;
     static constexpr vint INVALID_CHILD = UINT32_MAX;
     static constexpr float INVALID_STR = -1.0f;
-    
+
     // Packed representation: lower 32 bits = child, upper 32 bits = strength (as float bits)
     std::atomic<uint64_t> packed;
-    
+
     RabbitAtom() : packed(pack(0.0f, INVALID_CHILD)) {}
-    
+
     static uint64_t pack(float str, vint child) {
         uint64_t result = 0;
         uint32_t str_bits;
@@ -2421,7 +2417,7 @@ struct RabbitAtom {
         result = (static_cast<uint64_t>(str_bits) << 32) | child;
         return result;
     }
-    
+
     static std::pair<float, vint> unpack(uint64_t val) {
         vint child = static_cast<vint>(val & 0xFFFFFFFF);
         uint32_t str_bits = static_cast<uint32_t>(val >> 32);
@@ -2429,15 +2425,15 @@ struct RabbitAtom {
         std::memcpy(&str, &str_bits, sizeof(float));
         return {str, child};
     }
-    
+
     void init(float str) {
         packed.store(pack(str, INVALID_CHILD), std::memory_order_relaxed);
     }
-    
+
     std::pair<float, vint> load() const {
         return unpack(packed.load(std::memory_order_acquire));
     }
-    
+
     // Invalidate and return old strength (returns INVALID_STR if already invalid)
     float invalidate() {
         uint64_t old = packed.load(std::memory_order_relaxed);
@@ -2445,20 +2441,20 @@ struct RabbitAtom {
             auto [str, child] = unpack(old);
             if (str == INVALID_STR) return INVALID_STR;
             uint64_t newval = pack(INVALID_STR, child);
-            if (packed.compare_exchange_weak(old, newval, 
+            if (packed.compare_exchange_weak(old, newval,
                 std::memory_order_acq_rel, std::memory_order_relaxed)) {
                 return str;
             }
         }
     }
-    
+
     // Restore strength (for failed merges)
     void restore(float str) {
         uint64_t old = packed.load(std::memory_order_relaxed);
         auto [_, child] = unpack(old);
         packed.store(pack(str, child), std::memory_order_release);
     }
-    
+
     // Atomic CAS to merge: update both strength and child atomically
     bool tryMerge(float expected_str, vint expected_child, float new_str, vint new_child) {
         uint64_t expected = pack(expected_str, expected_child);
@@ -2494,7 +2490,7 @@ template <typename K>
 struct RabbitVertex {
     std::vector<std::pair<K, float>> edges;  ///< Cached aggregated edges (neighbor, weight)
     K united_child;  ///< Last child whose edges were aggregated
-    
+
     RabbitVertex() : united_child(static_cast<K>(-1)) {}
 };
 
@@ -2510,14 +2506,14 @@ size_t rabbitCommunityDetection(
     const std::vector<K>& vertexOrder,
     float M,
     const GraphBrewConfig& config) {
-    
+
     using Edge = std::pair<K, float>;
     const size_t N = g.num_nodes();
     constexpr K INVALID = static_cast<K>(-1);
     const int numThreads = omp_get_max_threads();
-    
+
     GRAPHBREW_TRACE("rabbitCommunityDetection: N=%zu, M=%.0f", N, M);
-    
+
     // Lambda: find destination community with path compression
     auto findDest = [&](K v) -> K {
         K d = nodes[v].dest;
@@ -2528,29 +2524,29 @@ size_t rabbitCommunityDetection(
         }
         return d;
     };
-    
+
     // Unite: aggregate edges of v and its merged children into nbrs buffer
     auto unite = [&](K u, std::vector<Edge>& nbrs) -> void {
         auto& nu = nodes[u];
         ptrdiff_t icmb = 0;
         nbrs.clear();
-        
+
         auto push_edges = [&](K w) {
             auto& es = nodes[w].edges;
             constexpr size_t PREFETCH_AHEAD = 8;
-            
+
             for (size_t i = 0; i < es.size() && i < PREFETCH_AHEAD; ++i)
                 __builtin_prefetch(&nodes[es[i].first].dest, 0, 3);
-            
+
             for (size_t i = 0; i < es.size(); ++i) {
                 if (i + PREFETCH_AHEAD < es.size())
                     __builtin_prefetch(&nodes[es[i + PREFETCH_AHEAD].first].dest, 0, 3);
-                
+
                 K root = findDest(es[i].first);
                 if (root != u)
                     nbrs.push_back({root, es[i].second});
             }
-            
+
             if (static_cast<ptrdiff_t>(nbrs.size()) - icmb >= 2048) {
                 auto it = nbrs.begin() + icmb;
                 std::sort(it, nbrs.end(), [](const Edge& a, const Edge& b) {
@@ -2572,9 +2568,9 @@ size_t rabbitCommunityDetection(
                 nbrs.resize(icmb);
             }
         };
-        
+
         push_edges(u);
-        
+
         while (nu.united_child != nu.atom.load().second) {
             K c = static_cast<K>(nu.atom.load().second);
             K w;
@@ -2582,7 +2578,7 @@ size_t rabbitCommunityDetection(
                 push_edges(w);
             nu.united_child = c;
         }
-        
+
         // Final compaction and writeback
         if (!nbrs.empty()) {
             std::sort(nbrs.begin(), nbrs.end(), [](const Edge& a, const Edge& b) {
@@ -2603,7 +2599,7 @@ size_t rabbitCommunityDetection(
             nu.edges.clear();
         }
     };
-    
+
     // Find best destination from compacted edges
     auto findBest = [&](K u, float str_u) -> K {
         float dmax = 0.0f;
@@ -2619,47 +2615,47 @@ size_t rabbitCommunityDetection(
         }
         return best;
     };
-    
+
     // Main parallel incremental aggregation
     std::vector<std::deque<K>> topss(numThreads);
-    
+
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
         std::deque<K> tops, pends;
-        
+
         std::vector<Edge> nbrs;
         const int np = omp_get_num_threads();
         nbrs.reserve(std::max<size_t>(N / np * 2, 4096));
-        
+
         auto merge = [&](K u) -> K {
             unite(u, nbrs);
-            
+
             float str_u = nodes[u].atom.invalidate();
             if (str_u == RabbitAtom::INVALID_STR) {
                 return u;
             }
-            
+
             if (static_cast<K>(nodes[u].atom.load().second) != nodes[u].united_child) {
                 unite(u, nbrs);
             }
-            
+
             K best = findBest(u, str_u);
-            
+
             if (best == u) {
                 nodes[u].atom.restore(str_u);
                 return u;
             }
-            
+
             auto [str_v, child_v] = nodes[best].atom.load();
             if (str_v == RabbitAtom::INVALID_STR) {
                 nodes[u].atom.restore(str_u);
                 return INVALID;
             }
-            
+
             nodes[u].sibling = child_v;
             float new_str = str_v + str_u;
-            
+
             if (nodes[best].atom.tryMerge(str_v, child_v, new_str, static_cast<uint32_t>(u))) {
                 nodes[u].dest = best;
                 return best;
@@ -2669,7 +2665,7 @@ size_t rabbitCommunityDetection(
                 return INVALID;
             }
         };
-        
+
         #pragma omp for schedule(static, 1)
         for (size_t i = 0; i < N; ++i) {
             pends.erase(
@@ -2679,7 +2675,7 @@ size_t rabbitCommunityDetection(
                     return u != INVALID;
                 }),
                 pends.end());
-            
+
             K v = vertexOrder[i];
             K u = merge(v);
             if (u == v)
@@ -2687,7 +2683,7 @@ size_t rabbitCommunityDetection(
             else if (u == INVALID)
                 pends.push_back(v);
         }
-        
+
         #pragma omp barrier
         #pragma omp critical
         {
@@ -2698,20 +2694,20 @@ size_t rabbitCommunityDetection(
             topss[tid] = std::move(tops);
         }
     }
-    
+
     for (int t = 0; t < numThreads; ++t) {
         toplevel.insert(toplevel.end(), topss[t].begin(), topss[t].end());
     }
-    
+
     GRAPHBREW_TRACE("rabbitCommunityDetection: %zu top-level communities", toplevel.size());
-    
+
     return toplevel.size();
 }
 
 /**
  * Write v and lineal descendants of v on the dendrogram to output
  * (siblings of children are NOT included - they're handled by the caller)
- * 
+ *
  * This matches Boost's descendants() function exactly.
  * The key insight: we only follow the child chain, not sibling chain.
  */
@@ -2720,10 +2716,10 @@ void rabbitDescendants(
     const std::vector<RabbitNode<K>>& nodes,
     K v,
     std::deque<K>& output) {
-    
+
     constexpr K INVALID = static_cast<K>(-1);
     output.push_back(v);
-    
+
     auto [_, child] = nodes[v].atom.load();
     while (child != INVALID) {
         output.push_back(child);
@@ -2741,10 +2737,10 @@ void rabbitDescendants(
     const std::vector<RabbitAtom>& atom,
     K v,
     std::deque<K>& output) {
-    
+
     constexpr K INVALID = static_cast<K>(-1);
     output.push_back(v);
-    
+
     auto [_, child] = atom[v].load();
     while (child != INVALID) {
         output.push_back(child);
@@ -2755,12 +2751,12 @@ void rabbitDescendants(
 
 /**
  * Extract flat community membership from Rabbit Order dendrogram
- * 
+ *
  * Traverses the dendrogram (toplevel roots → descendants → siblings) to produce
  * a flat membership[v] = communityId vector compatible with all ordering strategies.
- * This enables Rabbit's community detection to be combined with any ordering 
+ * This enables Rabbit's community detection to be combined with any ordering
  * strategy (DBG, hubcluster, corder, hrab, etc.) via the generic pipeline.
- * 
+ *
  * Also sorts toplevel into: active communities first, isolated (zero-degree) last.
  * Returns the number of communities.
  */
@@ -2771,12 +2767,12 @@ size_t rabbitExtractMembership(
     std::vector<K>& toplevel,  // Non-const: we sort it for determinism
     const std::vector<float>& degrees,  // For zero-degree separation
     size_t N) {
-    
+
     GRAPHBREW_TRACE("rabbitExtractMembership: %zu top-level, N=%zu", toplevel.size(), N);
-    
+
     membership.resize(N);
     constexpr K INVALID = static_cast<K>(-1);
-    
+
     // Separate zero-degree (isolated singleton) communities
     // Group them at the end for better cache locality
     std::vector<K> activeTop, isolatedTop;
@@ -2787,40 +2783,40 @@ size_t rabbitExtractMembership(
             activeTop.push_back(root);
         }
     }
-    
+
     // Sort active and isolated separately, then concatenate
     std::sort(activeTop.begin(), activeTop.end());
     std::sort(isolatedTop.begin(), isolatedTop.end());
-    
+
     // Rebuild toplevel: active first, isolated last
     toplevel.clear();
     toplevel.insert(toplevel.end(), activeTop.begin(), activeTop.end());
     toplevel.insert(toplevel.end(), isolatedTop.begin(), isolatedTop.end());
-    
+
     const K ncom = static_cast<K>(toplevel.size());
-    
+
     // Determine parallelism: use task-based distribution
     const int np = omp_get_max_threads();
     const K ntask = std::min<K>(ncom, static_cast<K>(128 * np));
-    
+
     // Parallel per-community DFS to assign membership
     #pragma omp parallel
     {
         std::deque<K> stack;
-        
+
         #pragma omp for schedule(dynamic, 1)
         for (K i = 0; i < ntask; ++i) {
             for (K comid = i; comid < ncom; comid += ntask) {
                 K root = toplevel[comid];
-                
+
                 rabbitDescendants(nodes, root, stack);
-                
+
                 while (!stack.empty()) {
                     K v = stack.back();
                     stack.pop_back();
-                    
+
                     membership[v] = comid;
-                    
+
                     if (nodes[v].sibling != INVALID) {
                         rabbitDescendants(nodes, nodes[v].sibling, stack);
                     }
@@ -2828,29 +2824,29 @@ size_t rabbitExtractMembership(
             }
         }
     }
-    
-    GRAPHBREW_TRACE("rabbitExtractMembership: %zu active, %zu isolated communities", 
+
+    GRAPHBREW_TRACE("rabbitExtractMembership: %zu active, %zu isolated communities",
                activeTop.size(), isolatedTop.size());
-    
+
     return static_cast<size_t>(ncom);
 }
 
 /**
  * Generate ordering from Rabbit Order dendrogram using Boost's two-phase approach
- * 
+ *
  * This is a FAITHFUL implementation of Boost's compute_perm():
- * 
+ *
  * Phase 1 (parallel): For each community, DFS traverse and assign LOCAL IDs (0, 1, 2, ...)
  *          Store community membership in coms[] and local ID in perm[]
  *          Record community size in offsets[comid + 1]
- * 
+ *
  * Phase 2 (sequential): Prefix sum on offsets[] to get global start positions
- * 
+ *
  * Phase 3 (parallel): Add offsets[coms[v]] to each vertex's local ID to get global ID
- * 
+ *
  * Key differences from our previous implementation:
  * 1. Deterministic toplevel order: Sort toplevel array before processing
- * 2. Parallel per-community traversal: Each community processed independently  
+ * 2. Parallel per-community traversal: Each community processed independently
  * 3. Offset-based ID assignment: Guarantees contiguous community blocks
  * 4. Different DFS traversal: Uses descendants() which follows child chain only
  * 5. Zero-degree communities grouped at the END for better cache locality
@@ -2862,57 +2858,57 @@ void rabbitOrderingGeneration(
     std::vector<K>& toplevel,  // Non-const: we sort it for determinism
     const std::vector<float>& degrees,  // For zero-degree separation
     size_t N) {
-    
+
     GRAPHBREW_TRACE("rabbitOrderingGeneration: %zu top-level, N=%zu", toplevel.size(), N);
-    
+
     permutation.resize(N);
     constexpr K INVALID = static_cast<K>(-1);
-    
+
     // Extract membership (also sorts toplevel: active first, isolated last)
     std::vector<K> coms;
     size_t numComm = rabbitExtractMembership(coms, nodes, toplevel, degrees, N);
-    
+
     const K ncom = static_cast<K>(numComm);
     std::vector<K> offsets(ncom + 1); // offsets[c+1] = size of community c (then prefix sum)
-    
+
     // Determine parallelism like Boost: use task-based distribution
     const int np = omp_get_max_threads();
     const K ntask = std::min<K>(ncom, static_cast<K>(128 * np));
-    
+
     // Phase 1: Parallel per-community DFS, assign local IDs
     // We re-traverse the dendrogram (same order as membership extraction)
     // to assign DFS-based local IDs within each community
     #pragma omp parallel
     {
         std::deque<K> stack;
-        
+
         #pragma omp for schedule(dynamic, 1)
         for (K i = 0; i < ntask; ++i) {
             // Process multiple communities per task (strided distribution like Boost)
             for (K comid = i; comid < ncom; comid += ntask) {
                 K localId = 0;
                 K root = toplevel[comid];
-                
+
                 // Get descendants of root (root + lineal children chain)
                 rabbitDescendants(nodes, root, stack);
-                
+
                 while (!stack.empty()) {
                     K v = stack.back();
                     stack.pop_back();
-                    
+
                     permutation[v] = localId++;
-                    
+
                     if (nodes[v].sibling != INVALID) {
                         rabbitDescendants(nodes, nodes[v].sibling, stack);
                     }
                 }
-                
+
                 // Store community size for prefix sum
                 offsets[comid + 1] = localId;
             }
         }
     }
-    
+
     // Phase 2: Sequential prefix sum to get global offsets
     // offsets[c] becomes the starting position for community c
     offsets[0] = 0;
@@ -2920,19 +2916,19 @@ void rabbitOrderingGeneration(
         offsets[c + 1] += offsets[c];
     }
     assert(offsets[ncom] == static_cast<K>(N));
-    
+
     // Phase 3: Parallel offset addition to get global IDs
     #pragma omp parallel for schedule(static)
     for (size_t v = 0; v < N; ++v) {
         permutation[v] += offsets[coms[v]];
     }
-    
+
     GRAPHBREW_TRACE("rabbitOrderingGeneration: %zu communities", numComm);
 }
 
 /**
  * Full Rabbit Order algorithm
- * 
+ *
  * Combines:
  * 1. Parallel incremental aggregation (community detection)
  * 2. DFS ordering generation from dendrogram
@@ -2944,16 +2940,16 @@ void runRabbitOrder(
     const GraphBrewConfig& config,
     GraphBrewResult<K>* resultOut = nullptr,
     bool communityDetectionOnly = true) {
-    
+
     const size_t N = g.num_nodes();
-    
+
     Timer timer;
     timer.Start();
-    
+
     // Step 1: Compute total edge weight M and vertex degrees
     float M = 0;
     std::vector<float> degrees(N);
-    
+
     #pragma omp parallel for reduction(+:M)
     for (size_t u = 0; u < N; ++u) {
         float d = 0;
@@ -2971,11 +2967,11 @@ void runRabbitOrder(
     // weight - str_u * str_d / M.  The CSR version uses tot_wgt = sum(degrees)
     // (undirected double-counted).  Dividing by 2 doubles the penalty term,
     // producing too many communities and 4x more unite() work.
-    
+
     // Step 2: Sort vertices by degree (ascending) - key to RabbitOrder efficiency
     std::vector<K> vertexOrder(N);
     std::iota(vertexOrder.begin(), vertexOrder.end(), K(0));
-    
+
     #pragma omp parallel
     {
         #pragma omp single
@@ -2986,17 +2982,17 @@ void runRabbitOrder(
                     : a < b;
             });
     }
-    
+
     // Step 3: Initialize consolidated per-vertex data (RabbitNode)
     std::vector<RabbitNode<K>> nodes(N);
     std::vector<K> toplevel;
     toplevel.reserve(N / 10);
-    
+
     #pragma omp parallel for
     for (size_t u = 0; u < N; ++u) {
         nodes[u].atom.init(degrees[u]);
         nodes[u].dest = static_cast<K>(u);
-        
+
         // Initialize edge cache from original graph
         nodes[u].edges.reserve(g.out_degree(u));
         for (auto neighbor : g.out_neigh(u)) {
@@ -3007,26 +3003,26 @@ void runRabbitOrder(
             }
         }
     }
-    
+
     // Step 4: Run community detection
     Timer cdTimer;
     cdTimer.Start();
     size_t numComm = rabbitCommunityDetection<K>(g, nodes, toplevel,
                                                   vertexOrder, M, config);
     cdTimer.Stop();
-    
+
     // If caller wants community detection results only (for generic ordering pipeline),
     // extract membership and return without generating native DFS ordering.
     if (resultOut && communityDetectionOnly) {
         Timer memberTimer;
         memberTimer.Start();
-        
+
         size_t ncom = rabbitExtractMembership(resultOut->membership, nodes, toplevel, degrees, N);
         resultOut->numCommunities = ncom;
         resultOut->totalPasses = 1;
         // No multi-level hierarchy for Rabbit — membershipPerPass stays empty
         // (buildSyntheticDendrogram will be used if dendrogram orderings are requested)
-        
+
         // Optionally hand the Rabbit dendrogram (child/sibling chains + sorted
         // toplevel) to the downstream ordering pipeline so that
         // IntraCommunityOrder::Dendrogram can do a pure pointer-chase DFS
@@ -3045,35 +3041,35 @@ void runRabbitOrder(
             resultOut->rabbitToplevel = toplevel;  // already sorted: active first, isolated last
             resultOut->hasRabbitDendrogram = true;
         }
-        
+
         memberTimer.Stop();
         timer.Stop();
-        
-        printf("RabbitOrder (community detection only): %zu communities, time=%.4fs\n", 
+
+        printf("RabbitOrder (community detection only): %zu communities, time=%.4fs\n",
                ncom, timer.Seconds());
-        printf("  community-detection: %.4fs, membership-extract: %.4fs\n", 
+        printf("  community-detection: %.4fs, membership-extract: %.4fs\n",
                cdTimer.Seconds(), memberTimer.Seconds());
         return;
     }
-    
+
     // Step 5: Generate ordering from dendrogram (native DFS)
     Timer orderTimer;
     orderTimer.Start();
     std::vector<K> permutation;
     rabbitOrderingGeneration(permutation, nodes, toplevel, degrees, N);
     orderTimer.Stop();
-    
+
     timer.Stop();
-    
+
     // Step 6: Build mapping
     mapping.resize(N);
     #pragma omp parallel for
     for (size_t u = 0; u < N; ++u) {
         mapping[u] = static_cast<NodeID_T>(permutation[u]);
     }
-    
+
     printf("RabbitOrder: %zu communities, time=%.4fs\n", numComm, timer.Seconds());
-    printf("  community-detection: %.4fs, ordering: %.4fs\n", 
+    printf("  community-detection: %.4fs, ordering: %.4fs\n",
            cdTimer.Seconds(), orderTimer.Seconds());
     if (resultOut) {
         resultOut->numCommunities = numComm;
@@ -3087,11 +3083,11 @@ void runRabbitOrder(
 
 /**
  * RabbitOrder-style lazy incremental merge
- * 
+ *
  * Instead of building full super-graph CSR, we track:
  * - Union-find structure for community merges
  * - Incremental edge weight updates
- * 
+ *
  * This is faster for early passes with many small communities
  */
 template <typename K>
@@ -3100,26 +3096,26 @@ struct LazyAggregator {
     std::vector<K> rank;           ///< Union-find rank
     std::vector<Weight> edgeSum;   ///< Sum of edge weights per community
     std::atomic<size_t> numMerges; ///< Total merges performed
-    
+
     explicit LazyAggregator(size_t N) : numMerges(0) {
         parent.resize(N);
         rank.resize(N, 0);
         edgeSum.resize(N, 0);
         std::iota(parent.begin(), parent.end(), K(0));
     }
-    
+
     K find(K x) {
         if (parent[x] != x) {
             parent[x] = find(parent[x]);  // Path compression
         }
         return parent[x];
     }
-    
+
     bool unite(K x, K y) {
         K px = find(x);
         K py = find(y);
         if (px == py) return false;
-        
+
         if (rank[px] < rank[py]) std::swap(px, py);
         parent[py] = px;
         if (rank[px] == rank[py]) rank[px]++;
@@ -3127,7 +3123,7 @@ struct LazyAggregator {
         numMerges++;
         return true;
     }
-    
+
     void reset() {
         std::iota(parent.begin(), parent.end(), K(0));
         std::fill(rank.begin(), rank.end(), K(0));
@@ -3138,10 +3134,10 @@ struct LazyAggregator {
 
 /**
  * Lazy aggregation from original graph - streaming approach
- * 
+ *
  * Uses the same CommunityScanner as Leiden but processes vertices
  * in community order without building explicit community vertex lists.
- * 
+ *
  * Benefits:
  * - Avoids O(N) memory for coff/cvtx arrays
  * - Single pass over vertices
@@ -3154,53 +3150,53 @@ void aggregateGraphLazy(
     const std::vector<K>& vcom,
     size_t C,
     const GraphBrewConfig& config) {
-    
+
     GRAPHBREW_TRACE("aggregateGraphLazy: C=%zu", C);
-    
+
     const int64_t N = g.num_nodes();
     const int numThreads = omp_get_max_threads();
-    
+
     // Phase 1: Group vertices by community using counting sort
     std::vector<size_t> commCount(C, 0);
     for (int64_t u = 0; u < N; ++u) {
         commCount[vcom[u]]++;
     }
-    
+
     std::vector<size_t> commStart(C + 1);
     commStart[0] = 0;
     for (size_t c = 0; c < C; ++c) {
         commStart[c + 1] = commStart[c] + commCount[c];
     }
-    
+
     std::vector<K> vertexList(N);
     std::vector<size_t> commPos = commStart;  // Copy for filling
     for (int64_t u = 0; u < N; ++u) {
         K c = vcom[u];
         vertexList[commPos[c]++] = static_cast<K>(u);
     }
-    
+
     // Phase 2: Single-pass aggregation storing results per community
     // Store (keys, weights) per community for later assembly
     std::vector<std::vector<K>> allKeys(C);
     std::vector<std::vector<Weight>> allWeights(C);
-    
+
     std::vector<CommunityScanner<K, Weight>> scanners;
     for (int t = 0; t < numThreads; ++t) {
         scanners.emplace_back(C);
     }
-    
+
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
         auto& scanner = scanners[tid];
-        
+
         #pragma omp for schedule(dynamic, 256)
         for (size_t c = 0; c < C; ++c) {
             scanner.clear();
-            
+
             size_t start = commStart[c];
             size_t end = commStart[c + 1];
-            
+
             for (size_t i = start; i < end; ++i) {
                 K u = vertexList[i];
                 for (auto neighbor : g.out_neigh(u)) {
@@ -3216,7 +3212,7 @@ void aggregateGraphLazy(
                     scanner.add(vcom[v], w);
                 }
             }
-            
+
             // Store results
             allKeys[c].reserve(scanner.keys.size());
             allWeights[c].reserve(scanner.keys.size());
@@ -3226,20 +3222,20 @@ void aggregateGraphLazy(
             }
         }
     }
-    
+
     // Phase 3: Build offsets
     sg.offsets.resize(C + 1);
     sg.offsets[0] = 0;
     for (size_t c = 0; c < C; ++c) {
         sg.offsets[c + 1] = sg.offsets[c] + allKeys[c].size();
     }
-    
+
     size_t totalEdges = sg.offsets[C];
     sg.neighbors.resize(totalEdges);
     sg.weights.resize(totalEdges);
     sg.degrees.resize(C);
     sg.numNodes = C;
-    
+
     // Phase 4: Parallel copy to final arrays
     #pragma omp parallel for schedule(dynamic, 256)
     for (size_t c = 0; c < C; ++c) {
@@ -3250,7 +3246,7 @@ void aggregateGraphLazy(
         }
         sg.degrees[c] = allKeys[c].size();
     }
-    
+
     sg.numEdges = totalEdges;
 }
 
@@ -3264,52 +3260,52 @@ void aggregateSuperGraphLazy(
     const std::vector<K>& vcom,
     size_t C,
     const GraphBrewConfig& config) {
-    
+
     GRAPHBREW_TRACE("aggregateSuperGraphLazy: C=%zu", C);
-    
+
     const size_t N = in.numNodes;
     const int numThreads = omp_get_max_threads();
-    
+
     // Phase 1: Group super-nodes by community using counting sort
     std::vector<size_t> commCount(C, 0);
     for (size_t u = 0; u < N; ++u) {
         commCount[vcom[u]]++;
     }
-    
+
     std::vector<size_t> commStart(C + 1);
     commStart[0] = 0;
     for (size_t c = 0; c < C; ++c) {
         commStart[c + 1] = commStart[c] + commCount[c];
     }
-    
+
     std::vector<K> nodeList(N);
     std::vector<size_t> commPos = commStart;  // Copy for filling
     for (size_t u = 0; u < N; ++u) {
         K c = vcom[u];
         nodeList[commPos[c]++] = static_cast<K>(u);
     }
-    
+
     // Phase 2: Single-pass aggregation storing results per community
     std::vector<std::vector<K>> allKeys(C);
     std::vector<std::vector<Weight>> allWeights(C);
-    
+
     std::vector<CommunityScanner<K, Weight>> scanners;
     for (int t = 0; t < numThreads; ++t) {
         scanners.emplace_back(C);
     }
-    
+
     #pragma omp parallel
     {
         int tid = omp_get_thread_num();
         auto& scanner = scanners[tid];
-        
+
         #pragma omp for schedule(dynamic, 256)
         for (size_t c = 0; c < C; ++c) {
             scanner.clear();
-            
+
             size_t start = commStart[c];
             size_t end = commStart[c + 1];
-            
+
             for (size_t i = start; i < end; ++i) {
                 K u = nodeList[i];
                 size_t es = in.offsets[u];
@@ -3318,7 +3314,7 @@ void aggregateSuperGraphLazy(
                     scanner.add(vcom[in.neighbors[j]], in.weights[j]);
                 }
             }
-            
+
             // Store results
             allKeys[c].reserve(scanner.keys.size());
             allWeights[c].reserve(scanner.keys.size());
@@ -3328,20 +3324,20 @@ void aggregateSuperGraphLazy(
             }
         }
     }
-    
+
     // Phase 3: Build offsets
     out.offsets.resize(C + 1);
     out.offsets[0] = 0;
     for (size_t c = 0; c < C; ++c) {
         out.offsets[c + 1] = out.offsets[c] + allKeys[c].size();
     }
-    
+
     size_t totalEdges = out.offsets[C];
     out.neighbors.resize(totalEdges);
     out.weights.resize(totalEdges);
     out.degrees.resize(C);
     out.numNodes = C;
-    
+
     // Phase 4: Parallel copy to final arrays
     #pragma omp parallel for schedule(dynamic, 256)
     for (size_t c = 0; c < C; ++c) {
@@ -3352,7 +3348,7 @@ void aggregateSuperGraphLazy(
         }
         out.degrees[c] = allKeys[c].size();
     }
-    
+
     out.numEdges = totalEdges;
 }
 
@@ -3369,24 +3365,24 @@ void buildDendrogram(
     std::vector<K>& roots,
     const std::vector<std::vector<K>>& membershipPerPass,
     size_t N) {
-    
+
     if (membershipPerPass.empty()) return;
-    
+
     GRAPHBREW_TRACE("buildDendrogram: N=%zu, passes=%zu", N, membershipPerPass.size());
-    
+
     const size_t numPasses = membershipPerPass.size();
-    
+
     // Final membership determines leaf communities
     const auto& finalMembership = membershipPerPass.back();
-    
+
     // Count vertices per community at each level
     std::vector<std::unordered_map<K, std::vector<K>>> levelComms(numPasses);
-    
+
     // Level 0: vertices grouped by finest communities
     for (size_t v = 0; v < N; ++v) {
         levelComms[0][membershipPerPass[0][v]].push_back(static_cast<K>(v));
     }
-    
+
     // Higher levels: communities grouped by parent communities
     for (size_t p = 1; p < numPasses; ++p) {
         for (const auto& [comm, vertices] : levelComms[p - 1]) {
@@ -3394,15 +3390,15 @@ void buildDendrogram(
             levelComms[p][parent].push_back(comm);
         }
     }
-    
+
     // Build dendrogram nodes
     size_t nodeId = 0;
-    std::unordered_map<std::pair<int, K>, K, 
+    std::unordered_map<std::pair<int, K>, K,
         std::function<size_t(const std::pair<int, K>&)>> nodeMap(
-        0, [](const std::pair<int, K>& p) { 
-            return std::hash<int>()(p.first) ^ std::hash<K>()(p.second); 
+        0, [](const std::pair<int, K>& p) {
+            return std::hash<int>()(p.first) ^ std::hash<K>()(p.second);
         });
-    
+
     // Create nodes bottom-up
     for (int level = 0; level < static_cast<int>(numPasses); ++level) {
         for (const auto& [comm, children] : levelComms[level]) {
@@ -3410,7 +3406,7 @@ void buildDendrogram(
             node.id = nodeId;
             node.level = level;
             node.size = 0;
-            
+
             if (level == 0) {
                 // Leaf level: children are vertices
                 node.children = children;
@@ -3425,13 +3421,13 @@ void buildDendrogram(
                     }
                 }
             }
-            
+
             nodeMap[{level, comm}] = nodeId;
             dendrogram.push_back(node);
             nodeId++;
         }
     }
-    
+
     // Find roots (nodes at highest level)
     roots.clear();
     for (const auto& [comm, _] : levelComms[numPasses - 1]) {
@@ -3440,7 +3436,7 @@ void buildDendrogram(
             roots.push_back(it->second);
         }
     }
-    
+
     // Set parent pointers
     for (auto& node : dendrogram) {
         for (K child : node.children) {
@@ -3449,13 +3445,13 @@ void buildDendrogram(
             }
         }
     }
-    
+
     GRAPHBREW_TRACE("buildDendrogram: %zu nodes, %zu roots", dendrogram.size(), roots.size());
 }
 
 /**
  * Build a synthetic single-level dendrogram from a flat membership vector.
- * 
+ *
  * This is used when community detection (e.g., Rabbit Order) produces only
  * a flat membership[v] = communityId without a hierarchical dendrogram.
  * The synthetic dendrogram has:
@@ -3472,14 +3468,14 @@ void buildSyntheticDendrogram(
     const std::vector<K>& membership,
     size_t N,
     size_t numCommunities) {
-    
+
     GRAPHBREW_TRACE("buildSyntheticDendrogram: N=%zu, C=%zu", N, numCommunities);
-    
+
     dendrogram.clear();
     roots.clear();
-    
+
     const K C = static_cast<K>(numCommunities);
-    
+
     // Group vertices by community
     std::vector<std::vector<K>> commVertices(C);
     for (size_t v = 0; v < N; ++v) {
@@ -3488,12 +3484,12 @@ void buildSyntheticDendrogram(
             commVertices[c].push_back(static_cast<K>(v));
         }
     }
-    
+
     // Create leaf nodes (level 0): one per community
     dendrogram.resize(C + 1);  // C leaves + 1 root
-    
+
     K rootId = C;  // Root is the last node
-    
+
     for (K c = 0; c < C; ++c) {
         auto& node = dendrogram[c];
         node.id = c;
@@ -3503,7 +3499,7 @@ void buildSyntheticDendrogram(
         node.weight = 0.0;
         node.level = 0;
     }
-    
+
     // Create root node (level 1): parent of all leaves
     auto& root = dendrogram[rootId];
     root.id = rootId;
@@ -3515,9 +3511,9 @@ void buildSyntheticDendrogram(
     for (K c = 0; c < C; ++c) {
         root.children[c] = c;
     }
-    
+
     roots.push_back(rootId);
-    
+
     GRAPHBREW_TRACE("buildSyntheticDendrogram: %zu nodes, 1 root", dendrogram.size());
 }
 
@@ -3527,7 +3523,7 @@ void buildSyntheticDendrogram(
 
 /**
  * Hierarchical multi-level sort (leiden.hxx style)
- * 
+ *
  * Zero-degree nodes are grouped at the END for better cache locality.
  * They don't contribute to locality (no edges), so keeping them separate
  * from "active" nodes improves cache utilization.
@@ -3539,9 +3535,9 @@ void orderHierarchicalSort(
     const std::vector<K>& degrees,
     size_t N,
     const GraphBrewConfig& config) {
-    
+
     GRAPHBREW_TRACE("orderHierarchicalSort: N=%zu, passes=%zu", N, result.membershipPerPass.size());
-    
+
     // Separate zero-degree (isolated) nodes - they go at the end
     std::vector<size_t> active, isolated;
     active.reserve(N);
@@ -3552,9 +3548,9 @@ void orderHierarchicalSort(
             active.push_back(v);
         }
     }
-    
+
     const size_t numPasses = result.membershipPerPass.size();
-    
+
     auto comparator = [&](size_t a, size_t b) {
         // Compare from coarsest (last) to finest, using top 3 passes max
         // Multi-level sort key: coarsest-to-finest pass ordering
@@ -3568,25 +3564,25 @@ void orderHierarchicalSort(
         if (degrees[a] != degrees[b]) return degrees[a] > degrees[b];
         return a < b;
     };
-    
+
     if (config.useParallelSort) {
         __gnu_parallel::sort(active.begin(), active.end(), comparator);
     } else {
         std::sort(active.begin(), active.end(), comparator);
     }
-    
+
     // Assign IDs: active nodes first, isolated nodes at the end
     #pragma omp parallel for
     for (size_t i = 0; i < active.size(); ++i) {
         newIds[active[i]] = static_cast<NodeID_T>(i);
     }
-    
+
     // Isolated nodes get highest IDs (grouped at the end)
     NodeID_T isolatedStart = static_cast<NodeID_T>(active.size());
     for (size_t i = 0; i < isolated.size(); ++i) {
         newIds[isolated[i]] = isolatedStart + static_cast<NodeID_T>(i);
     }
-    
+
     GRAPHBREW_TRACE("orderHierarchicalSort: %zu active, %zu isolated", active.size(), isolated.size());
 }
 
@@ -3596,20 +3592,20 @@ void orderHierarchicalSort(
 
 /**
  * Hierarchical Cache-Aware Ordering
- * 
+ *
  * KEY INSIGHT: Leiden's multi-pass structure is a natural dendrogram!
- * 
+ *
  * Pass 0: Finest communities (many small) - e.g., 144k communities
- * Pass 1: Coarser communities - e.g., 50k communities  
+ * Pass 1: Coarser communities - e.g., 50k communities
  * Pass 2: Coarsest communities - e.g., 10k communities (or fewer)
- * 
+ *
  * Algorithm:
  * 1. Use COARSEST level (last pass) for primary grouping → large cache blocks
  * 2. Within each coarse community, use middle pass for secondary grouping
  * 3. Within each fine community, use BFS on original graph for locality
- * 
+ *
  * This creates a natural hierarchy like RabbitOrder's dendrogram:
- * - Large contiguous blocks (good cache locality)  
+ * - Large contiguous blocks (good cache locality)
  * - Preserves Leiden's community quality within blocks
  * - Isolated (zero-degree) vertices grouped at the end
  */
@@ -3621,9 +3617,9 @@ void orderHierarchicalCacheAware(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     size_t N,
     const GraphBrewConfig& config) {
-    
+
     GRAPHBREW_TRACE("orderHierarchicalCacheAware: N=%zu, passes=%zu", N, result.membershipPerPass.size());
-    
+
     const size_t numPasses = result.membershipPerPass.size();
     // hcache exploits Leiden's *hierarchy*: it needs at least 2 passes
     // (one fine + one coarse) to map cache levels.  If Leiden converged
@@ -3640,7 +3636,7 @@ void orderHierarchicalCacheAware(
         orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
         return;
     }
-    
+
     // Separate zero-degree (isolated) nodes
     std::vector<K> active, isolated;
     active.reserve(N);
@@ -3651,60 +3647,60 @@ void orderHierarchicalCacheAware(
             active.push_back(static_cast<K>(v));
         }
     }
-    
+
     // Use COARSEST level for primary grouping (last pass = fewest communities)
     // This gives us large cache blocks
     const auto& coarseMembership = result.membershipPerPass.back();
-    
+
     // Find number of coarse communities
     K maxCoarse = 0;
     for (K v : active) {
         maxCoarse = std::max(maxCoarse, coarseMembership[v]);
     }
     const size_t numCoarse = static_cast<size_t>(maxCoarse) + 1;
-    
-    printf("  hierarchical-cache: %zu coarse communities from pass %zu\n", 
+
+    printf("  hierarchical-cache: %zu coarse communities from pass %zu\n",
            numCoarse, numPasses - 1);
-    
+
     // Build vertex lists per coarse community
     std::vector<std::vector<K>> coarseVertices(numCoarse);
     for (K v : active) {
         coarseVertices[coarseMembership[v]].push_back(v);
     }
-    
+
     // Sort coarse communities by size (large first for better cache behavior)
     std::vector<K> coarseOrder(numCoarse);
     std::iota(coarseOrder.begin(), coarseOrder.end(), K(0));
     std::sort(coarseOrder.begin(), coarseOrder.end(), [&](K a, K b) {
         return coarseVertices[a].size() > coarseVertices[b].size();
     });
-    
+
     // Compute offsets for coarse communities (prefix sum)
     std::vector<size_t> coarseOffsets(numCoarse + 1, 0);
     for (size_t i = 0; i < numCoarse; ++i) {
         coarseOffsets[i + 1] = coarseOffsets[i] + coarseVertices[coarseOrder[i]].size();
     }
-    
+
     // Create reverse mapping
     std::vector<K> coarseToIndex(numCoarse);
     for (size_t i = 0; i < numCoarse; ++i) {
         coarseToIndex[coarseOrder[i]] = static_cast<K>(i);
     }
-    
+
     // Process each coarse community: sort by finer levels, then BFS within finest
     std::vector<K> localIds(N, static_cast<K>(-1));
-    
+
     #pragma omp parallel
     {
         std::queue<K> bfsQueue;
         std::vector<bool> visited;
-        
+
         #pragma omp for schedule(dynamic, 1)
         for (size_t ci = 0; ci < numCoarse; ++ci) {
             K coarseComm = coarseOrder[ci];
             auto& verts = coarseVertices[coarseComm];
             if (verts.empty()) continue;
-            
+
             // Sort vertices within coarse community by finer hierarchy
             // From finest (pass 0) to coarser (pass numPasses-2)
             std::sort(verts.begin(), verts.end(), [&](K a, K b) {
@@ -3717,18 +3713,18 @@ void orderHierarchicalCacheAware(
                 // Tie-break: higher degree first (hubs together)
                 return degrees[a] > degrees[b];
             });
-            
+
             // Now do BFS within each finest-level community for even better locality
             // This is the key: we traverse the ORIGINAL GRAPH within fine communities
             if (numPasses > 1) {
                 const auto& finestMembership = result.membershipPerPass[0];
-                
+
                 // Group vertices by finest community
                 std::unordered_map<K, std::vector<K>> fineGroups;
                 for (K v : verts) {
                     fineGroups[finestMembership[v]].push_back(v);
                 }
-                
+
                 // BFS within each fine community
                 K localId = 0;
                 std::vector<K> sortedFineComms;
@@ -3736,7 +3732,7 @@ void orderHierarchicalCacheAware(
                     sortedFineComms.push_back(fc);
                 }
                 std::sort(sortedFineComms.begin(), sortedFineComms.end());
-                
+
                 for (K fineComm : sortedFineComms) {
                     auto& fineVerts = fineGroups[fineComm];
                     if (fineVerts.size() <= 1) {
@@ -3746,14 +3742,14 @@ void orderHierarchicalCacheAware(
                         }
                         continue;
                     }
-                    
+
                     // Build local index for BFS
                     visited.assign(fineVerts.size(), false);
                     std::unordered_map<K, size_t> vertToLocal;
                     for (size_t i = 0; i < fineVerts.size(); ++i) {
                         vertToLocal[fineVerts[i]] = i;
                     }
-                    
+
                     // Find starting vertex (highest degree)
                     K startV = fineVerts[0];
                     K maxDeg = degrees[fineVerts[0]];
@@ -3763,16 +3759,16 @@ void orderHierarchicalCacheAware(
                             startV = v;
                         }
                     }
-                    
+
                     // BFS from startV
                     bfsQueue.push(startV);
                     visited[vertToLocal[startV]] = true;
-                    
+
                     while (!bfsQueue.empty()) {
                         K u = bfsQueue.front();
                         bfsQueue.pop();
                         localIds[u] = localId++;
-                        
+
                         // Add unvisited neighbors in same fine community
                         for (auto neighbor : g.out_neigh(u)) {
                             NodeID_T v;
@@ -3781,7 +3777,7 @@ void orderHierarchicalCacheAware(
                             } else {
                                 v = neighbor.v;
                             }
-                            
+
                             auto it = vertToLocal.find(static_cast<K>(v));
                             if (it != vertToLocal.end() && !visited[it->second]) {
                                 visited[it->second] = true;
@@ -3789,7 +3785,7 @@ void orderHierarchicalCacheAware(
                             }
                         }
                     }
-                    
+
                     // Handle disconnected vertices
                     for (size_t i = 0; i < fineVerts.size(); ++i) {
                         if (!visited[i]) {
@@ -3806,7 +3802,7 @@ void orderHierarchicalCacheAware(
             }
         }
     }
-    
+
     // Compute global IDs = coarseOffset + localId
     #pragma omp parallel for
     for (size_t v = 0; v < N; ++v) {
@@ -3815,14 +3811,14 @@ void orderHierarchicalCacheAware(
             newIds[v] = static_cast<NodeID_T>(coarseOffsets[coarseIdx] + localIds[v]);
         }
     }
-    
+
     // Assign isolated vertices at the end
     size_t isolatedStart = coarseOffsets[numCoarse];
     for (size_t i = 0; i < isolated.size(); ++i) {
         newIds[isolated[i]] = static_cast<NodeID_T>(isolatedStart + i);
     }
-    
-    printf("  hierarchical-cache: %zu active vertices, %zu isolated\n", 
+
+    printf("  hierarchical-cache: %zu active vertices, %zu isolated\n",
            active.size(), isolated.size());
 }
 
@@ -6260,2059 +6256,9 @@ void orderCompose(
 }
 
 //=============================================================================
-// SECTION 16b: ORDERING - CONNECTIVITY-BASED (Boost-style for Leiden)
-//=============================================================================
+// Extracted implementation detail; kept at this position to preserve declaration order.
+#include "reorder_graphbrew_diagnostics.h"
 
-/**
- * Connectivity-based ordering within communities (Boost-style for Leiden)
- * 
- * Uses BFS traversal of the original graph within each community
- * to produce a vertex ordering that reflects actual connectivity patterns,
- * similar to how RabbitOrder achieves locality benefits.
- * 
- * Algorithm (two-phase like Boost):
- * Phase 1: For each community, BFS from highest-degree vertex to assign local IDs
- * Phase 2: Prefix sum to get global offsets, then add to local IDs
- * 
- * Zero-degree nodes grouped at END for cache locality.
- */
-template <typename K, typename NodeID_T, typename DestID_T>
-void orderConnectivityBFS(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    const CSRGraph<NodeID_T, DestID_T, true>& g,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderConnectivityBFS: N=%zu", N);
-    
-    // Step 1: Build community vertex lists with isolated separation
-    // Count vertices per community and find max community ID
-    K maxComm = 0;
-    for (size_t v = 0; v < N; ++v) {
-        maxComm = std::max(maxComm, membership[v]);
-    }
-    const size_t numComm = static_cast<size_t>(maxComm) + 1;
-    
-    // Separate isolated (zero-degree) vertices
-    std::vector<std::vector<K>> commVertices(numComm);
-    std::vector<K> isolated;
-    
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] == 0) {
-            isolated.push_back(static_cast<K>(v));
-        } else {
-            commVertices[membership[v]].push_back(static_cast<K>(v));
-        }
-    }
-    
-    // Step 2: Sort toplevel communities by size for better cache behavior
-    std::vector<K> commOrder(numComm);
-    std::iota(commOrder.begin(), commOrder.end(), K(0));
-    std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
-        return commVertices[a].size() > commVertices[b].size();  // Large communities first
-    });
-    
-    // Step 3: Compute offsets (prefix sum)
-    std::vector<size_t> offsets(numComm + 1, 0);
-    for (size_t i = 0; i < numComm; ++i) {
-        K c = commOrder[i];
-        offsets[i + 1] = offsets[i] + commVertices[c].size();
-    }
-    
-    // Create reverse mapping: community -> sorted index
-    std::vector<K> commToIndex(numComm);
-    for (size_t i = 0; i < numComm; ++i) {
-        commToIndex[commOrder[i]] = static_cast<K>(i);
-    }
-    
-    // Step 4: BFS within each community to assign local IDs (parallel)
-    // Uses flat vector + sentinel instead of per-community unordered_map for O(1) lookup
-    std::vector<K> localIds(N, static_cast<K>(-1));
-    
-    // Global vertex-to-local-index map (flat vector, sentinel = (size_t)-1)
-    // Shared across all communities but each vertex belongs to exactly one community
-    std::vector<size_t> vertToLocal(N, static_cast<size_t>(-1));
-    
-    // Pre-populate the flat map (parallel, no conflicts since each vertex has one community)
-    #pragma omp parallel for schedule(static)
-    for (size_t ci = 0; ci < numComm; ++ci) {
-        K c = commOrder[ci];
-        auto& verts = commVertices[c];
-        for (size_t i = 0; i < verts.size(); ++i) {
-            vertToLocal[verts[i]] = i;
-        }
-    }
-    
-    #pragma omp parallel
-    {
-        std::queue<K> bfsQueue;
-        std::vector<bool> visited;
-
-        #pragma omp for schedule(dynamic, 1)
-        for (size_t ci = 0; ci < numComm; ++ci) {
-            K c = commOrder[ci];
-            // Delegate per-community BFS to the shared primitive
-            // (SECTION 16-PRIMITIVES).  This eliminates a copy of the
-            // BFS-from-max-degree loop that used to live inline here.
-            intraBFSFromHub<K, NodeID_T, DestID_T>(
-                commVertices[c], c, membership, degrees, g,
-                vertToLocal, visited, bfsQueue, localIds);
-        }
-    }
-    
-    // Step 5: Compute global IDs = offset[commIndex] + localId
-    #pragma omp parallel for
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] > 0) {
-            K commIdx = commToIndex[membership[v]];
-            newIds[v] = static_cast<NodeID_T>(offsets[commIdx] + localIds[v]);
-        }
-    }
-    
-    // Step 6: Assign isolated vertices at the end
-    size_t isolatedStart = offsets[numComm];
-    for (size_t i = 0; i < isolated.size(); ++i) {
-        newIds[isolated[i]] = static_cast<NodeID_T>(isolatedStart + i);
-    }
-    
-    GRAPHBREW_TRACE("orderConnectivityBFS: %zu communities, %zu isolated", numComm, isolated.size());
-}
-
-//=============================================================================
-// SECTION 16d: HYBRID LEIDEN + RABBITORDER ORDERING
-//=============================================================================
-
-/**
- * Hybrid Leiden + RabbitOrder Ordering
- * 
- * KEY INSIGHT: Combines the strengths of both algorithms!
- * 
- * Problem:
- * - Leiden: Great community quality (high modularity), but too many small 
- *   communities (~100K) → poor cache locality
- * - RabbitOrder: Great cache locality (~1K large communities), but communities
- *   may not reflect true graph structure
- * 
- * Solution:
- * 1. Use Leiden to detect fine-grained communities (captures graph structure)
- * 2. Build super-graph where each Leiden community is a vertex
- * 3. Run RabbitOrder on the super-graph to merge communities into ~1K cache blocks
- * 4. Order vertices: RabbitOrder's block order + BFS within each Leiden community
- * 
- * Result:
- * - Cache blocks from RabbitOrder (good locality)
- * - Connectivity-based ordering within blocks from BFS (preserves Leiden quality)
- * - Expected: geo-mean ~2000-3000 (vs Leiden 6000, vs RabbitOrder 1100)
- * 
- * Complexity: O(E) for super-graph build + O(E_super) for RabbitOrder + O(E) for BFS
- *             Total: Same as Leiden, just different ordering phase
- */
-template <typename K, typename NodeID_T, typename DestID_T>
-void orderHybridLeidenRabbit(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    const CSRGraph<NodeID_T, DestID_T, true>& g,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderHybridLeidenRabbit: N=%zu", N);
-    
-    // ================================================================
-    // STEP 0 (optional): Hub Extraction
-    // Remove top hubExtractionPct highest-degree vertices before
-    // building the community super-graph. Hubs distort community
-    // structure and RabbitOrder merging decisions. They are reinserted
-    // adjacent to their community block at the end.
-    // ================================================================
-    
-    std::vector<bool> isHub(N, false);
-    // Per-community hub lists (filled if hub extraction enabled)
-    // Indexed by community ID, each entry is a list of hub vertex IDs
-    std::vector<std::vector<K>> commHubs;
-    size_t numHubs = 0;
-    
-    // Find number of communities (needed before hub extraction)
-    K maxComm = 0;
-    for (size_t v = 0; v < N; ++v) {
-        maxComm = std::max(maxComm, membership[v]);
-    }
-    const size_t C = static_cast<size_t>(maxComm) + 1;
-    
-    if (config.useHubExtraction) {
-        // Determine degree threshold for hub extraction
-        // Sort degrees to find the top hubExtractionPct percentile
-        size_t activeCount = 0;
-        for (size_t v = 0; v < N; ++v) {
-            if (degrees[v] > 0) activeCount++;
-        }
-        
-        size_t hubCount = std::max(size_t(1), 
-                          static_cast<size_t>(activeCount * config.hubExtractionPct));
-        
-        // Find the hubCount-th largest degree using partial sort
-        std::vector<K> sortedDegs;
-        sortedDegs.reserve(activeCount);
-        for (size_t v = 0; v < N; ++v) {
-            if (degrees[v] > 0) sortedDegs.push_back(degrees[v]);
-        }
-        
-        // nth_element to find threshold
-        if (hubCount < sortedDegs.size()) {
-            std::nth_element(sortedDegs.begin(), 
-                             sortedDegs.begin() + hubCount,
-                             sortedDegs.end(),
-                             std::greater<K>());
-            K degThreshold = sortedDegs[hubCount];
-            
-            // Mark hubs: vertices with degree > threshold
-            // (use > to avoid extracting too many if many vertices share the threshold degree)
-            for (size_t v = 0; v < N; ++v) {
-                if (degrees[v] > degThreshold) {
-                    isHub[v] = true;
-                    numHubs++;
-                }
-            }
-        }
-        
-        printf("  hybrid-rabbit: hubx extracted %zu hubs (%.2f%% of %zu active, deg>%u)\n",
-               numHubs, 100.0 * numHubs / std::max(size_t(1), activeCount),
-               activeCount,
-               numHubs > 0 ? static_cast<unsigned>(sortedDegs[hubCount]) : 0u);
-        
-        // Build per-community hub lists
-        commHubs.resize(C);
-        for (size_t v = 0; v < N; ++v) {
-            if (isHub[v]) {
-                commHubs[membership[v]].push_back(static_cast<K>(v));
-            }
-        }
-    }
-    
-    printf("  hybrid-rabbit: %zu Leiden communities\n", C);
-    
-    // ================================================================
-    // STEP 1: Build super-graph from Leiden communities
-    // ================================================================
-    
-    // Separate isolated (zero-degree) vertices
-    // Hubs remain in their communities for BFS ordering
-    // but are excluded from the super-graph edge computation
-    std::vector<std::vector<K>> commVertices(C);
-    std::vector<K> isolated;
-    
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] == 0) {
-            isolated.push_back(static_cast<K>(v));
-        } else {
-            commVertices[membership[v]].push_back(static_cast<K>(v));
-        }
-    }
-
-    // ================================================================
-    // PHASE 6 REFACTOR (2026-05-19): HRAB STEP 1 + STEP 2 + STEP 3 + STEP 3b
-    // are now expressed as three function calls into SECTION 16-STAGE1
-    // primitives.  ~600 lines of inline super-graph construction,
-    // RabbitOrder, dendrogram DFS, and BNF+George-Liu+RCM have been
-    // replaced by:
-    //
-    //     buildCommunitySuperGraph()   (Phase 1)
-    //     runRabbitOnSuperCSR()        (Phase 2, default)
-    //     runRCMOnSuperCSR()           (Phase 2, when useRCMSuper=true)
-    //
-    // Parity envelope vs. the pre-refactor inline path on
-    // {cit-Patents, soc-pokec, hollywood-2009, com-Orkut}:
-    //     -1.7% to +4.9% L3 memory accesses (PR, 3 trials, 8 threads)
-    // Data: results/data/composability_parity_envelope_2026_05_19.md.
-    //
-    // HRAB is now literally a composition:
-    //     {super-graph=SuperRabbit (or SuperRCM), community=Identity, intra=RCM}
-    //     + hubx feature flag (STEP 0)
-    //     + hsort feature flag (STEP 5)
-    // ================================================================
-
-    // STEP 1: Community super-graph (honours hubx mask exactly).
-    auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
-        membership, degrees, isHub, g, N, static_cast<K>(C));
-
-    printf("  hybrid-rabbit: super-graph M=%.0f\n", sg.M);
-
-    // Per-community vertex count for active/empty root separation.
-    std::vector<size_t> numVertsPerComm(C, 0);
-    for (size_t c = 0; c < C; ++c) numVertsPerComm[c] = commVertices[c].size();
-
-    // STEPs 2 + 3 (default) OR STEP 3b (when useRCMSuper=true).
-    std::vector<K> commPerm;
-    if (config.useRCMSuper) {
-        printf("  hybrid-rabbit: applying BNF-RCM on super-graph (%zu communities)\n", C);
-        commPerm = runRCMOnSuperCSR<K>(sg, numVertsPerComm);
-    } else {
-        const float gamma = static_cast<float>(config.superGraphResolution);
-        commPerm = runRabbitOnSuperCSR<K>(std::move(sg), numVertsPerComm, gamma);
-    }
-
-    // ================================================================
-    // STEP 4: Intra-community ordering, ordered by community permutation
-    // Two modes: BFS (default) or Gorder-greedy (maximizes neighbor overlap)
-    // ================================================================
-    
-    // Sort communities by their permutation (RabbitOrder DFS or RCM)
-    std::vector<K> sortedComms(C);
-    std::iota(sortedComms.begin(), sortedComms.end(), K(0));
-    std::sort(sortedComms.begin(), sortedComms.end(),
-        [&](K a, K b) { return commPerm[a] < commPerm[b]; });
-    
-    // Create inverse mapping: commPerm value -> sorted index
-    std::vector<K> commToSortedIdx(C);
-    for (size_t i = 0; i < C; ++i) {
-        commToSortedIdx[sortedComms[i]] = static_cast<K>(i);
-    }
-    
-    // Compute vertex offsets per community (in sorted order)
-    std::vector<size_t> hubsPerComm(C, 0); // kept for stats
-    if (config.useHubExtraction) {
-        for (size_t c = 0; c < C; ++c) {
-            hubsPerComm[c] = commHubs[c].size();
-        }
-    }
-    
-    std::vector<size_t> vertexOffsets(C + 1, 0);
-    for (size_t i = 0; i < C; ++i) {
-        K c = sortedComms[i];
-        vertexOffsets[i + 1] = vertexOffsets[i] + commVertices[c].size();
-    }
-    
-    printf("  hybrid-rabbit: total vertices in communities = %zu\n", vertexOffsets[C]);
-    
-    // Print community size distribution
-    {
-        size_t s1=0, s10=0, s100=0, s1k=0, s10k=0, s100k=0, sHuge=0;
-        size_t v1=0, v10=0, v100=0, v1k=0, v10k=0, v100k=0, vHuge=0;
-        size_t maxSz=0;
-        for (size_t ci = 0; ci < C; ++ci) {
-            size_t sz = commVertices[ci].size();
-            if (sz == 0) continue;
-            if (sz > maxSz) maxSz = sz;
-            if (sz <= 3)      { s1++; v1+=sz; }
-            else if (sz <= 10)   { s10++; v10+=sz; }
-            else if (sz <= 100)  { s100++; v100+=sz; }
-            else if (sz <= 1000) { s1k++; v1k+=sz; }
-            else if (sz <= 10000){ s10k++; v10k+=sz; }
-            else if (sz <= 100000) { s100k++; v100k+=sz; }
-            else                  { sHuge++; vHuge+=sz; }
-        }
-        printf("  comm-sizes: <=3: %zu comms (%zu v) | 4-10: %zu (%zu) | 11-100: %zu (%zu) | 101-1K: %zu (%zu) | 1K-10K: %zu (%zu) | >10K: %zu (%zu) | max=%zu\n",
-               s1, v1, s10, v10, s100, v100, s1k, v1k, s10k, v10k, s100k+sHuge, v100k+vHuge, maxSz);
-    }
-    
-    // Local IDs within each community
-    std::vector<K> localIds(N, static_cast<K>(-1));
-    
-    // Global vertex-to-local-index map (flat vector, O(1) lookup)
-    // Each vertex belongs to exactly one community, so no conflicts
-    std::vector<size_t> vertToLocalHrab(N, static_cast<size_t>(-1));
-    #pragma omp parallel for schedule(static)
-    for (size_t ci = 0; ci < C; ++ci) {
-        K c = sortedComms[ci];
-        auto& verts = commVertices[c];
-        for (size_t i = 0; i < verts.size(); ++i) {
-            vertToLocalHrab[verts[i]] = i;
-        }
-    }
-    
-    if (config.useGorderIntra) {
-        // ============================================================
-        // GORDER-GREEDY intra-community ordering (with UnitHeap)
-        //
-        // For each community, greedily place vertices to maximize
-        // neighbor overlap with a sliding window of recently-placed vertices.
-        //
-        // Uses a UnitHeap priority queue (adapted from Gorder, Hao Wei 2016)
-        // for O(1) amortized IncrementKey/DecrementKey/ExtractMax,
-        // reducing per-community complexity from O(sz²) to O(|E_local|).
-        // This eliminates the need for BFS fallback on large communities.
-        //
-        // Algorithm (per community):
-        // 1. Start from highest-degree vertex
-        // 2. Maintain a priority score for each unplaced vertex:
-        //    score[v] = number of v's neighbors in the last W placed vertices
-        // 3. Each step: place the vertex with highest score (via UnitHeap)
-        // 4. Update scores: boost neighbors of newly placed vertex,
-        //    decay neighbors of vertex sliding out of window
-        // ============================================================
-        const int W = config.gorderWindow;
-        
-        // With UnitHeap, gord is O(|E_local|) per community — no longer O(sz²).
-        // The BFS fallback is now only a safety net for extreme cases.
-        // Default: N (no fallback). Use gordf<threshold> to set explicitly.
-        const size_t gordThreshold = config.gorderFallback > 0 
-            ? static_cast<size_t>(config.gorderFallback) 
-            : static_cast<size_t>(N); // default: no fallback (UnitHeap handles all sizes)
-        
-        // Track stats
-        std::atomic<size_t> gordCount(0), bfsCount(0), gordVerts(0), bfsVerts(0);
-        
-        printf("  hybrid-rabbit-gord: Gorder-greedy intra-community (window=%d, fallback=%zu)\n", W, gordThreshold);
-        
-        // ============================================================
-        // UnitHeap: O(1) amortized priority queue for integer keys
-        // ============================================================
-        // Adapted from Gorder (Hao Wei, 2016, MIT License).
-        // Elements are organized in a doubly-linked list sorted by
-        // descending key. Header[k] tracks the first/last element
-        // with key=k. IncrementKey/DecrementKey just relink the
-        // element between adjacent buckets in O(1).
-        // ExtractMax pops from the front in O(1).
-        //
-        // This replaces the O(sz) linear scan per step, reducing
-        // per-community complexity from O(sz²) to O(|E_local|).
-        // ============================================================
-        struct GordHeapNode {
-            int key;    // current score
-            int prev;   // prev element in linked list (-1 = none)
-            int next;   // next element in linked list (-1 = none)
-        };
-        struct GordHeapBucket {
-            int first = -1;
-            int second = -1;  // last element in this bucket
-        };
-        struct GordHeap {
-            std::vector<GordHeapNode> nodes;
-            std::vector<GordHeapBucket> buckets;
-            int top;        // index of the max-key element
-            int maxKey;     // current maximum key value
-            
-            void init(size_t n) {
-                nodes.resize(n);
-                // All elements start with key=0, linked in order 0→1→...→n-1
-                for (size_t i = 0; i < n; ++i) {
-                    nodes[i].key = 0;
-                    nodes[i].prev = static_cast<int>(i) - 1;
-                    nodes[i].next = (i + 1 < n) ? static_cast<int>(i + 1) : -1;
-                }
-                buckets.clear();
-                buckets.resize(16); // will grow as needed
-                buckets[0].first = 0;
-                buckets[0].second = static_cast<int>(n - 1);
-                top = 0;
-                maxKey = 0;
-            }
-            
-            void ensureBucket(int k) {
-                if (k >= static_cast<int>(buckets.size())) {
-                    buckets.resize(static_cast<size_t>(k + 8));
-                }
-            }
-            
-            // Unlink element from its current position in the doubly-linked list
-            void unlink(int idx) {
-                int p = nodes[idx].prev;
-                int n = nodes[idx].next;
-                if (p >= 0) nodes[p].next = n;
-                if (n >= 0) nodes[n].prev = p;
-                
-                int k = nodes[idx].key;
-                // Update bucket pointers
-                if (buckets[k].first == idx && buckets[k].second == idx) {
-                    // Only element in bucket
-                    buckets[k].first = buckets[k].second = -1;
-                } else if (buckets[k].first == idx) {
-                    buckets[k].first = n;
-                } else if (buckets[k].second == idx) {
-                    buckets[k].second = p;
-                }
-                
-                if (top == idx) {
-                    top = n; // next element becomes new top
-                }
-            }
-            
-            // Insert element at the FRONT of bucket k (before the current first)
-            void linkToBucketFront(int idx, int k) {
-                ensureBucket(k);
-                nodes[idx].key = k;
-                
-                if (buckets[k].first < 0) {
-                    // Empty bucket — find where to splice in the linked list
-                    // We need to find the element just before where bucket k should be
-                    // (i.e., the last element of the next-higher occupied bucket)
-                    // and the element just after (first element of next-lower bucket)
-                    int afterNode = -1;
-                    for (int bk = k - 1; bk >= 0; --bk) {
-                        if (buckets[bk].first >= 0) {
-                            afterNode = buckets[bk].first;
-                            break;
-                        }
-                    }
-                    int beforeNode = -1;
-                    for (int bk = k + 1; bk <= maxKey; ++bk) {
-                        if (buckets[bk].second >= 0) {
-                            beforeNode = buckets[bk].second;
-                            break;
-                        }
-                    }
-                    
-                    nodes[idx].prev = beforeNode;
-                    nodes[idx].next = afterNode;
-                    if (beforeNode >= 0) nodes[beforeNode].next = idx;
-                    if (afterNode >= 0) nodes[afterNode].prev = idx;
-                    
-                    buckets[k].first = buckets[k].second = idx;
-                } else {
-                    // Non-empty bucket — insert before the current first
-                    int oldFirst = buckets[k].first;
-                    int beforeOldFirst = nodes[oldFirst].prev;
-                    
-                    nodes[idx].prev = beforeOldFirst;
-                    nodes[idx].next = oldFirst;
-                    nodes[oldFirst].prev = idx;
-                    if (beforeOldFirst >= 0) nodes[beforeOldFirst].next = idx;
-                    
-                    buckets[k].first = idx;
-                }
-                
-                if (k > maxKey) maxKey = k;
-                if (k >= nodes[top].key) top = idx;
-            }
-            
-            void incrementKey(int idx) {
-                int oldKey = nodes[idx].key;
-                unlink(idx);
-                linkToBucketFront(idx, oldKey + 1);
-            }
-            
-            void decrementKey(int idx) {
-                int oldKey = nodes[idx].key;
-                if (oldKey <= 0) return; // don't go negative
-                unlink(idx);
-                linkToBucketFront(idx, oldKey - 1);
-            }
-            
-            // Remove element from the heap entirely
-            void deleteElement(int idx) {
-                unlink(idx);
-                nodes[idx].prev = nodes[idx].next = -1;
-                nodes[idx].key = -1; // mark as removed
-                // Update maxKey if needed
-                while (maxKey > 0 && buckets[maxKey].first < 0) maxKey--;
-            }
-            
-            // Extract the element with the highest key
-            int extractMax() {
-                // Find the actual top (maxKey may have become empty)
-                while (maxKey > 0 && buckets[maxKey].first < 0) maxKey--;
-                int idx = buckets[maxKey].first;
-                deleteElement(idx);
-                return idx;
-            }
-        };
-        
-        #pragma omp parallel
-        {
-            // Thread-local working buffers
-            std::vector<K> placedOrder;       // order of placed vertices (for window tracking)
-            std::vector<std::vector<size_t>> localNeighbors;  // adjacency within community
-            std::queue<K> bfsQueue;           // for BFS fallback
-            GordHeap heap;                    // UnitHeap for O(1) max-extraction
-            
-            #pragma omp for schedule(dynamic, 1)
-            for (size_t ci = 0; ci < C; ++ci) {
-                K c = sortedComms[ci];
-                auto& verts = commVertices[c];
-                if (verts.empty()) continue;
-                const size_t sz = verts.size();
-                
-                // For tiny communities, simple sequential ordering
-                if (sz <= 3) {
-                    for (size_t i = 0; i < sz; ++i) {
-                        localIds[verts[i]] = static_cast<K>(i);
-                    }
-                    continue;
-                }
-                
-                // Build local vertex index: use pre-built flat vertToLocalHrab[]
-                
-                // ---- FALLBACK: BFS for large communities ----
-                if (sz > gordThreshold) {
-                    bfsVerts += sz;
-                    bfsCount++;
-                    
-                    std::vector<bool> visited(sz, false);
-                    
-                    // Find highest-degree vertex as BFS root
-                    size_t startIdx = 0;
-                    K maxDeg = degrees[verts[0]];
-                    for (size_t i = 1; i < sz; ++i) {
-                        if (degrees[verts[i]] > maxDeg) {
-                            maxDeg = degrees[verts[i]];
-                            startIdx = i;
-                        }
-                    }
-                    
-                    K localId = 0;
-                    while (!bfsQueue.empty()) bfsQueue.pop(); // clear
-                    bfsQueue.push(static_cast<K>(startIdx));
-                    visited[startIdx] = true;
-                    
-                    while (!bfsQueue.empty()) {
-                        K localU = bfsQueue.front();
-                        bfsQueue.pop();
-                        localIds[verts[localU]] = localId++;
-                        
-                        K u = verts[localU];
-                        for (auto neighbor : g.out_neigh(u)) {
-                            NodeID_T v;
-                            if constexpr (std::is_same_v<DestID_T, NodeID_T>) v = neighbor;
-                            else v = neighbor.v;
-                            if (membership[v] != c) continue;
-                            size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
-                            if (localIdx != static_cast<size_t>(-1) && !visited[localIdx]) {
-                                visited[localIdx] = true;
-                                bfsQueue.push(static_cast<K>(localIdx));
-                            }
-                        }
-                    }
-                    // Handle disconnected vertices within community
-                    for (size_t i = 0; i < sz; ++i) {
-                        if (!visited[i]) {
-                            localIds[verts[i]] = localId++;
-                        }
-                    }
-                    continue;
-                }
-                
-                // ---- GORDER-GREEDY with UnitHeap: O(|E_local|) ----
-                gordVerts += sz;
-                gordCount++;
-                
-                // Build local adjacency: for each vertex, list of local neighbor indices
-                localNeighbors.resize(sz);
-                for (size_t i = 0; i < sz; ++i) {
-                    localNeighbors[i].clear();
-                }
-                for (size_t i = 0; i < sz; ++i) {
-                    K u = verts[i];
-                    for (auto neighbor : g.out_neigh(u)) {
-                        NodeID_T v;
-                        if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                            v = neighbor;
-                        } else {
-                            v = neighbor.v;
-                        }
-                        if (membership[v] != c) continue;
-                        size_t localIdx = vertToLocalHrab[static_cast<K>(v)];
-                        if (localIdx != static_cast<size_t>(-1)) {
-                            localNeighbors[i].push_back(localIdx);
-                        }
-                    }
-                }
-                
-                // Initialize UnitHeap: all vertices start at key=0 (no neighbors placed yet)
-                // We use degree as initial key so that high-degree vertices are preferred
-                // for tie-breaking (same behavior as before).
-                // Actually, Gorder uses indegree as initial key. For our community-local
-                // setting, we initialize all at 0 and handle seeding separately.
-                heap.init(sz);
-                
-                // Seed: highest-degree vertex — extract it directly
-                size_t bestSeed = 0;
-                K maxDeg = degrees[verts[0]];
-                for (size_t i = 1; i < sz; ++i) {
-                    if (degrees[verts[i]] > maxDeg) {
-                        maxDeg = degrees[verts[i]];
-                        bestSeed = i;
-                    }
-                }
-                
-                // Remove seed from heap and place it
-                heap.deleteElement(static_cast<int>(bestSeed));
-                placedOrder.clear();
-                placedOrder.reserve(sz);
-                placedOrder.push_back(static_cast<K>(bestSeed));
-                localIds[verts[bestSeed]] = 0;
-                
-                // Boost neighbors of seed in the heap
-                for (size_t nbr : localNeighbors[bestSeed]) {
-                    if (heap.nodes[nbr].key >= 0) { // not yet removed
-                        heap.incrementKey(static_cast<int>(nbr));
-                    }
-                }
-                
-                // Greedy loop: place remaining vertices using O(1) extractMax
-                for (K localId = 1; localId < static_cast<K>(sz); ++localId) {
-                    // O(1) amortized: extract vertex with highest score
-                    int best = heap.extractMax();
-                    
-                    placedOrder.push_back(static_cast<K>(best));
-                    localIds[verts[best]] = localId;
-                    
-                    // Boost neighbors of newly placed vertex — O(deg) total across all steps
-                    for (size_t nbr : localNeighbors[best]) {
-                        if (heap.nodes[nbr].key >= 0) { // still in heap
-                            heap.incrementKey(static_cast<int>(nbr));
-                        }
-                    }
-                    
-                    // Decay: if window is full, remove influence of oldest vertex
-                    if (static_cast<int>(placedOrder.size()) > W) {
-                        size_t oldVert = placedOrder[placedOrder.size() - 1 - W];
-                        for (size_t nbr : localNeighbors[oldVert]) {
-                            if (heap.nodes[nbr].key >= 0) { // still in heap
-                                heap.decrementKey(static_cast<int>(nbr));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        printf("  hybrid-rabbit-gord: %zu comms gord (%zu verts), %zu comms bfs-fallback (%zu verts)\n",
-               gordCount.load(), gordVerts.load(), bfsCount.load(), bfsVerts.load());
-    } else if (config.useRCMIntra) {
-        // ============================================================
-        // RCM (Cuthill-McKee) within each community
-        //
-        // Applies Reverse Cuthill-McKee ordering within each community
-        // to minimize bandwidth (max edge span) at the community level.
-        // This is embarrassingly parallel: each community is an
-        // independent problem processed by a separate thread.
-        //
-        // Tiered strategy by community size:
-        //   - ≤1 vertex: trivial (id=0)
-        //   - 2-32 vertices: min-degree start + serial CM BFS (skip BNF)
-        //   - 33-4096 vertices: simplified BNF (max 3 GL iterations)
-        //                       + serial CM BFS
-        //   - >4096 vertices: full BNF start + serial CM BFS
-        //
-        // The CM BFS at each level sorts neighbors by ascending degree
-        // (Cuthill-McKee heuristic), producing an ordering that places
-        // nearby-degree vertices together. The final reversal converts
-        // CM to RCM, which empirically yields tighter bandwidth.
-        // ============================================================
-        std::atomic<size_t> rcmTinyCount{0}, rcmSmallCount{0}, rcmMedCount{0}, rcmLargeCount{0};
-        std::atomic<size_t> rcmTinyVerts{0}, rcmSmallVerts{0}, rcmMedVerts{0}, rcmLargeVerts{0};
-
-        #pragma omp parallel
-        {
-            // Thread-local buffers reused across communities
-            std::vector<bool> visited;
-            std::queue<K> bfsQueue;
-            std::vector<K> cmOrder;
-
-            #pragma omp for schedule(dynamic, 1)
-            for (size_t ci = 0; ci < C; ++ci) {
-                K c = sortedComms[ci];
-                auto& verts = commVertices[c];
-                const size_t sz = verts.size();
-                if (sz == 0) continue;
-
-                if (sz == 1) {
-                    localIds[verts[0]] = 0;
-                    rcmTinyCount.fetch_add(1, std::memory_order_relaxed);
-                    rcmTinyVerts.fetch_add(1, std::memory_order_relaxed);
-                    continue;
-                }
-
-                // ----------------------------------------------------------
-                // Adaptive intra-community ordering (May 2026):
-                // For HUGE communities (>4096 vertices), use BFS-intra
-                // instead of full RCM.  Empirically (hollywood-2009 PR,
-                // 20 iters, 3 trials):
-                //   sz>4096 RCM-intra:   0.348s avg kernel  (1.28x speedup)
-                //   sz>4096 BFS-intra:   0.267s avg kernel  (1.66x speedup)
-                // Cause: RCM's neighbor-degree sort + final reversal puts
-                // low-degree (peripheral) vertices FIRST in memory for huge
-                // communities, hurting working-set retention.  Plain BFS
-                // from the highest-degree vertex places hubs first — better
-                // cache behavior for dense communities with large diameter.
-                // For sz<=4096 (typical sparse-graph communities), RCM's
-                // bandwidth minimization still wins (cit-Patents data).
-                // ----------------------------------------------------------
-                if (sz > 4096) {
-                    // Composes intraBFSFromHub() from SECTION 16-PRIMITIVES.
-                    // BFS-from-max-degree wins on huge communities: it
-                    // places hubs first, which matters for the working set
-                    // of PR-style power-law access patterns.
-                    intraBFSFromHub<K, NodeID_T, DestID_T>(
-                        verts, c, membership, degrees, g,
-                        vertToLocalHrab, visited, bfsQueue, localIds);
-                    rcmLargeCount.fetch_add(1, std::memory_order_relaxed);
-                    rcmLargeVerts.fetch_add(sz, std::memory_order_relaxed);
-                    continue;
-                }
-
-                // sz in [2, 4096] -> intraRCM primitive (BNF/George-Liu
-                // start when sz > 32, min-degree start otherwise; then
-                // CM-BFS with neighbour-degree sort and final reversal).
-                // This was previously ~110 lines inlined here.
-                intraRCM<K, NodeID_T, DestID_T>(
-                    verts, c, membership, degrees, g,
-                    vertToLocalHrab, visited, bfsQueue, cmOrder, localIds);
-
-                // Track stats
-                if (sz <= 32) {
-                    rcmSmallCount.fetch_add(1, std::memory_order_relaxed);
-                    rcmSmallVerts.fetch_add(sz, std::memory_order_relaxed);
-                } else {
-                    rcmMedCount.fetch_add(1, std::memory_order_relaxed);
-                    rcmMedVerts.fetch_add(sz, std::memory_order_relaxed);
-                }
-            }
-        }
-
-        printf("  hybrid-rabbit-rcm-intra: tiny=%zu(%zuv) small=%zu(%zuv) med=%zu(%zuv) large=%zu(%zuv)\n",
-               rcmTinyCount.load(), rcmTinyVerts.load(),
-               rcmSmallCount.load(), rcmSmallVerts.load(),
-               rcmMedCount.load(), rcmMedVerts.load(),
-               rcmLargeCount.load(), rcmLargeVerts.load());
-    } else {
-        // ============================================================
-        // Standard BFS within each community (default when neither
-        // useGorderIntra nor useRCMIntra is set).  Composes
-        // intraBFSFromHub() from SECTION 16-PRIMITIVES.
-        // ============================================================
-        #pragma omp parallel
-        {
-            std::queue<K> bfsQueue;
-            std::vector<bool> visited;
-
-            #pragma omp for schedule(dynamic, 1)
-            for (size_t ci = 0; ci < C; ++ci) {
-                K c = sortedComms[ci];
-                intraBFSFromHub<K, NodeID_T, DestID_T>(
-                    commVertices[c], c, membership, degrees, g,
-                    vertToLocalHrab, visited, bfsQueue, localIds);
-            }
-        }
-    }
-    
-    // Compute global IDs using the sorted index mapping
-    #pragma omp parallel for
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] > 0) {
-            K c = membership[v];
-            K sortedIdx = commToSortedIdx[c];
-            newIds[v] = static_cast<NodeID_T>(vertexOffsets[sortedIdx] + localIds[v]);
-        }
-    }
-    
-    // Assign isolated vertices at the end
-    size_t isolatedStart = vertexOffsets[C];
-    for (size_t i = 0; i < isolated.size(); ++i) {
-        newIds[isolated[i]] = static_cast<NodeID_T>(isolatedStart + i);
-    }
-    
-    // ================================================================
-    // STEP 5 (optional): Hub Sort post-processing
-    // Pack hub vertices (degree > avgDegree) contiguously at the front
-    // of the ID space, sorted by descending degree. Non-hub vertices
-    // fill the remaining IDs preserving their relative order.
-    // This is the IISWC'18 "Hub Sorting" technique — proven to improve
-    // spatial locality for power-law graphs by packing frequently-accessed
-    // vData elements into fewer cache lines.
-    // ================================================================
-    if (config.useHubSort) {
-        // Hub threshold: use sqrt(N) like Gorder's "huge vertex" threshold.
-        // This selects only the truly high-degree vertices (typically <1% of graph),
-        // unlike avgDegree which can pack 30-70% and destroy community locality.
-        K hubThreshold = static_cast<K>(std::sqrt(static_cast<double>(N)));
-        if (hubThreshold < 10) hubThreshold = 10;  // minimum sensible threshold
-        
-        // Collect hubs (degree > sqrt(N)) sorted by descending degree
-        // and non-hubs preserving their current community-based order
-        std::vector<std::pair<K, NodeID_T>> hubs;    // (degree, vertex)
-        std::vector<std::pair<NodeID_T, NodeID_T>> nonHubs;  // (currentNewId, vertex)
-        
-        for (size_t v = 0; v < N; ++v) {
-            if (degrees[v] > hubThreshold) {
-                hubs.push_back({degrees[v], static_cast<NodeID_T>(v)});
-            } else {
-                nonHubs.push_back({newIds[v], static_cast<NodeID_T>(v)});
-            }
-        }
-        
-        // Sort hubs by descending degree
-        std::sort(hubs.begin(), hubs.end(),
-            [](const std::pair<K,NodeID_T>& a, const std::pair<K,NodeID_T>& b) {
-                return a.first > b.first;
-            });
-        
-        // Sort non-hubs by their current newId (preserve relative order)
-        std::sort(nonHubs.begin(), nonHubs.end());
-        
-        // Assign: hubs first (0, 1, 2, ...), then non-hubs
-        NodeID_T nextId = 0;
-        for (auto& [deg, v] : hubs) {
-            newIds[v] = nextId++;
-        }
-        for (auto& [oldId, v] : nonHubs) {
-            newIds[v] = nextId++;
-        }
-        
-        printf("  hybrid-rabbit-hsort: %zu hubs (deg>%u=sqrt(%zu)) packed at front, %zu non-hubs after (%.1f%%)\n",
-               hubs.size(), static_cast<unsigned>(hubThreshold), N, nonHubs.size(),
-               100.0 * hubs.size() / N);
-    }
-    
-    printf("  hybrid-rabbit: %zu blocks, %zu active vertices, %zu hubs, %zu isolated\n",
-           C, N - isolated.size() - numHubs, numHubs, isolated.size());
-    
-    GRAPHBREW_TRACE("orderHybridLeidenRabbit: %zu blocks, %zu isolated", C, isolated.size());
-}
-
-//=============================================================================
-// SECTION 16b-HIER: HIERARCHICAL LEIDEN + RABBIT (HLR)
-//=============================================================================
-
-/**
- * @brief Hierarchical Leiden + RabbitOrder reordering (graphbrew:hlr).
- *
- * Generalises HRAB by running the gamma-tuned super-graph RabbitOrder primitive
- * at EVERY level of the Leiden dendrogram, not just the finest.  HRAB uses
- * the final (coarsest-aggregation) membership only; HLR consumes the full
- * vector membershipPerPass[0..L-1] and emits a permutation whose locality is
- * fractal: vertices in the same coarsest community are contiguous; within
- * each coarsest community, vertices in the same finer community are
- * contiguous; ...; within each finest community, vertices retain their
- * original index order (a future pass may add intra-community BFS-from-hub).
- *
- * Algorithm (L = membershipPerPass.size(), gamma = config.superGraphResolution):
- *   for k = 0 .. L-1:
- *     C_k          = max(membershipPerPass[k]) + 1
- *     sg_k         = buildCommunitySuperGraph(membershipPerPass[k], degrees, ..., C_k)
- *     levelPerm[k] = runRabbitOnSuperCSR(sg_k, ..., gamma)
- *   sort vertices v by tuple ( levelPerm[L-1][mpp[L-1][v]], ..., levelPerm[0][mpp[0][v]], v )
- *
- * Falls back to orderHybridLeidenRabbit when no multi-level hierarchy is
- * available (membershipPerPass empty or only one level).
- */
-template <typename K, typename NodeID_T, typename DestID_T>
-void orderHierarchicalLeidenRabbit(
-    pvector<NodeID_T>& newIds,
-    const GraphBrewResult<K>& result,
-    const std::vector<K>& degrees,
-    const CSRGraph<NodeID_T, DestID_T, true>& g,
-    size_t N,
-    const GraphBrewConfig& config)
-{
-    GRAPHBREW_TRACE("orderHierarchicalLeidenRabbit: N=%zu, passes=%zu",
-                    N, result.membershipPerPass.size());
-    const auto& mpp = result.membershipPerPass;
-    const size_t L = mpp.size();
-
-    if (L <= 1) {
-        printf("  hier-rabbit: only %zu Leiden pass(es); delegating to HRAB.\n", L);
-        orderHybridLeidenRabbit<K, NodeID_T, DestID_T>(
-            newIds, result.membership, degrees, g, N, config);
-        return;
-    }
-
-    const float gamma = static_cast<float>(config.superGraphResolution);
-    std::vector<bool> emptyHubMask;  // no hub extraction in HLR (could be added later)
-
-    std::vector<K> levelC(L, 0);
-    std::vector<double> levelM(L, 0.0);
-    std::vector<std::vector<K>> levelPerm(L);
-
-    for (size_t k = 0; k < L; ++k) {
-        K C_k = 0;
-        for (size_t v = 0; v < N; ++v) {
-            if (static_cast<K>(mpp[k][v] + 1) > C_k) C_k = static_cast<K>(mpp[k][v] + 1);
-        }
-        levelC[k] = C_k;
-
-        if (C_k <= 1) {
-            levelPerm[k].assign(C_k, K(0));
-            printf("  hier-rabbit: level %zu: C=%u (trivial, skipped)\n", k, (unsigned)C_k);
-            continue;
-        }
-
-        auto sg = buildCommunitySuperGraph<K, NodeID_T, DestID_T>(
-            mpp[k], degrees, emptyHubMask, g, N, C_k);
-
-        std::vector<size_t> numVertsPerComm(C_k, 0);
-        for (size_t v = 0; v < N; ++v) numVertsPerComm[mpp[k][v]]++;
-
-        levelM[k] = static_cast<double>(sg.M);
-        printf("  hier-rabbit: level %zu: C=%u, M_sg=%.0f, gamma=%.3f\n",
-               k, (unsigned)C_k, sg.M, gamma);
-
-        levelPerm[k] = runRabbitOnSuperCSR<K>(std::move(sg), numVertsPerComm, gamma);
-    }
-
-    // ---- Hierarchy-depth + super-graph-density heuristic ----
-    // We keep a level only if (1) it produces a strictly new partition
-    // (collapsed level check: C_k != C_{lastKept}) AND (2) the super-graph
-    // at that level is dense enough for the gamma-Rabbit merge criterion to
-    // yield meaningful merges.  Empirically (PR cache-sim, 3 trials on
-    // {cit-Patents, soc-pokec, hollywood-2009, com-Orkut}) we observed:
-    //   - cit-Patents finest super-graph M_sg/C = 14    -> +40% regression
-    //   - soc-pokec    finest super-graph M_sg/C = 29   -> noise (~0%)
-    //   - hollywood    finest super-graph M_sg/C = 317  -> -14.3% win
-    //   - com-Orkut    finest super-graph M_sg/C = 190  -> noise (~+4%)
-    // i.e., the multi-level Rabbit pays off iff every kept fine level has
-    // average super-node weight >= ~50.  We use that threshold as a
-    // graph-agnostic guard.  The COARSEST level is always kept regardless
-    // (otherwise HLR has no Rabbit ordering at all and degenerates below
-    // even the original layout).
-    constexpr double kMinAvgSuperWeight = 50.0;
-    std::vector<bool> keepLevel(L, false);
-    K lastKept = 0;
-    // Coarsest first: always kept.
-    for (size_t k = L; k-- > 0; ) {
-        if (levelC[k] <= 1) continue;
-        keepLevel[k] = true;
-        lastKept = levelC[k];
-        break;
-    }
-    // Finer levels: include only if non-collapsed and dense enough.
-    for (size_t k = L; k-- > 0; ) {
-        if (keepLevel[k]) continue;             // already taken (coarsest)
-        if (levelC[k] <= 1) continue;            // trivial
-        if (levelC[k] == lastKept) continue;     // collapsed
-        const double avg = (levelC[k] > 0)
-            ? static_cast<double>(levelM[k]) / static_cast<double>(levelC[k])
-            : 0.0;
-        if (avg < kMinAvgSuperWeight) {
-            printf("  hier-rabbit: level %zu: avg M_sg/C=%.1f < %.0f, skipping (super-graph too sparse for gamma-Rabbit)\n",
-                   k, avg, kMinAvgSuperWeight);
-            continue;
-        }
-        keepLevel[k] = true;
-        lastKept = levelC[k];
-    }
-    size_t numKept = 0;
-    for (size_t k = 0; k < L; ++k) if (keepLevel[k]) ++numKept;
-    printf("  hier-rabbit: keeping %zu of %zu Leiden levels (collapsed/sparse levels skipped)\n",
-           numKept, L);
-
-    // ---- Intra-community RCM (matches HRAB's default tail step) ----
-    // HRAB enables RCM intra-community ordering by default (CLI parser:
-    // config.useRCMIntra = true), which gives 30-50% better memory accesses
-    // than BFS-from-hub on the test set.  We use the same primitive
-    // (intraRCM, SECTION 16-PRIMITIVES) within each block of the FINEST
-    // KEPT membership.  When the finest level was skipped for being too
-    // sparse, kBFS falls back to the coarsest kept level (HRAB-equivalent
-    // single-block layer), restoring single-pass behaviour rather than
-    // scattering RCM over meaningless tiny groups.
-    size_t kBFS = 0;
-    for (size_t k = 0; k < L; ++k) { if (keepLevel[k]) { kBFS = k; break; } }
-    const auto& bfsMembership = mpp[kBFS];
-    const K C_bfs = levelC[kBFS];
-    printf("  hier-rabbit: intra-RCM within %u level-%zu communities\n",
-           (unsigned)C_bfs, kBFS);
-
-    std::vector<std::vector<K>> commVertices(C_bfs);
-    for (size_t v = 0; v < N; ++v) {
-        commVertices[bfsMembership[v]].push_back(static_cast<K>(v));
-    }
-    std::vector<K> localIds(N, K(0));
-    std::vector<size_t> vertToLocal(N, static_cast<size_t>(-1));
-    #pragma omp parallel
-    {
-        std::vector<bool> visited;
-        std::queue<K> bfsQueue;
-        std::vector<K> cmOrder;
-        #pragma omp for schedule(dynamic, 64)
-        for (K c = 0; c < C_bfs; ++c) {
-            const auto& verts = commVertices[c];
-            if (verts.empty()) continue;
-            for (size_t i = 0; i < verts.size(); ++i) vertToLocal[verts[i]] = i;
-            intraRCM<K, NodeID_T, DestID_T>(
-                verts, c, bfsMembership, degrees, g,
-                vertToLocal, visited, bfsQueue, cmOrder, localIds);
-            for (K v : verts) vertToLocal[v] = static_cast<size_t>(-1);
-        }
-    }
-
-    // Multi-key sort: only KEPT levels contribute keys; coarsest dominates;
-    // intra-finest-community BFS-from-hub local position is the final
-    // tie-break (replaces a raw vertex-id break).
-    std::vector<size_t> order(N);
-    std::iota(order.begin(), order.end(), size_t(0));
-    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-        for (size_t kk = L; kk-- > 0; ) {
-            if (!keepLevel[kk]) continue;
-            K pa = levelPerm[kk][mpp[kk][a]];
-            K pb = levelPerm[kk][mpp[kk][b]];
-            if (pa != pb) return pa < pb;
-        }
-        return localIds[a] < localIds[b];
-    });
-
-    #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < N; ++i) {
-        newIds[order[i]] = static_cast<NodeID_T>(i);
-    }
-
-    printf("  hier-rabbit: ordered %zu vertices across %zu Leiden levels (C: ", N, L);
-    for (size_t k = 0; k < L; ++k) printf("%u%s", (unsigned)levelC[k], k + 1 == L ? "" : " -> ");
-    printf(")\n");
-    GRAPHBREW_TRACE("orderHierarchicalLeidenRabbit: done, %zu levels", L);
-}
-
-//=============================================================================
-// SECTION 16c: TILE-QUANTIZED RABBITORDER ORDERING
-//=============================================================================
-
-/**
- * @brief Tile-Quantized RabbitOrder Ordering (graphbrew:tqr)
- * 
- * Combines cache-line-aligned tile quantization with RabbitOrder dendrogram 
- * traversal for macro-ordering and Leiden-community-aware BFS for micro-ordering.
- * 
- * Algorithm:
- * 1. QUANTIZE: Divide vertex ID space into tiles sized to match cache lines.
- *    Each tile = ceil(N / numTiles) vertices ≈ one L3 cache line worth of vertex data.
- * 2. BUILD TILE ADJACENCY: For each edge (u,v), accumulate weight between
- *    tile(u) and tile(v). This yields a coarse graph where nodes are tiles.
- * 3. RABBITORDER ON TILES: Run parallel incremental aggregation on the tile
- *    graph. This produces a dendrogram encoding which tiles should be adjacent.
- * 4. TILE PERMUTATION: DFS the RabbitOrder dendrogram to get the macro-order
- *    of tiles — which tile blocks are placed next to each other.
- * 5. COMMUNITY-AWARE BFS: Within each tile (in the permuted tile order),
- *    vertices are sub-sorted by Leiden community, then BFS within each 
- *    community for maximum intra-community locality.
- * 
- * Why this can beat graphbrew:hrab:
- * - graphbrew:hrab builds a super-graph over Leiden communities (~100K nodes) that
- *   have no relation to cache boundaries
- * - graphbrew:tqr builds a super-graph over tiles (~131K nodes for 8MB L3) that
- *   DIRECTLY correspond to cache line groups
- * - RabbitOrder on tiles optimizes exactly what matters: which cache-line-sized
- *   groups of vertices should be adjacent in memory
- * 
- * @tparam K Community ID type
- * @tparam NodeID_T Node ID type
- * @tparam DestID_T Destination ID type (may include weight)
- */
-template <typename K, typename NodeID_T, typename DestID_T>
-void orderTileQuantizedRabbit(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    const CSRGraph<NodeID_T, DestID_T, true>& g,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderTileQuantizedRabbit: N=%zu", N);
-    Timer phaseTimer;
-    
-    // ================================================================
-    // PHASE 6 REFACTOR (2026-05-19): TQR STEPs 0+1+2+3+4 + 5a..5e are now
-    // expressed as a single Stage 1 primitive call.  ~970 lines of inline
-    // tile-graph construction, tile-RabbitOrder, dendrogram DFS,
-    // per-community center-tile assignment, community super-graph
-    // construction, community-level RabbitOrder, and composite sort have
-    // been replaced by:
-    //
-    //     runTileRabbit<>(membership, degrees, commVertices, g, N, C, gamma)
-    //
-    // which is itself a composition of:
-    //     chooseTileParams()
-    //     buildCommunitySuperGraph()    [twice: once for tiles, once for communities]
-    //     runRabbitOnTileGraph()
-    //     runRabbitOnSuperCSR()
-    //     composite-sort by (tilePerm[centerTile], commPermRO)
-    //
-    // Parity envelope vs. the pre-refactor inline path on
-    // {cit-Patents, soc-pokec, hollywood-2009, com-Orkut}:
-    //     -1.5% to +1.3% L3 memory accesses (PR, 3 trials, 8 threads).
-    // Data: results/data/composability_parity_envelope_2026_05_19.md.
-    //
-    // TQR is now literally a composition:
-    //     {super-graph=TileRabbit, community=Identity, intra=BFSFromHub}
-    // ================================================================
-
-    // STEP 1: Community count + per-community vertex grouping (preserved;
-    // STEP 5f and the final vertex relabelling need commVertices / isolated).
-    K maxComm = 0;
-    for (size_t v = 0; v < N; ++v) maxComm = std::max(maxComm, membership[v]);
-    const size_t C = static_cast<size_t>(maxComm) + 1;
-
-    std::vector<K> isolated;
-    std::vector<std::vector<K>> commVertices(C);
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] == 0) {
-            isolated.push_back(static_cast<K>(v));
-        } else {
-            commVertices[membership[v]].push_back(static_cast<K>(v));
-        }
-    }
-    printf("  tqr: %zu Leiden communities, %zu isolated vertices\n", C, isolated.size());
-
-    // Stage 1 (tile_rabbit composition) -> commPerm
-    phaseTimer.Start();
-    const float sgGammaTqr = static_cast<float>(config.superGraphResolution);
-    auto commPerm = runTileRabbit<K, NodeID_T, DestID_T>(
-        membership, degrees, commVertices, g, N, static_cast<K>(C), sgGammaTqr);
-    phaseTimer.Stop();
-    printf("  tqr: super-graph=tile_rabbit composed in %.4fs\n", phaseTimer.Seconds());
-
-    // Derive sortedComms / vertexOffsets / commToSortedIdx from commPerm.
-    std::vector<K> sortedComms(C);
-    std::iota(sortedComms.begin(), sortedComms.end(), K(0));
-    std::sort(sortedComms.begin(), sortedComms.end(),
-              [&](K a, K b) { return commPerm[a] < commPerm[b]; });
-
-    std::vector<size_t> vertexOffsets(C + 1, 0);
-    for (size_t i = 0; i < C; ++i) {
-        K c = sortedComms[i];
-        vertexOffsets[i + 1] = vertexOffsets[i] + commVertices[c].size();
-    }
-    size_t totalActive = vertexOffsets[C];
-    printf("  tqr: %zu active vertices, %zu communities (tile+rabbit ordered)\n",
-           totalActive, C);
-
-    std::vector<K> commToSortedIdx(C);
-    for (size_t i = 0; i < C; ++i) commToSortedIdx[sortedComms[i]] = static_cast<K>(i);
-
-    // 5f: BFS within each community for final vertex ordering
-    phaseTimer.Start();
-    
-    std::vector<K> localIds(N, static_cast<K>(-1));
-    
-    #pragma omp parallel
-    {
-        std::queue<K> bfsQueue;
-        
-        #pragma omp for schedule(dynamic, 1)
-        for (size_t ci = 0; ci < C; ++ci) {
-            K c = sortedComms[ci];
-            auto& verts = commVertices[c];
-            if (verts.empty()) continue;
-            
-            if (verts.size() == 1) {
-                localIds[verts[0]] = 0;
-                continue;
-            }
-            
-            std::vector<bool> visited(verts.size(), false);
-            std::unordered_map<K, size_t> vertToLocal;
-            for (size_t i = 0; i < verts.size(); ++i) {
-                vertToLocal[verts[i]] = i;
-            }
-            
-            K startV = verts[0];
-            K maxDeg = degrees[verts[0]];
-            for (K v : verts) {
-                if (degrees[v] > maxDeg) {
-                    maxDeg = degrees[v];
-                    startV = v;
-                }
-            }
-            
-            K localId = 0;
-            bfsQueue.push(startV);
-            visited[vertToLocal[startV]] = true;
-            
-            while (!bfsQueue.empty()) {
-                K u = bfsQueue.front();
-                bfsQueue.pop();
-                
-                localIds[u] = localId++;
-                
-                for (auto neighbor : g.out_neigh(u)) {
-                    NodeID_T v;
-                    if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                        v = neighbor;
-                    } else {
-                        v = neighbor.v;
-                    }
-                    
-                    if (membership[v] != c) continue;
-                    
-                    auto it = vertToLocal.find(static_cast<K>(v));
-                    if (it != vertToLocal.end() && !visited[it->second]) {
-                        visited[it->second] = true;
-                        bfsQueue.push(static_cast<K>(v));
-                    }
-                }
-            }
-            
-            for (size_t i = 0; i < verts.size(); ++i) {
-                if (!visited[i]) {
-                    localIds[verts[i]] = localId++;
-                }
-            }
-        }
-    }
-    
-    // Compute global IDs
-    #pragma omp parallel for
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] > 0) {
-            K c = membership[v];
-            K sortedIdx = commToSortedIdx[c];
-            newIds[v] = static_cast<NodeID_T>(vertexOffsets[sortedIdx] + localIds[v]);
-        }
-    }
-    
-    size_t isolatedStart = totalActive;
-    for (size_t i = 0; i < isolated.size(); ++i) {
-        newIds[isolated[i]] = static_cast<NodeID_T>(isolatedStart + i);
-    }
-    
-    phaseTimer.Stop();
-    printf("  tqr: BFS within communities in %.4fs\n", phaseTimer.Seconds());
-    printf("  tqr: %zu communities, %zu active, %zu isolated, total=%.4fs\n",
-           C, totalActive, isolated.size(),
-           0.0);  // total time tracked externally
-    
-    GRAPHBREW_TRACE("orderTileQuantizedRabbit: %zu communities, %zu isolated",
-               C, isolated.size());
-}
-
-//=============================================================================
-// SECTION 16e: COMMUNITY MERGING FOR CACHE LOCALITY
-//=============================================================================
-
-/**
- * Merge small Leiden communities into larger ones for better cache locality
- * 
- * Problem: Leiden produces many fine-grained communities (optimized for modularity)
- *          but cache performance needs large contiguous blocks.
- * 
- * Solution: Merge communities based on inter-community edge weight until we 
- *           reach a target community count (similar to RabbitOrder's ~N/1000).
- * 
- * Algorithm:
- * 1. Build inter-community edge weights (which communities are most connected)
- * 2. Use union-find to merge communities greedily by strongest connection
- * 3. Continue until target count reached or no more beneficial merges
- * 
- * @param membership Input/output: community membership for each vertex
- * @param g Original graph (for edge weights)
- * @param targetComms Target number of communities (0 = auto: N/avgDegree)
- * @return Final number of communities after merging
- */
-template <typename K, typename NodeID_T, typename DestID_T>
-size_t mergeCommunities(
-    std::vector<K>& membership,
-    const CSRGraph<NodeID_T, DestID_T, true>& g,
-    size_t targetComms = 0) {
-    
-    const size_t N = g.num_nodes();
-    
-    // Find current community count and max ID
-    K maxComm = 0;
-    for (size_t v = 0; v < N; ++v) {
-        maxComm = std::max(maxComm, membership[v]);
-    }
-    const size_t numComm = static_cast<size_t>(maxComm) + 1;
-    
-    // Auto-compute target: aim for ~1000 communities like RabbitOrder
-    if (targetComms == 0) {
-        // Target similar to RabbitOrder: N/avgCommunitySize where avgSize ~ 100-500
-        targetComms = std::max(size_t(100), N / 500);
-    }
-    
-    // If already at or below target, no merging needed
-    if (numComm <= targetComms) {
-        printf("  merge: %zu communities already <= target %zu\n", numComm, targetComms);
-        return numComm;
-    }
-    
-    printf("  merge: %zu -> %zu target communities\n", numComm, targetComms);
-    
-    // Step 1: Build community vertex lists and sizes
-    std::vector<size_t> commSize(numComm, 0);
-    for (size_t v = 0; v < N; ++v) {
-        commSize[membership[v]]++;
-    }
-    
-    // Step 2: Build inter-community edge weights using parallel aggregation
-    struct CommEdge {
-        K c1, c2;       // Community pair (c1 < c2)
-        double weight;  // Total edge weight between them
-        
-        bool operator<(const CommEdge& other) const {
-            return weight < other.weight;  // Max-heap: highest weight first
-        }
-    };
-    
-    // Parallel computation of inter-community edges
-    const int numThreads = omp_get_max_threads();
-    std::vector<std::unordered_map<uint64_t, double>> threadMaps(numThreads);
-    
-    auto packPair = [](K c1, K c2) -> uint64_t {
-        if (c1 > c2) std::swap(c1, c2);
-        return (static_cast<uint64_t>(c1) << 32) | c2;
-    };
-    
-    #pragma omp parallel
-    {
-        int tid = omp_get_thread_num();
-        auto& localMap = threadMaps[tid];
-        
-        #pragma omp for schedule(dynamic, 1024)
-        for (size_t u = 0; u < N; ++u) {
-            K cu = membership[u];
-            for (auto neighbor : g.out_neigh(u)) {
-                NodeID_T v;
-                double w;
-                if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
-                    v = neighbor;
-                    w = 1.0;
-                } else {
-                    v = neighbor.v;
-                    w = static_cast<double>(neighbor.w);
-                }
-                
-                K cv = membership[v];
-                if (cu != cv) {
-                    uint64_t key = packPair(cu, cv);
-                    localMap[key] += w;
-                }
-            }
-        }
-    }
-    
-    // Merge thread-local maps
-    std::unordered_map<uint64_t, double> globalMap;
-    for (auto& localMap : threadMaps) {
-        for (auto& [key, weight] : localMap) {
-            globalMap[key] += weight;
-        }
-    }
-    
-    // Build priority queue of community edges (MAX heap - highest weight first)
-    std::priority_queue<CommEdge> pq;
-    for (auto& [key, weight] : globalMap) {
-        K c1 = static_cast<K>(key >> 32);
-        K c2 = static_cast<K>(key & 0xFFFFFFFF);
-        pq.push({c1, c2, weight});
-    }
-    
-    // Step 3: Union-find for merging
-    std::vector<K> parent(numComm);
-    std::iota(parent.begin(), parent.end(), K(0));
-    
-    std::function<K(K)> find = [&](K x) -> K {
-        if (parent[x] != x) {
-            parent[x] = find(parent[x]);
-        }
-        return parent[x];
-    };
-    
-    auto unite = [&](K x, K y) -> bool {
-        K px = find(x);
-        K py = find(y);
-        if (px == py) return false;
-        // Merge smaller into larger
-        if (commSize[px] < commSize[py]) std::swap(px, py);
-        parent[py] = px;
-        commSize[px] += commSize[py];
-        return true;
-    };
-    
-    // Step 4: Greedily merge communities by strongest connection
-    size_t currentComms = numComm;
-    size_t mergeCount = 0;
-    
-    while (currentComms > targetComms && !pq.empty()) {
-        auto [c1, c2, weight] = pq.top();
-        pq.pop();
-        
-        // Check if still different communities after previous merges
-        K p1 = find(c1);
-        K p2 = find(c2);
-        if (p1 == p2) continue;
-        
-        // Merge!
-        unite(p1, p2);
-        currentComms--;
-        mergeCount++;
-    }
-    
-    // Step 5: If we haven't reached target (disconnected components), 
-    // merge remaining small communities arbitrarily
-    if (currentComms > targetComms) {
-        // Find all root communities sorted by size
-        std::vector<std::pair<size_t, K>> rootsBySize;
-        for (size_t c = 0; c < numComm; ++c) {
-            if (find(static_cast<K>(c)) == static_cast<K>(c)) {
-                rootsBySize.emplace_back(commSize[c], static_cast<K>(c));
-            }
-        }
-        std::sort(rootsBySize.begin(), rootsBySize.end());  // Smallest first
-        
-        // Merge smallest communities into each other until target reached
-        size_t idx = 0;
-        while (currentComms > targetComms && idx + 1 < rootsBySize.size()) {
-            K small = rootsBySize[idx].second;
-            K next = rootsBySize[idx + 1].second;
-            if (unite(small, next)) {
-                currentComms--;
-                mergeCount++;
-                // Update size in list
-                rootsBySize[idx + 1].first += rootsBySize[idx].first;
-            }
-            idx++;
-        }
-    }
-    
-    // Step 6: Renumber communities to be contiguous
-    std::vector<K> newCommId(numComm, static_cast<K>(-1));
-    K nextId = 0;
-    for (size_t c = 0; c < numComm; ++c) {
-        K root = find(static_cast<K>(c));
-        if (newCommId[root] == static_cast<K>(-1)) {
-            newCommId[root] = nextId++;
-        }
-    }
-    
-    // Step 7: Update membership
-    #pragma omp parallel for
-    for (size_t v = 0; v < N; ++v) {
-        K oldComm = membership[v];
-        K root = find(oldComm);
-        membership[v] = newCommId[root];
-    }
-    
-    printf("  merge: %zu merges performed, final %zu communities\n", mergeCount, currentComms);
-    
-    return currentComms;
-}
-
-//=============================================================================
-// SECTION 17: ORDERING - DENDROGRAM DFS
-//=============================================================================
-
-/**
- * DFS traversal of dendrogram for ordering
- * 
- * Produces excellent locality by keeping related vertices close
- */
-template <typename K, typename NodeID_T>
-void orderDendrogramDFS(
-    pvector<NodeID_T>& newIds,
-    const GraphBrewResult<K>& result,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderDendrogramDFS: N=%zu, roots=%zu", N, result.roots.size());
-    
-    if (result.dendrogram.empty() || result.roots.empty()) {
-        // Fallback to hierarchical sort
-        orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
-        return;
-    }
-    
-    std::vector<K> order;
-    order.reserve(N);
-    
-    // DFS from each root
-    for (K root : result.roots) {
-        std::stack<K> stack;
-        stack.push(root);
-        
-        while (!stack.empty()) {
-            K node = stack.top();
-            stack.pop();
-            
-            if (node >= result.dendrogram.size()) continue;
-            
-            const auto& dnode = result.dendrogram[node];
-            
-            if (dnode.level == 0) {
-                // Leaf: add vertices (sorted by degree)
-                std::vector<K> vertices = dnode.children;
-                std::sort(vertices.begin(), vertices.end(),
-                    [&](K a, K b) { return degrees[a] > degrees[b]; });
-                for (K v : vertices) {
-                    if (v < N) order.push_back(v);
-                }
-            } else {
-                // Internal: push children in reverse (for DFS order)
-                // Sort children by size (larger first) for better locality
-                std::vector<K> children = dnode.children;
-                std::sort(children.begin(), children.end(),
-                    [&](K a, K b) { 
-                        return result.dendrogram[a].size > result.dendrogram[b].size; 
-                    });
-                for (auto it = children.rbegin(); it != children.rend(); ++it) {
-                    stack.push(*it);
-                }
-            }
-        }
-    }
-    
-    // Assign IDs
-    #pragma omp parallel for
-    for (size_t i = 0; i < order.size(); ++i) {
-        newIds[order[i]] = static_cast<NodeID_T>(i);
-    }
-    
-    // Handle any missed vertices
-    NodeID_T nextId = order.size();
-    for (size_t v = 0; v < N; ++v) {
-        if (newIds[v] == static_cast<NodeID_T>(-1)) {
-            newIds[v] = nextId++;
-        }
-    }
-}
-
-//=============================================================================
-// SECTION 18: ORDERING - DENDROGRAM BFS
-//=============================================================================
-
-/**
- * BFS traversal of dendrogram for ordering
- * 
- * Groups vertices by level first, then by community
- */
-template <typename K, typename NodeID_T>
-void orderDendrogramBFS(
-    pvector<NodeID_T>& newIds,
-    const GraphBrewResult<K>& result,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderDendrogramBFS: N=%zu", N);
-    
-    if (result.dendrogram.empty() || result.roots.empty()) {
-        orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
-        return;
-    }
-    
-    std::vector<K> order;
-    order.reserve(N);
-    
-    std::queue<K> queue;
-    for (K root : result.roots) {
-        queue.push(root);
-    }
-    
-    while (!queue.empty()) {
-        K node = queue.front();
-        queue.pop();
-        
-        if (node >= result.dendrogram.size()) continue;
-        
-        const auto& dnode = result.dendrogram[node];
-        
-        if (dnode.level == 0) {
-            std::vector<K> vertices = dnode.children;
-            std::sort(vertices.begin(), vertices.end(),
-                [&](K a, K b) { return degrees[a] > degrees[b]; });
-            for (K v : vertices) {
-                if (v < N) order.push_back(v);
-            }
-        } else {
-            for (K child : dnode.children) {
-                queue.push(child);
-            }
-        }
-    }
-    
-    #pragma omp parallel for
-    for (size_t i = 0; i < order.size(); ++i) {
-        newIds[order[i]] = static_cast<NodeID_T>(i);
-    }
-    
-    NodeID_T nextId = order.size();
-    for (size_t v = 0; v < N; ++v) {
-        if (newIds[v] == static_cast<NodeID_T>(-1)) {
-            newIds[v] = nextId++;
-        }
-    }
-}
-
-//=============================================================================
-// SECTION 19: ORDERING - COMMUNITY SORT
-//=============================================================================
-
-/**
- * Simple community-based sort
- * 
- * Zero-degree nodes are grouped at the END for better cache locality.
- */
-template <typename K, typename NodeID_T>
-void orderCommunitySort(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderCommunitySort: N=%zu", N);
-    
-    // Separate zero-degree (isolated) nodes
-    std::vector<size_t> active, isolated;
-    active.reserve(N);
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] == 0) {
-            isolated.push_back(v);
-        } else {
-            active.push_back(v);
-        }
-    }
-    
-    auto comparator = [&](size_t a, size_t b) {
-        if (membership[a] != membership[b]) {
-            return membership[a] < membership[b];
-        }
-        return degrees[a] > degrees[b];
-    };
-    
-    if (config.useParallelSort) {
-        __gnu_parallel::sort(active.begin(), active.end(), comparator);
-    } else {
-        std::sort(active.begin(), active.end(), comparator);
-    }
-    
-    // Assign IDs: active nodes first, isolated nodes at the end
-    #pragma omp parallel for
-    for (size_t i = 0; i < active.size(); ++i) {
-        newIds[active[i]] = static_cast<NodeID_T>(i);
-    }
-    
-    NodeID_T isolatedStart = static_cast<NodeID_T>(active.size());
-    for (size_t i = 0; i < isolated.size(); ++i) {
-        newIds[isolated[i]] = isolatedStart + static_cast<NodeID_T>(i);
-    }
-    
-    GRAPHBREW_TRACE("orderCommunitySort: %zu active, %zu isolated", active.size(), isolated.size());
-}
-
-//=============================================================================
-// SECTION 20: ORDERING - HUB CLUSTER
-//=============================================================================
-
-/**
- * Hub-first ordering within communities
- * 
- * Zero-degree nodes are grouped at the END for better cache locality.
- */
-template <typename K, typename NodeID_T>
-void orderHubCluster(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderHubCluster: N=%zu", N);
-    
-    // Separate isolated (zero-degree) nodes first
-    std::vector<size_t> isolated;
-    std::vector<K> activeDegrees;
-    activeDegrees.reserve(N);
-    
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] == 0) {
-            isolated.push_back(v);
-        } else {
-            activeDegrees.push_back(degrees[v]);
-        }
-    }
-    
-    // Find hub threshold (top 1% of ACTIVE nodes)
-    if (activeDegrees.empty()) {
-        // All nodes are isolated - just assign sequentially
-        for (size_t i = 0; i < N; ++i) {
-            newIds[i] = static_cast<NodeID_T>(i);
-        }
-        return;
-    }
-    
-    std::sort(activeDegrees.begin(), activeDegrees.end(), std::greater<K>());
-    K hubThreshold = activeDegrees[std::min(activeDegrees.size() / 100, activeDegrees.size() - 1)];
-    
-    // Separate hubs and non-hubs (excluding isolated)
-    std::vector<size_t> hubs, nonHubs;
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] == 0) continue;  // Already in isolated
-        if (degrees[v] >= hubThreshold) {
-            hubs.push_back(v);
-        } else {
-            nonHubs.push_back(v);
-        }
-    }
-    
-    // Sort hubs by community, then degree
-    std::sort(hubs.begin(), hubs.end(), [&](size_t a, size_t b) {
-        if (membership[a] != membership[b]) return membership[a] < membership[b];
-        return degrees[a] > degrees[b];
-    });
-    
-    // Sort non-hubs by community, then degree
-    std::sort(nonHubs.begin(), nonHubs.end(), [&](size_t a, size_t b) {
-        if (membership[a] != membership[b]) return membership[a] < membership[b];
-        return degrees[a] > degrees[b];
-    });
-    
-    // Assign: hubs first, then non-hubs, then isolated at the end
-    NodeID_T id = 0;
-    for (size_t v : hubs) {
-        newIds[v] = id++;
-    }
-    for (size_t v : nonHubs) {
-        newIds[v] = id++;
-    }
-    for (size_t v : isolated) {
-        newIds[v] = id++;
-    }
-    
-    GRAPHBREW_TRACE("orderHubCluster: %zu hubs, %zu non-hubs, %zu isolated", hubs.size(), nonHubs.size(), isolated.size());
-}
-
-//=============================================================================
-// SECTION 20b: DBG ORDERING (within communities)
-//=============================================================================
-
-/**
- * DBG (Degree-Based Grouping) ordering within communities
- * Groups vertices by degree buckets, respecting community boundaries
- */
-template <typename K, typename NodeID_T>
-void orderDBG(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderDBG: N=%zu", N);
-    
-    // Find max community
-    K maxComm = 0;
-    for (size_t v = 0; v < N; ++v) {
-        maxComm = std::max(maxComm, membership[v]);
-    }
-    size_t numComm = maxComm + 1;
-    
-    // Compute average degree
-    K totalDegree = 0;
-    for (size_t v = 0; v < N; ++v) totalDegree += degrees[v];
-    K avgDegree = totalDegree / N;
-    
-    // Define bucket thresholds (logarithmic scaling)
-    const int numBuckets = 8;
-    K bucketThreshold[numBuckets] = {
-        avgDegree / 2,
-        avgDegree,
-        avgDegree * 2,
-        avgDegree * 4,
-        avgDegree * 8,
-        avgDegree * 16,
-        avgDegree * 32,
-        std::numeric_limits<K>::max()
-    };
-    
-    // Per-community buckets: buckets[comm][bucket] = list of vertices
-    std::vector<std::vector<std::vector<size_t>>> buckets(numComm, 
-        std::vector<std::vector<size_t>>(numBuckets));
-    
-    // Distribute vertices into buckets
-    for (size_t v = 0; v < N; ++v) {
-        K comm = membership[v];
-        K deg = degrees[v];
-        for (int b = 0; b < numBuckets; ++b) {
-            if (deg <= bucketThreshold[b]) {
-                buckets[comm][b].push_back(v);
-                break;
-            }
-        }
-    }
-    
-    // Assign IDs: process communities, within each process buckets high-to-low
-    NodeID_T id = 0;
-    for (size_t c = 0; c < numComm; ++c) {
-        // High-degree buckets first (reverse order)
-        for (int b = numBuckets - 1; b >= 0; --b) {
-            for (size_t v : buckets[c][b]) {
-                newIds[v] = id++;
-            }
-        }
-    }
-}
-
-/**
- * DBG ordering globally (ignoring communities, applied after clustering)
- * Uses degree buckets across all vertices
- */
-template <typename K, typename NodeID_T>
-void orderDBGGlobal(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderDBGGlobal: N=%zu", N);
-    
-    // Compute average degree
-    K totalDegree = 0;
-    for (size_t v = 0; v < N; ++v) totalDegree += degrees[v];
-    K avgDegree = totalDegree / N;
-    
-    // Define bucket thresholds
-    const int numBuckets = 8;
-    K bucketThreshold[numBuckets] = {
-        avgDegree / 2, avgDegree, avgDegree * 2, avgDegree * 4,
-        avgDegree * 8, avgDegree * 16, avgDegree * 32,
-        std::numeric_limits<K>::max()
-    };
-    
-    // Global buckets
-    std::vector<std::vector<size_t>> buckets(numBuckets);
-    
-    for (size_t v = 0; v < N; ++v) {
-        K deg = degrees[v];
-        for (int b = 0; b < numBuckets; ++b) {
-            if (deg <= bucketThreshold[b]) {
-                buckets[b].push_back(v);
-                break;
-            }
-        }
-    }
-    
-    // Assign IDs: high-degree buckets first
-    NodeID_T id = 0;
-    for (int b = numBuckets - 1; b >= 0; --b) {
-        // Within bucket, sort by community for some locality
-        std::sort(buckets[b].begin(), buckets[b].end(), [&](size_t a, size_t b) {
-            return membership[a] < membership[b];
-        });
-        for (size_t v : buckets[b]) {
-            newIds[v] = id++;
-        }
-    }
-}
-
-//=============================================================================
-// SECTION 20c: CORDER ORDERING (hot/cold partitioning)
-//=============================================================================
-
-/**
- * Corder ordering within communities
- * Separates hot (high-degree) and cold (low-degree) vertices within each community
- */
-template <typename K, typename NodeID_T>
-void orderCorder(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderCorder: N=%zu", N);
-    
-    // Find max community
-    K maxComm = 0;
-    for (size_t v = 0; v < N; ++v) {
-        maxComm = std::max(maxComm, membership[v]);
-    }
-    size_t numComm = maxComm + 1;
-    
-    // Compute average degree
-    K totalDegree = 0;
-    for (size_t v = 0; v < N; ++v) totalDegree += degrees[v];
-    K avgDegree = totalDegree / N;
-    
-    // Per-community hot/cold lists
-    std::vector<std::vector<size_t>> hotLists(numComm);
-    std::vector<std::vector<size_t>> coldLists(numComm);
-    
-    for (size_t v = 0; v < N; ++v) {
-        K comm = membership[v];
-        if (degrees[v] > avgDegree) {
-            hotLists[comm].push_back(v);
-        } else {
-            coldLists[comm].push_back(v);
-        }
-    }
-    
-    // Assign IDs: within each community, hot first then cold
-    NodeID_T id = 0;
-    for (size_t c = 0; c < numComm; ++c) {
-        // Sort hot by degree descending
-        std::sort(hotLists[c].begin(), hotLists[c].end(), [&](size_t a, size_t b) {
-            return degrees[a] > degrees[b];
-        });
-        for (size_t v : hotLists[c]) {
-            newIds[v] = id++;
-        }
-        
-        // Sort cold by degree descending
-        std::sort(coldLists[c].begin(), coldLists[c].end(), [&](size_t a, size_t b) {
-            return degrees[a] > degrees[b];
-        });
-        for (size_t v : coldLists[c]) {
-            newIds[v] = id++;
-        }
-    }
-}
-
-/**
- * Corder ordering globally (interleaved hot/cold partitions)
- * Creates cache-line sized partitions with hot vertices at start of each
- */
-template <typename K, typename NodeID_T>
-void orderCorderGlobal(
-    pvector<NodeID_T>& newIds,
-    const std::vector<K>& membership,
-    const std::vector<K>& degrees,
-    size_t N,
-    const GraphBrewConfig& config) {
-    
-    GRAPHBREW_TRACE("orderCorderGlobal: N=%zu", N);
-    
-    // Compute average degree
-    K totalDegree = 0;
-    for (size_t v = 0; v < N; ++v) totalDegree += degrees[v];
-    K avgDegree = totalDegree / N;
-    
-    // Separate hot and cold
-    std::vector<size_t> hot, cold;
-    for (size_t v = 0; v < N; ++v) {
-        if (degrees[v] > avgDegree) {
-            hot.push_back(v);
-        } else {
-            cold.push_back(v);
-        }
-    }
-    
-    // Sort by community within each group
-    auto sortByComm = [&](size_t a, size_t b) {
-        if (membership[a] != membership[b]) return membership[a] < membership[b];
-        return degrees[a] > degrees[b];
-    };
-    std::sort(hot.begin(), hot.end(), sortByComm);
-    std::sort(cold.begin(), cold.end(), sortByComm);
-    
-    // Interleave into partitions
-    const size_t partitionSize = 1024;
-    size_t numPartitions = (N + partitionSize - 1) / partitionSize;
-    size_t hotPerPart = (hot.size() + numPartitions - 1) / numPartitions;
-    size_t coldPerPart = partitionSize - hotPerPart;
-    
-    NodeID_T id = 0;
-    size_t hi = 0, ci = 0;
-    
-    for (size_t p = 0; p < numPartitions && id < N; ++p) {
-        // Hot vertices first in partition
-        for (size_t i = 0; i < hotPerPart && hi < hot.size() && id < N; ++i) {
-            newIds[hot[hi++]] = id++;
-        }
-        // Cold vertices fill rest of partition
-        for (size_t i = 0; i < coldPerPart && ci < cold.size() && id < N; ++i) {
-            newIds[cold[ci++]] = id++;
-        }
-    }
-    
-    // Any remaining
-    while (hi < hot.size()) newIds[hot[hi++]] = id++;
-    while (ci < cold.size()) newIds[cold[ci++]] = id++;
-}
-
-//=============================================================================
 // SECTION 21: DYNAMIC RESOLUTION ADJUSTMENT
 //=============================================================================
 
@@ -8335,13 +6281,13 @@ struct GraphBrewPassMetrics {
 
 /**
  * Compute adaptive resolution adjustment based on runtime metrics
- * 
+ *
  * Signals used for adjustment:
  * 1. Community reduction rate - too fast/slow indicates resolution needs tuning
  * 2. Size imbalance - giant communities should be broken up
  * 3. Convergence speed - struggling algorithms benefit from coarser resolution
  * 4. Super-graph density - denser graphs need higher resolution
- * 
+ *
  * @param current_resolution Current resolution value
  * @param metrics Runtime metrics from the current pass
  * @param original_avg_degree Average degree of original graph
@@ -8354,9 +6300,9 @@ inline double graphBrewComputeAdaptiveResolution(
     const GraphBrewPassMetrics<W>& metrics,
     double original_avg_degree,
     int max_iterations) {
-    
+
     double adjusted = current_resolution;
-    
+
     // Signal 1: Community reduction ratio
     // If reducing too slowly (ratio > 0.5), lower resolution to encourage merging
     // If reducing too fast (ratio < 0.05), raise resolution to slow down
@@ -8365,7 +6311,7 @@ inline double graphBrewComputeAdaptiveResolution(
     } else if (metrics.reduction_ratio < 0.05) {
         adjusted *= 1.25;  // Reducing too aggressively, slow down
     }
-    
+
     // Signal 2: Community size imbalance
     // If giant communities exist (imbalance > 50), raise resolution to break them
     if (metrics.size_imbalance > 100.0) {
@@ -8373,7 +6319,7 @@ inline double graphBrewComputeAdaptiveResolution(
     } else if (metrics.size_imbalance > 50.0) {
         adjusted *= 1.15;  // Break giant communities
     }
-    
+
     // Signal 3: Local-move convergence
     // If converged in 1 iteration, communities are very stable - try finer resolution
     // If hit max iterations, might be struggling - try coarser
@@ -8382,7 +6328,7 @@ inline double graphBrewComputeAdaptiveResolution(
     } else if (metrics.local_move_iterations >= max_iterations) {
         adjusted *= 0.95;  // Struggling to converge, try coarser
     }
-    
+
     // Signal 4: Super-graph density evolution
     // As super-graph gets denser, may need higher resolution
     if (metrics.super_avg_degree > 0 && original_avg_degree > 0) {
@@ -8392,10 +6338,10 @@ inline double graphBrewComputeAdaptiveResolution(
             adjusted *= (1.0 + 0.1 * std::log2(density_ratio));
         }
     }
-    
+
     // Clamp to reasonable range [0.1, 5.0]
     adjusted = std::max(0.1, std::min(5.0, adjusted));
-    
+
     return adjusted;
 }
 
@@ -8409,12 +6355,12 @@ inline GraphBrewPassMetrics<W> graphBrewCollectPassMetrics(
     size_t num_communities,
     size_t prev_communities,
     int local_move_iterations) {
-    
+
     GraphBrewPassMetrics<W> metrics;
     metrics.num_communities = num_communities;
     metrics.prev_communities = prev_communities;
     metrics.local_move_iterations = local_move_iterations;
-    
+
     // Compute community weight statistics from vtot
     W max_weight = W(0);
     W total_weight = W(0);
@@ -8425,22 +6371,22 @@ inline GraphBrewPassMetrics<W> graphBrewCollectPassMetrics(
     }
     metrics.max_community_weight = max_weight;
     metrics.total_weight = total_weight;
-    
+
     // Compute size imbalance
     W avg_weight = (num_communities > 0) ? total_weight / num_communities : W(1);
     metrics.size_imbalance = (avg_weight > 0) ? static_cast<double>(max_weight) / avg_weight : 1.0;
-    
+
     // Compute reduction ratio
-    metrics.reduction_ratio = (prev_communities > 0) 
-        ? static_cast<double>(num_communities) / prev_communities 
+    metrics.reduction_ratio = (prev_communities > 0)
+        ? static_cast<double>(num_communities) / prev_communities
         : 1.0;
-    
+
     // Compute super-graph edge count and average degree
     metrics.total_super_edges = sg.numEdges;
-    metrics.super_avg_degree = (num_communities > 0) 
-        ? static_cast<double>(sg.numEdges) / num_communities 
+    metrics.super_avg_degree = (num_communities > 0)
+        ? static_cast<double>(sg.numEdges) / num_communities
         : 0.0;
-    
+
     return metrics;
 }
 
@@ -8450,7 +6396,7 @@ inline GraphBrewPassMetrics<W> graphBrewCollectPassMetrics(
 
 /**
  * Main GraphBrew algorithm - Faithful Leiden with modular components
- * 
+ *
  * Supports dynamic resolution when config.useDynamicResolution=true
  * Resolution is adjusted per-pass based on:
  * - Community reduction rate
@@ -8462,25 +6408,25 @@ template <typename K = uint32_t, typename NodeID_T, typename DestID_T>
 GraphBrewResult<K> runGraphBrew(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     const GraphBrewConfig& config) {
-    
+
     ScopedCommunityThreadLimit thread_limit(
         config.deterministicCommunityDetection);
     const int64_t N = g.num_nodes();
     const Weight M = (config.mComputation == MComputation::TOTAL_EDGES)
         ? std::max(Weight(1), static_cast<Weight>(g.num_edges()))   // GVE style
         : static_cast<Weight>(g.num_edges()) / 2.0;                // leiden.hxx style
-    
+
     // Current resolution - may be adjusted if dynamic
     Weight currentResolution = config.resolution;
     const double originalAvgDegree = static_cast<double>(g.num_edges()) / N;
-    
+
     GRAPHBREW_TRACE("=== GRAPHBREW START ===");
     GRAPHBREW_TRACE("N=%ld, M=%.0f, R=%.4f, dynamic=%d", N, M, currentResolution, config.useDynamicResolution);
-    
+
     GraphBrewResult<K> result;
     Timer totalTimer;
     totalTimer.Start();
-    
+
     // Allocate buffers
     std::vector<char> vaff(N, 1);
     std::vector<K> ucom(N), vcom(N);
@@ -8488,11 +6434,11 @@ GraphBrewResult<K> runGraphBrew(
     std::vector<Weight> utot(N), vtot(N);
     std::vector<Weight> ctot(N);
     std::vector<K> cmap(N);
-    
+
     SuperGraph<K, Weight> sgY, sgZ;
     std::vector<size_t> coff;
     std::vector<K> cvtx;
-    
+
     // Pre-allocate SuperGraph buffers if reusing (estimate: N nodes, 2*edges)
     if (config.reuseBuffers) {
         const size_t estNodes = N;
@@ -8501,42 +6447,42 @@ GraphBrewResult<K> runGraphBrew(
         sgZ.reserve(estNodes, estEdges);
         GRAPHBREW_TRACE("reuseBuffers: reserved %zu nodes, %zu edges", estNodes, estEdges);
     }
-    
+
     // Step 1: Compute vertex weights
     Timer phaseTimer;
     phaseTimer.Start();
     computeVertexWeights(utot, g, config);
     phaseTimer.Stop();
-    
+
     // Step 2: Initialize communities
     initializeCommunities<K>(ucom, ctot, utot, N);
     vtot = utot;
     vcom = ucom;
-    
+
     // Track previous community count for dynamic resolution
     size_t prevCommunities = N;
-    
+
     GraphBrewConfig passConfig = config;
     int totalIterations = 0;
     int pass = 0;
-    
+
     // Main loop
     // GVE_CSR mode: always operate on original graph (flat loop, like GVE)
     // Standard mode: switch to super-graph after pass 0
     const bool gveMode = (config.aggregation == AggregationStrategy::GVE_CSR);
-    
+
     for (; pass < config.maxPasses && M > 0; ++pass) {
         bool isFirst = (pass == 0);
         // In GVE mode, always treat as "first pass" (original graph)
         bool useOriginalGraph = isFirst || gveMode;
-        
+
         GRAPHBREW_TRACE("=== PASS %d (res=%.4f) ===", pass, currentResolution);
-        
+
         // ================================================================
         // PHASE 1: LOCAL-MOVING
         // ================================================================
         phaseTimer.Start();
-        
+
         int moveIters;
         if (useOriginalGraph) {
             moveIters = localMovingPhase<false, K>(
@@ -8545,16 +6491,16 @@ GraphBrewResult<K> runGraphBrew(
             moveIters = localMovingPhaseSuperGraph<false, K>(
                 vcom, ctot, vaff, sgY, vcob, vtot, M, currentResolution, passConfig);
         }
-        
+
         phaseTimer.Stop();
         result.localMoveTime += phaseTimer.Seconds();
         GRAPHBREW_TRACE("  local-moving: %d iters, %.4fs", moveIters, phaseTimer.Seconds());
-        
+
         // ================================================================
         // PHASE 2: REFINEMENT (if enabled)
         // refinementDepth: -1=all passes, 0=pass 0 only (GVE), N=passes 0..N
         // ================================================================
-        bool doRefine = config.useRefinement && 
+        bool doRefine = config.useRefinement &&
                         (config.refinementDepth < 0 || pass <= config.refinementDepth);
         if (doRefine) {
             // Save bounds
@@ -8571,7 +6517,7 @@ GraphBrewResult<K> runGraphBrew(
                     vcob[u] = vcom[u];
                 }
             }
-            
+
             // Re-initialize to singletons
             if (useOriginalGraph) {
                 #pragma omp parallel for schedule(static, 4096)
@@ -8587,7 +6533,7 @@ GraphBrewResult<K> runGraphBrew(
                     ctot[u] = vtot[u];
                 }
             }
-            
+
             // Mark all affected
             if (useOriginalGraph) {
                 std::fill(vaff.begin(), vaff.end(), 1);
@@ -8596,10 +6542,10 @@ GraphBrewResult<K> runGraphBrew(
                 vaff.resize(NS);
                 std::fill(vaff.begin(), vaff.begin() + NS, 1);
             }
-            
+
             // Refinement
             phaseTimer.Start();
-            
+
             int refineIters;
             if (useOriginalGraph) {
                 refineIters = localMovingPhase<true, K>(
@@ -8608,23 +6554,23 @@ GraphBrewResult<K> runGraphBrew(
                 refineIters = localMovingPhaseSuperGraph<true, K>(
                     vcom, ctot, vaff, sgY, vcob, vtot, M, currentResolution, passConfig);
             }
-            
+
             phaseTimer.Stop();
             result.refinementTime += phaseTimer.Seconds();
             GRAPHBREW_TRACE("  refinement: %d iters, %.4fs", refineIters, phaseTimer.Seconds());
         }
-        
+
         totalIterations += moveIters;
-        
+
         // ================================================================
         // Check convergence
         // ================================================================
         size_t NS = useOriginalGraph ? static_cast<size_t>(N) : sgY.numNodes;
         cmap.resize(NS);
         size_t numCommunities = countCommunities(cmap, useOriginalGraph ? ucom : vcom, NS);
-        
+
         GRAPHBREW_TRACE("  communities: %zu (from %zu)", numCommunities, prevCommunities);
-        
+
         // GVE mode: skip pre-aggregation convergence checks
         // Only check convergence AFTER aggregation in GVE mode
         if (!gveMode) {
@@ -8632,7 +6578,7 @@ GraphBrewResult<K> runGraphBrew(
                 result.membershipPerPass.push_back(ucom);
                 break;
             }
-            
+
             double ratio = static_cast<double>(numCommunities) / NS;
             if (ratio >= config.aggregationTolerance) {
                 result.membershipPerPass.push_back(ucom);
@@ -8642,14 +6588,14 @@ GraphBrewResult<K> runGraphBrew(
             result.membershipPerPass.push_back(ucom);
             break;
         }
-        
+
         // ================================================================
         // PHASE 3: AGGREGATION
         // ================================================================
         size_t C = renumberCommunities(useOriginalGraph ? ucom : vcom, cmap, NS);
-        
+
         phaseTimer.Start();
-        
+
         // Use configured aggregation strategy
         if (config.aggregation == AggregationStrategy::GVE_CSR) {
             // GVE-style: build explicit adjacency lists + super-graph local-moving merge
@@ -8659,24 +6605,24 @@ GraphBrewResult<K> runGraphBrew(
             // GVE mode always operates on the original graph
             numFinal = aggregateGVEStyle(ucom, ctot, g, utot, C, coff, cvtx,
                                          M, currentResolution, config);
-            
+
             phaseTimer.Stop();
             result.aggregationTime += phaseTimer.Seconds();
             GRAPHBREW_TRACE("  gve-aggregation: %zu -> %zu communities, %.4fs", C, numFinal, phaseTimer.Seconds());
-            
+
             // Store membership
             result.membershipPerPass.push_back(ucom);
-            
+
             // Check convergence (compare against previous pass, not self)
             if (numFinal >= prevCommunities || numFinal == 1) break;
-            
+
             // Check aggregation tolerance
             double gveProgress = static_cast<double>(numFinal) / prevCommunities;
             if (gveProgress >= config.aggregationTolerance) break;
-            
+
             // GVE-style loop operates on the original graph each pass
             prevCommunities = numFinal;
-            
+
             // Recompute ctot for next pass
             ctot.assign(ctot.size(), Weight(0));
             #pragma omp parallel for
@@ -8684,10 +6630,10 @@ GraphBrewResult<K> runGraphBrew(
                 #pragma omp atomic
                 ctot[ucom[v]] += utot[v];
             }
-            
+
             // Reset affected flags
             std::fill(vaff.begin(), vaff.end(), 1);
-            
+
             passConfig.tolerance /= config.toleranceDrop;
             continue;  // Skip standard SuperGraph path
         } else if (config.aggregation == AggregationStrategy::LEIDEN_CSR ||
@@ -8707,10 +6653,10 @@ GraphBrewResult<K> runGraphBrew(
                 aggregateSuperGraphLazy(sgZ, sgY, vcom, C, config);
             }
         }
-        
+
         phaseTimer.Stop();
         result.aggregationTime += phaseTimer.Seconds();
-        
+
         // Swap buffers - sgZ becomes the new sgY
         // If reuseBuffers, the old sgY keeps its reserved capacity for next aggregation
         std::swap(sgY, sgZ);
@@ -8718,7 +6664,7 @@ GraphBrewResult<K> runGraphBrew(
             sgZ.softClear();  // Clear counts but keep allocated memory
         }
         GRAPHBREW_TRACE("  aggregation: C=%zu, %.4fs", C, phaseTimer.Seconds());
-        
+
         // ================================================================
         // DYNAMIC RESOLUTION ADJUSTMENT (if enabled)
         // ================================================================
@@ -8726,70 +6672,70 @@ GraphBrewResult<K> runGraphBrew(
             // Collect metrics from current pass
             auto metrics = graphBrewCollectPassMetrics<K, Weight>(
                 sgY, vtot, numCommunities, prevCommunities, moveIters);
-            
+
             // Compute next resolution
             double nextResolution = graphBrewComputeAdaptiveResolution<Weight>(
                 currentResolution, metrics, originalAvgDegree, config.maxIterations);
-            
+
             printf("  Pass %d: res=%.3f, comms=%zu→%zu (%.1f%%), iters=%d, imbalance=%.1f → next_res=%.3f\n",
                    pass, currentResolution, prevCommunities, numCommunities,
                    metrics.reduction_ratio * 100, moveIters, metrics.size_imbalance,
                    nextResolution);
-            
+
             currentResolution = nextResolution;
         }
-        
+
         // Update previous communities for next pass
         prevCommunities = numCommunities;
-        
+
         // Update hierarchy
         if (!isFirst) {
             lookupCommunities(ucom, vcom);
         }
-        
+
         // Store membership AFTER lookup
         result.membershipPerPass.push_back(ucom);
-        
+
         // Prepare for next pass
         computeVertexWeightsSuperGraph(vtot, sgY, config);
-        
+
         vcom.resize(C);
         ctot.resize(C);
         vaff.resize(C);
         vcob.resize(C);
-        
+
         #pragma omp parallel for schedule(static, 4096)
         for (size_t u = 0; u < C; ++u) {
             vcom[u] = static_cast<K>(u);
             ctot[u] = vtot[u];
             vaff[u] = 1;
         }
-        
+
         passConfig.tolerance /= config.toleranceDrop;
     }
-    
+
     // Final lookup if needed
     if (pass > 1 && result.membershipPerPass.size() > 1) {
         lookupCommunities(ucom, vcom);
     }
-    
+
     totalTimer.Stop();
-    
+
     // Store results
     result.membership = std::move(ucom);
     result.vertexWeight = std::move(utot);
     result.totalIterations = totalIterations;
     result.totalPasses = pass + 1;
     result.totalTime = totalTimer.Seconds();
-    
+
     // Count final communities
     std::unordered_set<K> uniqueComms(result.membership.begin(), result.membership.end());
     result.numCommunities = uniqueComms.size();
-    
+
     GRAPHBREW_TRACE("=== GRAPHBREW END ===");
     GRAPHBREW_TRACE("passes=%d, iters=%d, communities=%zu, time=%.4fs",
                result.totalPasses, result.totalIterations, result.numCommunities, result.totalTime);
-    
+
     return result;
 }
 
@@ -8823,9 +6769,9 @@ void applyOrderingStrategy(
     GraphBrewResult<K>& result,
     const GraphBrewConfig& config,
     GraphBrewRealizedConfig* realized = nullptr) {
-    
+
     const int64_t N = g.num_nodes();
-    
+
     // Apply community merging if enabled (key for cache locality!)
     if (config.useCommunityMerging) {
         Timer mergeTimer;
@@ -8839,7 +6785,7 @@ void applyOrderingStrategy(
         realized->numPasses = result.totalPasses;
         realized->numCommunities = result.numCommunities;
     }
-    
+
     // Build dendrogram if needed by the ordering strategy
     if (config.ordering == OrderingStrategy::DENDROGRAM_DFS ||
         config.ordering == OrderingStrategy::DENDROGRAM_BFS ||
@@ -8861,14 +6807,14 @@ void applyOrderingStrategy(
             printf("  dendrogram: %.4fs\n", result.dendrogramTime);
         }
     }
-    
+
     // Get degrees for ordering
     std::vector<K> degrees(N);
     #pragma omp parallel for
     for (int64_t u = 0; u < N; ++u) {
         degrees[u] = g.out_degree(u);
     }
-    
+
     // Initialize newIds
     newIds.resize(N);
     // orderCompose writes every entry exactly once, so the -1 sentinel fill
@@ -8877,11 +6823,11 @@ void applyOrderingStrategy(
     if (config.ordering != OrderingStrategy::COMPOSE) {
         std::fill(newIds.begin(), newIds.end(), static_cast<NodeID_T>(-1));
     }
-    
+
     // Generate ordering
     Timer orderTimer;
     orderTimer.Start();
-    
+
     switch (config.ordering) {
         case OrderingStrategy::HIERARCHICAL:
             orderHierarchicalSort<K, NodeID_T>(newIds, result, degrees, N, config);
@@ -8976,7 +6922,7 @@ void applyOrderingStrategy(
             orderConnectivityBFS<K, NodeID_T, DestID_T>(newIds, result.membership, degrees, g, N, config);
             break;
     }
-    
+
     orderTimer.Stop();
     result.orderingTime = orderTimer.Seconds();
     printf("  ordering (%s): %.4fs\n",
@@ -8989,7 +6935,7 @@ void applyOrderingStrategy(
            config.ordering == OrderingStrategy::DENDROGRAM_DFS ? "dfs" :
            config.ordering == OrderingStrategy::DENDROGRAM_BFS ? "bfs" :
            "other", result.orderingTime);
-    
+
     // Post-ordering locality analysis (gated behind GRAPHBREW_DEBUG)
 #if GRAPHBREW_DEBUG
     {
@@ -8997,7 +6943,7 @@ void applyOrderingStrategy(
         size_t totalEdges = 0;
         double sumLogDist = 0;
         size_t nearEdges = 0;
-        
+
         #pragma omp parallel for reduction(+:totalEdges, sumLogDist, nearEdges)
         for (int64_t u = 0; u < N; ++u) {
             for (auto neighbor : g.out_neigh(u)) {
@@ -9007,16 +6953,16 @@ void applyOrderingStrategy(
                 } else {
                     v = neighbor.v;
                 }
-                
-                size_t dist = (newIds[u] > newIds[v]) 
-                    ? (newIds[u] - newIds[v]) 
+
+                size_t dist = (newIds[u] > newIds[v])
+                    ? (newIds[u] - newIds[v])
                     : (newIds[v] - newIds[u]);
-                
+
                 sumLogDist += std::log(std::max(size_t(1), dist));
                 totalEdges++;
-                
+
                 if (dist < 1000) nearEdges++;
-                
+
                 size_t bucket = 0;
                 size_t d = dist;
                 while (d >= 100 && bucket < 9) {
@@ -9027,10 +6973,10 @@ void applyOrderingStrategy(
                 distBuckets[bucket]++;
             }
         }
-        
+
         double geoMeanDist = std::exp(sumLogDist / std::max(size_t(1), totalEdges));
         double nearRatio = 100.0 * nearEdges / std::max(size_t(1), totalEdges);
-        
+
         printf("  === ORDERING LOCALITY ===\n");
         printf("  geo-mean edge distance: %.1f\n", geoMeanDist);
         printf("  near edges (dist<1K): %.1f%%\n", nearRatio);
@@ -9040,11 +6986,11 @@ void applyOrderingStrategy(
         printf("  ==========================\n");
     }
 #endif
-    
+
     // Verify topology if requested
     if (config.verifyTopology) {
         if (!verifyReorderingTopology(g, newIds, true)) {
-            const char* orderingName = 
+            const char* orderingName =
                 config.ordering == OrderingStrategy::HIERARCHICAL ? "hierarchical" :
                 config.ordering == OrderingStrategy::DBG ? "dbg" : "other";
             printf("ERROR: Topology verification FAILED for ordering=%s!\n", orderingName);
@@ -9060,14 +7006,14 @@ void generateGraphBrewMapping(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     pvector<NodeID_T>& newIds,
     const GraphBrewConfig& config) {
-    
+
     const int64_t N = g.num_nodes();
     auto realized = makeGraphBrewRealizedConfig(config);
-    
+
     // Branch based on main algorithm choice
     if (config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER) {
         printf("RabbitOrder: modularity resolution=n/a (fixed gamma=1)\n");
-        
+
         if (config.hasExplicitOrdering) {
             // Generic pipeline: Rabbit community detection → shared ordering strategy
             // e.g., -o 12:rabbit:dbg, -o 12:rabbit:hubcluster, -o 12:rabbit:dfs
@@ -9081,7 +7027,7 @@ void generateGraphBrewMapping(
             runRabbitOrder<K>(g, newIds, config, &result, false);
             realized.numPasses = result.totalPasses;
             realized.numCommunities = result.numCommunities;
-            
+
             // Verify if requested
             if (config.verifyTopology) {
                 if (!verifyReorderingTopology(g, newIds, true)) {
@@ -9092,14 +7038,14 @@ void generateGraphBrewMapping(
         printGraphBrewRealizedConfig(realized);
         return;
     }
-    
+
     // Default: Leiden-based GraphBrew
     printf("GraphBrew: resolution=%.4f (%s), maxIters=%d, maxPasses=%d\n",
-           config.resolution, 
+           config.resolution,
            config.useDynamicResolution ? "dynamic" : "fixed",
            config.maxIterations, config.maxPasses);
-    
-    const char* orderingName = 
+
+    const char* orderingName =
         config.ordering == OrderingStrategy::HIERARCHICAL ? "hierarchical" :
         config.ordering == OrderingStrategy::CONNECTIVITY_BFS ? "connectivity-bfs" :
         config.ordering == OrderingStrategy::DENDROGRAM_DFS ? "dfs" :
@@ -9115,7 +7061,7 @@ void generateGraphBrewMapping(
         config.ordering == OrderingStrategy::TILE_QUANTIZED_RABBIT ? "tile-quantized-rabbit" :
         config.ordering == OrderingStrategy::COMPOSE ? "compose" :
         config.ordering == OrderingStrategy::LAYER ? "graphbrew" : "unknown";
-    
+
     printf("GraphBrew: aggregation=%s, ordering=%s, refinement=%s (depth=%d)%s%s\n",
            config.aggregation == AggregationStrategy::LEIDEN_CSR ? "leiden" :
            config.aggregation == AggregationStrategy::RABBIT_LAZY ? "streaming" :
@@ -9141,26 +7087,26 @@ void generateGraphBrewMapping(
     if (config.ordering == OrderingStrategy::LAYER)
         printf("GraphBrew: GraphBrew mode, finalAlgo=%d, smallMerge=%s\n",
                config.finalAlgoId, config.useSmallCommunityMerging ? "on" : "off");
-    
+
     // Run GraphBrew
     Timer timer;
     timer.Start();
-    
+
     auto result = runGraphBrew<K>(g, config);
-    
+
     timer.Stop();
     printf("GraphBrew: %d passes, %d iters, %zu communities, time=%.4fs\n",
            result.totalPasses, result.totalIterations, result.numCommunities, timer.Seconds());
     printf("  local-move: %.4fs, refine: %.4fs, aggregate: %.4fs\n",
            result.localMoveTime, result.refinementTime, result.aggregationTime);
-    
+
     // ===============================================================
     // DETAILED COMMUNITY ANALYSIS (gated behind GRAPHBREW_DEBUG)
     // ===============================================================
 #if GRAPHBREW_DEBUG
     {
         const auto& membership = result.membership;
-        
+
         // 1. Community size distribution
         std::vector<size_t> commSizes(result.numCommunities, 0);
         for (size_t v = 0; v < static_cast<size_t>(N); ++v) {
@@ -9168,16 +7114,16 @@ void generateGraphBrewMapping(
                 commSizes[membership[v]]++;
             }
         }
-        
+
         // Sort sizes for percentile analysis
         std::vector<size_t> sortedSizes = commSizes;
         std::sort(sortedSizes.begin(), sortedSizes.end());
-        
+
         size_t minSize = sortedSizes.empty() ? 0 : sortedSizes.front();
         size_t maxSize = sortedSizes.empty() ? 0 : sortedSizes.back();
         size_t medianSize = sortedSizes.empty() ? 0 : sortedSizes[sortedSizes.size() / 2];
         double avgSize = static_cast<double>(N) / std::max(size_t(1), result.numCommunities);
-        
+
         // Size distribution buckets
         size_t tiny = 0, small = 0, medium = 0, large = 0, huge = 0;
         for (size_t sz : sortedSizes) {
@@ -9187,13 +7133,13 @@ void generateGraphBrewMapping(
             else if (sz <= 10000) large++;
             else huge++;
         }
-        
+
         printf("  === COMMUNITY SIZE ANALYSIS ===\n");
-        printf("  sizes: min=%zu, median=%zu, avg=%.1f, max=%zu\n", 
+        printf("  sizes: min=%zu, median=%zu, avg=%.1f, max=%zu\n",
                minSize, medianSize, avgSize, maxSize);
         printf("  buckets: [1-10]=%zu, [11-100]=%zu, [101-1K]=%zu, [1K-10K]=%zu, [10K+]=%zu\n",
                tiny, small, medium, large, huge);
-        
+
         // 2. Edge locality analysis (intra vs inter-community)
         size_t intraEdges = 0, interEdges = 0;
         #pragma omp parallel for reduction(+:intraEdges, interEdges)
@@ -9213,842 +7159,42 @@ void generateGraphBrewMapping(
                 }
             }
         }
-        
+
         double intraRatio = 100.0 * intraEdges / std::max(size_t(1), intraEdges + interEdges);
         printf("  edges: intra=%zu (%.1f%%), inter=%zu (%.1f%%)\n",
                intraEdges, intraRatio, interEdges, 100.0 - intraRatio);
-        
+
         // 3. Hierarchy depth analysis
         printf("  hierarchy: %zu passes recorded\n", result.membershipPerPass.size());
         for (size_t p = 0; p < result.membershipPerPass.size(); ++p) {
-            std::unordered_set<K> uniqueComms(result.membershipPerPass[p].begin(), 
+            std::unordered_set<K> uniqueComms(result.membershipPerPass[p].begin(),
                                                result.membershipPerPass[p].end());
             printf("    pass %zu: %zu communities\n", p, uniqueComms.size());
         }
         printf("  ================================\n");
     }
 #endif
-    
+
     // Apply ordering strategy (shared pipeline with Rabbit Order path)
     applyOrderingStrategy<K>(g, newIds, result, config, &realized);
     printGraphBrewRealizedConfig(realized);
 }
 
 //=============================================================================
-// SECTION 23: CONFIGURATION PARSING
-//=============================================================================
+// Extracted implementation detail; kept at this position to preserve declaration order.
+#include "reorder_graphbrew_parser.h"
 
-/**
- * Parse configuration from string tokens.
- * 
- * This is the ONE token parser for all GraphBrew options.
- * ParseGraphBrewConfig() in builder.h delegates here after expanding presets.
- * 
- * Token categories:
- *   Algorithm:    rabbit/rabbitorder → RABBIT_ORDER (replaces Leiden entirely)
- *   Ordering:     hrab, dfs, bfs, conn, dbg, corder, hubcluster, etc.
- *   Aggregation:  gvecsr, leiden, streaming, hybrid
- *   Features:     merge, hubx, gord, hsort, rcm, norefine, refine0, verify, etc.
- *   Mode:         graphbrew/gb → LAYER ordering (per-community dispatch)
- *   Presets:      quality → GVE-CSR + TOTAL_EDGES + refine0 + HIERARCHICAL
- *   Resolution:   0.75, auto, dynamic
- *   Numeric:      maxIterations, maxPasses (first int → iters, second → passes)
- * 
- * Note on "rabbit": This token selects the RabbitOrder ALGORITHM, which replaces
- * Leiden community detection entirely. It does NOT mean "use RabbitOrder as the
- * per-community final algorithm". For that, use the preset syntax:
- *   -o 12:leiden:8  (8 = RabbitOrder as per-community final algo, the default)
- * 
- * Examples:
- *   "dfs" - Leiden + DFS ordering
- *   "rabbit" - Full RabbitOrder algorithm from the paper
- *   "hrab:gvecsr:0.75" - Hybrid + GVE-CSR aggregation + resolution
- *   "graphbrew:gvecsr:totalm:refine0" - LAYER mode with GVE-CSR (= leiden preset)
- */
-inline GraphBrewConfig parseGraphBrewConfig(
-    const std::vector<std::string>& options,
-    bool strict = false) {
-    GraphBrewConfig config;
-    auto reject = [&](const std::string& opt) {
-        if (strict) {
-            throw std::invalid_argument(
-                "Unknown or invalid GraphBrew option: " + opt);
-        }
-    };
-    auto parseExactInt = [](const std::string& text, int& value) {
-        try {
-            size_t parsed = 0;
-            value = std::stoi(text, &parsed);
-            return parsed == text.size();
-        } catch (...) {
-            return false;
-        }
-    };
-    auto parseExactDouble = [](const std::string& text, double& value) {
-        try {
-            size_t parsed = 0;
-            value = std::stod(text, &parsed);
-            return parsed == text.size() && std::isfinite(value);
-        } catch (...) {
-            return false;
-        }
-    };
-    
-    for (size_t i = 0; i < options.size(); ++i) {
-        const std::string& opt = options[i];
-        if (opt.empty()) continue;
-
-        if (opt == "cd_parallel" || opt == "cd:parallel" ||
-            opt == "community_parallel") {
-            config.deterministicCommunityDetection = false;
-            continue;
-        }
-        if (opt == "cd_serial" || opt == "cd:serial" ||
-            opt == "community_serial") {
-            config.deterministicCommunityDetection = true;
-            continue;
-        }
-        if (
-            opt.size() > 4
-            && opt.substr(0, 4) == "sgmb"
-        ) {
-            int batch = 0;
-            if (
-                !parseExactInt(opt.substr(4), batch)
-                || batch <= 0
-            ) {
-                reject(opt);
-                continue;
-            }
-            config.superGraphMoveBatch = batch;
-            continue;
-        }
-        
-        // Check for main algorithm selection (RabbitOrder from paper)
-        if (opt == "rabbit" || opt == "rabbitorder" ||
-            opt == "cd_rabbit" || opt == "cd:rabbit" || opt == "cdrabbit") {
-            config.algorithm = GraphBrewAlgorithm::RABBIT_ORDER;
-            continue;
-        }
-        if (opt == "cd_leiden" || opt == "cd:leiden" || opt == "cdleiden") {
-            config.algorithm = GraphBrewAlgorithm::LEIDEN;
-            config.communityMode = CommunityMode::FULL_LEIDEN;
-            config.useRefinement = true;
-            config.refinementDepth = -1;
-            continue;
-        }
-        
-        // Check for ordering strategy
-        if (opt == "hierarchical" || opt == "hier") {
-            config.ordering = OrderingStrategy::HIERARCHICAL;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "connectivity" || opt == "conn" || opt == "connbfs") {
-            config.ordering = OrderingStrategy::CONNECTIVITY_BFS;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "dfs") {
-            config.ordering = OrderingStrategy::DENDROGRAM_DFS;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "bfs") {
-            config.ordering = OrderingStrategy::DENDROGRAM_BFS;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "community" || opt == "comm") {
-            config.ordering = OrderingStrategy::COMMUNITY_SORT;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "hubcluster" || opt == "hub") {
-            config.ordering = OrderingStrategy::HUB_CLUSTER;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "dbg") {
-            config.ordering = OrderingStrategy::DBG;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "corder") {
-            config.ordering = OrderingStrategy::CORDER;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "dbg-global" || opt == "dbgglobal") {
-            config.ordering = OrderingStrategy::DBG_GLOBAL;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "corder-global" || opt == "corderglobal") {
-            config.ordering = OrderingStrategy::CORDER_GLOBAL;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "hcache" || opt == "hiercache" || opt == "hierarchical-cache") {
-            config.ordering = OrderingStrategy::HIERARCHICAL_CACHE_AWARE;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "hrab" || opt == "hybrid-rabbit" || opt == "leidenrabbit") {
-            config.ordering = OrderingStrategy::HYBRID_LEIDEN_RABBIT;
-            config.hasExplicitOrdering = true;
-            // HRAB defaults to RCM intra-community ordering: empirically
-            // measured 30-50% memory-access reduction vs the BFS default,
-            // at zero reorder-time cost.  Verified on PR with L3=1MB on
-            // soc-pokec, cit-Patents, hollywood-2009, com-Orkut.
-            // Use ":bfs_intra" to opt out (kept for the BFS-baseline ablation).
-            config.useRCMIntra = true;
-        } else if (opt == "tqr" || opt == "tile-quantized" || opt == "tilequantized" || opt == "tilerabbit") {
-            config.ordering = OrderingStrategy::TILE_QUANTIZED_RABBIT;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "hlr" || opt == "hier-rabbit" || opt == "hierarchical-rabbit" || opt == "hierleidenrabbit") {
-            // HLR: run RabbitOrder at every Leiden dendrogram level
-            // (multi-level super-graph ordering -- generalises HRAB which
-            // only uses the finest level).
-            config.ordering = OrderingStrategy::HIERARCHICAL_LEIDEN_RABBIT;
-            config.hasExplicitOrdering = true;
-        }
-        // COMPOSE strategy + Stage 2/Stage 3 picks (SECTION 16-COMPOSE)
-        else if (opt == "compose" || opt == "pluggable") {
-            config.ordering = OrderingStrategy::COMPOSE;
-            config.hasExplicitOrdering = true;
-        } else if (opt == "s2_size" || opt == "s2:size" || opt == "s2size" ||
-                   opt == "comm_size" || opt == "comm:size" || opt == "commsize" ||
-                   opt == "comm_size_desc" || opt == "comm:size_desc" || opt == "commsizedesc") {
-            config.communityOrder = CommunityOrder::SizeDesc;
-        } else if (opt == "s2_size_asc" || opt == "s2:size_asc" || opt == "s2sizeasc" ||
-                   opt == "comm_size_asc" || opt == "comm:size_asc" || opt == "commsizeasc") {
-            config.communityOrder = CommunityOrder::SizeAsc;
-        } else if (opt == "s2_degree" || opt == "s2:degree" || opt == "s2degree" ||
-                   opt == "comm_degree" || opt == "comm:degree" || opt == "commdegree" ||
-                   opt == "comm_degree_desc" || opt == "comm:degree_desc" || opt == "commdegreedesc") {
-            config.communityOrder = CommunityOrder::DegreeDesc;
-        } else if (opt == "s2_degree_asc" || opt == "s2:degree_asc" || opt == "s2degreeasc" ||
-                   opt == "comm_degree_asc" || opt == "comm:degree_asc" || opt == "commdegreeasc") {
-            config.communityOrder = CommunityOrder::DegreeAsc;
-        } else if (opt == "s2_cut_min" || opt == "s2:cut_min" || opt == "s2cutmin" ||
-                   opt == "comm_cut_min" || opt == "comm:cut_min" || opt == "commcutmin" ||
-                   opt == "cut_min" || opt == "cutmin") {
-            // Mt-METIS-style: greedy NN-TSP over inter-community crossing edges.
-            // Cost O(|E|+C^2).  Falls back to DegreeDesc if C>4096.
-            config.communityOrder = CommunityOrder::CutMin;
-        } else if (opt == "s3_bfs" || opt == "s3:bfs" || opt == "s3bfs" ||
-                   opt == "intra_bfs" || opt == "intra:bfs" || opt == "intrabfs") {
-            config.intraCommunityOrder = IntraCommunityOrder::BFSFromHub;
-        } else if (opt == "s3_rcm" || opt == "s3:rcm" || opt == "s3rcm" ||
-                   opt == "intra_rcm" || opt == "intra:rcm" || opt == "intrarcm") {
-            config.intraCommunityOrder = IntraCommunityOrder::RCM;
-        } else if (opt == "s3_rcmpp" || opt == "s3:rcmpp" || opt == "s3rcmpp" ||
-                   opt == "intra_rcmpp" || opt == "intra:rcmpp" || opt == "intrarcmpp" ||
-                   opt == "rcmpp" || opt == "rcm++") {
-            config.intraCommunityOrder = IntraCommunityOrder::RCMpp;
-        } else if (opt == "s3_dendrogram" || opt == "s3:dendrogram" || opt == "s3dendrogram" ||
-                   opt == "intra_dendrogram" || opt == "intra:dendrogram" || opt == "intradendrogram" ||
-                   opt == "s3_dend" || opt == "intra_dend") {
-            // Only valid with CD=Rabbit (algorithm=RABBIT_ORDER).  When
-            // selected with Leiden, orderCompose<>() falls back to BFS with
-            // a printed warning (see SECTION 16-COMPOSE).
-            config.intraCommunityOrder = IntraCommunityOrder::Dendrogram;
-        } else if (opt == "s3_gorder" || opt == "s3:gorder" || opt == "s3gorder" ||
-                   opt == "intra_gorder" || opt == "intra:gorder" || opt == "intragorder" ||
-                   opt == "s3_gord" || opt == "intra_gord") {
-            // Per-community Gorder-greedy (UnitHeap).  Works with any CD
-            // (no Rabbit dendrogram dependency).  Window size honors
-            // config.gorderWindow (default 5; tune via gw<n>).
-            config.intraCommunityOrder = IntraCommunityOrder::Gorder;
-        } else if (opt == "s3_hubsort" || opt == "s3:hubsort" || opt == "s3hubsort" ||
-                   opt == "intra_hubsort" || opt == "intra:hubsort" || opt == "intrahubsort" ||
-                   opt == "intra_hub" || opt == "intra:hub") {
-            // Per-community degree-descending sort.  Cheapest non-trivial
-            // intra primitive; no graph traversal.
-            config.intraCommunityOrder = IntraCommunityOrder::HubSort;
-        } else if (opt == "s3_deg_asc" || opt == "s3:deg_asc" || opt == "s3degasc" ||
-                   opt == "intra_deg_asc" || opt == "intra:deg_asc" || opt == "intra_degasc" ||
-                   opt == "intra_degree_asc" || opt == "deg_asc" || opt == "degasc") {
-            // Per-community degree-ascending sort.  Inverse of HubSort;
-            // ablation control.  Same O(sz log sz) cost.
-            config.intraCommunityOrder = IntraCommunityOrder::DegreeAsc;
-        } else if (opt == "s3_hub2" || opt == "s3:hub2" || opt == "s3hub2" ||
-                   opt == "intra_hub2" || opt == "intra:hub2" || opt == "intrahub2" ||
-                   opt == "hub2") {
-            // Second-moment degree (DRO/Lakhotia IISWC'19): per-community sort
-            // by sum-of-neighbor-degree descending.  Cost O(|E_local|) per community.
-            config.intraCommunityOrder = IntraCommunityOrder::Hub2;
-        } else if (opt == "s3_alternate" || opt == "s3:alternate" || opt == "s3alt" ||
-                   opt == "intra_alternate" || opt == "intra:alternate" || opt == "intra_alt" ||
-                   opt == "alternate" || opt == "alt") {
-            // Per-community hub/leaf interleave: front-back zip after sort-by-degree-desc.
-            // Combines prefetch locality (hubs early) with false-sharing dispersion
-            // (hubs across the ID range).
-            config.intraCommunityOrder = IntraCommunityOrder::Alternate;
-        } else if (opt == "s3_random" || opt == "s3:random" || opt == "s3rand" ||
-                   opt == "intra_random" || opt == "intra:random" || opt == "intra_rand" ||
-                   opt == "random" || opt == "rand") {
-            // Per-community deterministic Fisher-Yates shuffle.
-            // Worst-case control / sanity check; measures the value
-            // of "any ordering at all" vs the chosen primitive.
-            config.intraCommunityOrder = IntraCommunityOrder::Random;
-        } else if (opt == "s3_boundary_last" || opt == "s3:boundary_last" || opt == "s3bndlast" ||
-                   opt == "intra_boundary_last" || opt == "intra:boundary_last" || opt == "intra_bndlast" ||
-                   opt == "boundary_last" || opt == "bndlast" || opt == "boundarylast") {
-            // Per-community structure-aware sort: external degree ascending
-            // (interior nodes first, boundary nodes last); ties by degree desc.
-            // Tests "boundary-last" theory for BFS/CC locality.
-            config.intraCommunityOrder = IntraCommunityOrder::BoundaryLast;
-        } else if (opt == "s3_core" || opt == "s3:core" || opt == "s3core" ||
-                   opt == "intra_core" || opt == "intra:core" || opt == "intracore" ||
-                   opt == "core_order" || opt == "coreorder" || opt == "core") {
-            // Per-community k-core decomposition; sort by core-number descending
-            // (deep core nodes first, periphery last); ties by degree desc.
-            // Tests "deep-core-first" theory: dense reuse target gets best cache lines.
-            config.intraCommunityOrder = IntraCommunityOrder::CoreOrder;
-        } else if (opt == "s1_none" || opt == "s1:none" || opt == "s1none" ||
-                   opt == "sg_none" || opt == "sg:none" || opt == "sgnone") {
-            config.superGraphOrder = SuperGraphOrder::None;
-        } else if (opt == "s1_super_rabbit" || opt == "s1:super_rabbit" || opt == "s1srabbit" ||
-                   opt == "sg_super_rabbit" || opt == "sg:super_rabbit" || opt == "sgsrabbit") {
-            config.superGraphOrder = SuperGraphOrder::SuperRabbit;
-        } else if (opt == "s1_super_rcm" || opt == "s1:super_rcm" || opt == "s1srcm" ||
-                   opt == "sg_super_rcm" || opt == "sg:super_rcm" || opt == "sgsrcm") {
-            config.superGraphOrder = SuperGraphOrder::SuperRCM;
-        } else if (opt == "s1_tile_rabbit" || opt == "s1:tile_rabbit" || opt == "s1tilerabbit" ||
-                   opt == "sg_tile_rabbit" || opt == "sg:tile_rabbit" || opt == "sgtilerabbit") {
-            config.superGraphOrder = SuperGraphOrder::TileRabbit;
-        } else if (opt == "s1_hilbert" || opt == "s1:hilbert" || opt == "s1hilbert" ||
-                   opt == "sg_hilbert" || opt == "sg:hilbert" || opt == "sghilbert" ||
-                   opt == "hilbert") {
-            // Mosaic-style: 2-D Hilbert curve over (community size, avg degree).
-            // Generates a super-graph permutation without building the super-graph.
-            config.superGraphOrder = SuperGraphOrder::Hilbert;
-        } else if (opt == "s2_identity" || opt == "s2:identity" || opt == "s2identity" ||
-                   opt == "comm_identity" || opt == "comm:identity" || opt == "commidentity") {
-            config.communityOrder = CommunityOrder::Identity;
-        } else if (opt == "refine_2swap" || opt == "refine:2swap" || opt == "refine2swap" ||
-                   opt == "r2swap" || opt == "twoswap" || opt == "2swap") {
-            // FM-style adjacent-pair swap refinement (per-community).
-            // See refineTwoSwap<>() in SECTION 16-PRIMITIVES.  Cost
-            // O(|E_local| * refineMaxPasses) per community; trivially
-            // parallel.  Use rmaxN to tune max passes (default 3).
-            config.refinementPass = RefinementPass::TwoSwap;
-        } else if (opt == "refine_none" || opt == "refine:none" || opt == "refinenone") {
-            config.refinementPass = RefinementPass::None;
-        }
-        // GraphBrew mode: per-community external algorithm dispatch
-        // "graphbrew" or "gb" activates LAYER ordering (default final algo = RabbitOrder 8)
-        // "final:N" or "finalN" sets the final algo ID (0-11)
-        else if (opt == "graphbrew" || opt == "gb") {
-            config.ordering = OrderingStrategy::LAYER;
-            config.hasExplicitOrdering = true;
-            config.useSmallCommunityMerging = true;
-            if (config.finalAlgoId < 0) config.finalAlgoId = 8;  // Default: RabbitOrder
-        }
-        // Final algorithm for GraphBrew: "final:8" or "final8" or just the algo number when in graphbrew mode
-        else if (opt.size() > 5 && opt.substr(0, 5) == "final") {
-            std::string numStr = opt.substr(5);
-            if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
-            int algoId = -1;
-            if (!parseExactInt(numStr, algoId) ||
-                algoId < 0 || algoId > 11) {
-                reject(opt);
-                continue;
-            }
-            config.finalAlgoId = algoId;
-            config.ordering = OrderingStrategy::LAYER;
-            config.useSmallCommunityMerging = true;
-        }
-        // Recursive depth for GraphBrew: "depth:2" or "depth2" or "recursive" or "flat"
-        else if (opt == "flat" || opt == "norecurse") {
-            config.recursiveDepth = 0;  // force flat (no recursive sub-division)
-            config.ordering = OrderingStrategy::LAYER;
-            config.useSmallCommunityMerging = true;
-            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
-        }
-        else if (opt == "recursive" || opt == "recurse") {
-            config.recursiveDepth = std::max(config.recursiveDepth, 1);
-            config.ordering = OrderingStrategy::LAYER;
-            config.useSmallCommunityMerging = true;
-            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
-        } else if (opt.size() > 5 && opt.substr(0, 5) == "depth") {
-            std::string numStr = opt.substr(5);
-            if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
-            int depth = -1;
-            if (!parseExactInt(numStr, depth) ||
-                depth < 0 || depth > 10) {
-                reject(opt);
-                continue;
-            }
-            config.recursiveDepth = depth;
-            config.ordering = OrderingStrategy::LAYER;
-            config.useSmallCommunityMerging = true;
-            if (config.finalAlgoId < 0) config.finalAlgoId = 8;
-        }
-        // Sub-community algorithm for recursive GraphBrew: "sub:auto" or "sub:3" or "subauto"
-        else if (opt == "subauto" || opt == "sub:auto") {
-            config.subAlgoId = -1;  // adaptive per-sub-community selection
-        } else if (opt.size() > 3 && opt.substr(0, 3) == "sub") {
-            std::string numStr = opt.substr(3);
-            if (!numStr.empty() && numStr[0] == ':') numStr = numStr.substr(1);
-            if (numStr == "auto") {
-                config.subAlgoId = -1;
-            } else {
-                int algorithm = -1;
-                if (!parseExactInt(numStr, algorithm) ||
-                    algorithm < 0 || algorithm > 11) {
-                    reject(opt);
-                    continue;
-                }
-                config.subAlgoId = algorithm;
-            }
-        }
-        // Check for aggregation strategy (for Leiden variant)
-        else if (opt == "leiden") {
-            config.aggregation = AggregationStrategy::LEIDEN_CSR;
-        } else if (opt == "streaming" || opt == "lazy") {
-            config.aggregation = AggregationStrategy::RABBIT_LAZY;
-        } else if (opt == "hybrid") {
-            config.aggregation = AggregationStrategy::HYBRID;
-        }
-        // Check for community merging (key for cache locality!)
-        else if (opt == "merge" || opt == "coarsen") {
-            config.useCommunityMerging = true;
-        }
-        // Check for hub extraction (extract high-degree hubs before ordering)
-        else if (opt == "hubx" || opt == "hub-extract" || opt == "hubextract") {
-            config.useHubExtraction = true;
-        }
-        // Check for hub extraction with custom percentage: hubx0.5 = top 0.5%
-        else if (opt.size() > 4 && opt.substr(0, 4) == "hubx") {
-            config.useHubExtraction = true;
-            double pct = 0.0;
-            if (!parseExactDouble(opt.substr(4), pct) ||
-                pct <= 0 || pct >= 100) {
-                reject(opt);
-                continue;
-            }
-            config.hubExtractionPct = pct / 100.0;
-        }
-        // Gorder-inspired improvements
-        else if (opt == "gord" || opt == "gorder") {
-            config.useGorderIntra = true;
-        }
-        // gord with custom window: gord8 = window of 8
-        else if (opt.size() > 4 && opt.substr(0, 4) == "gord" && std::isdigit(opt[4])) {
-            config.useGorderIntra = true;
-            int window = 0;
-            if (!parseExactInt(opt.substr(4), window) ||
-                window <= 0 || window > 100) {
-                reject(opt);
-                continue;
-            }
-            config.gorderWindow = window;
-        }
-        // gord fallback threshold: gordf5000 = BFS fallback for communities > 5000
-        else if (opt.size() > 5 && opt.substr(0, 5) == "gordf") {
-            config.useGorderIntra = true;
-            int fallback = 0;
-            if (!parseExactInt(opt.substr(5), fallback) ||
-                fallback <= 0) {
-                reject(opt);
-                continue;
-            }
-            config.gorderFallback = fallback;
-        }
-        // gw<N>: set gorderWindow without forcing legacy useGorderIntra path
-        // (works for compose:intra_gorder).  Default 5.  Range 1..100.
-        else if (opt.size() > 2 && opt.substr(0, 2) == "gw" && std::isdigit(opt[2])) {
-            int window = 0;
-            if (!parseExactInt(opt.substr(2), window) ||
-                window <= 0 || window > 100) {
-                reject(opt);
-                continue;
-            }
-            config.gorderWindow = window;
-        }
-        // Super-graph modularity resolution for HRAB / TQR community merge
-        // (γ in ΔQ = w_uv − γ·str(u)·str(v)/(2M_super)).  Default 0.25.
-        // Token forms:  sgres0.5  /  sgres1  /  gamma0.1  (alias)
-        else if ((opt.size() > 5 && opt.substr(0, 5) == "sgres") ||
-                 (opt.size() > 5 && opt.substr(0, 5) == "gamma")) {
-            double resolution = 0.0;
-            if (!parseExactDouble(opt.substr(5), resolution) ||
-                resolution <= 0.0 || resolution > 10.0) {
-                reject(opt);
-                continue;
-            }
-            config.superGraphResolution = resolution;
-        }
-        else if (opt == "hsort" || opt == "hubsort") {
-            config.useHubSort = true;
-        }
-        else if (opt == "rcm") {
-            config.useRCMSuper = true;
-            config.useRCMIntra = true;
-        }
-        else if (opt == "rcm_super" || opt == "rcmsuper") {
-            config.useRCMSuper = true;
-        }
-        else if (opt == "rcm_intra" || opt == "rcmintra") {
-            config.useRCMIntra = true;
-        }
-        // Opt-out of RCM intra-community ordering (HRAB defaults to RCM intra
-        // since the rcm_intra-on-by-default change; this lets the BFS-baseline
-        // ablation still be exercised via "12:hrab:bfs_intra").
-        else if (opt == "bfs_intra" || opt == "bfsintra" || opt == "no_rcm_intra") {
-            config.useRCMIntra = false;
-        }
-        // Check for refinement
-        else if (opt == "norefine") {
-            config.useRefinement = false;
-        }
-        // CD-mode composability tokens (expose existing CommunityMode + flags).
-        // These let composition recipes select the community-detection algorithm
-        // axis independently of the rest of the pipeline.  See v5 §53.
-        //   cd_full     = full Leiden + refinement (default reference)
-        //   cd_louvain  = Leiden without refinement (≈ Louvain semantics)
-        //   cd_lp_only  = single-level label propagation (no aggregation hierarchy)
-        //   cd_hybrid   = LP first pass + Leiden refinement of survivors
-        //   cd_gve      = alias for `refine0` (refine pass 0 only, GVE-Leiden)
-        //   cd_leiden   = alias for cd_full
-        else if (opt == "cd_full" || opt == "cd_leiden") {
-            config.communityMode = CommunityMode::FULL_LEIDEN;
-            config.useRefinement = true;
-            config.refinementDepth = -1;
-        }
-        else if (opt == "cd_louvain") {
-            config.communityMode = CommunityMode::FULL_LEIDEN;
-            config.useRefinement = false;
-        }
-        else if (opt == "cd_lp_only" || opt == "cd_lp") {
-            config.communityMode = CommunityMode::FAST_LP;
-            config.useRefinement = false;
-        }
-        else if (opt == "cd_hybrid") {
-            config.communityMode = CommunityMode::HYBRID;
-            config.useRefinement = true;
-            config.refinementDepth = 0;
-        }
-        else if (opt == "cd_gve") {
-            config.communityMode = CommunityMode::FULL_LEIDEN;
-            config.useRefinement = true;
-            config.refinementDepth = 0;
-        }
-        // Refinement depth control: refine0 = pass 0 only (GVE), refine2 = passes 0-2
-        else if (opt.size() > 6 && opt.substr(0, 6) == "refine" && std::isdigit(opt[6])) {
-            int depth = -1;
-            if (!parseExactInt(opt.substr(6), depth) || depth < 0) {
-                reject(opt);
-                continue;
-            }
-            config.refinementDepth = depth;
-        }
-        // M computation mode
-        else if (opt == "totalm" || opt == "gvem") {
-            config.mComputation = MComputation::TOTAL_EDGES;
-        } else if (opt == "halfm") {
-            config.mComputation = MComputation::HALF_EDGES;
-        }
-        // GVE-style aggregation
-        else if (opt == "gvecsr" || opt == "gve-csr") {
-            config.aggregation = AggregationStrategy::GVE_CSR;
-        }
-        // Quality preset: GVE detection quality in GraphBrew pipeline
-        // Sets: GVE_CSR aggregation, TOTAL_EDGES M, refinement on pass 0 only,
-        //        hierarchical ordering (top-3 pass multi-level sort)
-        // Note: maxIterations left at DEFAULT_MAX_ITERATIONS (10)
-        else if (opt == "quality") {
-            config.aggregation = AggregationStrategy::GVE_CSR;
-            config.mComputation = MComputation::TOTAL_EDGES;
-            config.refinementDepth = 0;
-            config.ordering = OrderingStrategy::HIERARCHICAL;
-        }
-        // Check for lazy community weight updates
-        else if (opt == "lazyupdate" || opt == "lazyupdates") {
-            config.useLazyUpdates = true;
-        }
-        // Check for verification
-        else if (opt == "verify") {
-            config.verifyTopology = true;
-        }
-        // Check for auto resolution (computed once from graph properties)
-        else if (opt == "auto" || opt == "0") {
-            config.resolution = reorder::DEFAULT_RESOLUTION;  // Signal to use auto-resolution
-        }
-        // Check for dynamic resolution (adjusted per-pass based on runtime metrics)
-        else if (opt == "dynamic") {
-            config.resolution = reorder::DEFAULT_RESOLUTION;  // Initial, will be adjusted
-            config.useDynamicResolution = true;  // Enable per-pass adjustment
-        }
-        else if (opt.rfind("dynamic_", 0) == 0) {
-            double initial = 0.0;
-            if (!parseExactDouble(opt.substr(8), initial) ||
-                initial <= 0.0 || initial > 3.0) {
-                reject(opt);
-                continue;
-            }
-            config.resolution = initial;
-            config.useDynamicResolution = true;
-        }
-        // Check for numeric (resolution, iterations, passes)
-        else {
-            try {
-                size_t parsed = 0;
-                double val = std::stod(opt, &parsed);
-                if (parsed != opt.size() || !std::isfinite(val)) {
-                    reject(opt);
-                    continue;
-                }
-                // Resolution: fractional value (0.0, 3.0], or if > 0 and <= 3
-                // iterations/passes: integer value >= 1
-                if (val > 0 && val <= 3 && (opt.find('.') != std::string::npos || val < 1)) {
-                    // Contains decimal point or is fractional - likely resolution
-                    config.resolution = val;
-                } else if (val >= 1 && val <= 100) {
-                    // Integer value - could be iterations or passes
-                    int intVal = static_cast<int>(val);
-                    if (config.maxIterations == reorder::DEFAULT_MAX_ITERATIONS) {
-                        config.maxIterations = intVal;
-                    } else {
-                        config.maxPasses = intVal;
-                    }
-                } else if (val > 0 && val <= 3) {
-                    // Small integer without decimal - likely resolution
-                    config.resolution = val;
-                } else {
-                    reject(opt);
-                }
-            } catch (...) {
-                reject(opt);
-            }
-        }
-    }
-
-    if (strict && config.ordering == OrderingStrategy::COMPOSE) {
-        bool explicitSuperGraph = false;
-        bool explicitCommunityOrder = false;
-        for (const std::string& opt : options) {
-            explicitSuperGraph =
-                explicitSuperGraph ||
-                opt.rfind("sg_", 0) == 0 ||
-                opt.rfind("sg:", 0) == 0 ||
-                opt.rfind("s1_", 0) == 0 ||
-                opt.rfind("s1:", 0) == 0;
-            explicitCommunityOrder =
-                explicitCommunityOrder ||
-                opt.rfind("comm_", 0) == 0 ||
-                opt.rfind("comm:", 0) == 0 ||
-                opt.rfind("s2_", 0) == 0 ||
-                opt.rfind("s2:", 0) == 0;
-        }
-        if (explicitSuperGraph && !explicitCommunityOrder) {
-            throw std::invalid_argument(
-                "COMPOSE super-graph order requires an explicit "
-                "community-order token");
-        }
-    }
-    
-    return config;
-}
-
-/**
- * Parse the public GraphBrew CLI grammar, including named presets and legacy
- * positional overrides. All runtime entry points must use this wrapper rather
- * than feeding CLI options directly to the token parser above.
- */
-inline GraphBrewConfig parseGraphBrewCliConfig(
-    const std::vector<std::string>& options,
-    double auto_resolution) {
-    if (options.empty() || options[0].empty()) {
-        GraphBrewConfig config = parseGraphBrewConfig(
-            {"gvecsr", "totalm", "refine0", "graphbrew"}, true);
-        config.resolution = auto_resolution;
-        return config;
-    }
-
-    struct PresetDef {
-        std::vector<std::string> tokens;
-    };
-    static const std::map<std::string, PresetDef> presets = {
-        {"leiden", {{"gvecsr", "totalm", "refine0", "graphbrew"}}},
-        {"rabbit", {{"rabbitorder", "0.5"}}},
-        {"hubcluster", {{"hubcluster"}}},
-    };
-
-    auto is_numeric = [](const std::string& token) {
-        try {
-            size_t parsed = 0;
-            const double value = std::stod(token, &parsed);
-            return parsed == token.size() && std::isfinite(value);
-        } catch (...) {
-            return false;
-        }
-    };
-    auto is_integer = [](const std::string& token) {
-        try {
-            size_t parsed = 0;
-            std::stoi(token, &parsed);
-            return parsed == token.size();
-        } catch (...) {
-            return false;
-        }
-    };
-    auto dynamic_initial = [&](const std::string& token, double& initial) {
-        if (token == "dynamic") {
-            initial = auto_resolution;
-            return true;
-        }
-        if (
-            token.rfind("dynamic_", 0) != 0
-            || !is_numeric(token.substr(8))
-        ) {
-            return false;
-        }
-        initial = std::stod(token.substr(8));
-        return initial > 0.0 && initial <= 3.0;
-    };
-
-    const auto preset = presets.find(options[0]);
-    GraphBrewConfig config;
-    if (preset != presets.end()) {
-        std::vector<std::string> tokens = preset->second.tokens;
-        for (size_t i = 1; i < options.size(); ++i) {
-            const std::string& token = options[i];
-            if (token.empty()) {
-                continue;
-            }
-            bool positional = false;
-            const bool numeric = is_numeric(token);
-            double initial = 0.0;
-            if (
-                (i == 1 || i == 3 || i == 4 || i == 5)
-                && numeric
-                && !is_integer(token)
-            ) {
-                throw std::invalid_argument(
-                    "GraphBrew positional integer is malformed: " + token);
-            }
-            if (i == 1 && is_integer(token)) {
-                positional = true;
-            }
-            if (
-                i == 2
-                && (
-                    numeric
-                    || token == "auto"
-                    || dynamic_initial(token, initial)
-                )
-            ) {
-                positional = true;
-            }
-            if ((i == 3 || i == 4) && is_integer(token)) {
-                positional = true;
-            }
-            if (
-                i == 5
-                && (
-                    is_integer(token)
-                    || token == "auto"
-                    || token == "adaptive"
-                )
-            ) {
-                positional = true;
-            }
-            if (!positional) {
-                tokens.push_back(token);
-            }
-        }
-        config = parseGraphBrewConfig(tokens, true);
-
-        if (
-            config.algorithm != GraphBrewAlgorithm::RABBIT_ORDER
-            && config.ordering == OrderingStrategy::CONNECTIVITY_BFS
-        ) {
-            config.ordering = OrderingStrategy::LAYER;
-        }
-        if (config.ordering == OrderingStrategy::LAYER) {
-            config.useSmallCommunityMerging = true;
-            if (config.finalAlgoId < 0) {
-                config.finalAlgoId = 8;
-            }
-        }
-        if (config.resolution == reorder::DEFAULT_RESOLUTION) {
-            config.resolution = auto_resolution;
-        }
-
-        if (options.size() > 1 && is_integer(options[1])) {
-            const int final_algo = std::stoi(options[1]);
-            if (final_algo < 0 || final_algo > 11) {
-                throw std::invalid_argument(
-                    "Invalid GraphBrew final algorithm: " + options[1]);
-            }
-            config.finalAlgoId = final_algo;
-        }
-        if (options.size() > 2 && !options[2].empty()) {
-            const std::string& resolution = options[2];
-            if (resolution != "auto" && resolution != "0") {
-                double initial = 0.0;
-                if (dynamic_initial(resolution, initial)) {
-                    config.resolution = initial;
-                    config.useDynamicResolution = true;
-                } else if (is_numeric(resolution)) {
-                    const double value = std::stod(resolution);
-                    if (value <= 0.0 || value > 3.0) {
-                        throw std::invalid_argument(
-                            "Invalid GraphBrew resolution: " + resolution);
-                    }
-                    config.resolution = value;
-                }
-            }
-        }
-        if (options.size() > 3 && is_integer(options[3])) {
-            const int passes = std::stoi(options[3]);
-            if (passes <= 0 || passes > 50) {
-                throw std::invalid_argument(
-                    "Invalid GraphBrew pass count: " + options[3]);
-            }
-            config.maxPasses = passes;
-        }
-        if (options.size() > 4 && !options[4].empty()) {
-            const std::string& depth = options[4];
-            if (depth == "recursive" || depth == "recurse") {
-                config.recursiveDepth = std::max(config.recursiveDepth, 1);
-            } else if (is_integer(depth)) {
-                const int value = std::stoi(depth);
-                if (value < 0 || value > 10) {
-                    throw std::invalid_argument(
-                        "Invalid GraphBrew recursion depth: " + depth);
-                }
-                config.recursiveDepth = value;
-            }
-        }
-        if (options.size() > 5 && !options[5].empty()) {
-            const std::string& sub_algo = options[5];
-            if (sub_algo == "auto" || sub_algo == "adaptive") {
-                config.subAlgoId = -1;
-            } else if (is_integer(sub_algo)) {
-                const int value = std::stoi(sub_algo);
-                if (value < 0 || value > 11) {
-                    throw std::invalid_argument(
-                        "Invalid GraphBrew sub-algorithm: " + sub_algo);
-                }
-                config.subAlgoId = value;
-            }
-        }
-    } else {
-        config = parseGraphBrewConfig(options, true);
-        if (
-            config.algorithm != GraphBrewAlgorithm::RABBIT_ORDER
-            && config.ordering == OrderingStrategy::CONNECTIVITY_BFS
-        ) {
-            config.ordering = OrderingStrategy::LAYER;
-        }
-        if (config.ordering == OrderingStrategy::LAYER) {
-            config.useSmallCommunityMerging = true;
-            if (config.finalAlgoId < 0) {
-                config.finalAlgoId = 8;
-            }
-        }
-        if (config.resolution == reorder::DEFAULT_RESOLUTION) {
-            config.resolution = auto_resolution;
-        }
-    }
-    return config;
-}
-
-//=============================================================================
 // SECTION 24: TOPOLOGY VERIFICATION
 //=============================================================================
 
 /**
  * Verify that reordering preserves graph topology
- * 
+ *
  * Checks:
  * 1. new_ids is a valid permutation (bijective mapping)
  * 2. Every edge (u,v) in original has edge (new_ids[u], new_ids[v]) in reordered
  * 3. Edge count is preserved
- * 
+ *
  * @return true if topology is preserved, false otherwise
  */
 template <typename NodeID_T, typename DestID_T>
@@ -10056,80 +7202,80 @@ bool verifyReorderingTopology(
     const CSRGraph<NodeID_T, DestID_T, true>& original,
     const pvector<NodeID_T>& new_ids,
     bool verbose) {
-    
+
     const int64_t N = original.num_nodes();
     const int64_t M = original.num_edges();
-    
+
     if (verbose) {
         printf("=== Topology Verification ===\n");
         printf("Nodes: %ld, Edges: %ld\n", N, M);
     }
-    
+
     // Check 1: new_ids has correct size
     if (static_cast<int64_t>(new_ids.size()) != N) {
         if (verbose) printf("FAIL: new_ids size %zu != N %ld\n", new_ids.size(), N);
         return false;
     }
-    
+
     // Check 2: new_ids is a valid permutation (all values in [0, N) and unique)
     std::vector<bool> seen(N, false);
     for (int64_t u = 0; u < N; ++u) {
         NodeID_T new_id = new_ids[u];
         if (new_id < 0 || new_id >= N) {
-            if (verbose) printf("FAIL: new_ids[%ld] = %d out of range [0, %ld)\n", 
+            if (verbose) printf("FAIL: new_ids[%ld] = %d out of range [0, %ld)\n",
                                u, static_cast<int>(new_id), N);
             return false;
         }
         if (seen[new_id]) {
-            if (verbose) printf("FAIL: new_ids[%ld] = %d is duplicate\n", 
+            if (verbose) printf("FAIL: new_ids[%ld] = %d is duplicate\n",
                                u, static_cast<int>(new_id));
             return false;
         }
         seen[new_id] = true;
     }
-    
+
     // Check 3: Build inverse mapping
     std::vector<NodeID_T> inv_ids(N);
     for (int64_t u = 0; u < N; ++u) {
         inv_ids[new_ids[u]] = static_cast<NodeID_T>(u);
     }
-    
+
     // Check 4: Verify edge preservation using edge counts per vertex
     // For each vertex, count edges and verify degree is preserved
     std::vector<int64_t> orig_degree(N), reord_degree(N);
-    
+
     #pragma omp parallel for
     for (int64_t u = 0; u < N; ++u) {
         orig_degree[u] = original.out_degree(u);
     }
-    
+
     // After reordering, vertex u becomes new_ids[u]
     // So reordered vertex v has degree of original vertex inv_ids[v]
     #pragma omp parallel for
     for (int64_t v = 0; v < N; ++v) {
         reord_degree[v] = orig_degree[inv_ids[v]];
     }
-    
+
     // Verify total degree is preserved
     int64_t total_orig = 0, total_reord = 0;
     for (int64_t u = 0; u < N; ++u) {
         total_orig += orig_degree[u];
         total_reord += reord_degree[u];
     }
-    
+
     if (total_orig != total_reord) {
         if (verbose) printf("FAIL: Total degree mismatch: orig=%ld, reord=%ld\n",
                            total_orig, total_reord);
         return false;
     }
-    
+
     // Check 5: Verify edge-by-edge (sample check for large graphs)
     int64_t edges_checked = 0;
     int64_t edges_valid = 0;
     const int64_t max_check = std::min(M, int64_t(1000000));  // Check up to 1M edges
-    
+
     std::set<std::pair<NodeID_T, NodeID_T>> orig_edges;
-    
+
     // Collect original edges (normalized: smaller ID first)
     for (int64_t u = 0; u < N && edges_checked < max_check; ++u) {
         for (auto neighbor : original.out_neigh(u)) {
@@ -10146,12 +7292,12 @@ bool verifyReorderingTopology(
             }
         }
     }
-    
+
     // Verify each original edge maps to a valid reordered edge
     for (const auto& [u, v] : orig_edges) {
         NodeID_T new_u = new_ids[u];
         NodeID_T new_v = new_ids[v];
-        
+
         // Check if edge exists in reordered graph
         // The reordered graph should have edge (new_u, new_v)
         // Since we're checking the mapping, not the actual reordered graph,
@@ -10160,20 +7306,20 @@ bool verifyReorderingTopology(
             edges_valid++;
         }
     }
-    
+
     if (edges_valid != static_cast<int64_t>(orig_edges.size())) {
         if (verbose) printf("FAIL: Edge mapping verification failed: %ld/%zu valid\n",
                            edges_valid, orig_edges.size());
         return false;
     }
-    
+
     if (verbose) {
         printf("PASS: Permutation valid (all %ld IDs unique and in range)\n", N);
         printf("PASS: Total degree preserved (%ld)\n", total_orig);
         printf("PASS: Edge mapping valid (%ld edges checked)\n", edges_checked);
         printf("=== Verification Complete ===\n");
     }
-    
+
     return true;
 }
 
@@ -10185,7 +7331,7 @@ bool verifyGraphBrewResult(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     const pvector<NodeID_T>& new_ids,
     const std::string& variant_name) {
-    
+
     printf("\n--- Verifying GraphBrew variant: %s ---\n", variant_name.c_str());
     bool ok = verifyReorderingTopology(g, new_ids, true);
     printf("Result: %s\n\n", ok ? "PASS" : "FAIL");

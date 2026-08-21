@@ -6,28 +6,11 @@
 
 /**
  * @file builder.h
- * @brief Graph construction and reordering framework for GAP Benchmark Suite
- * 
- * This file provides the BuilderBase class which handles:
- * - Graph construction from edge lists (file or synthetic)
- * - Graph reordering using various algorithms
- * - CSR format manipulation and transformations
- * 
- * ARCHITECTURE:
- * - Core graph operations: MakeGraph(), MakeGraphFromEL(), SquishCSR()
- * - Reordering dispatch: GenerateMapping() - main entry point
- * - Algorithm delegates: Each Generate*Mapping() calls reorder/*.h implementations
- * 
- * REORDERING ALGORITHMS (see reorder/*.h for implementations):
- * - Basic (0-2): Original, Random, Sort
- * - Hub (3-7): HubSort, HubCluster, DBG variants
- * - RabbitOrder (8): Community-aware hierarchical clustering
- * - Classic (9-11): GOrder, COrder, RCMOrder
- * - GraphBrew (12): Multi-level community-based reordering
- * - Adaptive (14): ML-based per-community algorithm selection
- * - Leiden (15): GVE-Leiden baseline (community detection reference)
- * 
- * Author: Scott Beamer (original), GraphBrew Team (extensions)
+ * @brief GAPBS graph construction with GraphBrew mapping dispatch.
+ *
+ * BuilderBase owns graph construction, mapping application, and metadata
+ * staging. Reordering implementations and algorithm identities live under
+ * graphbrew/reorder.
  */
 
 // ============================================================================
@@ -3515,7 +3498,6 @@ public:
     }
 
     /**
-    /**
      * Compute dynamic minimum community size threshold.
      * Delegates to the global ::ComputeDynamicMinCommunitySize in reorder_types.h.
      */
@@ -3566,12 +3548,12 @@ public:
     // These delegates maintain backward compatibility with existing code.
     
     /**
-     * Main entry point for Adaptive reordering - delegates to standalone.
+     * Main entry point for AdaptiveOrder - delegates to standalone.
      * Format: -o 14[:_[:_[:model[:criterion[:reuse-count]]]]]
      *   Positions 0-2: reserved (unused)
-     *   Position 3: deployable model
+     *   Position 3: selection policy/model identifier
      *   Position 4: independent optimization criterion
-     *   Position 5: expected reuse count (required by budgeted-rule)
+     *   Position 5: expected reuse count (required by frozen rules)
      */
     void GenerateAdaptiveMapping(CSRGraph<NodeID_, DestID_, invert> &g,
                                  pvector<NodeID_> &new_ids, bool useOutdeg,

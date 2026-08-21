@@ -39,7 +39,6 @@ lib/
 ├── analysis/            # Post-run analysis & visualisation
 │   ├── adaptive.py      # A/B testing, Leiden variant comparison
 │   ├── metrics.py       # Performance-metrics computation
-│   └── figures.py       # SVG / PNG plot generation
 │
 └── tools/               # Standalone CLI utilities
     ├── check_includes.py   # C++ header-include linting

@@ -1,21 +1,9 @@
 // ============================================================================
-// reorder_database.h — Offline upper bounds and compiled model storage
+// reorder_database.h — Runtime recording plus offline model diagnostics
 //
-// Loads the centralized benchmark database (results/data/benchmarks.json) and
-// graph properties (results/data/graph_properties.json). Exact-name oracle and
-// kNN routines are offline diagnostics only; deployable AdaptiveOrder may load
-// compiled model artifacts but cannot query graph identities or benchmark rows.
-//
-// This replaces pre-trained models (perceptron, decision tree) with a
-// "streaming equation": the database IS the model. When new benchmark
-// data is appended, the selection automatically improves.
-//
-// Usage:
-//   ./pr -f graph.sg -a adaptive=mode:database,bench:pr
-//
-// Files:
-//   results/data/benchmarks.json       — append-only benchmark records
-//   results/data/graph_properties.json  — graph feature vectors
+// Owns explicit C++ self-recording metadata and retained offline benchmark,
+// oracle, kNN, and compiled-model utilities. Deployable AdaptiveOrder cannot
+// query graph identities or benchmark rows.
 //
 // NOTE: This header is included from within reorder_types.h AFTER
 //       CommunityFeatures, BenchmarkType, and PerceptronSelection are
@@ -969,9 +957,7 @@ public:
      * all benchmark records for each algorithm family and computes the
      * weighted-average kernel time and reorder time (weighted by 1/distance).
      *
-     * This is the core of the streaming model: the database IS the model.
-     * No pre-trained weights needed — predictions come directly from the
-     * raw benchmark data.
+     * Offline kNN prediction from recorded benchmark data.
      *
      * @param query  Transformed feature vector of the query graph
      * @param benchmark  Benchmark name (e.g., "pr", "bfs")

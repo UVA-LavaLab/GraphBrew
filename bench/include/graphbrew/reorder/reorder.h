@@ -1,61 +1,8 @@
-// ============================================================================
-// GraphBrew - Reordering Algorithm Dispatcher
-// ============================================================================
-// This is the main header that includes all reordering algorithm implementations
-// and provides the unified GenerateMapping() dispatch function.
-//
-// Architecture Overview:
-// ┌─────────────────────────────────────────────────────────────────────────┐
-// │                           reorder.h (this file)                         │
-// │                     Main dispatcher and includes                        │
-// └─────────────────────────────────────────────────────────────────────────┘
-//                                    │
-//          ┌──────────────┬─────────┼─────────┬──────────────┐
-//          │              │         │         │              │
-//          ▼              ▼         ▼         ▼              ▼
-// ┌────────────┐  ┌────────────┐  ┌───┐  ┌────────────┐  ┌────────────┐
-// │reorder_    │  │reorder_    │  │...│  │reorder_    │  │reorder_    │
-// │basic.h     │  │hub.h       │  │   │  │leiden.h    │  │adaptive.h  │
-// │(0,1,2)     │  │(3,4,5,6,7) │  │   │  │(15,16,17)  │  │(14)        │
-// └────────────┘  └────────────┘  └───┘  └────────────┘  └────────────┘
-//          │              │         │         │              │
-//          └──────────────┴─────────┴─────────┴──────────────┘
-//                                    │
-//                                    ▼
-//                         ┌─────────────────────┐
-//                         │  reorder_types.h    │
-//                         │  Common types and   │
-//                         │  utilities          │
-//                         └─────────────────────┘
-//
-// Algorithm IDs:
-//   0  - ORIGINAL:       Keep original ordering
-//   1  - RANDOM:         Random permutation
-//   2  - SORT:           Sort by degree
-//   3  - HUBSORT:        Sort hubs first
-//   4  - HUBCLUSTER:     Cluster hubs
-//   5  - DBG:            Degree-based grouping
-//   6  - HUBSORTDBG:     HubSort within DBG
-//   7  - HUBCLUSTERDBG:  HubCluster within DBG (recommended for power-law)
-//   8  - RABBITORDER:    Community detection + aggregation
-//   9  - GORDER:         Graph ordering (variants: default, csr, fast)
-//   10 - CORDER:         Cache-aware ordering
-//   11 - RCMORDER:       Reverse Cuthill-McKee
-//   12 - GRAPHBREWORDER: Leiden + per-community reordering
-//   13 - MAP:            Load ordering from file
-//   14 - ADAPTIVEORDER:  ML-based algorithm selection
-//   15 - LEIDENORDER:    Leiden community ordering
-//
-// Usage:
-//   #include "reorder/reorder.h"
-//   
-//   // In your BuilderBase class or standalone:
-//   pvector<NodeID> new_ids(g.num_nodes(), UINT_E_MAX);
-//   GenerateMapping(g, new_ids, HubClusterDBG, true, {});
-//
-// Author: GraphBrew Team
-// License: See LICENSE.txt
-// ============================================================================
+// Unified reordering dispatcher. Algorithm IDs, names, and shared
+// configuration live in reorder_types.h; implementation headers below provide
+// the mapping generators. AdaptiveOrder's validated path is the frozen
+// deterministic low-reuse rule, with legacy offline-model modes retained for
+// compatibility.
 
 #ifndef REORDER_H_
 #define REORDER_H_
@@ -70,7 +17,6 @@
 #include "reorder_rabbit.h"  // RABBITORDER (8)
 #include "reorder_classic.h" // GORDER, CORDER, RCM (9-11)
 #include "reorder_gograph.h"   // GOGRAPHORDER (16), FEF-maximizing reordering
-#include "reorder_don_lite.h"  // DON-Lite margin-gated MLP ordering
 // Note: LeidenCSR (16) has been deprecated — GraphBrew (12) subsumes it.
 // LeidenOrder (15) uses external/leiden/leiden.hxx directly.
 
