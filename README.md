@@ -55,7 +55,8 @@ to choose between:
 - Boost Rabbit.
 
 There is no runtime training, graph-name lookup, database oracle, or trial of
-multiple reorderers.
+multiple reorderers. No previous kernel timing is required, so the rule can be
+applied directly to a new graph within its validated scope.
 
 ## Validated low-reuse result
 
@@ -66,23 +67,29 @@ The promoted composition is:
 cd_parallel:sgmb4096:gordf5000:norefine:2:2
 ```
 
-It uses two parallel Leiden iterations and passes, ordered super-graph
-proposal batches, SizeDesc block placement, Gorder8 for communities up to
-5000 vertices, and BFS fallback for larger communities.
+It caps parallel Leiden at two local-moving iterations and two aggregation
+passes, uses ordered internal super-graph proposal batches, places blocks by
+SizeDesc, runs Gorder8 for communities up to 5000 vertices, and falls back to
+BFS for larger communities.
 
 The rule was derived on 18 graphs and frozen before 12 additional graphs were
 opened. It selected GraphBrew on seven holdouts and Boost Rabbit on five.
 
-| Reuse | Selected holdouts: Boost/GraphBrew | Lower 95% | Full selector/always-Boost |
+| Reuse | Selected holdouts: Boost/GraphBrew | Lower 95% | Frozen portfolio/always-Boost |
 |---:|---:|---:|---:|
 | 1 | 1.696x | 1.502x | 1.361x |
 | 2 | 1.642x | 1.460x | 1.336x |
+
+The portfolio values use chosen mapping cost plus reused kernel time. The
+public evidence does not store algorithm-14 feature-extraction time; a fully
+deployed timing result must add the binary's `Adaptive Feature Time`.
 
 Scope:
 
 - kernels: PR, PR-SpMV, BFS, CC, CC-SV, BC, and SSSP;
 - mapping reuse: 1 or 2, supplied explicitly;
 - fallback: Boost Rabbit;
+- current policy is not Rabbit-free;
 - known limitation: CC-SV can regress even when aggregate end-to-end time
   improves.
 

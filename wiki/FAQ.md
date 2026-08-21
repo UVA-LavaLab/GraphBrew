@@ -58,6 +58,21 @@ No. The validated `allkernel-lowreuse-rule` is a frozen deterministic
 predicate and does not load `adaptive_models.json`. Historical model
 experiments can still read that file. See [AdaptiveOrder](AdaptiveOrder).
 
+## Does the low-reuse rule need an earlier kernel run?
+
+No. It samples the new graph directly and uses kernel identity, LLC capacity,
+and declared reuse. It does not execute candidate orderings or consult prior
+benchmark rows. See
+[All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector).
+
+## Why does the policy fall back to Rabbit?
+
+The promoted non-Rabbit composition is not a universal winner. On fallback
+graphs the policy ties the always-Rabbit baseline rather than claiming a
+GraphBrew win. Selected GraphBrew graphs contribute the portfolio gains. The
+current policy therefore beats always-Rabbit in aggregate but is not
+Rabbit-free.
+
 ## How do I add a new algorithm or benchmark?
 
 See [Contributing](Contributing).

@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="920" viewBox="0 0 1600 920" role="img" aria-labelledby="title desc">
+  <title id="title">GraphBrew low-reuse policy</title>
+  <desc id="desc">A new graph, kernel, LLC capacity, and reuse count enter deterministic sampled analysis. A frozen predicate selects the promoted GraphBrew composition or Boost Rabbit. No previous kernel run or graph identity is used.</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
+      <path d="M0 0 L12 5 L0 10 Z" fill="#1683BD"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
+      <path d="M0 0 L12 5 L0 10 Z" fill="#F7941D"/>
+    </marker>
+    <style>
+      .sans{font-family:Arial,Helvetica,sans-serif}
+      .mono{font-family:"SFMono-Regular",Consolas,monospace}
+      .title{font-size:38px;font-weight:700;fill:#17212B}
+      .subtitle{font-size:19px;fill:#4B5560}
+      .heading{font-size:24px;font-weight:700;fill:#17212B}
+      .body{font-size:17px;fill:#27313A}
+      .small{font-size:14px;fill:#4B5560}
+      .tiny{font-size:12px;fill:#4B5560}
+      .edge{stroke:#6B7075;stroke-width:4}
+      .flow{fill:none;stroke:#1683BD;stroke-width:4;marker-end:url(#arrow-blue)}
+      .match{fill:none;stroke:#F7941D;stroke-width:4;marker-end:url(#arrow-orange)}
+      .card{fill:#FFFFFF;stroke:#B5BDC5;stroke-width:2}
+    </style>
+  </defs>
+
+  <rect width="1600" height="920" fill="#FFFFFF"/>
+  <text x="55" y="58" class="sans title">Low-reuse policy: classify a new graph without running its kernel first</text>
+  <text x="55" y="90" class="sans subtitle">The policy uses sampled structure, modeled property footprint, machine LLC capacity, kernel identity, and declared reuse.</text>
+  <line x1="55" y1="115" x2="1545" y2="115" stroke="#17212B" stroke-width="2"/>
+
+  <rect x="45" y="145" width="330" height="500" rx="12" class="card"/>
+  <text x="210" y="182" text-anchor="middle" class="sans heading">1. New workload</text>
+
+  <circle cx="150" cy="305" r="88" fill="none" stroke="#F7941D" stroke-width="5" stroke-dasharray="3 11"/>
+  <circle cx="270" cy="305" r="88" fill="none" stroke="#1683BD" stroke-width="5" stroke-dasharray="3 11"/>
+  <line x1="112" y1="266" x2="165" y2="235" class="edge"/>
+  <line x1="112" y1="266" x2="142" y2="334" class="edge"/>
+  <line x1="165" y1="235" x2="190" y2="310" class="edge"/>
+  <line x1="142" y1="334" x2="190" y2="310" class="edge"/>
+  <line x1="190" y1="310" x2="236" y2="275" class="edge"/>
+  <line x1="190" y1="310" x2="245" y2="345" class="edge"/>
+  <line x1="236" y1="275" x2="292" y2="235" class="edge"/>
+  <line x1="236" y1="275" x2="315" y2="300" class="edge"/>
+  <line x1="245" y1="345" x2="315" y2="300" class="edge"/>
+  <circle cx="112" cy="266" r="17" fill="#FFD870" stroke="#17212B" stroke-width="2"/>
+  <circle cx="165" cy="235" r="17" fill="#FFC13A" stroke="#17212B" stroke-width="2"/>
+  <circle cx="142" cy="334" r="17" fill="#FFE8A6" stroke="#17212B" stroke-width="2"/>
+  <circle cx="190" cy="310" r="20" fill="#F7941D" stroke="#17212B" stroke-width="2"/>
+  <circle cx="236" cy="275" r="20" fill="#1683BD" stroke="#17212B" stroke-width="2"/>
+  <circle cx="245" cy="345" r="17" fill="#83C7E8" stroke="#17212B" stroke-width="2"/>
+  <circle cx="292" cy="235" r="17" fill="#49A9D7" stroke="#17212B" stroke-width="2"/>
+  <circle cx="315" cy="300" r="17" fill="#B9DEF2" stroke="#17212B" stroke-width="2"/>
+
+  <rect x="75" y="430" width="270" height="48" rx="8" fill="#EEF6FC" stroke="#1683BD" stroke-width="2"/>
+  <text x="210" y="461" text-anchor="middle" class="sans body">kernel = PR / BFS / CC / ...</text>
+  <rect x="75" y="493" width="128" height="48" rx="8" fill="#FFF3DB" stroke="#F7941D" stroke-width="2"/>
+  <text x="139" y="524" text-anchor="middle" class="sans body">reuse = 1 or 2</text>
+  <rect x="217" y="493" width="128" height="48" rx="8" fill="#EAF7F3" stroke="#189D85" stroke-width="2"/>
+  <text x="281" y="524" text-anchor="middle" class="sans body">machine LLC</text>
+  <text x="210" y="585" text-anchor="middle" class="sans small">No graph name. No prior timing.</text>
+  <text x="210" y="608" text-anchor="middle" class="sans small">No candidate trial run.</text>
+
+  <path d="M375 395 H430" class="flow"/>
+
+  <rect x="430" y="145" width="365" height="500" rx="12" class="card"/>
+  <text x="612" y="182" text-anchor="middle" class="sans heading">2. Tier-0 analysis</text>
+  <text x="612" y="215" text-anchor="middle" class="sans small">Deterministic strided sample: 1,024 to 8,192 vertices</text>
+
+  <rect x="462" y="250" width="132" height="64" rx="8" fill="#FFF3DB" stroke="#F7941D" stroke-width="2"/>
+  <text x="528" y="277" text-anchor="middle" class="sans small">exact</text>
+  <text x="528" y="300" text-anchor="middle" class="sans body">num_nodes</text>
+  <rect x="616" y="250" width="147" height="64" rx="8" fill="#EEF6FC" stroke="#1683BD" stroke-width="2"/>
+  <text x="690" y="277" text-anchor="middle" class="sans small">sampled</text>
+  <text x="690" y="300" text-anchor="middle" class="sans body">avg_degree</text>
+  <rect x="462" y="334" width="132" height="64" rx="8" fill="#EEF6FC" stroke="#1683BD" stroke-width="2"/>
+  <text x="528" y="361" text-anchor="middle" class="sans small">sampled</text>
+  <text x="528" y="384" text-anchor="middle" class="sans body">degree_cv</text>
+  <rect x="616" y="334" width="147" height="64" rx="8" fill="#EAF7F3" stroke="#189D85" stroke-width="2"/>
+  <text x="690" y="361" text-anchor="middle" class="sans small">modeled</text>
+  <text x="690" y="384" text-anchor="middle" class="sans body">property / LLC</text>
+
+  <rect x="462" y="435" width="301" height="145" rx="10" fill="#F8FAFB" stroke="#27313A" stroke-width="2"/>
+  <text x="612" y="466" text-anchor="middle" class="sans heading">Frozen predicate</text>
+  <text x="481" y="500" class="mono tiny">wsr &lt;= 3.2 &amp;&amp;</text>
+  <text x="481" y="524" class="mono tiny">((cv &lt;= 2.68 &amp;&amp; (avg_deg &lt;= 60</text>
+  <text x="481" y="548" class="mono tiny">  || wsr &lt;= 0.82)) || cv &gt; 8)</text>
+  <text x="612" y="616" text-anchor="middle" class="sans small">The rule is applied once; it is not fitted online.</text>
+
+  <path d="M795 395 H850" class="flow"/>
+
+  <rect x="850" y="145" width="705" height="500" rx="12" class="card"/>
+  <text x="1202" y="182" text-anchor="middle" class="sans heading">3. Choose one mapping path</text>
+
+  <path d="M900 235 H1030" class="match"/>
+  <text x="960" y="222" text-anchor="middle" class="sans small" fill="#C66B00">predicate matches</text>
+  <rect x="1030" y="205" width="475" height="175" rx="10" fill="#FFF7E8" stroke="#F7941D" stroke-width="3"/>
+  <text x="1268" y="241" text-anchor="middle" class="sans heading">GraphBrew arm</text>
+  <text x="1268" y="272" text-anchor="middle" class="sans body">FastLeiden - SizeDesc - Gorder8/BFS</text>
+  <text x="1268" y="300" text-anchor="middle" class="sans small">non-Rabbit candidate; exact recipe is fixed</text>
+  <g transform="translate(1090 320)">
+    <rect x="0" y="0" width="42" height="36" fill="#1683BD" stroke="#17212B"/>
+    <rect x="42" y="0" width="42" height="36" fill="#49A9D7" stroke="#17212B"/>
+    <rect x="84" y="0" width="42" height="36" fill="#83C7E8" stroke="#17212B"/>
+    <rect x="126" y="0" width="42" height="36" fill="#B9DEF2" stroke="#17212B"/>
+    <rect x="168" y="0" width="42" height="36" fill="#F7941D" stroke="#17212B"/>
+    <rect x="210" y="0" width="42" height="36" fill="#FFC13A" stroke="#17212B"/>
+    <rect x="252" y="0" width="42" height="36" fill="#FFD870" stroke="#17212B"/>
+    <rect x="294" y="0" width="42" height="36" fill="#FFE8A6" stroke="#17212B"/>
+  </g>
+
+  <path d="M900 505 H1030" class="flow"/>
+  <text x="960" y="491" text-anchor="middle" class="sans small">otherwise</text>
+  <rect x="1030" y="430" width="475" height="175" rx="10" fill="#EEF6FC" stroke="#1683BD" stroke-width="3"/>
+  <text x="1268" y="466" text-anchor="middle" class="sans heading">Boost Rabbit fallback</text>
+  <text x="1268" y="497" text-anchor="middle" class="sans body">Use the validated baseline directly</text>
+  <text x="1268" y="525" text-anchor="middle" class="sans small">This graph contributes 1.0x versus always-Boost.</text>
+  <g transform="translate(1090 545)">
+    <rect x="0" y="0" width="42" height="36" fill="#49A9D7" stroke="#17212B"/>
+    <rect x="42" y="0" width="42" height="36" fill="#F7941D" stroke="#17212B"/>
+    <rect x="84" y="0" width="42" height="36" fill="#83C7E8" stroke="#17212B"/>
+    <rect x="126" y="0" width="42" height="36" fill="#FFC13A" stroke="#17212B"/>
+    <rect x="168" y="0" width="42" height="36" fill="#B9DEF2" stroke="#17212B"/>
+    <rect x="210" y="0" width="42" height="36" fill="#FFE8A6" stroke="#17212B"/>
+    <rect x="252" y="0" width="42" height="36" fill="#1683BD" stroke="#17212B"/>
+    <rect x="294" y="0" width="42" height="36" fill="#FFD870" stroke="#17212B"/>
+  </g>
+
+  <rect x="45" y="685" width="1510" height="190" rx="12" fill="#F8FAFB" stroke="#17212B" stroke-width="2"/>
+  <text x="75" y="728" class="sans heading">What the claim means</text>
+  <text x="75" y="766" class="sans body">Selected graphs: the non-Rabbit GraphBrew arm must beat Boost Rabbit.</text>
+  <text x="75" y="799" class="sans body">Fallback graphs: the policy ties always-Boost; it does not claim a GraphBrew win on that graph.</text>
+  <text x="75" y="832" class="sans body">Across 12 frozen holdouts: 1.361x at reuse 1 and 1.336x at reuse 2 versus always-Boost.</text>
+  <rect x="1035" y="720" width="470" height="115" rx="10" fill="#FFFFFF" stroke="#B5BDC5" stroke-width="2"/>
+  <text x="1270" y="752" text-anchor="middle" class="sans small">Published portfolio accounting</text>
+  <text x="1270" y="786" text-anchor="middle" class="mono body">T = mapping(chosen) + reuse x kernel(chosen)</text>
+  <text x="1270" y="815" text-anchor="middle" class="sans tiny">Algorithm-14 feature time is emitted separately and must be added for deployment.</text>
+</svg>

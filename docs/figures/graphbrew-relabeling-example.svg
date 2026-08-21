@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">GraphBrew relabeling example</title>
+  <desc id="desc">The same graph topology is shown before and after GraphBrew. SizeDesc places the larger blue community first. BFS orders the large community and Gorder8 orders the smaller orange community. Only vertex IDs and memory positions change.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
+      <path d="M0 0 L12 5 L0 10 Z" fill="#1683BD"/>
+    </marker>
+    <style>
+      .sans{font-family:Arial,Helvetica,sans-serif}
+      .title{font-size:38px;font-weight:700;fill:#17212B}
+      .subtitle{font-size:18px;fill:#4B5560}
+      .heading{font-size:24px;font-weight:700;fill:#17212B}
+      .body{font-size:17px;fill:#27313A}
+      .small{font-size:14px;fill:#4B5560}
+      .node{stroke:#17212B;stroke-width:2}
+      .edge{stroke:#6B7075;stroke-width:5}
+      .flow{fill:none;stroke:#1683BD;stroke-width:4;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1600" height="980" fill="#FFFFFF"/>
+  <text x="55" y="58" class="sans title">GraphBrew relabels the graph; it does not change the topology</text>
+  <text x="55" y="90" class="sans subtitle">Illustrative promoted pipeline: detect communities, place the largest block first, then use BFS or Gorder8 inside each block.</text>
+  <line x1="55" y1="115" x2="1545" y2="115" stroke="#17212B" stroke-width="2"/>
+
+  <text x="275" y="155" text-anchor="middle" class="sans heading">A. Input labels</text>
+  <text x="1100" y="155" text-anchor="middle" class="sans heading">B. GraphBrew labels</text>
+  <text x="800" y="155" text-anchor="middle" class="sans body" fill="#1683BD">same edges</text>
+  <path d="M650 145 H930" class="flow"/>
+
+  <circle cx="250" cy="315" r="150" fill="none" stroke="#F7941D" stroke-width="6" stroke-dasharray="3 13"/>
+  <circle cx="485" cy="315" r="180" fill="none" stroke="#1683BD" stroke-width="6" stroke-dasharray="3 13"/>
+  <text x="250" y="505" text-anchor="middle" class="sans body" fill="#C66B00">small community</text>
+  <text x="485" y="530" text-anchor="middle" class="sans body" fill="#086A9C">large community</text>
+
+  <line x1="175" y1="260" x2="250" y2="205" class="edge"/>
+  <line x1="175" y1="260" x2="205" y2="375" class="edge"/>
+  <line x1="250" y1="205" x2="290" y2="315" class="edge"/>
+  <line x1="205" y1="375" x2="290" y2="315" class="edge"/>
+  <line x1="290" y1="315" x2="250" y2="435" class="edge"/>
+  <line x1="290" y1="315" x2="405" y2="270" class="edge"/>
+  <line x1="290" y1="315" x2="420" y2="365" class="edge"/>
+  <line x1="405" y1="270" x2="475" y2="205" class="edge"/>
+  <line x1="405" y1="270" x2="555" y2="260" class="edge"/>
+  <line x1="420" y1="365" x2="500" y2="430" class="edge"/>
+  <line x1="420" y1="365" x2="585" y2="370" class="edge"/>
+  <line x1="475" y1="205" x2="555" y2="260" class="edge"/>
+  <line x1="555" y1="260" x2="585" y2="370" class="edge"/>
+  <line x1="500" y1="430" x2="585" y2="370" class="edge"/>
+
+  <g class="sans body" text-anchor="middle">
+    <circle cx="175" cy="260" r="24" fill="#FFE8A6" class="node"/><text x="175" y="267">2</text>
+    <circle cx="250" cy="205" r="24" fill="#FFC13A" class="node"/><text x="250" y="212">8</text>
+    <circle cx="205" cy="375" r="24" fill="#FFD870" class="node"/><text x="205" y="382">10</text>
+    <circle cx="290" cy="315" r="27" fill="#F7941D" class="node"/><text x="290" y="322">1</text>
+    <circle cx="250" cy="435" r="24" fill="#FFC13A" class="node"/><text x="250" y="442">6</text>
+    <circle cx="405" cy="270" r="27" fill="#1683BD" class="node"/><text x="405" y="277">0</text>
+    <circle cx="420" cy="365" r="24" fill="#49A9D7" class="node"/><text x="420" y="372">7</text>
+    <circle cx="475" cy="205" r="24" fill="#83C7E8" class="node"/><text x="475" y="212">3</text>
+    <circle cx="555" cy="260" r="24" fill="#B9DEF2" class="node"/><text x="555" y="267">9</text>
+    <circle cx="500" cy="430" r="24" fill="#83C7E8" class="node"/><text x="500" y="437">4</text>
+    <circle cx="585" cy="370" r="24" fill="#B9DEF2" class="node"/><text x="585" y="377">5</text>
+  </g>
+
+  <circle cx="1010" cy="315" r="150" fill="none" stroke="#F7941D" stroke-width="6" stroke-dasharray="3 13"/>
+  <circle cx="1245" cy="315" r="180" fill="none" stroke="#1683BD" stroke-width="6" stroke-dasharray="3 13"/>
+  <text x="1010" y="505" text-anchor="middle" class="sans body" fill="#C66B00">Gorder8: new IDs 6-10</text>
+  <text x="1245" y="530" text-anchor="middle" class="sans body" fill="#086A9C">BFS fallback: new IDs 0-5</text>
+
+  <line x1="935" y1="260" x2="1010" y2="205" class="edge"/>
+  <line x1="935" y1="260" x2="965" y2="375" class="edge"/>
+  <line x1="1010" y1="205" x2="1050" y2="315" class="edge"/>
+  <line x1="965" y1="375" x2="1050" y2="315" class="edge"/>
+  <line x1="1050" y1="315" x2="1010" y2="435" class="edge"/>
+  <line x1="1050" y1="315" x2="1165" y2="270" class="edge"/>
+  <line x1="1050" y1="315" x2="1180" y2="365" class="edge"/>
+  <line x1="1165" y1="270" x2="1235" y2="205" class="edge"/>
+  <line x1="1165" y1="270" x2="1315" y2="260" class="edge"/>
+  <line x1="1180" y1="365" x2="1260" y2="430" class="edge"/>
+  <line x1="1180" y1="365" x2="1345" y2="370" class="edge"/>
+  <line x1="1235" y1="205" x2="1315" y2="260" class="edge"/>
+  <line x1="1315" y1="260" x2="1345" y2="370" class="edge"/>
+  <line x1="1260" y1="430" x2="1345" y2="370" class="edge"/>
+
+  <g class="sans body" text-anchor="middle">
+    <circle cx="935" cy="260" r="24" fill="#FFE8A6" class="node"/><text x="935" y="267">8</text>
+    <circle cx="1010" cy="205" r="24" fill="#FFC13A" class="node"/><text x="1010" y="212">9</text>
+    <circle cx="965" cy="375" r="24" fill="#FFD870" class="node"/><text x="965" y="382">10</text>
+    <circle cx="1050" cy="315" r="27" fill="#F7941D" class="node"/><text x="1050" y="322">6</text>
+    <circle cx="1010" cy="435" r="24" fill="#FFC13A" class="node"/><text x="1010" y="442">7</text>
+    <circle cx="1165" cy="270" r="27" fill="#1683BD" class="node"/><text x="1165" y="277">0</text>
+    <circle cx="1180" cy="365" r="24" fill="#49A9D7" class="node"/><text x="1180" y="372">1</text>
+    <circle cx="1235" cy="205" r="24" fill="#83C7E8" class="node"/><text x="1235" y="212">2</text>
+    <circle cx="1315" cy="260" r="24" fill="#B9DEF2" class="node"/><text x="1315" y="267">3</text>
+    <circle cx="1260" cy="430" r="24" fill="#83C7E8" class="node"/><text x="1260" y="437">4</text>
+    <circle cx="1345" cy="370" r="24" fill="#B9DEF2" class="node"/><text x="1345" y="377">5</text>
+  </g>
+
+  <text x="65" y="610" class="sans heading">Memory order</text>
+  <text x="65" y="655" class="sans body">Input IDs</text>
+  <g transform="translate(210 622)" class="sans body" text-anchor="middle">
+    <rect x="0" y="0" width="90" height="54" fill="#1683BD" stroke="#17212B"/><text x="45" y="35">0</text>
+    <rect x="90" y="0" width="90" height="54" fill="#F7941D" stroke="#17212B"/><text x="135" y="35">1</text>
+    <rect x="180" y="0" width="90" height="54" fill="#FFE8A6" stroke="#17212B"/><text x="225" y="35">2</text>
+    <rect x="270" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="315" y="35">3</text>
+    <rect x="360" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="405" y="35">4</text>
+    <rect x="450" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="495" y="35">5</text>
+    <rect x="540" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="585" y="35">6</text>
+    <rect x="630" y="0" width="90" height="54" fill="#49A9D7" stroke="#17212B"/><text x="675" y="35">7</text>
+    <rect x="720" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="765" y="35">8</text>
+    <rect x="810" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="855" y="35">9</text>
+    <rect x="900" y="0" width="90" height="54" fill="#FFD870" stroke="#17212B"/><text x="945" y="35">10</text>
+  </g>
+  <text x="705" y="708" text-anchor="middle" class="sans small">Community colors are interleaved in the input label space.</text>
+
+  <path d="M705 725 V775" class="flow"/>
+  <rect x="545" y="735" width="320" height="48" rx="8" fill="#FFFFFF" stroke="#1683BD" stroke-width="2" stroke-dasharray="7 6"/>
+  <text x="705" y="766" text-anchor="middle" class="sans body" fill="#1683BD">SizeDesc blocks + local vertex order</text>
+
+  <text x="65" y="845" class="sans body">New IDs</text>
+  <g transform="translate(210 812)" class="sans body" text-anchor="middle">
+    <rect x="0" y="0" width="90" height="54" fill="#1683BD" stroke="#17212B"/><text x="45" y="35">0</text>
+    <rect x="90" y="0" width="90" height="54" fill="#49A9D7" stroke="#17212B"/><text x="135" y="35">1</text>
+    <rect x="180" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="225" y="35">2</text>
+    <rect x="270" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="315" y="35">3</text>
+    <rect x="360" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="405" y="35">4</text>
+    <rect x="450" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="495" y="35">5</text>
+    <rect x="540" y="0" width="90" height="54" fill="#F7941D" stroke="#17212B"/><text x="585" y="35">6</text>
+    <rect x="630" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="675" y="35">7</text>
+    <rect x="720" y="0" width="90" height="54" fill="#FFE8A6" stroke="#17212B"/><text x="765" y="35">8</text>
+    <rect x="810" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="855" y="35">9</text>
+    <rect x="900" y="0" width="90" height="54" fill="#FFD870" stroke="#17212B"/><text x="945" y="35">10</text>
+  </g>
+  <path d="M210 885 H750" stroke="#1683BD" stroke-width="5"/>
+  <path d="M750 885 H1200" stroke="#F7941D" stroke-width="5"/>
+  <text x="480" y="920" text-anchor="middle" class="sans body" fill="#086A9C">larger community first: BFS fallback</text>
+  <text x="975" y="920" text-anchor="middle" class="sans body" fill="#C66B00">smaller community: Gorder8</text>
+  <text x="1450" y="845" text-anchor="end" class="sans body">Topology unchanged</text>
+  <text x="1450" y="875" text-anchor="end" class="sans small">only old ID -&gt; new ID mapping changes</text>
+</svg>

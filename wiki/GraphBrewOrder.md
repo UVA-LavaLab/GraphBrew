@@ -1,168 +1,219 @@
 # GraphBrewOrder
 
-GraphBrewOrder (`-o 12`) exposes vertex reordering as a composition of
-independent stages rather than one opaque algorithm name.
+GraphBrewOrder (`-o 12`) constructs a vertex permutation from explicit,
+independent decisions. It changes vertex IDs and CSR memory placement; it
+does not add, remove, or redirect edges.
 
-## Composition model
+![GraphBrew relabeling example](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabeling-example.svg)
 
-For a graph \(G=(V,E)\), GraphBrew constructs a permutation in four steps:
+The figure is schematic. The promoted recipe places the largest community
+block first, uses Gorder8 inside communities with at most 5000 vertices, and
+uses BFS inside larger communities.
 
-1. detect communities \(C_0,\ldots,C_{k-1}\);
-2. optionally derive a permutation of the community super-graph;
-3. place the community blocks;
-4. order vertices inside each block.
+## The active composition
 
-The three public composition axes are:
-
-| Axis | Question |
-|---|---|
-| Super-graph order | Should connectivity between communities determine their coarse placement? |
-| Community order | How should the community blocks be arranged? |
-| Intra-community order | How should vertices be arranged within each block? |
-
-The community detector is an upstream choice. Current experiments use Leiden
-or Rabbit.
-
-## Explicit means hand configured
-
-An algorithm-12 string executes the supplied stages:
-
-```bash
-./bench/bin/pr -f graph.sg -s \
-  -o '12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8' \
-  -n 3
-```
-
-GraphBrew does not search the composition space at runtime. Every token is
-part of the experimental treatment and should be recorded with the result.
-Automatic deployment is a separate algorithm-14 policy; see
-[AdaptiveOrder](AdaptiveOrder).
-
-## Core stage tokens
-
-### Community detector
-
-| Token | Meaning |
-|---|---|
-| `leiden` | GVE-Leiden CSR aggregation |
-| `cd_parallel` | parallel community-detection schedule |
-| `cd_serial` | deterministic serial schedule |
-| `rabbit` | Rabbit community detection instead of Leiden |
-
-### Super-graph order
-
-| Token | Meaning |
-|---|---|
-| `sg_none` | no separate super-graph permutation |
-| `sg_super_rabbit` | Rabbit on the community super-graph |
-| `sg_super_rcm` | RCM on the community super-graph |
-| `sg_tile_rabbit` | tile-quantized Rabbit |
-| `sg_hilbert` | Hilbert order of community size and average degree |
-
-### Community block order
-
-| Token | Meaning |
-|---|---|
-| `comm_identity` | retain the preceding community permutation |
-| `comm_size_desc`, `comm_size_asc` | sort by community size |
-| `comm_degree_desc`, `comm_degree_asc` | sort by total community degree |
-| `comm_cut_min` | crossing-edge nearest-neighbor heuristic |
-
-### Intra-community order
-
-| Token | Meaning |
-|---|---|
-| `intra_bfs` | BFS from a high-degree seed |
-| `intra_rcm`, `intra_rcmpp` | reverse Cuthill-McKee variants |
-| `intra_gorder` | Gorder within each community |
-| `intra_hubsort` | descending degree |
-| `intra_deg_asc` | ascending degree control |
-| `intra_boundary_last` | interior vertices before boundary vertices |
-| `intra_core` | descending core number |
-| `intra_random` | deterministic random control |
-| `intra_dendrogram` | Rabbit dendrogram DFS; Rabbit detector only |
-
-Additional experimental primitives remain callable in the parser, but are not
-public recommendations.
-
-## Cost controls
-
-| Token | Meaning |
-|---|---|
-| `sgmb<N>` | ordered super-graph proposal batch size |
-| `gw<N>` | Gorder window |
-| `gordf<N>` | use BFS instead of Gorder for communities larger than `N` |
-| `norefine` | disable Leiden refinement |
-| terminal integers | maximum Leiden iterations, then maximum passes |
-
-`sgmb<N>` computes proposals in parallel within each batch and commits the
-batch in community order. `sgmb1` preserves sequential commit semantics.
-
-## Promoted cost-matched composition
+The non-Rabbit arm used by the low-reuse policy is:
 
 ```text
 12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:
 cd_parallel:sgmb4096:gordf5000:norefine:2:2
 ```
 
-This configuration combines:
-
-- two parallel Leiden iterations and passes;
-- ordered proposal batches of 4096;
-- SizeDesc block placement;
-- Gorder8 for communities with at most 5000 vertices;
-- BFS fallback for larger communities; and
-- no refinement.
-
-It is the GraphBrew branch used by the validated low-reuse selector. On its
-five-graph cost-matched confirmation set, it was cheaper to construct and
-faster across the seven-kernel aggregate than both Rabbit implementations.
-That result does not make it universal: road/mesh graphs and some large graphs
-showed why the selector still needs a Rabbit fallback.
-
-## Reading a composition string
+A useful plain-English name is:
 
 ```text
-12 : leiden : compose : sg_none : comm_size_desc : intra_gorder
-   : gw8 : cd_parallel : sgmb4096 : gordf5000 : norefine : 2 : 2
+parallel bounded Leiden -> SizeDesc blocks -> Gorder8-or-BFS vertices
 ```
 
-| Field | Decision |
-|---|---|
-| `12` | GraphBrewOrder dispatcher |
-| `leiden` | Leiden aggregation |
-| `compose` | pluggable stage pipeline |
-| `sg_none` | no coarse super-graph reorder |
-| `comm_size_desc` | largest community blocks first |
-| `intra_gorder`, `gw8` | local Gorder with window 8 |
-| `cd_parallel` | parallel community detection |
-| `sgmb4096` | batched ordered super-graph moves |
-| `gordf5000` | BFS fallback above 5000 vertices |
-| `norefine` | omit refinement |
-| `2:2` | iteration and pass budgets |
+This is one fixed experimental treatment. Algorithm 12 does not search for a
+better combination at runtime.
+
+## Three layout decisions
+
+| Decision | Active choice | Effect |
+|---|---|---|
+| Partitioner | bounded GVE-Leiden | discovers communities |
+| Block layout | `comm_size_desc` | assigns contiguous ID ranges from largest to smallest community |
+| Vertex layout | `intra_gorder:gw8:gordf5000` | uses Gorder8 in small communities and BFS in large communities |
+
+The remaining tokens bound how much work the partitioner and local layout are
+allowed to perform.
+
+## Reading every token
+
+| Token | Scope | Meaning |
+|---|---|---|
+| `12` | dispatcher | execute GraphBrewOrder |
+| `leiden` | partitioner | use the GVE-Leiden CSR path |
+| `compose` | pipeline | expose block and vertex layout as separate stages |
+| `sg_none` | final block layout | do not run an additional Rabbit/RCM order over the final community super-graph |
+| `comm_size_desc` | final block layout | place larger community blocks first |
+| `intra_gorder` | vertex layout | enable local Gorder |
+| `gw8` | vertex layout | use an eight-vertex Gorder sliding window |
+| `cd_parallel` | community detection | permit OpenMP execution instead of forcing community detection to one thread |
+| `sgmb4096` | internal Leiden aggregation | compute up to 4096 super-node proposals in parallel, then commit them in super-node order |
+| `gordf5000` | vertex layout | use BFS when a detected community contains more than 5000 vertices |
+| `norefine` | community detection | skip Leiden's constrained refinement phase |
+| first `2` | community detection | cap local-moving iterations at two |
+| second `2` | community detection | cap aggregation passes at two |
+
+### Why `sg_none` and `sgmb4096` are not contradictory
+
+They refer to different super-graphs:
+
+- `sgmb4096` controls **internal Leiden aggregation**, where current
+  communities become super-nodes during detection.
+- `sg_none` controls the **final block-layout stage** after detection. It says
+  not to apply another coarse ordering to the completed community graph.
+
+## The four cost controls
+
+![GraphBrew cost controls](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cost-controls.svg)
+
+### `cd_parallel`
+
+The default deterministic community-detection mode temporarily limits the
+Leiden section to one OpenMP thread. `cd_parallel` removes that limit.
+
+What it changes:
+
+- local-moving and aggregation work can use the configured thread team;
+- community updates can be observed in a different schedule; and
+- the final partition and mapping fingerprint can vary across executions.
+
+What it does **not** change:
+
+- the selected algorithm string;
+- the frozen policy decision; or
+- graph topology.
+
+Final studies therefore record mapping fingerprints and use repeated mapping
+draws. A deterministic policy decision does not imply a byte-identical
+parallel mapping.
+
+### `sgmb4096`
+
+Leiden repeatedly operates on an aggregated graph whose vertices are current
+communities. A fully sequential local-move loop became a preprocessing
+bottleneck on that super-graph.
+
+For each batch:
+
+1. up to 4096 community super-nodes compute their best move proposals in
+   parallel from the pre-commit state;
+2. a single ordered commit applies accepted proposals by community ID; and
+3. the next batch observes the updated state.
+
+The number 4096 counts **community super-nodes**, not original vertices,
+edges, bytes, or OpenMP threads. `sgmb1` preserves the sequential
+proposal/commit semantics. Larger batches reduce serialization but can change
+the partition because proposals within a batch do not observe earlier commits
+from that same batch.
+
+### `gordf5000`
+
+The threshold is evaluated independently for every detected community:
+
+```text
+community size <= 5000  -> Gorder with window 8
+community size >  5000  -> hub-rooted BFS
+```
+
+It is not a whole-graph cutoff. A graph with millions of vertices can still
+run Gorder on thousands of small communities while routing only its largest
+blocks through BFS.
+
+The purpose is to bound the expensive tail of local ordering. Removing
+`gordf5000` allows Gorder on every community and creates a different,
+unvalidated treatment.
+
+### `norefine`
+
+Full Leiden performs:
+
+```text
+local moving -> constrained refinement -> aggregation
+```
+
+Refinement resets vertices or super-nodes to singletons inside their
+pre-refinement community bounds, then moves them again to improve community
+connectivity before aggregation.
+
+`norefine` uses:
+
+```text
+local moving -----------------------> aggregation
+```
+
+This removes an entire move phase. It can reduce preprocessing substantially,
+but it can also change community quality and the resulting layout. It is a
+deliberate cost-quality trade-off, not a generally preferred Leiden setting.
+
+## Why these controls were combined
+
+The full Leiden-SizeDesc-Gorder8 composition produced strong kernel-only
+locality but cost roughly 17-18 times as much to construct as Rabbit in the
+initial matrix. Cheap one-pass substitutes reached Rabbit-like construction
+cost but lost the quality advantage.
+
+The promoted recipe instead combines:
+
+- parallel community detection;
+- ordered batched super-graph moves;
+- no refinement;
+- two-iteration/two-pass ceilings; and
+- Gorder only where the community-size bound permits it.
+
+On the five-graph frozen confirmation set, that exact composition was 10.4%
+cheaper to construct than CSR Rabbit and 21.1% cheaper than Boost Rabbit while
+retaining a seven-kernel aggregate win. The later eleven-graph static gate
+failed on road/mesh and large-graph regimes, which is why deployment uses a
+selector rather than applying this composition universally.
+
+## Safe use
+
+```bash
+./bench/bin/pr -f graph.sg -s \
+  -o '12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:cd_parallel:sgmb4096:gordf5000:norefine:2:2' \
+  -n 3
+```
+
+Treat any token change as a new algorithm:
+
+| Intended experiment | Change | Consequence |
+|---|---|---|
+| deterministic community-detection control | replace `cd_parallel` with `cd_serial` | no longer the promoted recipe |
+| exact sequential super-move control | replace `sgmb4096` with `sgmb1` | higher serialization; different mapping semantics |
+| Gorder all communities | remove `gordf5000` | removes the local-cost bound |
+| full Leiden refinement | remove `norefine` | adds refinement work and changes communities |
+| larger search budget | change `2:2` | changes partitioning cost and quality |
+
+Do not retune these values on final holdout graphs. The selector evidence is
+valid only for the exact frozen string.
 
 ## Measurement contract
 
-A composition must be evaluated with both:
+Report separately:
 
 ```text
+mapping generation
+permutation validation
+CSR relocation
 kernel-only time
-mapping time + reuse * kernel time
+mapping + reuse x kernel
 ```
 
-Always compare against:
+Also record graph provenance, build identity, threads, affinity, mapping
+fingerprint, trial count, and reuse. Reuse counts complete kernel invocations
+sharing one materialized mapping.
 
-- ORIGINAL (`-o 0`);
-- CSR Rabbit (`-o 8:csr`); and
-- Boost Rabbit (`-o 8:boost`) when available.
-
-Report the exact composition, graph provenance, build identity, threads,
-affinity, trials, and reuse. Reuse counts complete kernel invocations sharing
-one materialized mapping.
+Other historical and diagnostic algorithm-12 tokens remain callable, but they
+are reference surfaces rather than current recommendations. See
+[Command-Line Reference](Command-Line-Reference).
 
 ## Related pages
 
 - [All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector)
+- [AdaptiveOrder](AdaptiveOrder)
 - [Reordering Algorithms](Reordering-Algorithms)
 - [Reproducible Experiments](Reproducible-Experiments)
-- [Command-Line Reference](Command-Line-Reference)

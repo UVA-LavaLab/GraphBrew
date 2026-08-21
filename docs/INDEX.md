@@ -20,6 +20,12 @@
   30-graph derivation and holdout rows for the frozen policy
 - [`figures/graphbrew-architecture.svg`](figures/graphbrew-architecture.svg) —
   canonical architecture figure
+- [`figures/graphbrew-lowreuse-policy.svg`](figures/graphbrew-lowreuse-policy.svg)
+  — history-free selector decision and Rabbit fallback semantics
+- [`figures/graphbrew-relabeling-example.svg`](figures/graphbrew-relabeling-example.svg)
+  — topology-preserving relabeling example
+- [`figures/graphbrew-cost-controls.svg`](figures/graphbrew-cost-controls.svg) —
+  `cd_parallel`, `sgmb4096`, `gordf5000`, and `norefine`
 
 Detailed raw matrices and large mappings are external artifacts; public claims
 are checked against the manifests above.

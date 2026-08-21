@@ -1,8 +1,11 @@
 # Public figures
 
 - `logo.svg` — project mark used by the README
-- `graphbrew-architecture.svg` — canonical system architecture
+- `graphbrew-architecture.svg` — system architecture and public interfaces
+- `graphbrew-lowreuse-policy.svg` — new-graph decision path and fallback claim
+- `graphbrew-relabeling-example.svg` — topology-preserving relabeling example
+- `graphbrew-cost-controls.svg` — active preprocessing controls
 
-The architecture SVG is the single source for the public mechanism diagram.
-Experiment-specific plots are generated into content-bound artifact
-directories and are not committed as duplicate PNG/SVG pairs.
+The diagrams are hand-authored SVGs with one source per concept. Experimental
+plots remain in content-bound artifact directories rather than being
+committed as duplicate PNG/SVG pairs.

@@ -4,6 +4,10 @@ AdaptiveOrder is GraphBrew's runtime selection boundary. The current validated
 deployment path is a **frozen deterministic rule**, not a machine-learning
 model.
 
+It does not require a previous kernel run. For a new graph, it samples graph
+structure, combines that sample with kernel identity, LLC capacity, and
+declared reuse, and applies the frozen predicate once.
+
 ## Validated interface
 
 ```bash
@@ -22,11 +26,10 @@ Reuse is mandatory and must be at most 2.
 
 ## Runtime inputs
 
-The rule may use:
+The validated v2 rule uses:
 
 - graph size;
 - sampled average degree and degree coefficient of variation;
-- sampled hub concentration;
 - kernel-specific property working set relative to LLC;
 - kernel identity; and
 - declared mapping reuse.
@@ -68,16 +71,18 @@ The exact frozen predicate and validation figures are documented in
 
 Unsupported kernels and reuse above 2 use the fallback.
 
-## Historical offline-model code
+The decision is deterministic. The selected GraphBrew mapping can still vary
+because its `cd_parallel` community detection is schedule-sensitive.
 
-The repository retains perceptron, decision-tree, hybrid, and model-emulation
-code for experiments and compatibility. Those paths are not the validated
-result described by the README or paper. Benchmark binaries never train a
-model at runtime.
+## Evidence accounting
 
-The older PR-only `budgeted-rule` also remains available as a separately
-scoped historical rule. New deployment claims should use
-`allkernel-lowreuse-rule`.
+The public portfolio ratios account for chosen mapping cost plus reused kernel
+time. They do not store algorithm-14 feature-extraction time. The deployable
+binary prints `Adaptive Feature Time`, which must be included in final
+deployment timing.
+
+Legacy offline-model modes remain for research compatibility but are not the
+validated contribution.
 
 ## Evidence
 
@@ -89,4 +94,3 @@ Public evidence:
 
 - [`docs/allkernel-lowreuse-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/allkernel-lowreuse-evidence.json)
 - [`docs/recommendation-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/recommendation-evidence.json)
-
