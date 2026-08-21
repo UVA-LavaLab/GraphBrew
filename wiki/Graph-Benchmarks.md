@@ -1,263 +1,103 @@
 # Graph Benchmarks
 
-Eight benchmark binaries ship with GraphBrew. Use them to measure how
-a reordering affects each access pattern. The default experiment
-pipeline runs seven (TC excluded — see [[Running-Benchmarks]]).
+GraphBrew ships eight canonical benchmark binaries. The frozen reordering
+matrix uses seven; triangle counting remains an explicit secondary workload.
 
-## At a glance
+| Kernel | Binary | Primary access pattern | Default matrix |
+|---|---|---|---|
+| Pull PageRank | `pr` | repeated neighbor-property gathers | yes |
+| SpMV PageRank | `pr_spmv` | Jacobi sparse matrix-vector traversal | yes |
+| Direction-optimizing BFS | `bfs` | frontier-dependent top-down/bottom-up traversal | yes |
+| Afforest CC | `cc` | sampled linking and component propagation | yes |
+| Shiloach-Vishkin CC | `cc_sv` | repeated parent hooking and compression | yes |
+| Delta-stepping SSSP | `sssp` | weighted bucketed frontier traversal | yes |
+| Betweenness Centrality | `bc` | forward and backward BFS phases | yes |
+| Triangle Counting | `tc` | sorted-neighbor intersections | no |
 
-| Benchmark | Binary | Description | Complexity |
-|-----------|--------|-------------|------------|
-| PageRank | `pr` | Importance ranking | O(n + m) per iteration |
-| PageRank (SpMV) | `pr_spmv` | Sparse matrix-vector PageRank | O(n + m) per iteration |
-| BFS | `bfs` | Shortest paths (unweighted) | O(n + m) |
-| Connected Components | `cc` | Find connected subgraphs | O(n + m) |
-| Connected Components (SV) | `cc_sv` | Shiloach-Vishkin CC | O(n + m) |
-| SSSP | `sssp` | Shortest paths (weighted) | O((n + m) log n) |
-| Betweenness Centrality | `bc` | Node importance | O(n × (n + m)) |
-| Triangle Counting | `tc` | Count triangles | O(m^{3/2}) |
-
----
-
-## PageRank (pr)
-
-### What is PageRank?
-
-PageRank is an iterative algorithm that computes the "importance" of each vertex based on the importance of vertices pointing to it. Originally developed by Google to rank web pages.
-
-**Mathematical formulation:**
-```
-PR(v) = (1-d)/n + d × Σ PR(u)/out_degree(u)
-        for all u that point to v
-```
-
-Where:
-- `d` = damping factor (typically 0.85)
-- `n` = number of vertices
-
-### How to Run
+## Common command
 
 ```bash
-./bench/bin/pr -f graph.el -s -o 12 -n 3
+./bench/bin/<kernel> -f graph.sg -s -o <ordering> -n <trials>
 ```
 
-See [[Command-Line-Reference]] for all options (`-i` iterations, `-t` tolerance, `-g` synthetic graph).
-
-**Why reordering helps:** PR iterates over all vertices, reading neighbor ranks each iteration. Good ordering = neighbors in cache = fast reads.
-
----
-
-## Breadth-First Search (bfs)
-
-### What is BFS?
-
-BFS explores a graph level by level, finding shortest paths (in terms of hops) from a source vertex to all other vertices.
-
-```
-Level 0: [source]
-Level 1: [neighbors of source]
-Level 2: [neighbors of level 1]
-...
-```
-
-### How to Run
+Start with ORIGINAL and both Rabbit variants before evaluating a GraphBrew
+composition:
 
 ```bash
-./bench/bin/bfs -f graph.el -s -o 12 -n 16
-./bench/bin/bfs -f graph.el -s -o 12 -r 0 -n 3  # specific source
+./bench/bin/pr -f graph.sg -s -o 0 -n 5
+./bench/bin/pr -f graph.sg -s -o 8:csr -n 5
+./bench/bin/pr -f graph.sg -s -o 8:boost -n 5
 ```
 
-See [[Command-Line-Reference]] for all options. GraphBrew implements **direction-optimizing BFS** (top-down/bottom-up switching) for significant speedups on high-diameter graphs.
+See [Command-Line Reference](Command-Line-Reference) for shared and
+kernel-specific flags.
 
-**Why reordering helps:** Vertices at the same BFS level stay nearby in memory → better frontier locality.
-
----
-
-## Connected Components (cc)
-
-### What is Connected Components?
-
-Finds all maximal sets of vertices where every pair is connected by a path. Returns the component ID for each vertex.
-
-```
-Graph: A-B-C  D-E  F
-Components: {A,B,C}, {D,E}, {F}
-```
-
-### Algorithms
-
-GraphBrew includes two CC algorithms:
-
-1. **Shiloach-Vishkin (cc_sv)**: Parallel with label propagation
-2. **Afforest (cc)**: Faster sampling-based approach
-
-### How to Run
+## PageRank
 
 ```bash
-# Standard connected components
-./bench/bin/cc -f graph.el -s -o 12 -n 3
-
-# Shiloach-Vishkin variant
-./bench/bin/cc_sv -f graph.el -s -o 12 -n 3
+./bench/bin/pr -f graph.sg -s -o 12:leiden -n 5
+./bench/bin/pr_spmv -f graph.sg -s -o 12:leiden -n 5
 ```
 
-### Output
+Pull PR and PR-SpMV have different update semantics. Report iteration count,
+executed work, and kernel time separately; a convergence change must not be
+presented as a pure locality gain.
 
-```
-Components: 1        # Number of connected components found
-Largest:    1000000  # Size of largest component
-```
-
----
-
-## Single-Source Shortest Paths (sssp)
-
-### What is SSSP?
-
-Finds the shortest weighted path from a source vertex to all other vertices. Uses Dijkstra's algorithm with a priority queue.
-
-### How to Run
+## BFS
 
 ```bash
-./bench/bin/sssp -f graph.wel -s -o 12 -n 3
-./bench/bin/sssp -f graph.wel -s -o 12 -r 0 -d 2 -n 5  # source 0, delta=2
+./bench/bin/bfs -f graph.sg -s -o 12:leiden -r 0 -n 5
 ```
 
-Requires weighted graph (`.wel`). Uses delta-stepping SSSP with parallel bucket processing. See [[Command-Line-Reference]] for options.
+Source selection changes traversed work. Frozen comparisons bind the source
+set and verify answer fingerprints.
 
----
-
-## Betweenness Centrality (bc)
-
-### What is Betweenness Centrality?
-
-Measures how often a vertex lies on the shortest path between other vertices. High BC = vertex is a "bridge" in the network.
-
-**Formula:**
-```
-BC(v) = Σ σ(s,t|v) / σ(s,t)
-        s≠v≠t
-
-Where:
-- σ(s,t) = number of shortest paths from s to t
-- σ(s,t|v) = number of those paths passing through v
-```
-
-### How to Run
+## Connected Components
 
 ```bash
-./bench/bin/bc -f graph.el -s -o 12 -n 3
-./bench/bin/bc -f graph.el -s -o 12 -r 0 -i 4 -n 3  # source 0, 4 iters
+./bench/bin/cc -f graph.sg -s -o 12:leiden -n 5
+./bench/bin/cc_sv -f graph.sg -s -o 12:leiden -n 5
 ```
 
-BC is O(n × m) per source vertex. Use `-i 1` for quick testing. Each BFS benefits from reordering, so total benefit **compounds** across iterations. See [[Command-Line-Reference]] for options.
+Afforest and CC-SV exercise different memory patterns. CC-SV is a known weak
+point for the promoted low-reuse composition and must remain visible in
+aggregate reporting.
 
----
-
-## Triangle Counting (tc)
-
-### What is Triangle Counting?
-
-Counts the number of triangles (3-cliques) in the graph. Important for:
-- Social network analysis
-- Clustering coefficient computation
-- Community detection
-
-```
-Triangle: A-B, B-C, C-A
-```
-
-### How to Run
+## SSSP
 
 ```bash
-# Standard triangle counting
-./bench/bin/tc -f graph.el -s -o 12 -n 3
-
-# Parallel version
-./bench/bin/tc_p -f graph.el -s -o 12 -n 3
+./bench/bin/sssp -f graph.wsg -s -o 12:leiden -r 0 -d 2 -n 5
 ```
 
-### Algorithms
+SSSP requires weighted input. Final campaigns bind the source IDs, weight
+scheme and checksum, delta, conversion policy, and answer fingerprint.
 
-1. **tc**: Sequential with set intersection
-2. **tc_p**: Parallel with work balancing
-
-### Output
-
-```
-Triangles: N   # Total number of triangles
-```
-
-### Optimization: Degree Ordering
-
-Triangle counting benefits from processing vertices in degree order:
-- Low-degree vertices first reduces work
-- Combined with reordering for cache efficiency
-
----
-
-## Running Multiple Benchmarks
+## Betweenness Centrality
 
 ```bash
-# One-click: downloads graphs, runs all benchmarks with all algorithms
-python3 scripts/graphbrew_experiment.py --full --size small
-
-# Specific benchmarks only
-python3 scripts/graphbrew_experiment.py --benchmarks pr bfs --size small
+./bench/bin/bc -f graph.sg -s -o 12:leiden -r 0 -i 4 -n 5
 ```
 
-See [[Benchmark-Suite]] for automated experiments and [[Running-Benchmarks]] for manual usage.
+BC repeats forward and backward traversals. Bind source and iteration policy
+when comparing orderings.
 
----
-
-## Interpreting Results
-
-### What to Compare
-
-1. **Trial Time**: Time for single execution
-2. **Average Time**: Mean over multiple trials (more reliable)
-3. **Speedup**: `baseline_time / algorithm_time`
-
-### Statistical Significance
-
-- Run at least 3 trials
-- For BFS/SSSP, use multiple source vertices (`-n 16`)
-- Warm up the cache with one untimed trial first
-
-Speedups vary significantly depending on graph topology and reordering algorithm. Run the full pipeline on your target graphs to measure actual improvements.
-
----
-
-## Verifying Correctness
-
-### Topology Tests
+## Triangle Counting
 
 ```bash
-# Quick verification
-make test-topology
-
-# Full verification with all algorithms
-make test-topology-full
+./bench/bin/tc -f graph.sg -s -o 12:leiden -n 5
 ```
 
-### Manual Verification
+TC is available but excluded from the seven-kernel frozen selector evidence.
+Do not extend selector claims to TC without a separate protocol.
 
-```bash
-# Compare outputs between algorithms
-./bench/bin/pr -f graph.el -s -o 0 -n 1 > original.txt
-./bench/bin/pr -f graph.el -s -o 12 -n 1 > reordered.txt
+## Reporting
 
-# Results should match (within floating point tolerance)
-```
+For every kernel record:
 
----
-
-## Next Steps
-
-- [[Running-Benchmarks]] - Detailed command-line reference
-- [[Benchmark-Suite]] - Automated benchmarking
-- [[Benchmark-Suite]] - Find the best algorithm for your graphs
-
----
-
-[← Back to Home](Home) | [Reordering Algorithms →](Reordering-Algorithms)
+- graph and labeling identity;
+- exact ordered `-o` specification;
+- mapping fingerprint;
+- source/iteration/delta policy where applicable;
+- threads and affinity;
+- trial count and verification state;
+- mapping and kernel time separately.

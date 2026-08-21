@@ -111,11 +111,6 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --size small
 | **Cache Sim** | Simulates L1/L2/L3 cache hit rates for PR and BFS | `results/data/benchmarks.json` (cache fields) |
 | **Offline fit** | Fits and exports load-only model artifacts; no held-out claim | `results/data/adaptive_models.json` |
 
-**Adaptive status:** The pipeline can fit load-only artifacts from measured
-features and runtimes. Generalization claims remain blocked until the nested
-topology-held-out evaluator performs fold-local portfolio selection, model
-fitting, and OOD calibration.
-
 Timelines are workload- and machine-dependent; use `--dry-run` and the
 orchestrator's budget/planning modes before broad collection.
 

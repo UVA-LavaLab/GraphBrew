@@ -12,10 +12,10 @@ GraphBrew/
 │   ├── include/              # Header libraries
 │   │   ├── graphbrew/        # GraphBrew extensions
 │   │   │   ├── graphbrew.h   # Umbrella header
-│   │   │   ├── reorder/      # Reordering algorithms (~20,612 lines)
+│   │   │   ├── reorder/      # Reordering algorithms
 │   │   │   └── partition/    # Partitioning (trust.h, cagra/popt.h)
 │   │   ├── external/         # External libraries (bundled)
-│   │   │   ├── gapbs/        # Core GAPBS runtime (builder.h ~3,842 lines)
+│   │   │   ├── gapbs/        # Core GAPBS runtime
 │   │   │   ├── rabbit/       # RabbitOrder
 │   │   │   ├── gorder/       # GOrder
 │   │   │   ├── corder/       # COrder
@@ -74,25 +74,26 @@ The foundation is built on the GAP Benchmark Suite with extensions.
 
 #### Key Files
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/graph.h) | ~729 | CSRGraph class, core data structure |
-| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/builder.h) | ~3,751 | Graph loading and reordering dispatcher |
-| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/benchmark.h) | ~256 | Benchmark harness |
-| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/command_line.h) | ~533 | CLI parsing |
-| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/pvector.h) | ~204 | Parallel-friendly vector |
-| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/timer.h) | ~50 | High-resolution timing |
+| File | Purpose |
+|------|---------|
+| [graph.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/graph.h) | CSRGraph class and core graph representation |
+| [builder.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/builder.h) | Graph loading and reordering dispatch |
+| [benchmark.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/benchmark.h) | Benchmark lifecycle and timing |
+| [command_line.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/command_line.h) | CLI parsing |
+| [pvector.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/pvector.h) | Parallel-friendly vector |
+| [timer.h](https://github.com/UVA-LavaLab/GraphBrew/blob/main/bench/include/external/gapbs/timer.h) | Timing utility |
 
 #### Partitioning Modules
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `partition/cagra/popt.h` | ~892 | `graphSlicer`, `MakeCagraPartitionedGraph`, cache optimization (P-OPT) |
-| `partition/trust.h` | ~751 | `TrustPartitioner` class for triangle-count partitioning |
+| File | Purpose |
+|------|---------|
+| `partition/cagra/popt.h` | Cagra/GraphIT slicing and P-OPT helpers |
+| `partition/trust.h` | TRUST triangle-count partitioning |
 
 > **Cache vs Cagra:** Cache **simulation** lives in `bench/include/cache_sim/` (`cache_sim.h`, `graph_sim.h`, `graph_cache_context.h`). Cagra **partitioning** helpers live in `bench/include/graphbrew/partition/cagra/` (`popt.h`). See `docs/INDEX.md` and folder READMEs for a quick map.
 >
-> **Graph Cache Context:** `graph_cache_context.h` provides the unified `GraphCacheContext` structure for graph-aware cache policies (GRASP, P-OPT, ECG). It includes: multi-region property tracking with N-bucket classification, `FatIDConfig` for adaptive fat-ID encoding in CSR neighbor IDs, `RereferenceConfig` for P-OPT transpose matrix, `ECGMode` enum (DBG_PRIMARY/POPT_PRIMARY/DBG_ONLY) for layered eviction control, `MaskConfig` + `MaskArray` for per-edge cache hints, degree-bucket topology, per-vertex statistics, and prefetch matrix support. Designed for future Sniper/gem5 simulator integration.
+> **Graph Cache Context:** `graph_cache_context.h` owns the shared graph and
+> property metadata consumed by GRASP, P-OPT, and ECG simulation.
 
 #### Reorder Module (bench/include/graphbrew/reorder/)
 
@@ -101,47 +102,32 @@ The reorder module is a modular header library with standalone template function
 ```
 reorder/
 ├── reorder_types.h      # Base types, feature computation, legacy model types
-├── reorder_basic.h      # Original, Random, Sort (algo 0-2) (~324 lines)
-├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7) (~641 lines)
-├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8) (~1,117 lines)
-├── reorder_classic.h    # GOrder, COrder, RCMOrder dispatch (algo 9-11) (~521 lines)
-├── reorder_gorder.h     # GOrder CSR variants: serial (-o 9:csr) + parallel (-o 9:fast) (~926 lines)
-├── reorder_rcm.h        # RCM BNF variant (-o 11:bnf) (~645 lines)
+├── reorder_basic.h      # Original, Random, Sort (algo 0-2)
+├── reorder_hub.h        # HubSort, HubCluster, DBG variants (algo 3-7)
+├── reorder_rabbit.h     # RabbitOrder native CSR (algo 8)
+├── reorder_classic.h    # GOrder, COrder, RCMOrder dispatch (algo 9-11)
+├── reorder_gorder.h     # GOrder CSR variants
+├── reorder_rcm.h        # RCM BNF variant
 ├── reorder_adaptive.h   # deterministic rules + legacy model modes (algo 14)
-├── reorder_database.h   # Offline oracle diagnostics + compiled model storage
-├── reorder_graphbrew.h  # GraphBrew + Leiden unified reordering (algo 12, 15) (~7,359 lines)
-└── reorder.h            # Main dispatcher (~633 lines)
+├── reorder_database.h   # Self-recording + retained offline diagnostics
+├── reorder_graphbrew.h  # GraphBrew + Leiden core and COMPOSE path
+├── reorder_graphbrew_diagnostics.h # Callable diagnostic orderings
+├── reorder_graphbrew_parser.h # GraphBrew token parser
+└── reorder.h            # Main dispatcher
 ```
-
-**Total: ~20,612 lines**
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `reorder_graphbrew.h` | ~7,359 | GraphBrew + Leiden unified reordering framework (algo 12, 15) |
-| `reorder_types.h` | ~6,293 | Common types, sampled features, retained model types, `EdgeList`, LLC detection, and variant resolution |
-| `reorder_database.h` | ~1,221 | Offline `OracleUpperBound`, historical kNN diagnostics, and compiled model storage |
-| `reorder_rabbit.h` | ~1,117 | RabbitOrder CSR native implementation (auto-adaptive resolution) |
-| `reorder_gorder.h` | ~926 | GOrder CSR variants: serial greedy (-o 9:csr) + parallel batch (-o 9:fast) |
-| `reorder_adaptive.h` | ~932 | `AdaptiveConfig`, frozen deterministic rules, and retained offline-model modes |
-| `reorder_rcm.h` | ~645 | RCM BNF variant: parallel component processing + tiered BNF + serial CM BFS. Also used by GraphBrew-RCM variant (`-o 12:rcm`) for per-community RCM |
-| `reorder_hub.h` | ~641 | Hub-based algorithms (DBG, HubSort, HubCluster) |
-| `reorder.h` | ~633 | Main dispatcher, `ApplyBasicReorderingStandalone` |
-| `reorder_classic.h` | ~521 | Classic algorithms (GOrder, COrder, RCM dispatch) |
-| `reorder_basic.h` | ~324 | Basic algorithms (Original, Random, Sort) |
 
 **Key Utilities in reorder_types.h:**
 
 - `PerceptronWeights` / `GraphType` — retained offline-model research types
-- `SampledDegreeFeatures` — 8-feature topology vector: degree_variance, hub_concentration, avg_degree, clustering_coeff, estimated_modularity, packing_factor, forward_edge_fraction, working_set_ratio
-- `ComputeSampledDegreeFeatures()` — Auto-scaled sampling (max(5000, min(√N, 50000))) for fast feature extraction
+- sampled feature structures and deterministic Tier-0 extraction
 - `GetLLCSizeBytes()` — LLC detection (sysconf on Linux, 30MB fallback) for working_set_ratio
-- `getAlgorithmNameMap()` — ~16-entry UPPERCASE base-name→enum mapping; variant names resolved dynamically by `ResolveVariantSelection()` via prefix matching (see [[Command-Line-Reference]])
+- `getAlgorithmNameMap()` — base-name lookup; variants are resolved by `ResolveVariantSelection()`
 
 **Key Configs:**
 
 | Struct | Header | Key Fields |
 |--------|--------|------------|
-| `AdaptiveConfig` | `reorder_adaptive.h` | deployable model/criterion policy; standalone uses full-graph mode |
+| `AdaptiveConfig` | `reorder_adaptive.h` | runtime selection policy, criterion, and explicit reuse |
 | `GraphBrewConfig` | `reorder_graphbrew.h` | algorithm, ordering, aggregation, resolution, finalAlgoId, recursiveDepth, subAlgoId |
 | `ReorderConfig` | `reorder_types.h` | Unified config: resolutionMode(AUTO), tolerance(1e-2), maxIterations(10), maxPasses(10), ordering(HIERARCHICAL) |
 
@@ -310,20 +296,15 @@ See [[Python-Scripts]] for full documentation of the Python tooling.
 
 Key entry points:
 - `graphbrew_experiment.py` — Public experiment orchestrator
-- `lib/tools/evaluate_all_modes.py` — In-sample model × criterion diagnostics; legacy LOGO flags fail closed
-- `lib/ml/weights.py` — historical offline scoring and fitting SSOT
 - `lib/core/datastore.py` — Versioned raw observations and graph properties
 - `lib/pipeline/benchmark.py` — Benchmark execution and timing parsing
 - `lib/pipeline/reorder_config.py` — Effective/realized reorder config validation
-- `lib/ml/adaptive_emulator.py` — C++ logic emulation (delegates scoring to `PerceptronWeight`)
-- `lib/ml/training.py` — Iterative/batched training with significance weighting
-- `lib/ml/model_tree.py` — Decision tree & hybrid DT+Perceptron model training
-- `lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)
-- `lib/pipeline/benchmark.py` — Benchmark execution
 - `lib/pipeline/suitesparse_catalog.py` — SuiteSparse auto-discovery (ssgetpy)
-- `lib/analysis/adaptive.py` — Result analysis + A/B testing + Leiden variant comparison
 - `lib/pipeline/cache.py` — Cache simulation
-- `lib/` — 5 sub-packages, 27 modules (~21,000 lines total)
+
+Retained offline-model and parity tools live under `lib/ml/` and
+`lib/tools/evaluate_all_modes.py`; they are not part of the validated runtime
+selector.
 
 #### Adaptive selection boundary
 

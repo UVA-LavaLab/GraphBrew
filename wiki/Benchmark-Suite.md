@@ -1,136 +1,76 @@
 # Benchmark Suite
 
-The GraphBrew Benchmark Suite provides automated tools for running
-experiments across multiple graphs, algorithms, and benchmarks.
-
-## Overview
-
-```
-scripts/
-├── graphbrew_experiment.py     # Public experiment orchestrator
-├── requirements.txt            # Python dependencies
-└── lib/                        # 5 sub-packages (see lib/README.md)
-    ├── core/                   # Constants, logging, data stores
-    ├── pipeline/               # Experiment execution stages
-    ├── ml/                     # Offline scoring, fitting, and emulation
-    ├── analysis/               # Post-run analysis & visualisation
-    └── tools/                  # Standalone CLI utilities
-```
-
-Historical offline-model files are stored under
-`results/data/adaptive_models.json`; the validated deterministic policy does
-not require them.
-
----
-
-## Quick Start
+GraphBrew evaluates ordering cost and graph-kernel behavior through one public
+entry point:
 
 ```bash
-python3 scripts/graphbrew_experiment.py --full --size small          # Full pipeline
-python3 scripts/graphbrew_experiment.py --size small --quick         # Quick test
-python3 scripts/graphbrew_experiment.py --brute-force               # Validation
+python3 scripts/graphbrew_experiment.py --help
 ```
 
-Sizes: `small`, `medium`, `large`, `xlarge`, or `all`. Auto-discovery
-searches the configured graph catalogs; use `--dry-run` to inspect the exact
-resolved corpus before execution.
+Use [Running Benchmarks](Running-Benchmarks) for commands and
+[Python Scripts](Python-Scripts) for package ownership.
 
-Generic raw observations are stored in `results/data/benchmarks.json`.
-Large frozen-study artifacts belong under the configured external artifact
-root.
-
----
-
-## Running Individual Phases
+## Common modes
 
 ```bash
-python3 scripts/graphbrew_experiment.py --phase reorder --size small
-python3 scripts/graphbrew_experiment.py --phase benchmark --size small --skip-cache
-python3 scripts/graphbrew_experiment.py --phase cache --size small
-python3 scripts/graphbrew_experiment.py --phase weights  # Historical offline path
-```
+# Rapid debugging path
+python3 scripts/graphbrew_experiment.py --full --size small --quick
 
-See [[Command-Line-Reference]] for all options including `--min-mb`, `--max-graphs`, `--trials`, `--quick`.
-
----
-
-## Output Format
-
-Results are JSON arrays. See [[Python-Scripts]] for the complete schema of
-`benchmark_*.json`, `cache_*.json`, and `reorder_*.json`.
-
-### Amortization Analysis
-
-After benchmarking, the pipeline automatically computes amortization metrics:
-
-- **Break-even N\*** = `reorder_overhead / time_saved_per_iteration` — iterations before reordering pays off
-- **E2E Speedup@N** = `N × baseline_time / (reorder_overhead + N × reordered_time)` — end-to-end speedup
-- **MinN@95%** — smallest N where reorder overhead < 5% of total cost
-
-```bash
-python3 scripts/graphbrew_experiment.py --phase all  # Amortization computed automatically
-python3 -m scripts.lib.analysis.metrics  # Standalone amortization analysis
-```
-
-> **Note:** Experiments default to 7 benchmarks (`EXPERIMENT_BENCHMARKS` — TC excluded). After RANDOM baseline `.sg` conversion, the pipeline pre-generates reordered `.sg` for each of the 13 reorder algorithms (`--pregenerate-sg`, default ON). At benchmark time, pre-generated `.sg` files are loaded with `-o 0` — no runtime reorder overhead. The reorder phase runs 13 algorithms (baselines ORIGINAL/RANDOM skipped). Benchmarking runs all 15 eligible algorithms.
-
-See [[Python-Scripts#amortization--end-to-end-evaluation]] for full details.
-
----
-
-## PageRank Convergence Analysis
-
-Analyze how reordering affects PageRank convergence.
-
-### Usage
-
-Run PageRank directly via the binary with verbose output:
-
-```bash
-# Run PR with verbose convergence output
-./bench/bin/pr -f graph.mtx -s -o 7 -n 5
-```
-
-Or include in the experiment pipeline:
-
-```bash
-# Run benchmarks (includes convergence data in results)
+# One phase
 python3 scripts/graphbrew_experiment.py --phase benchmark --size small
+
+# Inspect a broad plan without executing it
+python3 scripts/graphbrew_experiment.py --target-graphs 50 --dry-run
+
+# Frozen publication workflow
+python3 scripts/graphbrew_experiment.py --vldb --paper-preview
 ```
 
-### Example Output
+Large graphs, mappings, and campaign results belong under the configured
+external graph and artifact roots. Generic observations use
+`results/data/benchmarks.json`.
 
-PageRank convergence can vary by reordering algorithm. Run with `--benchmarks pr` to see iteration counts and final error for each algorithm on your graphs.
+## Measurement boundary
 
----
+Report these components separately:
 
-## Experiment Workflow
-
-```bash
-# One-click full experiment
-python3 scripts/graphbrew_experiment.py --full --size medium
+```text
+mapping generation
+permutation validation
+CSR relocation
+kernel-only time
+mapping + reuse x kernel
 ```
 
-For step-by-step control, see [[Running-Benchmarks]] for manual execution and [[Command-Line-Reference]] for all options.
+Pre-generated mappings let every kernel use the same permutation without
+charging mapping construction inside each kernel trial.
 
----
+## Amortization
 
-## Troubleshooting
+For baseline kernel time \(T_b\), reordered kernel time \(T_r\), mapping cost
+\(T_m\), and reuse \(N\):
 
-See [[Troubleshooting]] for common issues. Quick fixes:
-- Missing graphs: `--download-only --force-download`
-- Memory issues: `--size small` or `--max-mb 500`
-- Timeouts: `--skip-slow --skip-expensive`
+```text
+end-to-end speedup = N x T_b / (T_m + N x T_r)
+break-even reuse   = T_m / (T_b - T_r)
+```
 
----
+The analysis modules compute these metrics from raw observations; they do not
+replace the raw timing records.
 
-## Next Steps
+## Results
 
-- [[Benchmark-Suite]] - Analyze benchmark results
-- [AdaptiveOrder](AdaptiveOrder) - validated runtime policy
-- [[Running-Benchmarks]] - Manual benchmark commands
-- [[Python-Scripts]] - Full script documentation
+- generic observations: `results/data/benchmarks.json`
+- graph properties: `results/data/graph_properties.json`
+- mappings: `results/mappings/`
+- frozen campaigns: configured `--paper-artifact-root`
 
----
+Historical offline-model files may exist under `results/data/`, but the
+validated low-reuse rule does not require them.
 
-[← Back to Home](Home) | [Correlation Analysis →](Benchmark-Suite)
+## Related pages
+
+- [Running Benchmarks](Running-Benchmarks)
+- [Reproducible Experiments](Reproducible-Experiments)
+- [Command-Line Reference](Command-Line-Reference)
+- [Reordering Algorithms](Reordering-Algorithms)

@@ -1,6 +1,6 @@
 # Public figures
 
-- `logo.svg` — project mark used by the README
+- `logo.png` — compact project mark used by the README
 - `graphbrew-architecture.svg` — system architecture and public interfaces
 - `graphbrew-lowreuse-policy.svg` — new-graph decision path and fallback claim
 - `graphbrew-leiden-transform.svg` — community-membership transformation

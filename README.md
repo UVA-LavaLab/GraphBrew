@@ -1,4 +1,4 @@
-[<p align="center"><img src="./docs/figures/logo.svg" width="180"></p>](#graphbrew)
+[<p align="center"><img src="./docs/figures/logo.png" width="180"></p>](#graphbrew)
 
 # GraphBrew
 

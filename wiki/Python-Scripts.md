@@ -7,9 +7,10 @@ python3 scripts/graphbrew_experiment.py --help
 ```
 
 Use the orchestrator for dependency management, graph preparation,
-reordering, benchmarking, cache simulation, offline model fitting,
-verification, and frozen-study reproduction. Do not add one-off runners or
-duplicate policy registries in experiment scripts.
+reordering, benchmarking, cache simulation, verification, and frozen-study
+reproduction. Retained offline-model commands are compatibility surfaces, not
+the validated runtime path. Do not add one-off runners or duplicate policy
+registries.
 
 ## Package layout
 
@@ -41,7 +42,6 @@ scripts/
 │   ├── analysis/                 downstream metrics and diagnostics
 │   └── tools/                    maintenance utilities
 ├── experiments/
-│   ├── adaptive/                 adaptive planning and dry-run manifests
 │   ├── vldb/                     frozen evaluation runner and restartable stages
 │   ├── partition_cut/            separate partition evaluation path
 │   └── adaptive_ml/              retired legacy ablation entry points
@@ -107,12 +107,12 @@ C++ self-recording is explicit only:
 
 Do not let Python and C++ concurrently rewrite the same result file.
 
-## Adaptive evaluation
+## Offline model tooling
 
-Benchmark binaries load exported models and never train at runtime. Legacy
-non-nested LOGO evaluators fail closed. Generalization evidence must use nested
-leave-one-topology-out folds with fold-local portfolio selection, model
-fitting, and OOD calibration.
+Modules under `scripts/lib/ml/` and `scripts/experiments/adaptive_ml/` support
+historical model experiments and Python/C++ parity checks. The validated
+`allkernel-lowreuse-rule` does not require those artifacts and never trains at
+runtime.
 
 ## Testing
 
