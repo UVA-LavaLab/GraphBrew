@@ -1,41 +1,42 @@
 # GraphBrew
 
-GraphBrew is a research and deployment framework for **composable graph
-reordering**. It separates three decisions that monolithic ordering names
-usually combine:
-
-1. **Partitioner** — discover vertex groups.
-2. **Block layout** — place groups in the global ID space.
-3. **Vertex layout** — order vertices inside each block.
+GraphBrew is a framework for **composable vertex reordering**. It separates
+the partitioner, community-block layout, and within-block vertex layout so
+their cost and locality effects can be measured independently.
 
 ![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
 
-## Two ways to use GraphBrew
+## Read the project in this order
 
-| Interface | Meaning |
+| Step | Page | Question answered |
+|---:|---|---|
+| 1 | [GraphBrewOrder](GraphBrewOrder) | What changes in the graph layout, and what does each active token do? |
+| 2 | [All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector) | How is a new graph classified without a previous kernel run? |
+| 3 | [AdaptiveOrder](AdaptiveOrder) | What is the deployable algorithm-14 interface? |
+| 4 | [Reordering Algorithms](Reordering-Algorithms) | Which baselines and controlled compositions are supported? |
+| 5 | [Reproducible Experiments](Reproducible-Experiments) | How are mappings, kernels, reuse, and evidence measured? |
+
+## Two interfaces
+
+| Interface | Use |
 |---|---|
-| `-o 12:<configuration>` | Explicit, hand-configured composition for controlled experiments or known workloads. |
-| `-o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Frozen deterministic reuse-1/2 policy. This is the validated automatic path and is **not ML**. |
+| `-o 12:<configuration>` | Run one exact, hand-configured composition. No runtime search occurs. |
+| `-o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Apply the frozen reuse-1/2 rule and choose GraphBrew or Boost Rabbit. |
 
-The runtime policy uses cheap graph statistics and declared reuse to choose
-the promoted FastLeiden-Gorder8 composition or Boost Rabbit. It does not train
-at runtime, use graph names, query an oracle database, or trial multiple
-orderings.
+## Claim boundary
 
-## Start here
+- The promoted GraphBrew arm is non-Rabbit and beat Boost Rabbit on all seven
+  final holdouts where the frozen rule selected it.
+- The fallback branch runs Boost Rabbit and therefore ties, rather than beats,
+  the always-Boost baseline on those graphs.
+- The complete policy is a winning portfolio, but it is not Rabbit-free.
+- Fully deployed timing must include algorithm-14 feature extraction in
+  addition to chosen mapping and kernel time.
+
+## Quick links
 
 - [Getting Started](Getting-Started)
-- [GraphBrewOrder](GraphBrewOrder) — composition axes and exact configuration
-- [AdaptiveOrder](AdaptiveOrder) — deterministic runtime policy and scope
-- [All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector) — mechanism,
-  figure, frozen rule, and evidence
-- [Reordering Algorithms](Reordering-Algorithms) — baselines and measured
-  guidance
 - [Running Benchmarks](Running-Benchmarks)
-- [Reproducible Experiments](Reproducible-Experiments)
-
-## Reference
-
 - [Command-Line Reference](Command-Line-Reference)
 - [Supported Graph Formats](Supported-Graph-Formats)
 - [Graph Benchmarks](Graph-Benchmarks)
@@ -43,11 +44,6 @@ orderings.
 - [Code Architecture](Code-Architecture)
 - [Troubleshooting](Troubleshooting)
 - [FAQ](FAQ)
-
-## Development
-
 - [Contributing](Contributing)
-- [Python Scripts](Python-Scripts)
-- [Partitioning and Shards](Partitioning-and-Shards)
 
 Repository: https://github.com/UVA-LavaLab/GraphBrew

@@ -1,139 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
   <title id="title">GraphBrew relabeling example</title>
-  <desc id="desc">The same graph topology is shown before and after GraphBrew. SizeDesc places the larger blue community first. BFS orders the large community and Gorder8 orders the smaller orange community. Only vertex IDs and memory positions change.</desc>
+  <desc id="desc">The same graph edges are shown before and after relabeling. The larger blue community receives the first contiguous ID block and the smaller orange community receives the second block.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
       <path d="M0 0 L12 5 L0 10 Z" fill="#1683BD"/>
     </marker>
     <style>
       .sans{font-family:Arial,Helvetica,sans-serif}
-      .title{font-size:38px;font-weight:700;fill:#17212B}
-      .subtitle{font-size:18px;fill:#4B5560}
-      .heading{font-size:24px;font-weight:700;fill:#17212B}
-      .body{font-size:17px;fill:#27313A}
-      .small{font-size:14px;fill:#4B5560}
-      .node{stroke:#17212B;stroke-width:2}
-      .edge{stroke:#6B7075;stroke-width:5}
-      .flow{fill:none;stroke:#1683BD;stroke-width:4;marker-end:url(#arrow)}
+      .title{font-size:40px;font-weight:700;fill:#17212B}
+      .subtitle{font-size:22px;fill:#4B5560}
+      .heading{font-size:28px;font-weight:700;fill:#17212B}
+      .body{font-size:22px;fill:#27313A}
+      .label{font-size:22px;font-weight:700;fill:#27313A}
+      .node{stroke:#17212B;stroke-width:3}
+      .edge{stroke:#6B7075;stroke-width:6}
+      .flow{fill:none;stroke:#1683BD;stroke-width:5;marker-end:url(#arrow)}
     </style>
   </defs>
-  <rect width="1600" height="980" fill="#FFFFFF"/>
-  <text x="55" y="58" class="sans title">GraphBrew relabels the graph; it does not change the topology</text>
-  <text x="55" y="90" class="sans subtitle">Illustrative promoted pipeline: detect communities, place the largest block first, then use BFS or Gorder8 inside each block.</text>
-  <line x1="55" y1="115" x2="1545" y2="115" stroke="#17212B" stroke-width="2"/>
 
-  <text x="275" y="155" text-anchor="middle" class="sans heading">A. Input labels</text>
-  <text x="1100" y="155" text-anchor="middle" class="sans heading">B. GraphBrew labels</text>
-  <text x="800" y="155" text-anchor="middle" class="sans body" fill="#1683BD">same edges</text>
-  <path d="M650 145 H930" class="flow"/>
+  <rect width="1400" height="820" fill="#FFFFFF"/>
+  <text x="45" y="55" class="sans title">Same graph, new vertex IDs</text>
+  <text x="45" y="88" class="sans subtitle">GraphBrew changes label placement and CSR order; every edge remains unchanged.</text>
+  <line x1="45" y1="112" x2="1355" y2="112" stroke="#17212B" stroke-width="2"/>
 
-  <circle cx="250" cy="315" r="150" fill="none" stroke="#F7941D" stroke-width="6" stroke-dasharray="3 13"/>
-  <circle cx="485" cy="315" r="180" fill="none" stroke="#1683BD" stroke-width="6" stroke-dasharray="3 13"/>
-  <text x="250" y="505" text-anchor="middle" class="sans body" fill="#C66B00">small community</text>
-  <text x="485" y="530" text-anchor="middle" class="sans body" fill="#086A9C">large community</text>
+  <text x="330" y="155" text-anchor="middle" class="sans heading">Input labeling</text>
+  <text x="1070" y="155" text-anchor="middle" class="sans heading">GraphBrew labeling</text>
+  <path d="M600 150 H800" class="flow"/>
+  <rect x="635" y="126" width="130" height="38" fill="#FFFFFF"/>
+  <text x="700" y="153" text-anchor="middle" class="sans label" fill="#1683BD">same edges</text>
 
-  <line x1="175" y1="260" x2="250" y2="205" class="edge"/>
-  <line x1="175" y1="260" x2="205" y2="375" class="edge"/>
-  <line x1="250" y1="205" x2="290" y2="315" class="edge"/>
-  <line x1="205" y1="375" x2="290" y2="315" class="edge"/>
-  <line x1="290" y1="315" x2="250" y2="435" class="edge"/>
-  <line x1="290" y1="315" x2="405" y2="270" class="edge"/>
-  <line x1="290" y1="315" x2="420" y2="365" class="edge"/>
-  <line x1="405" y1="270" x2="475" y2="205" class="edge"/>
-  <line x1="405" y1="270" x2="555" y2="260" class="edge"/>
-  <line x1="420" y1="365" x2="500" y2="430" class="edge"/>
-  <line x1="420" y1="365" x2="585" y2="370" class="edge"/>
-  <line x1="475" y1="205" x2="555" y2="260" class="edge"/>
-  <line x1="555" y1="260" x2="585" y2="370" class="edge"/>
-  <line x1="500" y1="430" x2="585" y2="370" class="edge"/>
+  <circle cx="230" cy="315" r="125" fill="none" stroke="#F7941D" stroke-width="7" stroke-dasharray="3 14"/>
+  <circle cx="435" cy="315" r="155" fill="none" stroke="#1683BD" stroke-width="7" stroke-dasharray="3 14"/>
+  <line x1="180" y1="280" x2="250" y2="225" class="edge"/>
+  <line x1="180" y1="280" x2="250" y2="380" class="edge"/>
+  <line x1="250" y1="225" x2="300" y2="310" class="edge"/>
+  <line x1="250" y1="380" x2="300" y2="310" class="edge"/>
+  <line x1="300" y1="310" x2="390" y2="260" class="edge"/>
+  <line x1="300" y1="310" x2="410" y2="370" class="edge"/>
+  <line x1="390" y1="260" x2="480" y2="220" class="edge"/>
+  <line x1="390" y1="260" x2="525" y2="315" class="edge"/>
+  <line x1="410" y1="370" x2="500" y2="405" class="edge"/>
+  <line x1="525" y1="315" x2="500" y2="405" class="edge"/>
 
   <g class="sans body" text-anchor="middle">
-    <circle cx="175" cy="260" r="24" fill="#FFE8A6" class="node"/><text x="175" y="267">2</text>
-    <circle cx="250" cy="205" r="24" fill="#FFC13A" class="node"/><text x="250" y="212">8</text>
-    <circle cx="205" cy="375" r="24" fill="#FFD870" class="node"/><text x="205" y="382">10</text>
-    <circle cx="290" cy="315" r="27" fill="#F7941D" class="node"/><text x="290" y="322">1</text>
-    <circle cx="250" cy="435" r="24" fill="#FFC13A" class="node"/><text x="250" y="442">6</text>
-    <circle cx="405" cy="270" r="27" fill="#1683BD" class="node"/><text x="405" y="277">0</text>
-    <circle cx="420" cy="365" r="24" fill="#49A9D7" class="node"/><text x="420" y="372">7</text>
-    <circle cx="475" cy="205" r="24" fill="#83C7E8" class="node"/><text x="475" y="212">3</text>
-    <circle cx="555" cy="260" r="24" fill="#B9DEF2" class="node"/><text x="555" y="267">9</text>
-    <circle cx="500" cy="430" r="24" fill="#83C7E8" class="node"/><text x="500" y="437">4</text>
-    <circle cx="585" cy="370" r="24" fill="#B9DEF2" class="node"/><text x="585" y="377">5</text>
+    <circle cx="180" cy="280" r="27" fill="#FFE8A6" class="node"/><text x="180" y="288">2</text>
+    <circle cx="250" cy="225" r="27" fill="#FFC13A" class="node"/><text x="250" y="233">6</text>
+    <circle cx="250" cy="380" r="27" fill="#FFD870" class="node"/><text x="250" y="388">4</text>
+    <circle cx="300" cy="310" r="30" fill="#F7941D" class="node"/><text x="300" y="318">1</text>
+    <circle cx="390" cy="260" r="30" fill="#1683BD" class="node"/><text x="390" y="268">0</text>
+    <circle cx="410" cy="370" r="27" fill="#49A9D7" class="node"/><text x="410" y="378">7</text>
+    <circle cx="480" cy="220" r="27" fill="#83C7E8" class="node"/><text x="480" y="228">3</text>
+    <circle cx="525" cy="315" r="27" fill="#B9DEF2" class="node"/><text x="525" y="323">5</text>
+    <circle cx="500" cy="405" r="27" fill="#83C7E8" class="node"/><text x="500" y="413">8</text>
   </g>
 
-  <circle cx="1010" cy="315" r="150" fill="none" stroke="#F7941D" stroke-width="6" stroke-dasharray="3 13"/>
-  <circle cx="1245" cy="315" r="180" fill="none" stroke="#1683BD" stroke-width="6" stroke-dasharray="3 13"/>
-  <text x="1010" y="505" text-anchor="middle" class="sans body" fill="#C66B00">Gorder8: new IDs 6-10</text>
-  <text x="1245" y="530" text-anchor="middle" class="sans body" fill="#086A9C">BFS fallback: new IDs 0-5</text>
-
-  <line x1="935" y1="260" x2="1010" y2="205" class="edge"/>
-  <line x1="935" y1="260" x2="965" y2="375" class="edge"/>
-  <line x1="1010" y1="205" x2="1050" y2="315" class="edge"/>
-  <line x1="965" y1="375" x2="1050" y2="315" class="edge"/>
-  <line x1="1050" y1="315" x2="1010" y2="435" class="edge"/>
-  <line x1="1050" y1="315" x2="1165" y2="270" class="edge"/>
-  <line x1="1050" y1="315" x2="1180" y2="365" class="edge"/>
-  <line x1="1165" y1="270" x2="1235" y2="205" class="edge"/>
-  <line x1="1165" y1="270" x2="1315" y2="260" class="edge"/>
-  <line x1="1180" y1="365" x2="1260" y2="430" class="edge"/>
-  <line x1="1180" y1="365" x2="1345" y2="370" class="edge"/>
-  <line x1="1235" y1="205" x2="1315" y2="260" class="edge"/>
-  <line x1="1315" y1="260" x2="1345" y2="370" class="edge"/>
-  <line x1="1260" y1="430" x2="1345" y2="370" class="edge"/>
+  <circle cx="970" cy="315" r="125" fill="none" stroke="#F7941D" stroke-width="7" stroke-dasharray="3 14"/>
+  <circle cx="1175" cy="315" r="155" fill="none" stroke="#1683BD" stroke-width="7" stroke-dasharray="3 14"/>
+  <line x1="920" y1="280" x2="990" y2="225" class="edge"/>
+  <line x1="920" y1="280" x2="990" y2="380" class="edge"/>
+  <line x1="990" y1="225" x2="1040" y2="310" class="edge"/>
+  <line x1="990" y1="380" x2="1040" y2="310" class="edge"/>
+  <line x1="1040" y1="310" x2="1130" y2="260" class="edge"/>
+  <line x1="1040" y1="310" x2="1150" y2="370" class="edge"/>
+  <line x1="1130" y1="260" x2="1220" y2="220" class="edge"/>
+  <line x1="1130" y1="260" x2="1265" y2="315" class="edge"/>
+  <line x1="1150" y1="370" x2="1240" y2="405" class="edge"/>
+  <line x1="1265" y1="315" x2="1240" y2="405" class="edge"/>
 
   <g class="sans body" text-anchor="middle">
-    <circle cx="935" cy="260" r="24" fill="#FFE8A6" class="node"/><text x="935" y="267">8</text>
-    <circle cx="1010" cy="205" r="24" fill="#FFC13A" class="node"/><text x="1010" y="212">9</text>
-    <circle cx="965" cy="375" r="24" fill="#FFD870" class="node"/><text x="965" y="382">10</text>
-    <circle cx="1050" cy="315" r="27" fill="#F7941D" class="node"/><text x="1050" y="322">6</text>
-    <circle cx="1010" cy="435" r="24" fill="#FFC13A" class="node"/><text x="1010" y="442">7</text>
-    <circle cx="1165" cy="270" r="27" fill="#1683BD" class="node"/><text x="1165" y="277">0</text>
-    <circle cx="1180" cy="365" r="24" fill="#49A9D7" class="node"/><text x="1180" y="372">1</text>
-    <circle cx="1235" cy="205" r="24" fill="#83C7E8" class="node"/><text x="1235" y="212">2</text>
-    <circle cx="1315" cy="260" r="24" fill="#B9DEF2" class="node"/><text x="1315" y="267">3</text>
-    <circle cx="1260" cy="430" r="24" fill="#83C7E8" class="node"/><text x="1260" y="437">4</text>
-    <circle cx="1345" cy="370" r="24" fill="#B9DEF2" class="node"/><text x="1345" y="377">5</text>
+    <circle cx="920" cy="280" r="27" fill="#FFE8A6" class="node"/><text x="920" y="288">6</text>
+    <circle cx="990" cy="225" r="27" fill="#FFC13A" class="node"/><text x="990" y="233">7</text>
+    <circle cx="990" cy="380" r="27" fill="#FFD870" class="node"/><text x="990" y="388">8</text>
+    <circle cx="1040" cy="310" r="30" fill="#F7941D" class="node"/><text x="1040" y="318">5</text>
+    <circle cx="1130" cy="260" r="30" fill="#1683BD" class="node"/><text x="1130" y="268">0</text>
+    <circle cx="1150" cy="370" r="27" fill="#49A9D7" class="node"/><text x="1150" y="378">1</text>
+    <circle cx="1220" cy="220" r="27" fill="#83C7E8" class="node"/><text x="1220" y="228">2</text>
+    <circle cx="1265" cy="315" r="27" fill="#B9DEF2" class="node"/><text x="1265" y="323">3</text>
+    <circle cx="1240" cy="405" r="27" fill="#83C7E8" class="node"/><text x="1240" y="413">4</text>
   </g>
 
-  <text x="65" y="610" class="sans heading">Memory order</text>
-  <text x="65" y="655" class="sans body">Input IDs</text>
-  <g transform="translate(210 622)" class="sans body" text-anchor="middle">
-    <rect x="0" y="0" width="90" height="54" fill="#1683BD" stroke="#17212B"/><text x="45" y="35">0</text>
-    <rect x="90" y="0" width="90" height="54" fill="#F7941D" stroke="#17212B"/><text x="135" y="35">1</text>
-    <rect x="180" y="0" width="90" height="54" fill="#FFE8A6" stroke="#17212B"/><text x="225" y="35">2</text>
-    <rect x="270" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="315" y="35">3</text>
-    <rect x="360" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="405" y="35">4</text>
-    <rect x="450" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="495" y="35">5</text>
-    <rect x="540" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="585" y="35">6</text>
-    <rect x="630" y="0" width="90" height="54" fill="#49A9D7" stroke="#17212B"/><text x="675" y="35">7</text>
-    <rect x="720" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="765" y="35">8</text>
-    <rect x="810" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="855" y="35">9</text>
-    <rect x="900" y="0" width="90" height="54" fill="#FFD870" stroke="#17212B"/><text x="945" y="35">10</text>
-  </g>
-  <text x="705" y="708" text-anchor="middle" class="sans small">Community colors are interleaved in the input label space.</text>
+  <text x="230" y="480" text-anchor="middle" class="sans label" fill="#C66B00">small block</text>
+  <text x="435" y="510" text-anchor="middle" class="sans label" fill="#086A9C">large block</text>
+  <text x="970" y="480" text-anchor="middle" class="sans label" fill="#C66B00">Gorder8: IDs 5-8</text>
+  <text x="1175" y="510" text-anchor="middle" class="sans label" fill="#086A9C">BFS: IDs 0-4</text>
 
-  <path d="M705 725 V775" class="flow"/>
-  <rect x="545" y="735" width="320" height="48" rx="8" fill="#FFFFFF" stroke="#1683BD" stroke-width="2" stroke-dasharray="7 6"/>
-  <text x="705" y="766" text-anchor="middle" class="sans body" fill="#1683BD">SizeDesc blocks + local vertex order</text>
-
-  <text x="65" y="845" class="sans body">New IDs</text>
-  <g transform="translate(210 812)" class="sans body" text-anchor="middle">
-    <rect x="0" y="0" width="90" height="54" fill="#1683BD" stroke="#17212B"/><text x="45" y="35">0</text>
-    <rect x="90" y="0" width="90" height="54" fill="#49A9D7" stroke="#17212B"/><text x="135" y="35">1</text>
-    <rect x="180" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="225" y="35">2</text>
-    <rect x="270" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="315" y="35">3</text>
-    <rect x="360" y="0" width="90" height="54" fill="#83C7E8" stroke="#17212B"/><text x="405" y="35">4</text>
-    <rect x="450" y="0" width="90" height="54" fill="#B9DEF2" stroke="#17212B"/><text x="495" y="35">5</text>
-    <rect x="540" y="0" width="90" height="54" fill="#F7941D" stroke="#17212B"/><text x="585" y="35">6</text>
-    <rect x="630" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="675" y="35">7</text>
-    <rect x="720" y="0" width="90" height="54" fill="#FFE8A6" stroke="#17212B"/><text x="765" y="35">8</text>
-    <rect x="810" y="0" width="90" height="54" fill="#FFC13A" stroke="#17212B"/><text x="855" y="35">9</text>
-    <rect x="900" y="0" width="90" height="54" fill="#FFD870" stroke="#17212B"/><text x="945" y="35">10</text>
+  <text x="70" y="585" class="sans heading">Memory order</text>
+  <text x="70" y="645" class="sans label">Input</text>
+  <g transform="translate(210 610)" class="sans body" text-anchor="middle">
+    <rect x="0" y="0" width="105" height="58" fill="#1683BD" stroke="#17212B" stroke-width="2"/><text x="52" y="38">0</text>
+    <rect x="105" y="0" width="105" height="58" fill="#F7941D" stroke="#17212B" stroke-width="2"/><text x="157" y="38">1</text>
+    <rect x="210" y="0" width="105" height="58" fill="#FFE8A6" stroke="#17212B" stroke-width="2"/><text x="262" y="38">2</text>
+    <rect x="315" y="0" width="105" height="58" fill="#83C7E8" stroke="#17212B" stroke-width="2"/><text x="367" y="38">3</text>
+    <rect x="420" y="0" width="105" height="58" fill="#FFD870" stroke="#17212B" stroke-width="2"/><text x="472" y="38">4</text>
+    <rect x="525" y="0" width="105" height="58" fill="#B9DEF2" stroke="#17212B" stroke-width="2"/><text x="577" y="38">5</text>
+    <rect x="630" y="0" width="105" height="58" fill="#FFC13A" stroke="#17212B" stroke-width="2"/><text x="682" y="38">6</text>
+    <rect x="735" y="0" width="105" height="58" fill="#49A9D7" stroke="#17212B" stroke-width="2"/><text x="787" y="38">7</text>
+    <rect x="840" y="0" width="105" height="58" fill="#83C7E8" stroke="#17212B" stroke-width="2"/><text x="892" y="38">8</text>
   </g>
-  <path d="M210 885 H750" stroke="#1683BD" stroke-width="5"/>
-  <path d="M750 885 H1200" stroke="#F7941D" stroke-width="5"/>
-  <text x="480" y="920" text-anchor="middle" class="sans body" fill="#086A9C">larger community first: BFS fallback</text>
-  <text x="975" y="920" text-anchor="middle" class="sans body" fill="#C66B00">smaller community: Gorder8</text>
-  <text x="1450" y="845" text-anchor="end" class="sans body">Topology unchanged</text>
-  <text x="1450" y="875" text-anchor="end" class="sans small">only old ID -&gt; new ID mapping changes</text>
+
+  <text x="70" y="750" class="sans label">Output</text>
+  <g transform="translate(210 715)" class="sans body" text-anchor="middle">
+    <rect x="0" y="0" width="105" height="58" fill="#1683BD" stroke="#17212B" stroke-width="2"/><text x="52" y="38">0</text>
+    <rect x="105" y="0" width="105" height="58" fill="#49A9D7" stroke="#17212B" stroke-width="2"/><text x="157" y="38">1</text>
+    <rect x="210" y="0" width="105" height="58" fill="#83C7E8" stroke="#17212B" stroke-width="2"/><text x="262" y="38">2</text>
+    <rect x="315" y="0" width="105" height="58" fill="#B9DEF2" stroke="#17212B" stroke-width="2"/><text x="367" y="38">3</text>
+    <rect x="420" y="0" width="105" height="58" fill="#83C7E8" stroke="#17212B" stroke-width="2"/><text x="472" y="38">4</text>
+    <rect x="525" y="0" width="105" height="58" fill="#F7941D" stroke="#17212B" stroke-width="2"/><text x="577" y="38">5</text>
+    <rect x="630" y="0" width="105" height="58" fill="#FFE8A6" stroke="#17212B" stroke-width="2"/><text x="682" y="38">6</text>
+    <rect x="735" y="0" width="105" height="58" fill="#FFC13A" stroke="#17212B" stroke-width="2"/><text x="787" y="38">7</text>
+    <rect x="840" y="0" width="105" height="58" fill="#FFD870" stroke="#17212B" stroke-width="2"/><text x="892" y="38">8</text>
+  </g>
+  <line x1="210" y1="792" x2="735" y2="792" stroke="#1683BD" stroke-width="7"/>
+  <line x1="735" y1="792" x2="1155" y2="792" stroke="#F7941D" stroke-width="7"/>
 </svg>

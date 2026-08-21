@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="600" viewBox="0 0 1400 600" role="img" aria-labelledby="title desc">
+  <title id="title">norefine execution path</title>
+  <desc id="desc">After Leiden local moving, norefine goes directly to aggregation. Full Leiden performs a constrained refinement phase before aggregation.</desc>
+  <defs>
+    <marker id="blue-arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
+      <path d="M0 0 L12 5 L0 10 Z" fill="#1683BD"/>
+    </marker>
+    <marker id="orange-arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
+      <path d="M0 0 L12 5 L0 10 Z" fill="#F7941D"/>
+    </marker>
+    <style>
+      .sans{font-family:Arial,Helvetica,sans-serif}
+      .title{font-size:40px;font-weight:700;fill:#17212B}
+      .subtitle{font-size:22px;fill:#4B5560}
+      .heading{font-size:28px;font-weight:700;fill:#17212B}
+      .body{font-size:22px;fill:#27313A}
+      .label{font-size:20px;font-weight:700;fill:#27313A}
+      .blueflow{fill:none;stroke:#1683BD;stroke-width:5;marker-end:url(#blue-arrow)}
+      .orangeflow{fill:none;stroke:#F7941D;stroke-width:5;marker-end:url(#orange-arrow)}
+    </style>
+  </defs>
+  <rect width="1400" height="600" fill="#FFFFFF"/>
+  <text x="45" y="55" class="sans title">norefine: remove one Leiden move phase</text>
+  <text x="45" y="88" class="sans subtitle">Local moving and aggregation still run; only constrained refinement is bypassed.</text>
+  <line x1="45" y1="112" x2="1355" y2="112" stroke="#17212B" stroke-width="2"/>
+
+  <rect x="55" y="235" width="260" height="130" rx="14" fill="#F8FAFB" stroke="#17212B" stroke-width="4"/>
+  <text x="185" y="280" text-anchor="middle" class="sans heading">Local moving</text>
+  <circle cx="130" cy="325" r="25" fill="#F7941D" stroke="#17212B" stroke-width="2"/>
+  <circle cx="185" cy="325" r="25" fill="#FFC13A" stroke="#17212B" stroke-width="2"/>
+  <circle cx="240" cy="325" r="25" fill="#FFD870" stroke="#17212B" stroke-width="2"/>
+
+  <path d="M315 270 H500" class="orangeflow"/>
+  <rect x="350" y="238" width="115" height="38" fill="#FFFFFF"/>
+  <text x="407" y="266" text-anchor="middle" class="sans label" fill="#C66B00">norefine</text>
+  <rect x="500" y="180" width="360" height="145" rx="14" fill="#FFF3DB" stroke="#F7941D" stroke-width="4"/>
+  <text x="680" y="228" text-anchor="middle" class="sans heading">Aggregate directly</text>
+  <text x="680" y="270" text-anchor="middle" class="sans body">lower preprocessing cost</text>
+
+  <path d="M315 345 H440 V455 H500" class="blueflow"/>
+  <rect x="345" y="368" width="105" height="38" fill="#FFFFFF"/>
+  <text x="397" y="396" text-anchor="middle" class="sans label" fill="#086A9C">full Leiden</text>
+  <rect x="500" y="380" width="360" height="145" rx="14" fill="#EEF6FC" stroke="#1683BD" stroke-width="4"/>
+  <text x="680" y="428" text-anchor="middle" class="sans heading">Constrained refinement</text>
+  <text x="680" y="470" text-anchor="middle" class="sans body">split and move again inside bounds</text>
+
+  <path d="M860 452 H1040" class="blueflow"/>
+  <rect x="1040" y="380" width="305" height="145" rx="14" fill="#EAF7F3" stroke="#189D85" stroke-width="4"/>
+  <text x="1192" y="428" text-anchor="middle" class="sans heading">Aggregate</text>
+  <text x="1192" y="470" text-anchor="middle" class="sans body">higher cost; different partition</text>
+
+  <rect x="930" y="180" width="415" height="145" rx="14" fill="#FFFFFF" stroke="#AEB7BF" stroke-width="3"/>
+  <text x="1137" y="225" text-anchor="middle" class="sans heading">Trade-off</text>
+  <text x="1137" y="267" text-anchor="middle" class="sans body">refinement can improve connectivity</text>
+  <text x="1137" y="300" text-anchor="middle" class="sans body">but adds another local-move phase</text>
+</svg>

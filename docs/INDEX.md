@@ -24,8 +24,14 @@
   — history-free selector decision and Rabbit fallback semantics
 - [`figures/graphbrew-relabeling-example.svg`](figures/graphbrew-relabeling-example.svg)
   — topology-preserving relabeling example
-- [`figures/graphbrew-cost-controls.svg`](figures/graphbrew-cost-controls.svg) —
-  `cd_parallel`, `sgmb4096`, `gordf5000`, and `norefine`
+- [`figures/graphbrew-cd-parallel.svg`](figures/graphbrew-cd-parallel.svg) —
+  serial versus parallel community detection
+- [`figures/graphbrew-sgmb4096.svg`](figures/graphbrew-sgmb4096.svg) —
+  batched internal super-node moves
+- [`figures/graphbrew-gordf5000.svg`](figures/graphbrew-gordf5000.svg) —
+  community-size Gorder/BFS decision
+- [`figures/graphbrew-norefine.svg`](figures/graphbrew-norefine.svg) —
+  refinement bypass
 
 Detailed raw matrices and large mappings are external artifacts; public claims
 are checked against the manifests above.

@@ -68,9 +68,9 @@ They refer to different super-graphs:
 
 ## The four cost controls
 
-![GraphBrew cost controls](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cost-controls.svg)
-
 ### `cd_parallel`
+
+![cd_parallel](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg)
 
 The default deterministic community-detection mode temporarily limits the
 Leiden section to one OpenMP thread. `cd_parallel` removes that limit.
@@ -93,6 +93,8 @@ parallel mapping.
 
 ### `sgmb4096`
 
+![sgmb4096](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg)
+
 Leiden repeatedly operates on an aggregated graph whose vertices are current
 communities. A fully sequential local-move loop became a preprocessing
 bottleneck on that super-graph.
@@ -112,6 +114,8 @@ from that same batch.
 
 ### `gordf5000`
 
+![gordf5000](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)
+
 The threshold is evaluated independently for every detected community:
 
 ```text
@@ -128,6 +132,8 @@ The purpose is to bound the expensive tail of local ordering. Removing
 unvalidated treatment.
 
 ### `norefine`
+
+![norefine](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg)
 
 Full Leiden performs:
 

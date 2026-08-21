@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import re
 import xml.etree.ElementTree as ET
 
 
@@ -12,10 +13,14 @@ FIGURES = (
     "graphbrew-architecture.svg",
     "graphbrew-lowreuse-policy.svg",
     "graphbrew-relabeling-example.svg",
-    "graphbrew-cost-controls.svg",
+    "graphbrew-cd-parallel.svg",
+    "graphbrew-sgmb4096.svg",
+    "graphbrew-gordf5000.svg",
+    "graphbrew-norefine.svg",
 )
 README = PROJECT_ROOT / "README.md"
 WIKI_HOME = PROJECT_ROOT / "wiki/Home.md"
+WIKI_SIDEBAR = PROJECT_ROOT / "wiki/_Sidebar.md"
 SELECTOR_PAGE = PROJECT_ROOT / "wiki/All-Kernel-Low-Reuse-Selector.md"
 GRAPHBREW_PAGE = PROJECT_ROOT / "wiki/GraphBrewOrder.md"
 ADAPTIVE_PAGE = PROJECT_ROOT / "wiki/AdaptiveOrder.md"
@@ -80,17 +85,29 @@ def test_selector_documentation_uses_evidence_bound_figures():
     adaptive = ADAPTIVE_PAGE.read_text()
     readme = README.read_text()
     home = WIKI_HOME.read_text()
+    sidebar = WIKI_SIDEBAR.read_text()
     legacy = LEGACY_PAGE.read_text()
     adaptive_flat = " ".join(adaptive.split())
 
     for filename in FIGURES:
         path = FIGURE_DIR / filename
-        assert path.stat().st_size > 5000
+        assert path.stat().st_size > 3000
         assert ET.parse(path).getroot().tag.endswith("svg")
+        font_sizes = [
+            int(value)
+            for value in re.findall(
+                r"font-size:(\d+)px",
+                path.read_text(),
+            )
+        ]
+        assert font_sizes and min(font_sizes) >= 20
 
     assert "graphbrew-lowreuse-policy.svg" in selector
     assert "graphbrew-relabeling-example.svg" in graphbrew
-    assert "graphbrew-cost-controls.svg" in graphbrew
+    assert "graphbrew-cd-parallel.svg" in graphbrew
+    assert "graphbrew-sgmb4096.svg" in graphbrew
+    assert "graphbrew-gordf5000.svg" in graphbrew
+    assert "graphbrew-norefine.svg" in graphbrew
     assert payload["candidate"] in selector.replace("\n", "")
     assert payload["candidate"] in graphbrew.replace("\n", "")
     for threshold in ("3.2", "2.68", "60", "0.82", "8"):
@@ -105,6 +122,8 @@ def test_selector_documentation_uses_evidence_bound_figures():
     assert "whole-graph cutoff" in graphbrew
 
     assert "AdaptiveOrder](AdaptiveOrder)" in home
+    assert "GraphBrewOrder](GraphBrewOrder)" in sidebar
+    assert "Low-Reuse Selector](All-Kernel-Low-Reuse-Selector)" in sidebar
     assert "/wiki/AdaptiveOrder)" in readme
     assert "not a machine-learning model" in adaptive_flat
     assert "runtime ML selector" not in adaptive

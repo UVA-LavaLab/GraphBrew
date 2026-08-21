@@ -1,96 +1,87 @@
 # AdaptiveOrder
 
-AdaptiveOrder is GraphBrew's runtime selection boundary. The current validated
-deployment path is a **frozen deterministic rule**, not a machine-learning
+AdaptiveOrder (`-o 14`) is GraphBrew's runtime selection boundary. The
+validated path is a **frozen deterministic rule**, not a machine-learning
 model.
 
-It does not require a previous kernel run. For a new graph, it samples graph
-structure, combines that sample with kernel identity, LLC capacity, and
-declared reuse, and applies the frozen predicate once.
+For the complete decision, examples, and evidence, see
+[All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector).
 
-## Validated interface
+## Interface
 
 ```bash
-# One kernel invocation reusing one materialized mapping
+# Reuse one materialized mapping once
 ./bench/bin/pr -f graph.sg -s \
   -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' \
   -n 3
 
-# Two kernel invocations reusing one materialized mapping
+# Reuse one materialized mapping twice
 ./bench/bin/bfs -f graph.sg -s \
   -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:2' \
   -n 3
 ```
 
-Reuse is mandatory and must be at most 2.
+Reuse is mandatory and must be `1` or `2`.
 
-## Runtime inputs
+## Decision boundary
 
-The validated v2 rule uses:
+AdaptiveOrder does not require a previous kernel run. It:
 
-- graph size;
-- sampled average degree and degree coefficient of variation;
-- kernel-specific property working set relative to LLC;
-- kernel identity; and
-- declared mapping reuse.
+1. samples degree structure from the new graph;
+2. models the kernel property footprint relative to machine LLC;
+3. reads kernel identity and declared reuse;
+4. applies the frozen predicate once; and
+5. chooses the promoted GraphBrew composition or Boost Rabbit.
 
-It may not use:
+It does not use graph names, benchmark-database lookup, runtime training,
+nearest-neighbor search, or trial execution of candidate reorderers.
 
-- graph filename or canonical graph name;
-- benchmark-database lookup;
-- runtime training;
-- runtime k-nearest-neighbor search; or
-- trial execution of multiple reorderers.
+## Outcomes
 
-## Decision
+GraphBrew branch:
 
-The rule chooses between:
+```text
+12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:
+cd_parallel:sgmb4096:gordf5000:norefine:2:2
+```
 
-1. **FastLeiden-SizeDesc-Gorder8**
+Fallback branch:
 
-   ```text
-   12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:
-   cd_parallel:sgmb4096:gordf5000:norefine:2:2
-   ```
+```text
+8:boost
+```
 
-2. **Boost Rabbit** fallback.
+The branch decision is deterministic. A selected GraphBrew mapping can still
+vary because `cd_parallel` is schedule-sensitive.
 
-The exact frozen predicate and validation figures are documented in
-[All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector).
+## Validated scope
 
-## Supported scope
-
-- PR
-- PR-SpMV
+- PR and PR-SpMV
 - BFS
-- Afforest CC
-- CC-SV
+- Afforest CC and CC-SV
 - BC
 - SSSP
 - reuse 1 or 2
+- graphs with at least 1000 vertices
 
-Unsupported kernels and reuse above 2 use the fallback.
+Unsupported contexts use the fallback.
 
-The decision is deterministic. The selected GraphBrew mapping can still vary
-because its `cd_parallel` community detection is schedule-sensitive.
+## Timing boundary
 
-## Evidence accounting
+The public portfolio evidence accounts for:
 
-The public portfolio ratios account for chosen mapping cost plus reused kernel
-time. They do not store algorithm-14 feature-extraction time. The deployable
-binary prints `Adaptive Feature Time`, which must be included in final
-deployment timing.
+```text
+chosen mapping cost + reuse x chosen kernel time
+```
+
+It does not store `Adaptive Feature Time`. The deployable binary prints that
+value separately, and final deployment timing must add it.
 
 Legacy offline-model modes remain for research compatibility but are not the
 validated contribution.
 
 ## Evidence
 
-The final rule was derived on 18 graphs, frozen, and tested on 12 additional
-graphs. All seven selected holdouts won at reuse 1 and 2; five graphs used
-Boost Rabbit fallback.
-
-Public evidence:
-
+- [Low-Reuse Selector](All-Kernel-Low-Reuse-Selector)
 - [`docs/allkernel-lowreuse-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/allkernel-lowreuse-evidence.json)
 - [`docs/recommendation-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/recommendation-evidence.json)
