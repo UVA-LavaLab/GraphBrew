@@ -15,6 +15,7 @@ import struct
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -98,6 +99,86 @@ def test_published_compose_specs_pin_both_block_axes():
         tokens = spec.split(":")
         assert any(token.startswith("sg_") for token in tokens)
         assert any(token.startswith("comm_") for token in tokens)
+
+
+def test_capacity_runs_and_faithful_gorder_are_explicit():
+    spec = (
+        "12:leiden:compose:sg_none:comm_capacity_runs:"
+        "intra_gorder_faithful:gw8:capl2k256:capllck22528:"
+        "capv8:norefine:2:2"
+    )
+    config = runner._expected_graphbrew_config(spec)
+    assert config["community_order"] == "capacity-runs"
+    assert config["intra_community_order"] == "gorder-faithful"
+    assert config["gorder_window"] == 8
+    assert config["capacity_l2_bytes"] == 256 * 1024
+    assert config["capacity_llc_bytes"] == 22528 * 1024
+    assert config["capacity_property_bytes_per_vertex"] == 8
+    alias = runner._expected_graphbrew_config(
+        "12:leiden:compose:s3_gorder_faithful"
+    )
+    assert alias["intra_community_order"] == "gorder-faithful"
+    alias = runner._expected_graphbrew_config(
+        "12:leiden:compose:intra_gorder2"
+    )
+    assert alias["intra_community_order"] == "gorder-faithful"
+    for invalid in (
+        "12:compose:comm_capacity_runs:capv0",
+        "12:compose:comm_capacity_runs:capl2k2048:capllck1024",
+        "12:comm_capacity_runs:capl2k256:capllck22528:capv8",
+        "12:compose:comm_capacity_runs:capl2k256:capllck22528",
+        "12:compose:comm_size:capl2k256:capllck22528:capv8",
+        (
+            "12:compose:sg_super_rcm:comm_capacity_runs:"
+            "capl2k256:capllck22528:capv8"
+        ),
+        (
+            "12:compose:comm_capacity_runs:capl2k256x:"
+            "capllck22528:capv8"
+        ),
+        (
+            "12:compose:comm_capacity_runs:"
+            "capl2k18446744073709551616:capllck22528:capv8"
+        ),
+        (
+            "12:compose:comm_capacity_runs:"
+            "capl2k٣:capllck22528:capv8"
+        ),
+        "12:intra_gorder_faithful",
+    ):
+        with pytest.raises(
+            RuntimeError,
+            match="capacity|Capacity|Faithful",
+        ):
+            runner._expected_graphbrew_config(invalid)
+
+
+def test_experimental_reorder_headers_are_test_only():
+    root = Path(__file__).resolve().parents[2]
+    production_roots = [
+        root / "bench" / "include",
+        root / "bench" / "src",
+        root / "bench" / "src_edge",
+        root / "bench" / "src_gas",
+        root / "bench" / "src_sim",
+    ]
+    violations = []
+    experimental_include = re.compile(
+        r"#\s*include\s*[<\"][^>\"]*experimental/"
+        r"(?:common|compression_layout|dual_index|"
+        r"locality_probe|spectral_blocks)\.h[>\"]"
+    )
+    for production_root in production_roots:
+        for path in production_root.rglob("*"):
+            if path.suffix not in {
+                ".h", ".hpp", ".hxx", ".cc", ".cpp", ".cu", ".def",
+            }:
+                continue
+            if "reorder/experimental" in path.as_posix():
+                continue
+            if experimental_include.search(path.read_text(errors="ignore")):
+                violations.append(str(path.relative_to(root)))
+    assert violations == []
 
 
 def test_budgeted_mechanism_config_is_fully_bound():
@@ -423,6 +504,16 @@ def test_structured_graphbrew_realization_is_validated():
         "schedule_sensitive": True,
         "gorder_window": 5,
         "gorder_fallback": 0,
+        "gorder_communities": 0,
+        "gorder_vertices": 0,
+        "gorder_max_community": 0,
+        "gorder_fallback_communities": 0,
+        "gorder_fallback_vertices": 0,
+        "capacity_l2_bytes": 0,
+        "capacity_llc_bytes": 0,
+        "capacity_property_bytes_per_vertex": 0,
+        "capacity_l2_runs": 0,
+        "capacity_llc_runs": 0,
         "final_algo_id": -1,
         "sub_algo_id": 8,
         "num_passes": 1,
@@ -479,6 +570,16 @@ def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
         "schedule_sensitive": True,
         "gorder_window": 5,
         "gorder_fallback": 0,
+        "gorder_communities": 0,
+        "gorder_vertices": 0,
+        "gorder_max_community": 0,
+        "gorder_fallback_communities": 0,
+        "gorder_fallback_vertices": 0,
+        "capacity_l2_bytes": 0,
+        "capacity_llc_bytes": 0,
+        "capacity_property_bytes_per_vertex": 0,
+        "capacity_l2_runs": 0,
+        "capacity_llc_runs": 0,
         "final_algo_id": -1,
         "sub_algo_id": 8,
         "num_passes": 1,

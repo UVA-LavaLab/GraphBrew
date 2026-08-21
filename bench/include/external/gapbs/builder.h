@@ -3683,6 +3683,17 @@ public:
         graphbrew::GraphBrewConfig config = ParseGraphBrewConfig(reordering_options, auto_resolution);
         config.rabbitDegreeSortPreprocess =
             config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
+        if (
+            config.communityOrder
+            == graphbrew::CommunityOrder::CapacityRuns
+        ) {
+            const auto geometry =
+                graphbrew::resolveCapacityGeometry(config);
+            config.capacityL2Bytes = geometry.l2Bytes;
+            config.capacityLLCBytes = geometry.llcBytes;
+            config.capacityPropertyBytesPerVertex =
+                geometry.propertyBytesPerVertex;
+        }
         graphbrew::printGraphBrewEffectiveConfig(config);
         {
             nlohmann::json resolved;
@@ -3719,6 +3730,17 @@ public:
             resolved["gorder_window"] = config.gorderWindow;
             resolved["gorder_fallback"] =
                 config.gorderFallback;
+            if (
+                config.communityOrder
+                == graphbrew::CommunityOrder::CapacityRuns
+            ) {
+                resolved["capacity_l2_bytes"] =
+                    config.capacityL2Bytes;
+                resolved["capacity_llc_bytes"] =
+                    config.capacityLLCBytes;
+                resolved["capacity_property_bytes_per_vertex"] =
+                    config.capacityPropertyBytesPerVertex;
+            }
             resolved["supergraph_move_batch"] =
                 config.superGraphMoveBatch;
             resolved["final_algo_id"] = config.finalAlgoId;

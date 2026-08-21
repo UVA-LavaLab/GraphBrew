@@ -1,6 +1,9 @@
+#include <algorithm>
 #include <cstdint>
 #include <cmath>
 #include <iostream>
+#include <numeric>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -77,6 +80,65 @@ Builder MakeBuilder()
     static char *argv[] = {program, nullptr};
     static CLBase cli(1, argv, program);
     return Builder(cli);
+}
+
+Graph BuildDirectedGraph(
+    const std::vector<std::vector<NodeID>>& outgoing)
+{
+    const size_t nodeCount = outgoing.size();
+    std::vector<std::vector<NodeID>> incoming(nodeCount);
+    size_t edgeCount = 0;
+    for (size_t source = 0; source < nodeCount; ++source) {
+        edgeCount += outgoing[source].size();
+        for (NodeID target : outgoing[source])
+            incoming[target].push_back(static_cast<NodeID>(source));
+    }
+
+    auto buildIndex = [&](const std::vector<std::vector<NodeID>>& rows,
+                          NodeID*& neighbors) {
+        neighbors = new NodeID[edgeCount];
+        auto** index = new NodeID*[nodeCount + 1];
+        size_t position = 0;
+        for (size_t node = 0; node < nodeCount; ++node) {
+            index[node] = neighbors + position;
+            for (NodeID neighbor : rows[node])
+                neighbors[position++] = neighbor;
+        }
+        index[nodeCount] = neighbors + position;
+        return index;
+    };
+
+    NodeID* outNeighbors = nullptr;
+    NodeID* inNeighbors = nullptr;
+    NodeID** outIndex = buildIndex(outgoing, outNeighbors);
+    NodeID** inIndex = buildIndex(incoming, inNeighbors);
+    return Graph(
+        static_cast<int64_t>(nodeCount),
+        outIndex,
+        outNeighbors,
+        inIndex,
+        inNeighbors);
+}
+
+Graph BuildSymmetricGraph(
+    const std::vector<std::vector<NodeID>>& adjacency)
+{
+    size_t edgeCount = 0;
+    for (const auto& neighbors : adjacency)
+        edgeCount += neighbors.size();
+    auto* neighbors = new NodeID[edgeCount];
+    auto** index = new NodeID*[adjacency.size() + 1];
+    size_t position = 0;
+    for (size_t node = 0; node < adjacency.size(); ++node) {
+        index[node] = neighbors + position;
+        for (NodeID neighbor : adjacency[node])
+            neighbors[position++] = neighbor;
+    }
+    index[adjacency.size()] = neighbors + position;
+    return Graph(
+        static_cast<int64_t>(adjacency.size()),
+        index,
+        neighbors);
 }
 
 void TestPresetTailParsing()
@@ -274,6 +336,770 @@ void TestSuperGraphMoveBatchParsing()
     Require(
         config.superGraphMoveBatch == 256,
         "super-graph move batch token was ignored");
+}
+
+void TestCapacityRunCommunityOrder()
+{
+    auto config = graphbrew::parseGraphBrewConfig({
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8",
+    }, true);
+    Require(
+        config.communityOrder
+                == graphbrew::CommunityOrder::CapacityRuns
+            && config.capacityL2Bytes == 4 * 1024
+            && config.capacityLLCBytes == 16 * 1024
+            && config.capacityPropertyBytesPerVertex == 8,
+        "capacity-run parser lost explicit cache geometry");
+    Require(
+        std::string(graphbrew::graphBrewCommunityOrderName(
+            config.communityOrder)) == "capacity-runs",
+        "capacity-run community-order name changed");
+    const auto geometry = graphbrew::resolveCapacityGeometry(config);
+    Require(
+        geometry.l2Bytes == 4 * 1024
+            && geometry.llcBytes == 16 * 1024
+            && geometry.propertyBytesPerVertex == 8,
+        "capacity-run geometry resolution changed explicit values");
+    Require(
+        graphbrew::resolveCapacityGeometry(
+            graphbrew::GraphBrewConfig{}).propertyBytesPerVertex
+            == sizeof(double),
+        "capacity-run default property size became kernel-dependent");
+
+    auto faithful = graphbrew::parseGraphBrewConfig({
+        "compose",
+        "intra_gorder_faithful",
+        "gw8",
+    }, true);
+    Require(
+        faithful.intraCommunityOrder
+                == graphbrew::IntraCommunityOrder::GorderFaithful
+            && faithful.gorderWindow == 8
+            && std::string(graphbrew::graphBrewIntraOrderName(
+                faithful.intraCommunityOrder)) == "gorder-faithful",
+        "faithful local Gorder token changed");
+    Require(
+        graphbrew::parseGraphBrewConfig(
+            {"compose", "intra_gorder2"}, true)
+                .intraCommunityOrder
+            == graphbrew::IntraCommunityOrder::GorderFaithful,
+        "faithful local Gorder alias changed");
+
+    bool rejected = false;
+    try
+    {
+        (void)graphbrew::parseGraphBrewConfig(
+            {"compose", "comm_capacity_runs", "capl2k0"},
+            true);
+    }
+    catch (const std::invalid_argument&)
+    {
+        rejected = true;
+    }
+    Require(rejected, "capacity-run parser accepted zero L2 capacity");
+    for (const std::vector<std::string>& invalid : {
+             std::vector<std::string>{
+                 "compose", "comm_capacity_runs", "capv-1"},
+             std::vector<std::string>{
+                 "compose", "comm_capacity_runs",
+                 "capl2k2048", "capllck1024"},
+             std::vector<std::string>{
+                 "comm_capacity_runs",
+                 "capl2k4", "capllck16", "capv8"},
+             std::vector<std::string>{
+                 "compose", "comm_capacity_runs",
+                 "capl2k4", "capllck16"},
+             std::vector<std::string>{
+                 "compose", "comm_size",
+                 "capl2k4", "capllck16", "capv8"},
+             std::vector<std::string>{
+                 "compose", "sg_super_rcm", "comm_capacity_runs",
+                 "capl2k4", "capllck16", "capv8"},
+             std::vector<std::string>{
+                 "compose", "comm_capacity_runs",
+                 "capl2k4x", "capllck16", "capv8"},
+             std::vector<std::string>{
+                 "compose", "comm_capacity_runs",
+                 "capl2k18446744073709551616",
+                 "capllck16", "capv8"},
+             std::vector<std::string>{
+                 "intra_gorder_faithful"},
+         })
+    {
+        rejected = false;
+        try
+        {
+            (void)graphbrew::parseGraphBrewConfig(invalid, true);
+        }
+        catch (const std::invalid_argument&)
+        {
+            rejected = true;
+        }
+        Require(rejected, "capacity-run parser accepted invalid geometry");
+    }
+
+    std::vector<std::vector<std::pair<uint32_t, uint64_t>>>
+        adjacency(6);
+    auto connect = [&](uint32_t left, uint32_t right, uint64_t weight) {
+        adjacency[left].push_back({right, weight});
+        adjacency[right].push_back({left, weight});
+    };
+    connect(0, 1, 10);
+    connect(1, 2, 9);
+    connect(2, 3, 8);
+    connect(4, 5, 10);
+    const auto result =
+        graphbrew::buildCapacityRunCommunityOrder<uint32_t>(
+            {3, 3, 3, 3, 8, 1},
+            adjacency,
+            {0, 1, 2, 3, 4, 5},
+            6,
+            12);
+    Require(
+        result.order == std::vector<uint32_t>({4, 5, 0, 1, 2, 3}),
+        "capacity-run ordering changed deterministic cut-aware traversal");
+    Require(
+        result.l2RunEnds == std::vector<size_t>({1, 3, 5, 6})
+            && result.llcRunEnds == std::vector<size_t>({3, 6}),
+        "capacity-run boundaries changed");
+    const auto tighter =
+        graphbrew::buildCapacityRunCommunityOrder<uint32_t>(
+            {3, 3, 3, 3, 8, 1},
+            adjacency,
+            {0, 1, 2, 3, 4, 5},
+            3,
+            6);
+    Require(
+        tighter.order != result.order,
+        "capacity-run geometry did not affect community ordering");
+
+    const auto sparse = graphbrew::buildCapacityRunCommunityOrder<uint32_t>(
+        {0, 2, 0},
+        std::vector<
+            std::vector<std::pair<uint32_t, uint64_t>>>(3),
+        {2, 0, 1},
+        4,
+        8);
+    Require(
+        sparse.order == std::vector<uint32_t>({1, 2, 0})
+            && sparse.l2RunEnds == std::vector<size_t>({1})
+            && sparse.llcRunEnds == std::vector<size_t>({1}),
+        "capacity-run ordering counted empty communities as cache runs");
+
+    const auto disconnected =
+        graphbrew::buildCapacityRunCommunityOrder<uint32_t>(
+            {2, 2, 2},
+            std::vector<
+                std::vector<std::pair<uint32_t, uint64_t>>>(3),
+            {2, 0, 1},
+            4,
+            8);
+    Require(
+        disconnected.order == std::vector<uint32_t>({2, 0, 1})
+            && disconnected.l2RunEnds
+                == std::vector<size_t>({2, 3})
+            && disconnected.llcRunEnds
+                == std::vector<size_t>({3}),
+        "capacity-run disconnected packing lost base order or capacity");
+
+    std::vector<std::vector<std::pair<uint32_t, uint64_t>>>
+        blockedFrontier(4);
+    auto connectBlocked = [&](
+        uint32_t left,
+        uint32_t right,
+        uint64_t weight)
+    {
+        blockedFrontier[left].push_back({right, weight});
+        blockedFrontier[right].push_back({left, weight});
+    };
+    connectBlocked(0, 1, 100);
+    connectBlocked(0, 2, 1);
+    connectBlocked(3, 0, 50);
+    const auto fittedFrontier =
+        graphbrew::buildCapacityRunCommunityOrder<uint32_t>(
+            {1, 5, 1, 6},
+            blockedFrontier,
+            {0, 1, 2, 3},
+            3,
+            100);
+    Require(
+        fittedFrontier.order
+                == std::vector<uint32_t>({3, 0, 2, 1})
+            && fittedFrontier.l2RunEnds
+                == std::vector<size_t>({1, 3, 4})
+            && fittedFrontier.llcRunEnds
+                == std::vector<size_t>({4}),
+        "capacity-run ordering stopped at an oversized frontier head");
+
+    Graph capacityGraph = BuildSymmetricGraph({
+        {1, 2},
+        {0, 4},
+        {0, 3, 4},
+        {2},
+        {1, 2, 5},
+        {4, 6},
+        {5},
+        {},
+    });
+    graphbrew::GraphBrewResult<uint32_t> capacityResult;
+    capacityResult.membership = {0, 0, 1, 1, 2, 2, 2, 3};
+    const std::vector<uint32_t> capacityDegrees = {
+        2, 2, 3, 1, 3, 2, 1, 0};
+    graphbrew::GraphBrewConfig capacityConfig;
+    capacityConfig.ordering =
+        graphbrew::OrderingStrategy::COMPOSE;
+    capacityConfig.communityOrder =
+        graphbrew::CommunityOrder::CapacityRuns;
+    capacityConfig.capacityL2Bytes = 3;
+    capacityConfig.capacityLLCBytes = 5;
+    capacityConfig.capacityPropertyBytesPerVertex = 1;
+    pvector<NodeID> oneThreadMapping(8);
+    pvector<NodeID> fourThreadMapping(8);
+    graphbrew::GraphBrewRealizedConfig oneThreadRealized;
+    graphbrew::GraphBrewRealizedConfig fourThreadRealized;
+    #ifdef OPENMP
+    const int previousThreadCount = omp_get_max_threads();
+    omp_set_num_threads(1);
+    #endif
+    graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
+        oneThreadMapping,
+        capacityResult,
+        capacityDegrees,
+        capacityGraph,
+        8,
+        capacityConfig,
+        &oneThreadRealized);
+    #ifdef OPENMP
+    omp_set_num_threads(4);
+    #endif
+    graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
+        fourThreadMapping,
+        capacityResult,
+        capacityDegrees,
+        capacityGraph,
+        8,
+        capacityConfig,
+        &fourThreadRealized);
+    #ifdef OPENMP
+    omp_set_num_threads(previousThreadCount);
+    #endif
+    auto capacityPermutation = std::vector<NodeID>(
+        oneThreadMapping.begin(), oneThreadMapping.end());
+    std::sort(capacityPermutation.begin(), capacityPermutation.end());
+    Require(
+        std::equal(
+            oneThreadMapping.begin(),
+            oneThreadMapping.end(),
+            fourThreadMapping.begin())
+            && capacityPermutation
+                == std::vector<NodeID>({0, 1, 2, 3, 4, 5, 6, 7})
+            && oneThreadRealized.capacityL2Runs == 3
+            && oneThreadRealized.capacityLLCRuns == 2
+            && fourThreadRealized.capacityL2Runs == 3
+            && fourThreadRealized.capacityLLCRuns == 2,
+        "capacity-run graph path changed with thread partitioning");
+
+    Graph directedTailGraph = BuildDirectedGraph({
+        {1, 2, 3},
+        {0},
+        {0},
+        {},
+    });
+    const auto tailAdjacency =
+        graphbrew::buildCapacityCommunityAdjacency<
+            uint32_t, NodeID, NodeID>(
+                std::vector<uint32_t>{0, 0, 1, 2},
+                directedTailGraph,
+                4,
+                3);
+    Require(
+        tailAdjacency[0]
+                == std::vector<std::pair<uint32_t, uint64_t>>({
+                    {1, 2}})
+            && tailAdjacency[1]
+                == std::vector<std::pair<uint32_t, uint64_t>>({
+                    {0, 2}})
+            && tailAdjacency[2].empty(),
+        "capacity-run adjacency included an out-degree-zero tail vertex");
+
+    std::mt19937 generator(0xC0FFEEu);
+    for (size_t trial = 0; trial < 64; ++trial)
+    {
+        const size_t communityCount = 1 + generator() % 32;
+        std::vector<size_t> sizes(communityCount);
+        std::vector<uint32_t> baseOrder(communityCount);
+        std::iota(baseOrder.begin(), baseOrder.end(), 0);
+        std::shuffle(baseOrder.begin(), baseOrder.end(), generator);
+        for (size_t& size : sizes) size = generator() % 17;
+
+        std::vector<
+            std::vector<std::pair<uint32_t, uint64_t>>>
+            randomAdjacency(communityCount);
+        for (uint32_t left = 0; left < communityCount; ++left)
+        {
+            for (
+                uint32_t right = left + 1;
+                right < communityCount;
+                ++right
+            )
+            {
+                if (generator() % 5 != 0) continue;
+                const uint64_t weight = 1 + generator() % 31;
+                randomAdjacency[left].push_back({right, weight});
+                randomAdjacency[right].push_back({left, weight});
+            }
+        }
+
+        const size_t l2Target = 1 + generator() % 24;
+        const size_t llcTarget = l2Target + generator() % 48;
+        const auto randomResult =
+            graphbrew::buildCapacityRunCommunityOrder<uint32_t>(
+                sizes,
+                randomAdjacency,
+                baseOrder,
+                l2Target,
+                llcTarget);
+        const auto repeated =
+            graphbrew::buildCapacityRunCommunityOrder<uint32_t>(
+                sizes,
+                randomAdjacency,
+                baseOrder,
+                l2Target,
+                llcTarget);
+        Require(
+            randomResult.order == repeated.order
+                && randomResult.l2RunEnds == repeated.l2RunEnds
+                && randomResult.llcRunEnds == repeated.llcRunEnds,
+            "capacity-run ordering became nondeterministic");
+
+        std::vector<uint32_t> sortedOrder(baseOrder.size());
+        std::iota(sortedOrder.begin(), sortedOrder.end(), 0);
+        auto emitted = randomResult.order;
+        std::sort(emitted.begin(), emitted.end());
+        Require(
+            emitted == sortedOrder,
+            "capacity-run ordering emitted an invalid permutation");
+
+        const size_t activeCount = static_cast<size_t>(std::count_if(
+            sizes.begin(), sizes.end(),
+            [](size_t size) { return size > 0; }));
+        auto checkRuns = [&](const std::vector<size_t>& ends,
+                             size_t target) {
+            size_t begin = 0;
+            for (size_t end : ends)
+            {
+                Require(
+                    begin < end && end <= activeCount,
+                    "capacity-run boundary was not strictly increasing");
+                size_t vertices = 0;
+                for (size_t index = begin; index < end; ++index)
+                    vertices += sizes[randomResult.order[index]];
+                Require(
+                    vertices <= target || end == begin + 1,
+                    "capacity-run boundary exceeded its target");
+                begin = end;
+            }
+            Require(
+                begin == activeCount,
+                "capacity-run boundaries did not cover active communities");
+        };
+        if (activeCount == 0)
+        {
+            Require(
+                randomResult.l2RunEnds.empty()
+                    && randomResult.llcRunEnds.empty(),
+                "capacity-run ordering created runs for empty communities");
+        }
+        else
+        {
+            checkRuns(randomResult.l2RunEnds, l2Target);
+            checkRuns(randomResult.llcRunEnds, llcTarget);
+        }
+        for (size_t index = activeCount; index < communityCount; ++index)
+        {
+            Require(
+                sizes[randomResult.order[index]] == 0,
+                "capacity-run ordering interleaved an empty community");
+        }
+    }
+}
+
+void TestFaithfulLocalGorder()
+{
+    Require(
+        !AblationConfig::Get().don_tiebreak,
+        "faithful Gorder differential test requires DON disabled");
+
+    auto compareWithReference = [](
+        const std::vector<std::vector<NodeID>>& outgoing,
+        int window)
+    {
+        std::vector<std::vector<size_t>> localOut(outgoing.size());
+        std::vector<std::vector<size_t>> localIn(outgoing.size());
+        for (size_t source = 0; source < outgoing.size(); ++source) {
+            for (NodeID target : outgoing[source]) {
+                localOut[source].push_back(
+                    static_cast<size_t>(target));
+                localIn[target].push_back(source);
+            }
+        }
+        for (auto& neighbors : localOut)
+            std::sort(neighbors.begin(), neighbors.end());
+
+        std::vector<uint32_t> localOrder;
+        graphbrew::faithfulGorderLocalOrder<uint32_t>(
+            localOut,
+            localIn,
+            outgoing.size(),
+            window,
+            localOrder);
+
+        Graph graph = BuildDirectedGraph(outgoing);
+        std::vector<int> referenceMapping;
+        gorder_csr_detail::gorder_greedy_csr(
+            graph,
+            static_cast<int>(outgoing.size()),
+            window,
+            referenceMapping);
+        std::vector<uint32_t> referenceOrder(outgoing.size());
+        for (size_t vertex = 0; vertex < outgoing.size(); ++vertex) {
+            referenceOrder[referenceMapping[vertex]] =
+                static_cast<uint32_t>(vertex);
+        }
+        Require(
+            localOrder == referenceOrder,
+            "faithful local Gorder diverged from exact Gorder");
+    };
+
+    const std::vector<std::vector<NodeID>> path = {
+        {1},
+        {0, 2},
+        {1, 3},
+        {2},
+    };
+    compareWithReference(path, 1);
+    compareWithReference(path, 2);
+    compareWithReference(path, 8);
+
+    const std::vector<std::vector<NodeID>> tinyStar = {
+        {1, 2},
+        {0},
+        {0},
+    };
+    compareWithReference(tinyStar, 2);
+    std::vector<std::vector<size_t>> starOut = {
+        {1, 2},
+        {0},
+        {0},
+    };
+    const auto starIn = starOut;
+    std::vector<uint32_t> starOrder;
+    graphbrew::faithfulGorderLocalOrder<uint32_t>(
+        starOut, starIn, starOut.size(), 2, starOrder);
+    Require(
+        !starOrder.empty() && starOrder.front() == 0,
+        "faithful local Gorder skipped its three-vertex hub");
+
+    const std::vector<std::vector<NodeID>> directedSibling = {
+        {1, 2},
+        {3},
+        {3},
+        {0},
+    };
+    compareWithReference(directedSibling, 1);
+    compareWithReference(directedSibling, 2);
+    compareWithReference(directedSibling, 5);
+
+    const std::vector<std::vector<NodeID>> guardBoundary = {
+        {1, 2, 3},
+        {0, 4, 5, 6},
+        {0},
+        {0},
+        {1},
+        {1},
+        {1},
+        {8},
+        {7},
+    };
+    compareWithReference(guardBoundary, 3);
+    compareWithReference({
+        {},
+        {2},
+        {1},
+    }, 2);
+    compareWithReference({
+        {},
+        {},
+        {},
+        {},
+    }, 2);
+
+    std::mt19937 differentialGenerator(0x6F726465u);
+    for (size_t trial = 0; trial < 256; ++trial) {
+        const size_t nodeCount =
+            2 + differentialGenerator() % 11;
+        std::vector<std::vector<NodeID>> outgoing(nodeCount);
+        for (size_t source = 0; source < nodeCount; ++source) {
+            for (size_t target = 0; target < nodeCount; ++target) {
+                if (differentialGenerator() % 5 == 0) {
+                    outgoing[source].push_back(
+                        static_cast<NodeID>(target));
+                }
+            }
+        }
+        compareWithReference(
+            outgoing,
+            1 + static_cast<int>(trial % 8));
+    }
+
+    std::vector<std::vector<size_t>> zeroOut = {
+        {1},
+        {0},
+        {},
+        {},
+    };
+    const auto zeroIn = zeroOut;
+    std::vector<uint32_t> zeroOrder;
+    graphbrew::faithfulGorderLocalOrder<uint32_t>(
+        zeroOut, zeroIn, zeroOut.size(), 2, zeroOrder);
+    Require(
+        zeroOrder == std::vector<uint32_t>({0, 2, 3, 1}),
+        "faithful local Gorder changed zero-degree placement");
+
+    bool rejected = false;
+    try {
+        graphbrew::faithfulGorderLocalOrder<uint32_t>(
+            zeroOut, zeroIn, zeroOut.size(), 0, zeroOrder);
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    Require(
+        rejected,
+        "faithful local Gorder accepted a nonpositive window");
+
+    Graph clique = BuildDirectedGraph({
+        {1, 2, 3},
+        {0, 2, 3},
+        {0, 1, 3},
+        {0, 1, 2},
+    });
+    std::vector<NodeID> vertices = {0, 1, 2, 3};
+    std::vector<NodeID> membership(4, 0);
+    std::vector<NodeID> degrees(4, 3);
+    std::vector<size_t> vertexToLocal = {0, 1, 2, 3};
+    std::vector<NodeID> placedOrder;
+    std::vector<std::vector<size_t>> neighborScratch;
+    std::vector<NodeID> localIds(4, -1);
+    graphbrew::intraGorderGreedy<NodeID, NodeID, NodeID>(
+        vertices,
+        0,
+        membership,
+        degrees,
+        clique,
+        vertexToLocal,
+        5,
+        placedOrder,
+        neighborScratch,
+        localIds);
+    Require(
+        localIds == std::vector<NodeID>({0, 3, 2, 1}),
+        "legacy local Gorder mapping changed");
+
+    Graph duplicateGraph = BuildDirectedGraph({
+        {1, 1},
+        {0},
+    });
+    graphbrew::GraphBrewResult<uint32_t> directedResult;
+    directedResult.membership = {0, 0};
+    graphbrew::GraphBrewConfig directedConfig;
+    directedConfig.ordering =
+        graphbrew::OrderingStrategy::COMPOSE;
+    directedConfig.intraCommunityOrder =
+        graphbrew::IntraCommunityOrder::GorderFaithful;
+    pvector<NodeID> directedMapping;
+    rejected = false;
+    try {
+        graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
+            directedMapping,
+            directedResult,
+            std::vector<uint32_t>{2, 1},
+            duplicateGraph,
+            2,
+            directedConfig);
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    Require(
+        rejected,
+        "faithful local Gorder accepted a directed COMPOSE graph");
+
+    vertices = {0, 1};
+    membership.assign(2, 0);
+    vertexToLocal = {0, 1};
+    localIds.assign(2, -1);
+    std::vector<std::vector<size_t>> outScratch;
+    std::vector<std::vector<size_t>> inScratch;
+    graphbrew::intraGorderFaithful<NodeID, NodeID, NodeID>(
+        vertices,
+        0,
+        membership,
+        duplicateGraph,
+        vertexToLocal,
+        2,
+        placedOrder,
+        outScratch,
+        inScratch,
+        localIds);
+    Require(
+        outScratch[0] == std::vector<size_t>({1})
+            && localIds[0] >= 0
+            && localIds[1] >= 0
+            && localIds[0] != localIds[1],
+        "faithful local Gorder did not collapse duplicate edges");
+
+    Graph reuseGraph = BuildDirectedGraph({
+        {1},
+        {0, 2},
+        {1, 3},
+        {2, 4},
+        {3},
+        {6},
+        {5},
+    });
+    membership = {0, 0, 0, 0, 0, 1, 1};
+    vertexToLocal = {0, 1, 2, 3, 4, 0, 1};
+    localIds.assign(7, -1);
+    outScratch.clear();
+    inScratch.clear();
+    graphbrew::intraGorderFaithful<NodeID, NodeID, NodeID>(
+        std::vector<NodeID>{0, 1, 2, 3, 4},
+        0,
+        membership,
+        reuseGraph,
+        vertexToLocal,
+        3,
+        placedOrder,
+        outScratch,
+        inScratch,
+        localIds);
+    const bool firstOrderSized =
+        placedOrder.size() == 5;
+    const std::vector<NodeID> firstCommunity(
+        localIds.begin(), localIds.begin() + 5);
+    graphbrew::intraGorderFaithful<NodeID, NodeID, NodeID>(
+        std::vector<NodeID>{5, 6},
+        1,
+        membership,
+        reuseGraph,
+        vertexToLocal,
+        3,
+        placedOrder,
+        outScratch,
+        inScratch,
+        localIds);
+    const bool secondOrderSized =
+        placedOrder.size() == 2;
+    graphbrew::intraGorderFaithful<NodeID, NodeID, NodeID>(
+        std::vector<NodeID>{},
+        2,
+        membership,
+        reuseGraph,
+        vertexToLocal,
+        3,
+        placedOrder,
+        outScratch,
+        inScratch,
+        localIds);
+    const bool emptyOrderSized = placedOrder.empty();
+    auto firstSorted = firstCommunity;
+    auto secondSorted = std::vector<NodeID>{
+        localIds[5], localIds[6]};
+    std::sort(firstSorted.begin(), firstSorted.end());
+    std::sort(secondSorted.begin(), secondSorted.end());
+    Require(
+        std::equal(
+            firstCommunity.begin(),
+            firstCommunity.end(),
+            localIds.begin())
+            && firstOrderSized
+            && secondOrderSized
+            && emptyOrderSized
+            && firstSorted
+                == std::vector<NodeID>({0, 1, 2, 3, 4})
+            && secondSorted == std::vector<NodeID>({0, 1}),
+        "faithful local Gorder corrupted reused shrinking scratch");
+
+    Graph endToEndGraph = BuildSymmetricGraph({
+        {1},
+        {0, 2},
+        {1, 3},
+        {2, 4},
+        {3},
+        {6},
+        {5},
+        {},
+    });
+    graphbrew::GraphBrewResult<uint32_t> endToEndResult;
+    endToEndResult.membership = {0, 0, 0, 0, 0, 1, 1, 2};
+    std::vector<uint32_t> endToEndDegrees = {
+        1, 2, 2, 2, 1, 1, 1, 0};
+    graphbrew::GraphBrewConfig endToEndConfig;
+    endToEndConfig.ordering =
+        graphbrew::OrderingStrategy::COMPOSE;
+    endToEndConfig.intraCommunityOrder =
+        graphbrew::IntraCommunityOrder::GorderFaithful;
+    graphbrew::GraphBrewRealizedConfig realized;
+    pvector<NodeID> endToEndMapping;
+    endToEndMapping.resize(8);
+    #ifdef OPENMP
+    const int previousThreadCount = omp_get_max_threads();
+    omp_set_num_threads(1);
+    #endif
+    graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
+        endToEndMapping,
+        endToEndResult,
+        endToEndDegrees,
+        endToEndGraph,
+        8,
+        endToEndConfig,
+        &realized);
+    auto sortedMapping = std::vector<NodeID>(
+        endToEndMapping.begin(), endToEndMapping.end());
+    std::sort(sortedMapping.begin(), sortedMapping.end());
+    Require(
+        sortedMapping
+                == std::vector<NodeID>({0, 1, 2, 3, 4, 5, 6, 7})
+            && realized.gorderCommunities == 2
+            && realized.gorderVertices == 7
+            && realized.gorderMaxCommunity == 5
+            && realized.gorderFallbackCommunities == 0
+            && realized.gorderFallbackVertices == 0,
+        "faithful local Gorder end-to-end mapping or metadata changed");
+
+    endToEndConfig.gorderFallback = 1;
+    realized = graphbrew::GraphBrewRealizedConfig{};
+    graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
+        endToEndMapping,
+        endToEndResult,
+        endToEndDegrees,
+        endToEndGraph,
+        8,
+        endToEndConfig,
+        &realized);
+    #ifdef OPENMP
+    omp_set_num_threads(previousThreadCount);
+    #endif
+    Require(
+        realized.gorderCommunities == 0
+            && realized.gorderVertices == 0
+            && realized.gorderMaxCommunity == 0
+            && realized.gorderFallbackCommunities == 2
+            && realized.gorderFallbackVertices == 7,
+        "faithful local Gorder fallback metadata diverged from dispatch");
 }
 
 void TestRabbitComposeParsing()
@@ -1025,6 +1851,8 @@ int main()
         TestBudgetedAdaptiveRule();
         TestAllKernelLowReuseRule();
         TestSuperGraphMoveBatchParsing();
+        TestCapacityRunCommunityOrder();
+        TestFaithfulLocalGorder();
         TestRabbitComposeParsing();
         TestNamedDepthAndStrictTokens();
         TestHubSortAliasesAreUnambiguous();

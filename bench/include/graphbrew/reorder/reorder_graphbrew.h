@@ -198,9 +198,12 @@
 #include <queue>
 #include <atomic>
 #include <functional>
+#include <limits>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -210,6 +213,8 @@
 #include <graph.h>
 #include <pvector.h>
 #include <timer.h>
+
+#include "reorder_gorder.h"
 
 namespace graphbrew {
 
@@ -279,6 +284,7 @@ enum class CommunityOrder {
     SizeAsc,     ///< Sort communities by vertex-count ascending (small first, tail-heavy graphs)
     DegreeDesc,  ///< Sort communities by total in-community degree descending
     DegreeAsc,   ///< Sort communities by total in-community degree ascending
+    CapacityRuns,///< Cut-aware L2/LLC-sized runs of whole communities
     CutMin,      ///< Mt-METIS-style: minimise inter-community edge crossing
                  ///< by greedy NN-TSP over the C×C crossing-edge graph.
                  ///< Cost O(|E|) + O(C^2).  Fallback to DegreeDesc if C>4096.
@@ -299,10 +305,9 @@ enum class IntraCommunityOrder {
                  ///< (only valid when CD=Rabbit; falls back to BFS otherwise).
                  ///< Cost: pure pointer-chase on dendrogram (no BFS/visited
                  ///< bookkeeping), so cheapest intra primitive available.
-    Gorder,      ///< intraGorderGreedy<>() — Hao Wei et al. (2016) UnitHeap
-                 ///< greedy ordering inside each community.  Higher cost than
-                 ///< BFS/dendrogram (O(|E_local|) but with larger constants)
-                 ///< but produces the best cache locality on PR/CC workloads.
+    Gorder,      ///< Relaxed local Gorder: direct-neighbor term only
+    GorderFaithful, ///< Local Gorder with direct-neighbor and two-hop sibling
+                   ///< terms. Faithful objective, restricted to one community.
     HubSort,     ///< intraHubSort<>() — sort the community's vertices in
                  ///< descending degree order (hubs first).  O(|V_local| log)
                  ///< per community.  Cheapest non-trivial intra primitive
@@ -437,6 +442,9 @@ struct GraphBrewConfig {
     IntraCommunityOrder intraCommunityOrder = IntraCommunityOrder::BFSFromHub;
     RefinementPass refinementPass = RefinementPass::None;  ///< Optional FM-style refinement
     int refineMaxPasses = 3;                               ///< Max passes for refinement primitive
+    size_t capacityL2Bytes = 0;        ///< 0 = detect machine L2
+    size_t capacityLLCBytes = 0;       ///< 0 = detect machine LLC
+    size_t capacityPropertyBytesPerVertex = 0; ///< 0 = model from kernel hint
 
     // Super-graph modularity resolution (HRAB / TQR community-level merges)
     //
@@ -654,6 +662,7 @@ inline const char* graphBrewCommunityOrderName(CommunityOrder value) {
         case CommunityOrder::SizeAsc: return "size-asc";
         case CommunityOrder::DegreeDesc: return "degree-desc";
         case CommunityOrder::DegreeAsc: return "degree-asc";
+        case CommunityOrder::CapacityRuns: return "capacity-runs";
         case CommunityOrder::CutMin: return "cut-min";
         case CommunityOrder::Identity: return "identity";
     }
@@ -667,6 +676,7 @@ inline const char* graphBrewIntraOrderName(IntraCommunityOrder value) {
         case IntraCommunityOrder::RCMpp: return "rcmpp";
         case IntraCommunityOrder::Dendrogram: return "dendrogram";
         case IntraCommunityOrder::Gorder: return "gorder";
+        case IntraCommunityOrder::GorderFaithful: return "gorder-faithful";
         case IntraCommunityOrder::HubSort: return "hubsort";
         case IntraCommunityOrder::DegreeAsc: return "degree-asc";
         case IntraCommunityOrder::Hub2: return "hub2";
@@ -694,7 +704,7 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
     }
     printf(
         "GraphBrew Effective Config: "
-        "{\"schema\":\"graphbrew_config/v1\","
+        "{\"schema\":\"graphbrew_config/v2\","
         "\"algorithm\":\"%s\",\"community_mode\":\"%s\","
         "\"aggregation\":\"%s\",\"ordering\":\"%s\","
         "\"super_graph\":\"%s\",\"community_order\":\"%s\","
@@ -705,6 +715,8 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
         "\"deterministic_community_detection\":%s,"
         "\"supergraph_move_batch\":%d,"
         "\"gorder_window\":%d,\"gorder_fallback\":%d,"
+        "\"capacity_l2_bytes\":%zu,\"capacity_llc_bytes\":%zu,"
+        "\"capacity_property_bytes_per_vertex\":%zu,"
         "\"final_algo_id\":%d,"
         "\"recursive_depth\":%d,\"sub_algo_id\":%d,"
         "\"rabbit_degree_sort_preprocess\":%s,"
@@ -734,6 +746,9 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
         config.superGraphMoveBatch,
         config.gorderWindow,
         config.gorderFallback,
+        config.capacityL2Bytes,
+        config.capacityLLCBytes,
+        config.capacityPropertyBytesPerVertex,
         config.finalAlgoId,
         config.recursiveDepth,
         config.subAlgoId,
@@ -773,6 +788,16 @@ struct GraphBrewRealizedConfig {
     bool scheduleSensitive = false;
     int gorderWindow = 5;
     int gorderFallback = 0;
+    size_t gorderCommunities = 0;
+    size_t gorderVertices = 0;
+    size_t gorderMaxCommunity = 0;
+    size_t gorderFallbackCommunities = 0;
+    size_t gorderFallbackVertices = 0;
+    size_t capacityL2Bytes = 0;
+    size_t capacityLLCBytes = 0;
+    size_t capacityPropertyBytesPerVertex = 0;
+    size_t capacityL2Runs = 0;
+    size_t capacityLLCRuns = 0;
     int finalAlgoId = -1;
     int subAlgoId = -1;
     int numPasses = 0;
@@ -825,6 +850,10 @@ inline GraphBrewRealizedConfig makeGraphBrewRealizedConfig(
         config.superGraphOrder == SuperGraphOrder::TileRabbit;
     realized.gorderWindow = config.gorderWindow;
     realized.gorderFallback = config.gorderFallback;
+    realized.capacityL2Bytes = config.capacityL2Bytes;
+    realized.capacityLLCBytes = config.capacityLLCBytes;
+    realized.capacityPropertyBytesPerVertex =
+        config.capacityPropertyBytesPerVertex;
     realized.finalAlgoId = config.finalAlgoId;
     realized.subAlgoId = config.subAlgoId;
     return realized;
@@ -834,7 +863,7 @@ inline void printGraphBrewRealizedConfig(
     const GraphBrewRealizedConfig& realized) {
     printf(
         "GraphBrew Realized Config: "
-        "{\"schema\":\"graphbrew_realized/v1\","
+        "{\"schema\":\"graphbrew_realized/v2\","
         "\"algorithm\":\"%s\",\"aggregation\":\"%s\","
         "\"ordering\":\"%s\",\"super_graph\":\"%s\","
         "\"community_order\":\"%s\",\"intra_community_order\":\"%s\","
@@ -860,11 +889,28 @@ inline void printGraphBrewRealizedConfig(
     printf(
         ",\"schedule_sensitive\":%s,"
         "\"gorder_window\":%d,\"gorder_fallback\":%d,"
+        "\"gorder_communities\":%zu,\"gorder_vertices\":%zu,"
+        "\"gorder_max_community\":%zu,"
+        "\"gorder_fallback_communities\":%zu,"
+        "\"gorder_fallback_vertices\":%zu,"
+        "\"capacity_l2_bytes\":%zu,\"capacity_llc_bytes\":%zu,"
+        "\"capacity_property_bytes_per_vertex\":%zu,"
+        "\"capacity_l2_runs\":%zu,\"capacity_llc_runs\":%zu,"
         "\"final_algo_id\":%d,\"sub_algo_id\":%d,"
         "\"num_passes\":%d,\"num_communities\":%zu,\"fallbacks\":[",
         realized.scheduleSensitive ? "true" : "false",
         realized.gorderWindow,
         realized.gorderFallback,
+        realized.gorderCommunities,
+        realized.gorderVertices,
+        realized.gorderMaxCommunity,
+        realized.gorderFallbackCommunities,
+        realized.gorderFallbackVertices,
+        realized.capacityL2Bytes,
+        realized.capacityLLCBytes,
+        realized.capacityPropertyBytesPerVertex,
+        realized.capacityL2Runs,
+        realized.capacityLLCRuns,
         realized.finalAlgoId,
         realized.subAlgoId,
         realized.numPasses,
@@ -4457,7 +4503,7 @@ inline void intraGorderGreedy(
             buckets[k].first = idx;
         }
         if (k > maxKey) maxKey = k;
-        if (k >= nodes[top].key) top = idx;
+        if (top < 0 || k >= nodes[top].key) top = idx;
     };
     auto incrementKey = [&](int idx) {
         int oldKey = nodes[idx].key;
@@ -4479,7 +4525,7 @@ inline void intraGorderGreedy(
     auto extractMax = [&]() -> int {
         while (maxKey > 0 && buckets[maxKey].first < 0) maxKey--;
         int idx = buckets[maxKey].first;
-        deleteElement(idx);
+        if (idx >= 0) deleteElement(idx);
         return idx;
     };
 
@@ -4523,6 +4569,249 @@ inline void intraGorderGreedy(
                 if (nodes[nbr].key >= 0) decrementKey(static_cast<int>(nbr));
             }
         }
+    }
+}
+
+inline bool faithfulGorderScoreRangeSafe(
+    size_t vertexCount,
+    int window)
+{
+    if (window <= 0) return false;
+    const uint64_t window64 = static_cast<uint64_t>(window);
+    const uint64_t maximum = static_cast<uint64_t>(
+        std::numeric_limits<int>::max());
+    if (2 * window64 > maximum) return false;
+    const uint64_t vertexLimit =
+        (maximum - 2 * window64) / (window64 + 1);
+    return vertexCount <= vertexLimit;
+}
+
+template <typename K>
+inline void faithfulGorderLocalOrder(
+    const std::vector<std::vector<size_t>>& outNeighbors,
+    const std::vector<std::vector<size_t>>& inNeighbors,
+    size_t vertexCount,
+    int window,
+    std::vector<K>& order)
+{
+    const size_t size = vertexCount;
+    if (
+        outNeighbors.size() < size
+        || inNeighbors.size() < size
+    ) {
+        throw std::invalid_argument(
+            "Faithful local Gorder received mismatched adjacency");
+    }
+    if (window <= 0) {
+        throw std::invalid_argument(
+            "Faithful local Gorder requires a positive window");
+    }
+
+    order.clear();
+    order.reserve(size);
+    if (size == 0) return;
+    if (size == 1) {
+        order.push_back(0);
+        return;
+    }
+    if (!faithfulGorderScoreRangeSafe(size, window)) {
+        throw std::overflow_error(
+            "Faithful local Gorder community exceeds score range");
+    }
+    #ifndef NDEBUG
+    for (size_t local = 0; local < size; ++local) {
+        assert(std::is_sorted(
+            outNeighbors[local].begin(),
+            outNeighbors[local].end()));
+        for (size_t target : outNeighbors[local])
+            assert(target < size);
+        for (size_t source : inNeighbors[local])
+            assert(source < size);
+    }
+    #endif
+
+    int seed = 0;
+    int maxInDegree = -1;
+    std::vector<K> zeroDegree;
+    for (size_t local = 0; local < size; ++local) {
+        const int inDegree =
+            static_cast<int>(inNeighbors[local].size());
+        const int outDegree =
+            static_cast<int>(outNeighbors[local].size());
+        if (inDegree > maxInDegree) {
+            seed = static_cast<int>(local);
+            maxInDegree = inDegree;
+        } else if (inDegree + outDegree == 0) {
+            zeroDegree.push_back(static_cast<K>(local));
+        }
+    }
+
+    const int localCount = static_cast<int>(size);
+    gorder_csr_detail::UnitHeap heap(localCount);
+    for (int local = 0; local < localCount; ++local) {
+        const int inDegree = static_cast<int>(
+            inNeighbors[static_cast<size_t>(local)].size());
+        heap.list[local].key = inDegree;
+        heap.update[local] = -inDegree;
+    }
+    heap.ReConstruct();
+
+    std::vector<char> active(size, 1);
+    for (K local : zeroDegree) {
+        active[local] = 0;
+        heap.update[local] = std::numeric_limits<int>::max() / 2;
+        heap.DeleteElement(static_cast<int>(local));
+    }
+    active[static_cast<size_t>(seed)] = 0;
+    heap.update[seed] = std::numeric_limits<int>::max() / 2;
+    heap.DeleteElement(seed);
+    order.push_back(static_cast<K>(seed));
+
+    auto scoreIncrement = [&](size_t local) {
+        if (!active[local]) return;
+        if (heap.update[local] == 0)
+            heap.IncrementKey(static_cast<int>(local));
+        else
+            ++heap.update[local];
+    };
+    auto scoreDecrement = [&](size_t local) {
+        if (active[local]) --heap.update[local];
+    };
+    const size_t hugeVertex = static_cast<size_t>(
+        std::sqrt(static_cast<double>(size)));
+
+    for (size_t in : inNeighbors[static_cast<size_t>(seed)]) {
+        if (outNeighbors[in].size() > hugeVertex) continue;
+        scoreIncrement(in);
+        if (outNeighbors[in].size() > 1) {
+            for (size_t sibling : outNeighbors[in])
+                scoreIncrement(sibling);
+        }
+    }
+    if (outNeighbors[static_cast<size_t>(seed)].size() <= hugeVertex) {
+        for (size_t out : outNeighbors[static_cast<size_t>(seed)])
+            scoreIncrement(out);
+    }
+
+    const size_t activeAfterSeed =
+        size - zeroDegree.size() - 1;
+    std::vector<char> popVertexExists(size, 0);
+    for (size_t count = 1; count <= activeAfterSeed; ++count) {
+        const int current = heap.ExtractMax();
+        active[static_cast<size_t>(current)] = 0;
+        heap.update[current] = std::numeric_limits<int>::max() / 2;
+        order.push_back(static_cast<K>(current));
+
+        const int popIndex =
+            static_cast<int>(count) - window;
+        if (popIndex >= 0) {
+            const size_t oldLocal = static_cast<size_t>(
+                order[static_cast<size_t>(popIndex)]);
+            if (outNeighbors[oldLocal].size() <= hugeVertex) {
+                for (size_t out : outNeighbors[oldLocal])
+                    scoreDecrement(out);
+            }
+            for (size_t in : inNeighbors[oldLocal]) {
+                if (outNeighbors[in].size() > hugeVertex)
+                    continue;
+                scoreDecrement(in);
+                if (outNeighbors[in].size() <= 1)
+                    continue;
+                if (
+                    std::binary_search(
+                        outNeighbors[in].begin(),
+                        outNeighbors[in].end(),
+                        static_cast<size_t>(current))
+                ) {
+                    popVertexExists[in] = 1;
+                } else {
+                    for (size_t sibling : outNeighbors[in])
+                        scoreDecrement(sibling);
+                }
+            }
+        }
+
+        const size_t currentLocal =
+            static_cast<size_t>(current);
+        if (outNeighbors[currentLocal].size() <= hugeVertex) {
+            for (size_t out : outNeighbors[currentLocal])
+                scoreIncrement(out);
+        }
+        for (size_t in : inNeighbors[currentLocal]) {
+            if (outNeighbors[in].size() > hugeVertex)
+                continue;
+            scoreIncrement(in);
+            if (popVertexExists[in]) {
+                popVertexExists[in] = 0;
+            } else if (outNeighbors[in].size() > 1) {
+                for (size_t sibling : outNeighbors[in])
+                    scoreIncrement(sibling);
+            }
+        }
+    }
+
+    if (!zeroDegree.empty()) {
+        order.insert(
+            order.end() - 1,
+            zeroDegree.begin(),
+            zeroDegree.end());
+    }
+}
+
+/**
+ * Faithful Gorder scoring on the simple directed subgraph induced by one
+ * community. Duplicate edges are collapsed before applying the reference
+ * one-hop, two-hop sibling, window, and sqrt(|V_local|) guard semantics.
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+inline void intraGorderFaithful(
+    const std::vector<K>& verts,
+    K community,
+    const std::vector<K>& membership,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    const std::vector<size_t>& vertToLocal,
+    int window,
+    std::vector<K>& placedOrder,
+    std::vector<std::vector<size_t>>& outNeighbors,
+    std::vector<std::vector<size_t>>& inNeighbors,
+    std::vector<K>& localIds)
+{
+    const size_t size = verts.size();
+    if (outNeighbors.size() < size) outNeighbors.resize(size);
+    if (inNeighbors.size() < size) inNeighbors.resize(size);
+    for (size_t local = 0; local < size; ++local) {
+        outNeighbors[local].clear();
+        inNeighbors[local].clear();
+    }
+    for (size_t local = 0; local < size; ++local) {
+        for (auto neighbor : g.out_neigh(verts[local])) {
+            NodeID_T vertex;
+            if constexpr (std::is_same_v<DestID_T, NodeID_T>)
+                vertex = neighbor;
+            else
+                vertex = neighbor.v;
+            if (membership[vertex] != community) continue;
+            const size_t target =
+                vertToLocal[static_cast<size_t>(vertex)];
+            if (target < size)
+                outNeighbors[local].push_back(target);
+        }
+        auto& localOut = outNeighbors[local];
+        std::sort(localOut.begin(), localOut.end());
+        localOut.erase(
+            std::unique(localOut.begin(), localOut.end()),
+            localOut.end());
+    }
+    for (size_t source = 0; source < size; ++source) {
+        for (size_t target : outNeighbors[source])
+            inNeighbors[target].push_back(source);
+    }
+
+    faithfulGorderLocalOrder<K>(
+        outNeighbors, inNeighbors, size, window, placedOrder);
+    for (size_t position = 0; position < placedOrder.size(); ++position) {
+        localIds[verts[placedOrder[position]]] =
+            static_cast<K>(position);
     }
 }
 
@@ -4776,6 +5065,382 @@ CommunitySuperGraph<K> buildCommunitySuperGraph(
     sg.M /= 2.0f;
 
     return sg;
+}
+
+template <typename K>
+struct CapacityRunOrderResult {
+    std::vector<K> order;
+    std::vector<size_t> l2RunEnds;
+    std::vector<size_t> llcRunEnds;
+};
+
+struct CapacityGeometry {
+    size_t l2Bytes = 0;
+    size_t llcBytes = 0;
+    size_t propertyBytesPerVertex = 0;
+    size_t l2TargetVertices = 0;
+    size_t llcTargetVertices = 0;
+};
+
+inline CapacityGeometry resolveCapacityGeometry(
+    const GraphBrewConfig& config)
+{
+    CapacityGeometry geometry;
+    geometry.l2Bytes = config.capacityL2Bytes > 0
+        ? config.capacityL2Bytes : GetL2SizeBytes();
+    geometry.llcBytes = config.capacityLLCBytes > 0
+        ? config.capacityLLCBytes : GetLLCSizeBytes();
+    geometry.llcBytes = std::max(
+        geometry.l2Bytes, geometry.llcBytes);
+    geometry.propertyBytesPerVertex =
+        config.capacityPropertyBytesPerVertex;
+    if (geometry.propertyBytesPerVertex == 0)
+        geometry.propertyBytesPerVertex = sizeof(double);
+    geometry.propertyBytesPerVertex = std::max<size_t>(
+        1, geometry.propertyBytesPerVertex);
+    geometry.l2TargetVertices = std::max<size_t>(
+        1, geometry.l2Bytes / geometry.propertyBytesPerVertex);
+    geometry.llcTargetVertices = std::max(
+        geometry.l2TargetVertices,
+        geometry.llcBytes / geometry.propertyBytesPerVertex);
+    return geometry;
+}
+
+template <typename K, typename NodeID_T, typename DestID_T>
+std::vector<std::vector<std::pair<K, uint64_t>>>
+buildCapacityCommunityAdjacency(
+    const std::vector<K>& membership,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    size_t nodeCount,
+    K communityCount)
+{
+    static_assert(
+        std::is_unsigned<K>::value,
+        "Capacity-run community IDs must be unsigned");
+    static_assert(
+        sizeof(K) <= sizeof(uint32_t),
+        "Capacity-run community IDs must fit in 32 bits");
+    const int threadCount = omp_get_max_threads();
+    std::vector<std::vector<uint64_t>> localKeys(threadCount);
+
+    #pragma omp parallel
+    {
+        const int thread = omp_get_thread_num();
+        auto& keys = localKeys[thread];
+        #pragma omp for schedule(dynamic, 1024)
+        for (size_t u = 0; u < nodeCount; ++u) {
+            const K communityU = membership[u];
+            for (auto neighbor : g.out_neigh(
+                     static_cast<NodeID_T>(u))) {
+                NodeID_T v;
+                if constexpr (std::is_same_v<DestID_T, NodeID_T>)
+                    v = neighbor;
+                else
+                    v = neighbor.v;
+                if (g.out_degree(v) == 0) continue;
+                const K communityV = membership[v];
+                if (communityU == communityV) continue;
+                const K low = std::min(communityU, communityV);
+                const K high = std::max(communityU, communityV);
+                const uint64_t key =
+                    (static_cast<uint64_t>(low) << 32)
+                    | static_cast<uint64_t>(high);
+                keys.push_back(key);
+            }
+        }
+    }
+
+    #pragma omp parallel for schedule(static)
+    for (int thread = 0; thread < threadCount; ++thread) {
+        auto& keys = localKeys[thread];
+        std::sort(keys.begin(), keys.end());
+    }
+
+    struct Cursor {
+        uint64_t key;
+        int thread;
+        size_t index;
+    };
+    struct CursorGreater {
+        bool operator()(const Cursor& left, const Cursor& right) const {
+            if (left.key != right.key) return left.key > right.key;
+            return left.thread > right.thread;
+        }
+    };
+    std::priority_queue<
+        Cursor,
+        std::vector<Cursor>,
+        CursorGreater> cursors;
+    for (int thread = 0; thread < threadCount; ++thread) {
+        if (!localKeys[thread].empty()) {
+            cursors.push({localKeys[thread][0], thread, 0});
+        }
+    }
+
+    std::vector<std::vector<std::pair<K, uint64_t>>> adjacency(
+        communityCount);
+    while (!cursors.empty()) {
+        const uint64_t key = cursors.top().key;
+        uint64_t count = 0;
+        while (!cursors.empty() && cursors.top().key == key) {
+            Cursor cursor = cursors.top();
+            cursors.pop();
+            const auto& keys = localKeys[cursor.thread];
+            size_t next = cursor.index;
+            while (next < keys.size() && keys[next] == key) {
+                ++count;
+                ++next;
+            }
+            if (next < keys.size()) {
+                cursors.push({
+                    keys[next], cursor.thread, next});
+            }
+        }
+        const K low = static_cast<K>(key >> 32);
+        const K high = static_cast<K>(key & UINT64_C(0xffffffff));
+        adjacency[low].push_back({high, count});
+        adjacency[high].push_back({low, count});
+    }
+    for (auto& neighbors : adjacency) {
+        std::sort(
+            neighbors.begin(), neighbors.end(),
+            [](const auto& left, const auto& right) {
+                return left.first < right.first;
+            });
+    }
+    return adjacency;
+}
+
+/**
+ * Build cut-aware runs of whole communities bounded by L2 and LLC capacity.
+ *
+ * The traversal restarts at each capacity boundary. Within an L2 run it
+ * selects the unplaced community with the strongest accumulated edge weight
+ * to that run. New L2 runs are seeded from connectivity accumulated across
+ * the current LLC run. Disconnected runs restart from the largest remaining
+ * community. Disconnected communities are packed into remaining capacity in
+ * base-order-aware size order. The algorithm is deterministic and
+ * O((C + E_super) log C).
+ */
+template <typename K>
+CapacityRunOrderResult<K> buildCapacityRunCommunityOrder(
+    const std::vector<size_t>& communitySizes,
+    const std::vector<std::vector<std::pair<K, uint64_t>>>& adjacency,
+    const std::vector<K>& baseOrder,
+    size_t l2TargetVertices,
+    size_t llcTargetVertices)
+{
+    const size_t C = communitySizes.size();
+    CapacityRunOrderResult<K> result;
+    result.order.reserve(C);
+    if (C == 0) return result;
+    if (adjacency.size() != C) {
+        throw std::invalid_argument(
+            "Capacity-run ordering received mismatched community sizes");
+    }
+
+    l2TargetVertices = std::max<size_t>(1, l2TargetVertices);
+    llcTargetVertices = std::max(l2TargetVertices, llcTargetVertices);
+
+    std::vector<size_t> baseRank(C, C);
+    for (size_t i = 0; i < baseOrder.size(); ++i) {
+        const size_t c = static_cast<size_t>(baseOrder[i]);
+        if (c < C) baseRank[c] = i;
+    }
+    for (size_t c = 0; c < C; ++c) {
+        if (baseRank[c] == C) baseRank[c] = c;
+    }
+
+    struct Entry {
+        uint64_t score;
+        size_t rank;
+        K community;
+    };
+    struct EntryLess {
+        bool operator()(const Entry& left, const Entry& right) const {
+            if (left.score != right.score)
+                return left.score < right.score;
+            if (left.rank != right.rank)
+                return left.rank > right.rank;
+            return left.community > right.community;
+        }
+    };
+    using Queue = std::priority_queue<Entry, std::vector<Entry>, EntryLess>;
+
+    std::vector<char> placed(C, 0);
+    std::map<size_t, std::set<std::pair<size_t, K>>> remainingBySize;
+    std::vector<K> emptyCommunities;
+    for (K c = 0; c < static_cast<K>(C); ++c) {
+        if (communitySizes[c] == 0) {
+            placed[c] = 1;
+            emptyCommunities.push_back(c);
+            continue;
+        }
+        remainingBySize[communitySizes[c]].insert({baseRank[c], c});
+    }
+    std::sort(
+        emptyCommunities.begin(), emptyCommunities.end(),
+        [&](K left, K right) {
+            return baseRank[left] < baseRank[right];
+        });
+    const size_t activeCommunityCount =
+        C - emptyCommunities.size();
+
+    auto nextLargestFitting = [&](size_t capacity) -> K {
+        auto sizeIt = remainingBySize.upper_bound(capacity);
+        if (sizeIt == remainingBySize.begin())
+            return static_cast<K>(-1);
+        --sizeIt;
+        return sizeIt->second.begin()->second;
+    };
+    auto nextLargest = [&]() -> K {
+        if (remainingBySize.empty()) return static_cast<K>(-1);
+        const auto sizeIt = std::prev(remainingBySize.end());
+        return sizeIt->second.begin()->second;
+    };
+    auto removeRemaining = [&](K community) {
+        auto sizeIt = remainingBySize.find(communitySizes[community]);
+        if (sizeIt == remainingBySize.end()) return;
+        sizeIt->second.erase({baseRank[community], community});
+        if (sizeIt->second.empty()) remainingBySize.erase(sizeIt);
+    };
+
+    std::vector<uint64_t> l2Score(C, 0), llcScore(C, 0);
+    std::vector<K> l2Touched, llcTouched;
+    Queue l2Queue, llcQueue;
+
+    auto resetFrontier = [](std::vector<uint64_t>& score,
+                            std::vector<K>& touched,
+                            Queue& queue) {
+        for (K c : touched) score[c] = 0;
+        touched.clear();
+        queue = Queue();
+    };
+    auto updateFrontier = [&](K source,
+                              std::vector<uint64_t>& score,
+                              std::vector<K>& touched,
+                              Queue& queue) {
+        for (const auto& [neighbor, weight] : adjacency[source]) {
+            if (placed[neighbor]) continue;
+            if (score[neighbor] == 0) touched.push_back(neighbor);
+            score[neighbor] += weight;
+            queue.push({score[neighbor], baseRank[neighbor], neighbor});
+        }
+    };
+    auto peekFrontierFitting = [&](
+        Queue& queue,
+        const std::vector<uint64_t>& score,
+        size_t capacity) -> K {
+        while (!queue.empty()) {
+            const Entry& entry = queue.top();
+            if (
+                placed[entry.community]
+                || entry.score != score[entry.community]
+            ) {
+                queue.pop();
+                continue;
+            }
+            if (communitySizes[entry.community] > capacity) {
+                queue.pop();
+                continue;
+            }
+            return entry.community;
+        }
+        return static_cast<K>(-1);
+    };
+
+    while (result.order.size() < activeCommunityCount) {
+        resetFrontier(llcScore, llcTouched, llcQueue);
+        resetFrontier(l2Score, l2Touched, l2Queue);
+        K seed = nextLargest();
+        if (seed == static_cast<K>(-1)) break;
+
+        size_t llcUsed = 0;
+        bool closeLLC = false;
+        while (seed != static_cast<K>(-1) && !closeLLC) {
+            resetFrontier(l2Score, l2Touched, l2Queue);
+            size_t l2Used = 0;
+            K current = seed;
+
+            while (current != static_cast<K>(-1)) {
+                const size_t size = communitySizes[current];
+                if (
+                    l2Used > 0
+                    && (
+                        l2Used >= l2TargetVertices
+                        || size > l2TargetVertices - l2Used
+                    )
+                )
+                    break;
+                if (
+                    llcUsed > 0
+                    && (
+                        llcUsed >= llcTargetVertices
+                        || size > llcTargetVertices - llcUsed
+                    )
+                ) {
+                    closeLLC = true;
+                    break;
+                }
+
+                placed[current] = 1;
+                removeRemaining(current);
+                result.order.push_back(current);
+                l2Used += size;
+                llcUsed += size;
+                updateFrontier(current, l2Score, l2Touched, l2Queue);
+                updateFrontier(current, llcScore, llcTouched, llcQueue);
+
+                const size_t l2Remaining =
+                    l2Used < l2TargetVertices
+                        ? l2TargetVertices - l2Used
+                        : 0;
+                const size_t llcRemaining =
+                    llcUsed < llcTargetVertices
+                        ? llcTargetVertices - llcUsed
+                        : 0;
+                const size_t remaining =
+                    std::min(l2Remaining, llcRemaining);
+                current = peekFrontierFitting(
+                    l2Queue, l2Score, remaining);
+                if (current == static_cast<K>(-1)) {
+                    current = nextLargestFitting(remaining);
+                }
+            }
+
+            result.l2RunEnds.push_back(result.order.size());
+            if (
+                closeLLC
+                || result.order.size() == activeCommunityCount
+                || llcUsed >= llcTargetVertices
+            ) {
+                break;
+            }
+
+            const size_t llcRemaining =
+                llcUsed < llcTargetVertices
+                    ? llcTargetVertices - llcUsed
+                    : 0;
+            seed = peekFrontierFitting(
+                llcQueue, llcScore, llcRemaining);
+            if (seed == static_cast<K>(-1)) {
+                seed = nextLargestFitting(llcRemaining);
+            }
+            if (
+                seed == static_cast<K>(-1)
+                || llcUsed >= llcTargetVertices
+                || communitySizes[seed]
+                    > llcTargetVertices - llcUsed
+            ) break;
+        }
+        result.llcRunEnds.push_back(result.order.size());
+    }
+
+    result.order.insert(
+        result.order.end(),
+        emptyCommunities.begin(),
+        emptyCommunities.end());
+    return result;
 }
 
 /**
@@ -5594,7 +6259,8 @@ void orderCompose(
     const std::vector<K>& degrees,
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     size_t N,
-    const GraphBrewConfig& config)
+    const GraphBrewConfig& config,
+    GraphBrewRealizedConfig* realized = nullptr)
 {
     const std::vector<K>& membership = result.membership;
     Timer phaseTimer;
@@ -5607,7 +6273,29 @@ void orderCompose(
     double intraOrderSeconds = 0.0;
     double finalAssignSeconds = 0.0;
 
-    // Group vertices by community; isolated (zero-degree) vertices go to tail.
+    const bool faithfulLocalGorder =
+        config.intraCommunityOrder
+        == IntraCommunityOrder::GorderFaithful;
+    if (faithfulLocalGorder && g.directed()) {
+        throw std::invalid_argument(
+            "Faithful local Gorder currently requires an undirected graph");
+    }
+    if (
+        faithfulLocalGorder
+        && AblationConfig::Get().don_tiebreak
+    ) {
+        throw std::invalid_argument(
+            "Faithful local Gorder requires DON tie-breaking disabled");
+    }
+    if (
+        config.communityOrder == CommunityOrder::CapacityRuns
+        && config.superGraphOrder != SuperGraphOrder::None
+    ) {
+        throw std::invalid_argument(
+            "Capacity-run ordering requires no Stage-1 order");
+    }
+
+    // Group vertices by community; isolated vertices go to the global tail.
     // Serial scatter is fast enough (~30-50ms for 3.7M vertices) and avoids
     // atomic-cursor contention seen with parallel push approaches on graphs
     // that have a few hot mega-communities (e.g. cit-Patents).
@@ -5630,7 +6318,8 @@ void orderCompose(
             std::vector<K> localSizes(numComm, 0);
             #pragma omp for schedule(static) nowait
             for (int64_t v = 0; v < (int64_t)N; ++v) {
-                if (degrees[v] != 0) ++localSizes[membership[v]];
+                if (degrees[v] != 0)
+                    ++localSizes[membership[v]];
             }
             for (K c = 0; c < numComm; ++c) {
                 if (localSizes[c]) {
@@ -5739,6 +6428,10 @@ void orderCompose(
     // Stage 2 refines the Stage 1 result. Stable sorting makes the selected
     // community metric primary while retaining Stage 1 order for equal keys.
     bool cutMinFallback = false;
+    CapacityRunOrderResult<K> capacityRuns;
+    size_t capacityL2Bytes = 0;
+    size_t capacityLLCBytes = 0;
+    size_t capacityPropertyBytes = 0;
     if (config.communityOrder == CommunityOrder::SizeDesc) {
         std::stable_sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commVertices[a].size() > commVertices[b].size();
@@ -5769,6 +6462,40 @@ void orderCompose(
         std::stable_sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commTotalDeg[a] < commTotalDeg[b];
         });
+    } else if (config.communityOrder == CommunityOrder::CapacityRuns) {
+        const CapacityGeometry geometry =
+            resolveCapacityGeometry(config);
+        capacityL2Bytes = geometry.l2Bytes;
+        capacityLLCBytes = geometry.llcBytes;
+        capacityPropertyBytes = geometry.propertyBytesPerVertex;
+        std::vector<size_t> capacityCommunitySizes(numComm, 0);
+        for (K c = 0; c < numComm; ++c)
+            capacityCommunitySizes[c] = commVertices[c].size();
+        auto capacityAdjacency =
+            buildCapacityCommunityAdjacency<K, NodeID_T, DestID_T>(
+                membership,
+                g,
+                N,
+                numComm);
+        capacityRuns = buildCapacityRunCommunityOrder<K>(
+            capacityCommunitySizes,
+            capacityAdjacency,
+            commOrder,
+            geometry.l2TargetVertices,
+            geometry.llcTargetVertices);
+        if (capacityRuns.order.size() != static_cast<size_t>(numComm)) {
+            throw std::runtime_error(
+                "Capacity-run ordering produced an incomplete permutation");
+        }
+        commOrder = capacityRuns.order;
+        if (realized) {
+            realized->capacityL2Bytes = capacityL2Bytes;
+            realized->capacityLLCBytes = capacityLLCBytes;
+            realized->capacityPropertyBytesPerVertex =
+                capacityPropertyBytes;
+            realized->capacityL2Runs = capacityRuns.l2RunEnds.size();
+            realized->capacityLLCRuns = capacityRuns.llcRunEnds.size();
+        }
     } else if (config.communityOrder == CommunityOrder::CutMin) {
         // Mt-METIS-style: greedy nearest-neighbour TSP over inter-community
         // crossing-edge counts.  Skip if C>4096 (matrix gets too big).
@@ -5879,10 +6606,17 @@ void orderCompose(
             }
         }
     }
-    if (config.intraCommunityOrder == IntraCommunityOrder::Gorder) {
+    if (
+        config.intraCommunityOrder == IntraCommunityOrder::Gorder
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::GorderFaithful
+    ) {
+        if (config.gorderWindow <= 0) {
+            throw std::invalid_argument(
+                "Local Gorder requires a positive window");
+        }
         for (K c : commOrder) {
             size_t size = commVertices[c].size();
-            if (size <= 3) continue;
             if (
                 config.gorderFallback > 0
                 && size > static_cast<size_t>(
@@ -5892,10 +6626,29 @@ void orderCompose(
                 gorderFallbackVertices += size;
                 continue;
             }
+            if (size <= (faithfulLocalGorder ? 1u : 3u))
+                continue;
+            if (
+                faithfulLocalGorder
+                && !faithfulGorderScoreRangeSafe(
+                    size, config.gorderWindow)
+            ) {
+                throw std::overflow_error(
+                    "Faithful local Gorder community exceeds score range");
+            }
             ++gorderCommunityCount;
             gorderVertexCount += size;
             gorderMaxCommunity =
                 std::max(gorderMaxCommunity, size);
+        }
+        if (realized) {
+            realized->gorderCommunities = gorderCommunityCount;
+            realized->gorderVertices = gorderVertexCount;
+            realized->gorderMaxCommunity = gorderMaxCommunity;
+            realized->gorderFallbackCommunities =
+                gorderFallbackCount;
+            realized->gorderFallbackVertices =
+                gorderFallbackVertices;
         }
     }
     composeSectionTimer.Stop();
@@ -5909,7 +6662,8 @@ void orderCompose(
         std::vector<K> cmOrder;  // only used by RCM
         std::deque<K> dendStack; // only used by Dendrogram
         std::vector<K> gordPlaced;                  // only used by Gorder
-        std::vector<std::vector<size_t>> gordAdj;   // only used by Gorder
+        std::vector<std::vector<size_t>> gordOutAdj;// only used by Gorder
+        std::vector<std::vector<size_t>> gordInAdj; // faithful Gorder only
 
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < (size_t)numComm; ++i) {
@@ -5927,7 +6681,9 @@ void orderCompose(
                 intraRCMpp<K, NodeID_T, DestID_T>(
                     commVertices[c], c, membership, degrees, g,
                     vertToLocal, visited, bfsQueue, cmOrder, localIds);
-            } else if (config.intraCommunityOrder == IntraCommunityOrder::Gorder) {
+            } else if (
+                config.intraCommunityOrder == IntraCommunityOrder::Gorder
+            ) {
                 if (
                     config.gorderFallback > 0
                     && commVertices[c].size()
@@ -5941,7 +6697,26 @@ void orderCompose(
                     intraGorderGreedy<K, NodeID_T, DestID_T>(
                         commVertices[c], c, membership, degrees, g,
                         vertToLocal, config.gorderWindow,
-                        gordPlaced, gordAdj, localIds);
+                        gordPlaced, gordOutAdj, localIds);
+                }
+            } else if (
+                config.intraCommunityOrder
+                == IntraCommunityOrder::GorderFaithful
+            ) {
+                if (
+                    config.gorderFallback > 0
+                    && commVertices[c].size()
+                        > static_cast<size_t>(
+                            config.gorderFallback)
+                ) {
+                    intraBFSFromHub<K, NodeID_T, DestID_T>(
+                        commVertices[c], c, membership, degrees, g,
+                        vertToLocal, visited, bfsQueue, localIds);
+                } else {
+                    intraGorderFaithful<K, NodeID_T, DestID_T>(
+                        commVertices[c], c, membership, g,
+                        vertToLocal, config.gorderWindow,
+                        gordPlaced, gordOutAdj, gordInAdj, localIds);
                 }
             } else if (config.intraCommunityOrder == IntraCommunityOrder::HubSort) {
                 // Sort community vertices by degree descending; cheap O(sz log sz).
@@ -6217,6 +6992,8 @@ void orderCompose(
         config.communityOrder == CommunityOrder::SizeAsc    ? "size_asc"    :
         config.communityOrder == CommunityOrder::DegreeDesc ? "degree_desc" :
         config.communityOrder == CommunityOrder::DegreeAsc  ? "degree_asc"  :
+        config.communityOrder == CommunityOrder::CapacityRuns
+            ? "capacity_runs" :
         config.communityOrder == CommunityOrder::CutMin
             ? (cutMinFallback ? "cut_min_fallback_degree_desc" : "cut_min") :
         "identity";
@@ -6225,6 +7002,8 @@ void orderCompose(
         config.intraCommunityOrder == IntraCommunityOrder::RCM     ? "rcm"          :
         config.intraCommunityOrder == IntraCommunityOrder::RCMpp   ? "rcmpp"        :
         config.intraCommunityOrder == IntraCommunityOrder::Gorder  ? "gorder"       :
+        config.intraCommunityOrder == IntraCommunityOrder::GorderFaithful
+            ? "gorder_faithful" :
         config.intraCommunityOrder == IntraCommunityOrder::HubSort ? "hubsort"      :
         config.intraCommunityOrder == IntraCommunityOrder::DegreeAsc ? "deg_asc"    :
         config.intraCommunityOrder == IntraCommunityOrder::Hub2      ? "hub2"        :
@@ -6244,7 +7023,11 @@ void orderCompose(
         "vertex-map=%.4fs, intra-order=%.4fs, final-assign=%.4fs\n",
         groupingSeconds, communityOrderSeconds, vertexMapSeconds,
         intraOrderSeconds, finalAssignSeconds);
-    if (config.intraCommunityOrder == IntraCommunityOrder::Gorder) {
+    if (
+        config.intraCommunityOrder == IntraCommunityOrder::Gorder
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::GorderFaithful
+    ) {
         printf(
             "  compose gorder: communities=%zu, vertices=%zu, "
             "max-community=%zu, fallback-communities=%zu, "
@@ -6252,6 +7035,16 @@ void orderCompose(
             gorderCommunityCount, gorderVertexCount,
             gorderMaxCommunity, gorderFallbackCount,
             gorderFallbackVertices);
+    }
+    if (config.communityOrder == CommunityOrder::CapacityRuns) {
+        printf(
+            "  compose capacity-runs: property-bytes=%zu, "
+            "l2-bytes=%zu, llc-bytes=%zu, l2-runs=%zu, llc-runs=%zu\n",
+            capacityPropertyBytes,
+            capacityL2Bytes,
+            capacityLLCBytes,
+            capacityRuns.l2RunEnds.size(),
+            capacityRuns.llcRunEnds.size());
     }
 }
 
@@ -6915,7 +7708,8 @@ void applyOrderingStrategy(
                     "bfs",
                 });
             }
-            orderCompose<K, NodeID_T, DestID_T>(newIds, result, degrees, g, N, config);
+            orderCompose<K, NodeID_T, DestID_T>(
+                newIds, result, degrees, g, N, config, realized);
             break;
         case OrderingStrategy::LAYER:
             printf("GraphBrew: GraphBrew mode - ordering deferred to external dispatch\n");

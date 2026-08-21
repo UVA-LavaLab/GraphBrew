@@ -45,7 +45,7 @@ LDLIBS_NUMA = -L$(LOCAL_NUMA_PREFIX)/lib/x86_64-linux-gnu
 endif
 # =========================================================
 DEP_GAPBS     = $(wildcard $(INCLUDE_GAPBS)/*.h)
-DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/algorithms/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/analysis/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/edge/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/gas/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.def) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/cagra/*.h)
+DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/algorithms/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/analysis/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/edge/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/gas/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.def) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/experimental/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/cagra/*.h)
 DEP_RABBIT = $(wildcard $(INCLUDE_EXTERNAL)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INCLUDE_EXTERNAL)/gorder/*.h)
 DEP_CORDER = $(wildcard $(INCLUDE_EXTERNAL)/corder/*.h)
@@ -125,10 +125,10 @@ SUITE = $(KERNELS_BIN) $(DENSE_EDGE_KERNELS_BIN) $(FRONTIER_EDGE_KERNELS_BIN) $(
 UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
 	test_shard_stream test_ownership_analysis test_edge_primitives \
 	test_gas_executor test_relabel_weights test_graphbrew_config \
-	test_large_edge_indices test_refine_two_swap
+	test_graphbrew_experimental test_large_edge_indices test_refine_two_swap
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 CORE_UNIT_TESTS = test_relabel_weights test_graphbrew_config \
-	test_large_edge_indices test_refine_two_swap
+	test_graphbrew_experimental test_large_edge_indices test_refine_two_swap
 CORE_UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(CORE_UNIT_TESTS))
 # =========================================================
 

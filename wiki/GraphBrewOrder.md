@@ -10,8 +10,8 @@ does not add, remove, or redirect edges.
 
 ![Leiden community transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)
 
-Leiden adds community membership to the existing graph. At this stage, edges
-and vertex IDs are unchanged.
+The community detector adds membership to the existing graph. At this stage,
+edges and vertex IDs are unchanged.
 
 ### 2. Place community blocks
 
@@ -48,7 +48,8 @@ cd_parallel:sgmb4096:gordf5000:norefine:2:2
 A useful plain-English name is:
 
 ```text
-parallel bounded Leiden -> SizeDesc blocks -> Gorder8-or-BFS vertices
+parallel bounded Louvain-equivalent detection -> SizeDesc blocks ->
+relaxed Gorder8-or-BFS vertices
 ```
 
 This is one fixed experimental treatment. Algorithm 12 does not search for a
@@ -58,7 +59,7 @@ better combination at runtime.
 
 | Decision | Active choice | Effect |
 |---|---|---|
-| Partitioner | bounded GVE-Leiden | discovers communities |
+| Partitioner | bounded parallel Louvain-equivalent detector | discovers communities without Leiden refinement guarantees |
 | Block layout | `comm_size_desc` | assigns contiguous ID ranges from largest to smallest community |
 | Vertex layout | `intra_gorder:gw8:gordf5000` | uses Gorder8 in small communities and BFS in large communities |
 
@@ -70,11 +71,11 @@ allowed to perform.
 | Token | Scope | Meaning |
 |---|---|---|
 | `12` | dispatcher | execute GraphBrewOrder |
-| `leiden` | partitioner | use the GVE-Leiden CSR path |
+| `leiden` | partitioner | select the GraphBrew CSR community-detection path; with `norefine`, the active behavior is bounded Louvain-equivalent detection rather than full Leiden |
 | `compose` | pipeline | expose block and vertex layout as separate stages |
 | `sg_none` | final block layout | do not run an additional Rabbit/RCM order over the final community super-graph |
 | `comm_size_desc` | final block layout | place larger community blocks first |
-| `intra_gorder` | vertex layout | enable local Gorder |
+| `intra_gorder` | vertex layout | enable the historical relaxed local Gorder score used by the validated evidence |
 | `gw8` | vertex layout | use an eight-vertex Gorder sliding window |
 | `cd_parallel` | community detection | permit OpenMP execution instead of forcing community detection to one thread |
 | `sgmb4096` | internal Leiden aggregation | compute up to 4096 super-node proposals in parallel, then commit them in super-node order |
@@ -180,6 +181,75 @@ local moving -----------------------> aggregation
 This removes an entire move phase. It can reduce preprocessing substantially,
 but it can also change community quality and the resulting layout. It is a
 deliberate cost-quality trade-off, not a generally preferred Leiden setting.
+Aggregation alone does not make this detector RabbitOrder: Rabbit couples a
+single-sweep agglomeration rule to dendrogram-DFS emission, while this path
+uses modularity local moving, explicit aggregation passes, and a separate
+block/vertex layout. Without constrained refinement, however, it must not be
+described as providing Leiden's connectivity or subset-optimality guarantees.
+
+## Experimental primitives
+
+These tokens are implemented for the current novelty sprint. They are not in
+the validated selector, paper matrix, or frozen evidence above.
+
+### Capacity-pinned community runs
+
+```text
+12:leiden:compose:sg_none:comm_capacity_runs:
+capl2k256:capllck22528:capv8:intra_bfs
+```
+
+`comm_capacity_runs` keeps each detected community indivisible, packs
+communities into nested L2 and LLC vertex-capacity runs, and favors the
+strongest unplaced inter-community edge count that still fits. Disconnected
+space is filled deterministically from the largest fitting community.
+Oversized communities become singleton runs.
+
+All three geometry tokens are mandatory:
+
+| Token | Meaning |
+|---|---|
+| `capl2k<N>` | modeled L2 capacity in KiB |
+| `capllck<N>` | modeled LLC capacity in KiB; must be at least L2 |
+| `capv<N>` | modeled property bytes per vertex |
+
+The current model bounds the vertex-property footprint only. Crossing scores
+count edges, not weighted-edge distance values, and do not model CSR bytes.
+Capacity runs require `compose` and `sg_none`; the pinned geometry is embedded
+in mapping identity.
+
+### Faithful local Gorder
+
+`intra_gorder` remains the deployed direct-neighbor heuristic whose mappings
+back the published GraphBrew evidence. `intra_gorder_faithful` is a separate
+experimental token that restores exact Gorder's induced-subgraph indegree
+initialization, two-hop sibling/common-predecessor score, sliding-window
+push/pop algebra, UnitHeap tie behavior, and `sqrt(|community|)` fan-out
+guard. Duplicate local edges are collapsed before scoring.
+
+The faithful token currently requires an undirected graph and `compose`.
+`gw<N>` and `gordf<N>` retain their usual window and per-community BFS
+fallback meanings. This implementation establishes a faithful local
+primitive; it does not yet establish a performance win over global
+`9:csr`.
+
+### Contained validity-only prototypes
+
+The remaining sprint directions are isolated under
+`bench/include/graphbrew/reorder/experimental/` and are compiled only by
+`test_graphbrew_experimental`. A policy test rejects production includes of
+these headers. They have no CLI token, mapping artifact, kernel path, or
+evaluation claim.
+
+| Direction | Header | Validated property |
+|---|---|---|
+| asymmetric dual index | `dual_index.h` | two independent ID domains preserve the exact directed edge multiset and expose logical storage cost |
+| small spectral blocks | `spectral_blocks.h` | exact bounded Fiedler ordering or explicit size, convergence, and degeneracy failure |
+| structural locality probe | `locality_probe.h` | deterministic direct-link/common-predecessor score and exact integer decision threshold over supplied orders |
+| modeled compression layout | `compression_layout.h` | signed-first-delta/successive-gap metrics and bounded refinement that never worsens modeled gap bits |
+
+Each header can be deleted independently with its corresponding test section
+if later evidence rejects the direction.
 
 ## Why these controls were combined
 
