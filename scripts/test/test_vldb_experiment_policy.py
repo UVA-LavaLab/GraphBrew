@@ -3100,7 +3100,11 @@ def test_sssp_freeze_is_validation_only(
         freeze_policy=True,
     )
     assert path.read_bytes() == reviewed
-    assert snapshot.read_bytes() == reviewed
+    assert json.loads(snapshot.read_text()) == (
+        runner._sssp_policy_validation_snapshot(
+            json.loads(reviewed),
+        )
+    )
     frozen = json.loads(policy.read_text())
     assert frozen["selection_rule_id"] == runner.SSSP_SELECTION_RULE_ID
     assert frozen["policies"]["tiny"]["delta"] == 1

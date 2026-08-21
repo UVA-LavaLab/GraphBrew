@@ -42,8 +42,9 @@ explicit exploratory cohorts.
 ## Final weighted SSSP policy freeze
 
 After the final corpus refresh, tune on the SHUFFLED baseline and validate
-`<artifact-root>/vldb_paper/sssp_delta_tuning.json`. Then freeze the exact
-artifact and recommendations into the repository SSOT.
+`<artifact-root>/vldb_paper/sssp_delta_tuning.json`. The full trial artifact
+stays under the external artifact root. Freezing writes the compact runtime
+validation projection and recommendations into the repository SSOT.
 
 The final tuner uses `fastest-source-median-tie/v2`: three independent
 process invocations per `(graph, delta)`, each with the same three deterministic
@@ -78,10 +79,10 @@ python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
   --threads 16 --cpu-list 0-15 --timeout 21600
 ```
 
-This writes `sssp_delta_tuning.json` and `sssp_policy.json` beside
-`config.py`. Runtime preflight verifies the reviewed recommendations, exact
-policy types and values, thread/affinity policy, graph dimensions, and
-semantic graph provenance before any SSSP measurement.
+This writes a compact `sssp_delta_tuning.json` validation snapshot and
+`sssp_policy.json` beside `config.py`. Runtime preflight verifies the reviewed
+recommendations, protocol identity, graph dimensions, and semantic graph
+provenance before any SSSP measurement.
 
 ## Monolithic workflow (legacy)
 

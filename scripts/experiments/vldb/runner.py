@@ -498,6 +498,46 @@ def sssp_policy_for_graph(graph_name: str) -> dict[str, Any]:
     return dict(policy)
 
 
+_SSSP_SNAPSHOT_IDENTITY_KEYS = (
+    "weight_scheme",
+    "delta_candidates",
+    "trials_per_candidate",
+    "trials_per_invocation",
+    "source_count",
+    "repeats_per_source",
+    "invocation_replicates",
+    "candidate_order_policy",
+    "runtime_env",
+    "cpu_list",
+    "measurement_protocol_id",
+    "selection_rule_id",
+    "practical_tie_ratio",
+    "paired_t_critical",
+)
+
+
+def _sssp_policy_validation_snapshot(
+    artifact: dict[str, Any],
+) -> dict[str, Any]:
+    """Project a reviewed tuning artifact to runtime validation fields."""
+    snapshot = {
+        "schema": artifact.get("schema"),
+        "artifact_kind": "policy-validation-snapshot",
+        "preview": artifact.get("preview"),
+        "eligible_for_freeze": artifact.get("eligible_for_freeze"),
+        **{
+            key: artifact.get(key)
+            for key in _SSSP_SNAPSHOT_IDENTITY_KEYS
+        },
+        "graphs": {
+            name: {"graph_info": row.get("graph_info")}
+            for name, row in artifact.get("graphs", {}).items()
+        },
+        "recommendations": artifact.get("recommendations"),
+    }
+    return snapshot
+
+
 def _validate_sssp_policy_source() -> dict[str, Any]:
     if SSSP_POLICY_SELECTION_RULE_ID != SSSP_SELECTION_RULE_ID:
         raise RuntimeError(
@@ -511,6 +551,8 @@ def _validate_sssp_policy_source() -> dict[str, Any]:
     artifact = json.loads(tuning_path.read_text())
     if (
         artifact.get("schema") != "sssp_delta_tuning/v2"
+        or artifact.get("artifact_kind")
+            != "policy-validation-snapshot"
         or
         artifact.get("preview") is not False
         or artifact.get("eligible_for_freeze") is not True
@@ -4037,7 +4079,11 @@ def tune_sssp_deltas(
                     "Reviewed SSSP artifact does not match validation-only "
                     "re-derivation"
                 )
-            snapshot_bytes = reviewed_artifact_bytes
+            snapshot_bytes = json.dumps(
+                _sssp_policy_validation_snapshot(reviewed_artifact),
+                indent=2,
+                sort_keys=True,
+            ).encode()
             with tempfile.NamedTemporaryFile(
                 mode="wb",
                 suffix=".json.tmp",
