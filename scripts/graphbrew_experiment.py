@@ -2311,7 +2311,7 @@ def main():
         "--paper-graph-dir",
         default=os.environ.get(
             "GRAPHBREW_PAPER_GRAPH_ROOT",
-            "/media/Data/00_GraphDatasets/GraphBrew",
+            "/media/NVMeData/00_GraphDatasets/GraphBrew",
         ),
         metavar="DIR",
         help="Graph directory for frozen-study experiments",
@@ -2336,7 +2336,7 @@ def main():
     g_paper.add_argument("--paper-artifact-root",
                          default=os.environ.get(
                              "GRAPHBREW_VLDB_ROOT",
-                             "/media/Data/00_GraphDatasets/GraphBrew/artifacts",
+                             "/media/NVMeData/00_GraphDatasets/GraphBrew/artifacts",
                          ),
                          metavar="DIR",
                          help="Root for VLDB results, mappings, and run sidecars")
@@ -2398,7 +2398,7 @@ def main():
     g_paper.add_argument(
         "--mechanism-discovery-graph-root",
         default=(
-            "/media/Data/00_GraphDatasets/GraphBrew/"
+            "/media/NVMeData/00_GraphDatasets/GraphBrew/"
             "synthetic/mechanism_discovery"
         ),
         metavar="DIR",
@@ -2407,7 +2407,7 @@ def main():
     g_paper.add_argument(
         "--mechanism-discovery-artifact-root",
         default=(
-            "/media/Data/00_GraphDatasets/GraphBrew/"
+            "/media/NVMeData/00_GraphDatasets/GraphBrew/"
             "artifacts/mechanism_discovery"
         ),
         metavar="DIR",
@@ -2456,7 +2456,7 @@ def main():
     g_paper.add_argument(
         "--mapping-forensics-artifact-root",
         default=(
-            "/media/Data/00_GraphDatasets/GraphBrew/"
+            "/media/NVMeData/00_GraphDatasets/GraphBrew/"
             "artifacts/mapping_forensics"
         ),
         metavar="DIR",

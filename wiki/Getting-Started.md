@@ -133,14 +133,14 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
 ```bash
 # Preview: 2 small graphs, 1 trial — sanity check (~5 min)
 python3 scripts/graphbrew_experiment.py --vldb --paper-preview \
-  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --paper-threads 4 --paper-cpu-list 24-27
 
 # Full frozen matrix on the dedicated 16-core evaluation host
 python3 scripts/graphbrew_experiment.py --vldb \
-  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --paper-threads 16 --paper-cpu-list 0-15
 ```
 

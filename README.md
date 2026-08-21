@@ -143,15 +143,15 @@ Use `scripts/graphbrew_experiment.py` as the public orchestration entry point.
 Large graphs, mappings, and result artifacts belong under:
 
 ```text
-/media/Data/00_GraphDatasets/GraphBrew
+/media/NVMeData/00_GraphDatasets/GraphBrew
 ```
 
 Rapid checks are for debugging and candidate narrowing:
 
 ```bash
 python3 scripts/graphbrew_experiment.py --vldb 2 --paper-preview \
-  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --paper-threads 4 --paper-cpu-list 24-27
 ```
 

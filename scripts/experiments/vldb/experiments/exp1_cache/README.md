@@ -43,8 +43,8 @@ python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 --local
 
 # Final representative cohort (the graph/capacity/mode matrix is the SSOT default)
 python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 \
-  --graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --threads 16 --cpu-list 0-15
 ```
 

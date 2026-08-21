@@ -18,8 +18,8 @@ source .venv/bin/activate 2>/dev/null || true
 EXP="${EXP:-2}"
 GRAPHS="${GRAPHS:-}"
 EXTRA="${EXTRA_ARGS:-}"
-GRAPH_DIR="${GRAPH_DIR:-/media/Data/00_GraphDatasets/GraphBrew}"
-ARTIFACT_ROOT="${ARTIFACT_ROOT:-/media/Data/00_GraphDatasets/GraphBrew/artifacts}"
+GRAPH_DIR="${GRAPH_DIR:-/media/NVMeData/00_GraphDatasets/GraphBrew}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-/media/NVMeData/00_GraphDatasets/GraphBrew/artifacts}"
 THREADS="${THREADS:-16}"
 CPU_LIST="${CPU_LIST:-0-15}"
 

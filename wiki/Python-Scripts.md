@@ -61,7 +61,7 @@ python3 scripts/graphbrew_experiment.py --check-deps
 # Generic rapid path
 python3 scripts/graphbrew_experiment.py \
   --full --quick --size small --trials 1 --skip-cache \
-  --graphs-dir /media/Data/00_GraphDatasets/GraphBrew
+  --graphs-dir /media/NVMeData/00_GraphDatasets/GraphBrew
 
 # One phase
 python3 scripts/graphbrew_experiment.py --phase benchmark --size small

@@ -38,7 +38,7 @@ BIN_SIM_DIR = PROJECT_ROOT / "bench" / "bin_sim"
 PAPER_GRAPH_ROOT = Path(
     os.environ.get(
         "GRAPHBREW_PAPER_GRAPH_ROOT",
-        "/media/Data/00_GraphDatasets/GraphBrew",
+        "/media/NVMeData/00_GraphDatasets/GraphBrew",
     )
 ).resolve()
 PAPER_ARTIFACT_ROOT = Path(

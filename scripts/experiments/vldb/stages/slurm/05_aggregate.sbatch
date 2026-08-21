@@ -15,8 +15,8 @@ module load gcc miniforge || true
 source .venv/bin/activate 2>/dev/null || true
 
 EXTRA="${EXTRA_ARGS:-}"
-GRAPH_DIR="${GRAPH_DIR:-/media/Data/00_GraphDatasets/GraphBrew}"
-ARTIFACT_ROOT="${ARTIFACT_ROOT:-/media/Data/00_GraphDatasets/GraphBrew/artifacts}"
+GRAPH_DIR="${GRAPH_DIR:-/media/NVMeData/00_GraphDatasets/GraphBrew}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-/media/NVMeData/00_GraphDatasets/GraphBrew/artifacts}"
 PRIVATE_ARGS=()
 if [[ -n "${PAPER_DIR:-}" ]]; then
   PRIVATE_ARGS+=(--paper-dir "$PAPER_DIR")

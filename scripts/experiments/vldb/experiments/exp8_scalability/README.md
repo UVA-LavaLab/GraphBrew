@@ -14,8 +14,8 @@ python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
   --exp 8 \
   --measurement-generation vldb-final-20260808 \
   --skip-build --reorder-timeout 3600 \
-  --graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --threads 16 --cpu-list 0-15
 ```
 
@@ -32,8 +32,8 @@ python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
     12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort \
   --measurement-generation vldb-final-20260808 \
   --skip-build --reorder-timeout 3600 \
-  --graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --threads 16 --cpu-list 0-15
 ```
 

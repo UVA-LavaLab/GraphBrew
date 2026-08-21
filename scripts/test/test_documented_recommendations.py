@@ -17,7 +17,7 @@ EVIDENCE_PATH = PROJECT_ROOT / "docs" / "recommendation-evidence.json"
 ARTIFACT_ROOT = Path(
     os.environ.get(
         "GRAPHBREW_PAPER_ARTIFACT_ROOT",
-        "/media/Data/00_GraphDatasets/GraphBrew/artifacts",
+        "/media/NVMeData/00_GraphDatasets/GraphBrew/artifacts",
     )
 )
 

@@ -66,7 +66,7 @@ GRAPH_TYPES = {
     "webbase-2001": "web",
     "twitter7": "social",
 }
-DEFAULT_GRAPH_ROOT = Path("/media/Data/00_GraphDatasets/GraphBrew")
+DEFAULT_GRAPH_ROOT = Path("/media/NVMeData/00_GraphDatasets/GraphBrew")
 DEFAULT_MAPPING_ROOT = (
     DEFAULT_GRAPH_ROOT / "artifacts" / "vldb_mappings"
 )

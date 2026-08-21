@@ -27,8 +27,8 @@ python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
   --exp 3 \
   --measurement-generation vldb-final-20260808 \
   --skip-build \
-  --graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --threads 16 --cpu-list 0-15
 ```
 

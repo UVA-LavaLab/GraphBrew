@@ -64,8 +64,8 @@ First measure without the freeze flag:
 ```bash
 python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
   --exp 2 --tune-sssp-delta \
-  --graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --threads 16 --cpu-list 0-15 --timeout 21600
 ```
 
@@ -74,8 +74,8 @@ After validation approves that exact artifact, run the validation-only freeze:
 ```bash
 python3 scripts/experiments/vldb/stages/03_cpu_perf.py \
   --exp 2 --tune-sssp-delta --freeze-sssp-policy \
-  --graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --threads 16 --cpu-list 0-15 --timeout 21600
 ```
 

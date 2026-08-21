@@ -21,8 +21,8 @@ scripts/
 
 | Artifact | Path |
 |---|---|
-| Large graph corpus                    | `/media/Data/00_GraphDatasets/GraphBrew/` |
-| Large mappings/results                | `/media/Data/00_GraphDatasets/GraphBrew/artifacts/` |
+| Large graph corpus                    | `/media/NVMeData/00_GraphDatasets/GraphBrew/` |
+| Large mappings/results                | `/media/NVMeData/00_GraphDatasets/GraphBrew/artifacts/` |
 | Generic observations                  | `results/data/` |
 | Generic logs                          | `results/logs/`, `results/slurm_logs/` |
 

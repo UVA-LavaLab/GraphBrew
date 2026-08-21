@@ -2603,7 +2603,7 @@ def test_slurm_stages_share_external_graph_root():
         content = (slurm_dir / name).read_text()
         assert (
             "GRAPH_DIR=\"${GRAPH_DIR:-"
-            "/media/Data/00_GraphDatasets/GraphBrew}\""
+            "/media/NVMeData/00_GraphDatasets/GraphBrew}\""
         ) in content
         assert "--graph-dir \"$GRAPH_DIR\"" in content
 

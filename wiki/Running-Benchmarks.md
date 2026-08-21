@@ -30,7 +30,7 @@ The automated pipeline runs **seven** benchmarks by default (`EXPERIMENT_BENCHMA
 
 For batch benchmarking, use the unified experiment script:
 
-Pass `--graphs-dir /media/Data/00_GraphDatasets/GraphBrew` on the evaluation
+Pass `--graphs-dir /media/NVMeData/00_GraphDatasets/GraphBrew` on the evaluation
 host so downloaded or converted graphs do not fill the repository filesystem.
 
 ```bash
@@ -73,14 +73,14 @@ Use the top-level orchestrator for normal preview and full runs:
 ```bash
 # Preview
 python3 scripts/graphbrew_experiment.py --vldb --paper-preview \
-  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --paper-threads 4 --paper-cpu-list 24-27
 
 # Full frozen matrix
 python3 scripts/graphbrew_experiment.py --vldb \
-  --paper-graph-dir /media/Data/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/Data/00_GraphDatasets/GraphBrew/artifacts \
+  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
+  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
   --paper-threads 16 --paper-cpu-list 0-15
 ```
 
