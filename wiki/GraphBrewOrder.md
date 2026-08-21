@@ -4,11 +4,37 @@ GraphBrewOrder (`-o 12`) constructs a vertex permutation from explicit,
 independent decisions. It changes vertex IDs and CSR memory placement; it
 does not add, remove, or redirect edges.
 
-![GraphBrew relabeling example](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabeling-example.svg)
+## Transformation gallery
 
-The figure is schematic. The promoted recipe places the largest community
-block first, uses Gorder8 inside communities with at most 5000 vertices, and
-uses BFS inside larger communities.
+### 1. Detect communities
+
+![Leiden community transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)
+
+Leiden adds community membership to the existing graph. At this stage, edges
+and vertex IDs are unchanged.
+
+### 2. Place community blocks
+
+![SizeDesc block transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg)
+
+`comm_size_desc` assigns one contiguous ID range to each community and places
+the largest range first. This is the first stage that changes global IDs.
+
+### 3. Order a small community
+
+![Gorder8 transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg)
+
+For communities with at most 5000 vertices, Gorder8 changes only IDs inside
+that block. It favors vertices whose neighborhoods overlap the most recent
+window of up to eight placements.
+
+### 4. Order a large community
+
+![BFS fallback transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg)
+
+For larger communities, the fallback starts at a high-degree vertex and
+assigns local IDs by breadth-first level. The community's global block range
+does not move.
 
 ## The active composition
 

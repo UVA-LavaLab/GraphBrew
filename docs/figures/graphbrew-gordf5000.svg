@@ -15,7 +15,7 @@
     .domain{font-size:20px;font-weight:700;letter-spacing:1.3px}
     .heading{font-size:28px;font-weight:700}.body{font-size:22px}
     .label{font-size:20px;font-weight:700}
-    .edge{stroke:#747D86;stroke-width:6}
+    .edge{stroke:#747D86;stroke-width:3.5}
   </style>
   <text x="45" y="55" class="sans title">gordf5000: choose local ordering by community size</text>
   <text x="45" y="88" class="sans subtitle">The threshold applies to each detected community, never to the whole graph.</text>
@@ -26,7 +26,7 @@
   <g transform="translate(0 35)">
   <rect x="55" y="150" width="600" height="365" rx="9" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
   <text x="355" y="195" text-anchor="middle" class="sans heading">Community size &lt;= 5,000</text>
-  <circle cx="355" cy="315" r="105" fill="none" stroke="#C58A28" stroke-width="7" stroke-dasharray="3 14"/>
+  <circle cx="355" cy="315" r="105" fill="none" stroke="#C58A28" stroke-width="3" stroke-dasharray="6 7"/>
   <line x1="290" y1="300" x2="350" y2="245" class="edge"/>
   <line x1="290" y1="300" x2="340" y2="375" class="edge"/>
   <line x1="350" y1="245" x2="425" y2="310" class="edge"/>
@@ -40,7 +40,7 @@
 
   <rect x="745" y="150" width="600" height="365" rx="9" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
   <text x="1045" y="195" text-anchor="middle" class="sans heading">Community size &gt; 5,000</text>
-  <circle cx="1045" cy="315" r="120" fill="none" stroke="#1769C2" stroke-width="7" stroke-dasharray="3 14"/>
+  <circle cx="1045" cy="315" r="120" fill="none" stroke="#1769C2" stroke-width="3" stroke-dasharray="6 7"/>
   <circle cx="1045" cy="315" r="30" fill="#E7F7EA" stroke="#27313A" stroke-width="2"/>
   <circle cx="965" cy="255" r="25" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
   <circle cx="1125" cy="255" r="25" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>

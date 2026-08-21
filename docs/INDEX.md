@@ -22,8 +22,14 @@
   canonical architecture figure
 - [`figures/graphbrew-lowreuse-policy.svg`](figures/graphbrew-lowreuse-policy.svg)
   — history-free selector decision and Rabbit fallback semantics
-- [`figures/graphbrew-relabeling-example.svg`](figures/graphbrew-relabeling-example.svg)
-  — topology-preserving relabeling example
+- [`figures/graphbrew-leiden-transform.svg`](figures/graphbrew-leiden-transform.svg)
+  — graph to community-membership transformation
+- [`figures/graphbrew-sizedesc-transform.svg`](figures/graphbrew-sizedesc-transform.svg)
+  — community membership to contiguous block ranges
+- [`figures/graphbrew-gorder-transform.svg`](figures/graphbrew-gorder-transform.svg)
+  — small-community Gorder8 transformation
+- [`figures/graphbrew-bfs-transform.svg`](figures/graphbrew-bfs-transform.svg)
+  — large-community BFS transformation
 - [`figures/graphbrew-cd-parallel.svg`](figures/graphbrew-cd-parallel.svg) —
   serial versus parallel community detection
 - [`figures/graphbrew-sgmb4096.svg`](figures/graphbrew-sgmb4096.svg) —

@@ -2,11 +2,11 @@
   <title id="title">norefine execution path</title>
   <desc id="desc">After Leiden local moving, norefine goes directly to aggregation. Full Leiden performs a constrained refinement phase before aggregation.</desc>
   <defs>
-    <marker id="blue-arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
-      <path d="M0 0 L12 5 L0 10 Z" fill="#1769C2"/>
+    <marker id="blue-arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
     </marker>
-    <marker id="orange-arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
-      <path d="M0 0 L12 5 L0 10 Z" fill="#1769C2"/>
+    <marker id="orange-arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
     </marker>
     <style>
       :root{color-scheme:light dark}
@@ -22,8 +22,8 @@
       .domain{font-size:20px;font-weight:700;letter-spacing:1.3px}
       .heading{font-size:28px;font-weight:700}.body{font-size:22px}
       .label{font-size:20px;font-weight:700}
-      .blueflow{fill:none;stroke:#1769C2;stroke-width:5;marker-end:url(#blue-arrow)}
-      .orangeflow{fill:none;stroke:#1769C2;stroke-width:5;marker-end:url(#orange-arrow)}
+      .blueflow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#blue-arrow)}
+      .orangeflow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#orange-arrow)}
     </style>
   </defs>
   <text x="45" y="55" class="sans title">norefine: remove one Leiden move phase</text>

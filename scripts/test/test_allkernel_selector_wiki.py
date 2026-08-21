@@ -13,14 +13,20 @@ FIGURE_DIR = PROJECT_ROOT / "docs/figures"
 FIGURES = (
     "graphbrew-architecture.svg",
     "graphbrew-lowreuse-policy.svg",
-    "graphbrew-relabeling-example.svg",
+    "graphbrew-leiden-transform.svg",
+    "graphbrew-sizedesc-transform.svg",
+    "graphbrew-gorder-transform.svg",
+    "graphbrew-bfs-transform.svg",
     "graphbrew-cd-parallel.svg",
     "graphbrew-sgmb4096.svg",
     "graphbrew-gordf5000.svg",
     "graphbrew-norefine.svg",
 )
 MECHANISM_FIGURES = (
-    "graphbrew-relabeling-example.svg",
+    "graphbrew-leiden-transform.svg",
+    "graphbrew-sizedesc-transform.svg",
+    "graphbrew-gorder-transform.svg",
+    "graphbrew-bfs-transform.svg",
     "graphbrew-cd-parallel.svg",
     "graphbrew-sgmb4096.svg",
     "graphbrew-gordf5000.svg",
@@ -122,13 +128,24 @@ def test_selector_documentation_uses_evidence_bound_figures():
         ]
         assert font_sizes and min(font_sizes) >= 20
         assert 'stroke="#9AA3AD"' in source
-        assert 'fill="#FFF0D8"' in source
-        assert 'fill="#EDF5FF"' in source
+        assert any(
+            fill in source
+            for fill in (
+                'fill="#FFF0D8"',
+                'fill="#EDF5FF"',
+                'fill="#E7F7EA"',
+                'fill="#F7DEDC"',
+                'fill="#EEE9FF"',
+            )
+        )
         assert "#1769C2" in source
         assert "prefers-color-scheme:dark" in source
 
     assert "graphbrew-lowreuse-policy.svg" in selector
-    assert "graphbrew-relabeling-example.svg" in graphbrew
+    assert "graphbrew-leiden-transform.svg" in graphbrew
+    assert "graphbrew-sizedesc-transform.svg" in graphbrew
+    assert "graphbrew-gorder-transform.svg" in graphbrew
+    assert "graphbrew-bfs-transform.svg" in graphbrew
     assert "graphbrew-cd-parallel.svg" in graphbrew
     assert "graphbrew-sgmb4096.svg" in graphbrew
     assert "graphbrew-gordf5000.svg" in graphbrew

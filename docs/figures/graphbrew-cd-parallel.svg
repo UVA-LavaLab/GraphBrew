@@ -2,8 +2,8 @@
   <title id="title">cd_parallel execution</title>
   <desc id="desc">Serial community detection processes one move stream. cd_parallel distributes work across OpenMP lanes. The policy decision remains deterministic while the resulting mapping can be schedule-sensitive.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
-      <path d="M0 0 L12 5 L0 10 Z" fill="#1769C2"/>
+    <marker id="arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
     </marker>
     <style>
       :root{color-scheme:light dark}
@@ -19,7 +19,7 @@
       .domain{font-size:20px;font-weight:700;letter-spacing:1.3px}
       .heading{font-size:28px;font-weight:700}.body{font-size:22px}
       .label{font-size:20px;font-weight:700}
-      .flow{fill:none;stroke:#1769C2;stroke-width:5;marker-end:url(#arrow)}
+      .flow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
     </style>
   </defs>
   <text x="45" y="55" class="sans title">cd_parallel: use the OpenMP thread team for Leiden</text>
