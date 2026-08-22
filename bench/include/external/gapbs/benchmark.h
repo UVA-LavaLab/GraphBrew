@@ -249,6 +249,7 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
     double total_seconds = 0;
     Timer trial_timer;
     bool all_verified = true;
+    int verified_trials = 0;
     for (int iter = 0; iter < cli.num_trials(); iter++)
     {
         trial_timer.Start();
@@ -266,11 +267,12 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
             PrintLabel(
                 "Verification", passed ? "PASS" : "FAIL");
             all_verified &= passed;
+            ++verified_trials;
             trial_timer.Stop();
             PrintTime("Verification Time", trial_timer.Seconds());
         }
     }
-    if (cli.do_verify())
+    if (verified_trials > 0)
         PrintStructuredVerificationResult(all_verified);
     PrintTime("Average Time", total_seconds / cli.num_trials());
 }
@@ -321,6 +323,7 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
     std::vector<TrialResult> trial_results;
     trial_results.reserve(cli.num_trials());
     bool all_verified = true;
+    int verified_trials = 0;
 
     for (int iter = 0; iter < cli.num_trials(); iter++)
     {
@@ -357,6 +360,7 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
             bool passed = verify(std::ref(g), std::ref(result));
             PrintLabel("Verification", passed ? "PASS" : "FAIL");
             all_verified &= passed;
+            ++verified_trials;
             trial_timer.Stop();
             PrintTime("Verification Time", trial_timer.Seconds());
             tr.verified = passed;
@@ -364,7 +368,7 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
 
         trial_results.push_back(std::move(tr));
     }
-    if (cli.do_verify())
+    if (verified_trials > 0)
         PrintStructuredVerificationResult(all_verified);
 
     double avg_time = total_seconds / cli.num_trials();
