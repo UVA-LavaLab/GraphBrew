@@ -760,6 +760,52 @@ void TestStructuralLocalityProbe()
     Require(
         rejected,
         "structural probe accepted a negative edge target");
+
+    rejected = false;
+    try {
+        std::vector<std::vector<Node>> tooManyVertices(
+            graphbrew::experimental::kStructuralProbeMaxVertices + 1);
+        std::vector<Node> order(tooManyVertices.size());
+        std::iota(order.begin(), order.end(), Node(0));
+        (void)graphbrew::experimental::compareLocalOrders(
+            tooManyVertices, order, order, exactConfig);
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    Require(
+        rejected,
+        "structural probe ignored its vertex limit");
+    rejected = false;
+    try {
+        auto badWindow = exactConfig;
+        badWindow.window =
+            graphbrew::experimental::kStructuralProbeMaxWindow + 1;
+        (void)graphbrew::experimental::compareLocalOrders(
+            path, cheap, expensive, badWindow);
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    Require(
+        rejected,
+        "structural probe ignored its window limit");
+    rejected = false;
+    try {
+        std::vector<std::vector<Node>> tooManyEdges(1);
+        tooManyEdges[0].assign(
+            graphbrew::experimental::
+                kStructuralProbeMaxDirectedEdges + 1,
+            0);
+        (void)graphbrew::experimental::compareLocalOrders(
+            tooManyEdges,
+            std::vector<Node>{0},
+            std::vector<Node>{0},
+            exactConfig);
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    Require(
+        rejected,
+        "structural probe ignored its edge limit");
 }
 
 void TestCompressionLayout()
@@ -929,6 +975,26 @@ void TestCompressionLayout()
     Require(
         rejected,
         "compression refinement ignored its edge limit");
+
+    rejected = false;
+    try {
+        std::vector<std::vector<Node>> excessiveWork(256);
+        for (auto& row : excessiveWork) {
+            row.resize(256);
+            std::iota(row.begin(), row.end(), Node(0));
+        }
+        std::vector<Node> order(256);
+        std::iota(order.begin(), order.end(), Node(0));
+        (void)graphbrew::experimental::refineCompressionOrder(
+            excessiveWork,
+            order,
+            graphbrew::experimental::kCompressionMaxPasses);
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    Require(
+        rejected,
+        "compression refinement ignored its work limit");
 
     rejected = false;
     bool rejectedEarly = false;

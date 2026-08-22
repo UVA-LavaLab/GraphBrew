@@ -699,9 +699,8 @@ inline GraphBrewConfig parseGraphBrewConfig(
         && config.capacityLLCBytes > 0
         && config.capacityLLCBytes < config.capacityL2Bytes
     ) {
-        reject("capllck<capl2k");
-        if (!strict)
-            config.capacityLLCBytes = config.capacityL2Bytes;
+        throw std::invalid_argument(
+            "Capacity-run LLC bytes must be at least L2 bytes");
     }
 
     return config;

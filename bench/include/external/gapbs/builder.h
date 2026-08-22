@@ -3684,6 +3684,19 @@ public:
         config.rabbitDegreeSortPreprocess =
             config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
         if (
+            g.directed()
+            && (
+                config.communityOrder
+                    == graphbrew::CommunityOrder::CapacityRuns
+                || config.intraCommunityOrder
+                    == graphbrew::IntraCommunityOrder::GorderFaithful
+            )
+        ) {
+            throw std::invalid_argument(
+                "Capacity runs and faithful local Gorder "
+                "currently require an undirected graph");
+        }
+        if (
             config.communityOrder
             == graphbrew::CommunityOrder::CapacityRuns
         ) {
@@ -3696,75 +3709,9 @@ public:
         }
         graphbrew::printGraphBrewEffectiveConfig(config);
         {
-            nlohmann::json resolved;
-            resolved["algorithm"] =
-                graphbrew::graphBrewAlgorithmName(config.algorithm);
-            resolved["community_mode"] =
-                graphbrew::graphBrewCommunityModeName(
-                    config.communityMode);
-            resolved["aggregation"] =
-                graphbrew::graphBrewAggregationName(
-                    config.aggregation);
-            resolved["ordering"] =
-                config.algorithm ==
-                        graphbrew::GraphBrewAlgorithm::RABBIT_ORDER
-                    && !config.hasExplicitOrdering
-                ? "rabbit-native-dfs"
-                : graphbrew::graphBrewOrderingName(config.ordering);
-            resolved["super_graph"] =
-                graphbrew::graphBrewSuperGraphName(
-                    config.superGraphOrder);
-            resolved["community_order"] =
-                graphbrew::graphBrewCommunityOrderName(
-                    config.communityOrder);
-            resolved["intra_community_order"] =
-                graphbrew::graphBrewIntraOrderName(
-                    config.intraCommunityOrder);
-            resolved["resolution"] = config.resolution;
-            resolved["super_graph_resolution"] =
-                config.superGraphResolution;
-            resolved["max_iterations"] = config.maxIterations;
-            resolved["max_passes"] = config.maxPasses;
-            resolved["refinement_depth"] =
-                config.refinementDepth;
-            resolved["gorder_window"] = config.gorderWindow;
-            resolved["gorder_fallback"] =
-                config.gorderFallback;
-            if (
-                config.communityOrder
-                == graphbrew::CommunityOrder::CapacityRuns
-            ) {
-                resolved["capacity_l2_bytes"] =
-                    config.capacityL2Bytes;
-                resolved["capacity_llc_bytes"] =
-                    config.capacityLLCBytes;
-                resolved["capacity_property_bytes_per_vertex"] =
-                    config.capacityPropertyBytesPerVertex;
-            }
-            resolved["supergraph_move_batch"] =
-                config.superGraphMoveBatch;
-            resolved["final_algo_id"] = config.finalAlgoId;
-            resolved["recursive_depth"] = config.recursiveDepth;
-            resolved["sub_algo_id"] = config.subAlgoId;
-            resolved["rabbit_degree_sort_preprocess"] =
-                config.rabbitDegreeSortPreprocess;
-            resolved["use_refinement"] = config.useRefinement;
-            resolved["dynamic_resolution"] =
-                config.useDynamicResolution;
-            resolved["degree_sorting"] = config.useDegreeSorting;
-            resolved["community_merging"] =
-                config.useCommunityMerging;
-            resolved["hub_extraction"] = config.useHubExtraction;
-            resolved["hub_extraction_pct"] =
-                config.hubExtractionPct;
-            resolved["gorder_intra"] = config.useGorderIntra;
-            resolved["hub_sort"] = config.useHubSort;
-            resolved["rcm_super"] = config.useRCMSuper;
-            resolved["rcm_intra"] = config.useRCMIntra;
-            resolved["small_community_merging"] =
-                config.useSmallCommunityMerging;
             graphbrew::database::GetStagedReorderMeta().algorithm_spec =
-                "12:" + resolved.dump();
+                "12:" + graphbrew::graphBrewEffectiveConfigJson(
+                    config, false);
         }
         auto realized = graphbrew::makeGraphBrewRealizedConfig(config);
         {

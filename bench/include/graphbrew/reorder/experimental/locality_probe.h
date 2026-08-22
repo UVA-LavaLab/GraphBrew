@@ -12,6 +12,12 @@
 
 namespace graphbrew::experimental {
 
+inline constexpr size_t kStructuralProbeMaxVertices = 256;
+inline constexpr size_t kStructuralProbeMaxDirectedEdges = 65536;
+inline constexpr size_t kStructuralProbeMaxWindow = 64;
+inline constexpr size_t kStructuralProbeMaxPredecessorComparisons =
+    10000000;
+
 struct StructuralProbeConfig {
     size_t window = 5;
     // Relative score delta: 300 means expensive >= cheap * 1.03.
@@ -122,6 +128,13 @@ OrderMetrics<K> measureOrder(
                     metrics.predecessorComparisons,
                     1,
                     "Structural probe predecessor count overflowed");
+                if (
+                    metrics.predecessorComparisons
+                    > kStructuralProbeMaxPredecessorComparisons
+                ) {
+                    throw std::invalid_argument(
+                        "Structural probe exceeds its comparison limit");
+                }
                 if (*leftIn < *rightIn) {
                     ++leftIn;
                 } else if (*rightIn < *leftIn) {
@@ -174,6 +187,10 @@ StructuralProbeResult compareLocalOrders(
     const std::vector<K>& expensiveOrder,
     const StructuralProbeConfig& config = {})
 {
+    if (outgoing.size() > kStructuralProbeMaxVertices) {
+        throw std::invalid_argument(
+            "Structural probe exceeds its vertex limit");
+    }
     // The window contains preceding positions only. Each unordered pair in
     // that window earns one point per directed link and one point per
     // distinct common predecessor. Input duplicate arcs are collapsed.
@@ -181,6 +198,10 @@ StructuralProbeResult compareLocalOrders(
     if (config.window == 0) {
         throw std::invalid_argument(
             "Structural probe window must be positive");
+    }
+    if (config.window > kStructuralProbeMaxWindow) {
+        throw std::invalid_argument(
+            "Structural probe exceeds its window limit");
     }
     if (
         cheapOrder.size() != outgoing.size()
@@ -202,6 +223,10 @@ StructuralProbeResult compareLocalOrders(
             inputArcVisits,
             neighbors.size(),
             "Structural probe input-arc count overflowed");
+        if (inputArcVisits > kStructuralProbeMaxDirectedEdges) {
+            throw std::invalid_argument(
+                "Structural probe exceeds its edge limit");
+        }
         for (K target : neighbors) {
             (void)checkedIndex(
                 target,

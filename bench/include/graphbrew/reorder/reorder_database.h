@@ -54,7 +54,7 @@ inline constexpr const char* DEFAULT_DATA_DIR = "results/data/";
 inline constexpr const char* BENCHMARK_OBSERVATION_SCHEMA =
     "benchmark-observation/v2";
 inline constexpr const char* REORDER_SEMANTICS_VERSION =
-    "graphbrew-reorder/v2";
+    "graphbrew-reorder/v3";
 
 /// Number of nearest neighbors for kNN selection
 inline constexpr int KNN_K = 5;

@@ -198,11 +198,13 @@
 #include <queue>
 #include <atomic>
 #include <functional>
+#include <iomanip>
 #include <limits>
 #include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 #include <type_traits>
 
 #ifdef OPENMP
@@ -688,83 +690,95 @@ inline const char* graphBrewIntraOrderName(IntraCommunityOrder value) {
     return "unknown";
 }
 
-inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config) {
+inline std::string graphBrewEffectiveConfigJson(
+    const GraphBrewConfig& config,
+    bool includeSchema = true)
+{
     const char* effective_ordering =
         config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER &&
         !config.hasExplicitOrdering
             ? "rabbit-native-dfs"
             : graphBrewOrderingName(config.ordering);
-    char resolution_json[64];
-    if (config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER) {
-        std::strcpy(resolution_json, "null");
-    } else {
-        std::snprintf(
-            resolution_json, sizeof(resolution_json),
-            "%.17g", config.resolution);
-    }
+
+    std::ostringstream out;
+    out << std::setprecision(17) << std::boolalpha
+        << "{";
+    if (includeSchema)
+        out << "\"schema\":\"graphbrew_config/v3\",";
+    out << "\"algorithm\":\""
+        << graphBrewAlgorithmName(config.algorithm) << "\""
+        << ",\"community_mode\":\""
+        << graphBrewCommunityModeName(config.communityMode) << "\""
+        << ",\"aggregation\":\""
+        << graphBrewAggregationName(config.aggregation) << "\""
+        << ",\"ordering\":\"" << effective_ordering << "\""
+        << ",\"super_graph\":\""
+        << graphBrewSuperGraphName(config.superGraphOrder) << "\""
+        << ",\"community_order\":\""
+        << graphBrewCommunityOrderName(config.communityOrder) << "\""
+        << ",\"intra_community_order\":\""
+        << graphBrewIntraOrderName(config.intraCommunityOrder) << "\""
+        << ",\"refinement_pass\":\""
+        << (
+            config.refinementPass == RefinementPass::TwoSwap
+                ? "two-swap" : "none"
+        ) << "\""
+        << ",\"resolution\":";
+    if (config.algorithm == GraphBrewAlgorithm::RABBIT_ORDER)
+        out << "null";
+    else
+        out << config.resolution;
+    out << ",\"super_graph_resolution\":"
+        << config.superGraphResolution
+        << ",\"max_iterations\":" << config.maxIterations
+        << ",\"max_passes\":" << config.maxPasses
+        << ",\"refinement_depth\":" << config.refinementDepth
+        << ",\"m_computation\":\""
+        << (
+            config.mComputation == MComputation::TOTAL_EDGES
+                ? "total-edges" : "half-edges"
+        ) << "\""
+        << ",\"deterministic_community_detection\":"
+        << config.deterministicCommunityDetection
+        << ",\"supergraph_move_batch\":"
+        << config.superGraphMoveBatch
+        << ",\"gorder_window\":" << config.gorderWindow
+        << ",\"gorder_fallback\":" << config.gorderFallback
+        << ",\"capacity_l2_bytes\":" << config.capacityL2Bytes
+        << ",\"capacity_llc_bytes\":" << config.capacityLLCBytes
+        << ",\"capacity_property_bytes_per_vertex\":"
+        << config.capacityPropertyBytesPerVertex
+        << ",\"final_algo_id\":" << config.finalAlgoId
+        << ",\"recursive_depth\":" << config.recursiveDepth
+        << ",\"sub_algo_id\":" << config.subAlgoId
+        << ",\"rabbit_degree_sort_preprocess\":"
+        << config.rabbitDegreeSortPreprocess
+        << ",\"use_refinement\":" << config.useRefinement
+        << ",\"use_lazy_updates\":" << config.useLazyUpdates
+        << ",\"verify_topology\":" << config.verifyTopology
+        << ",\"dynamic_resolution\":" << config.useDynamicResolution
+        << ",\"degree_sorting\":" << config.useDegreeSorting
+        << ",\"community_merging\":" << config.useCommunityMerging
+        << ",\"hub_extraction\":" << config.useHubExtraction
+        << ",\"hub_extraction_pct\":" << config.hubExtractionPct
+        << ",\"gorder_intra\":" << config.useGorderIntra
+        << ",\"hub_sort\":" << config.useHubSort
+        << ",\"rcm_super\":" << config.useRCMSuper
+        << ",\"rcm_intra\":" << config.useRCMIntra
+        << ",\"small_community_merging\":"
+        << config.useSmallCommunityMerging
+        << ",\"has_explicit_ordering\":"
+        << config.hasExplicitOrdering
+        << "}";
+    return out.str();
+}
+
+inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config)
+{
+    const std::string json = graphBrewEffectiveConfigJson(config);
     printf(
-        "GraphBrew Effective Config: "
-        "{\"schema\":\"graphbrew_config/v2\","
-        "\"algorithm\":\"%s\",\"community_mode\":\"%s\","
-        "\"aggregation\":\"%s\",\"ordering\":\"%s\","
-        "\"super_graph\":\"%s\",\"community_order\":\"%s\","
-        "\"intra_community_order\":\"%s\",\"refinement_pass\":\"%s\","
-        "\"resolution\":%s,\"super_graph_resolution\":%.17g,"
-        "\"max_iterations\":%d,\"max_passes\":%d,"
-        "\"refinement_depth\":%d,\"m_computation\":\"%s\","
-        "\"deterministic_community_detection\":%s,"
-        "\"supergraph_move_batch\":%d,"
-        "\"gorder_window\":%d,\"gorder_fallback\":%d,"
-        "\"capacity_l2_bytes\":%zu,\"capacity_llc_bytes\":%zu,"
-        "\"capacity_property_bytes_per_vertex\":%zu,"
-        "\"final_algo_id\":%d,"
-        "\"recursive_depth\":%d,\"sub_algo_id\":%d,"
-        "\"rabbit_degree_sort_preprocess\":%s,"
-        "\"use_refinement\":%s,\"dynamic_resolution\":%s,"
-        "\"degree_sorting\":%s,\"community_merging\":%s,"
-        "\"hub_extraction\":%s,\"hub_extraction_pct\":%.17g,"
-        "\"gorder_intra\":%s,\"hub_sort\":%s,"
-        "\"rcm_super\":%s,\"rcm_intra\":%s,"
-        "\"small_community_merging\":%s,"
-        "\"has_explicit_ordering\":%s}\n",
-        graphBrewAlgorithmName(config.algorithm),
-        graphBrewCommunityModeName(config.communityMode),
-        graphBrewAggregationName(config.aggregation),
-        effective_ordering,
-        graphBrewSuperGraphName(config.superGraphOrder),
-        graphBrewCommunityOrderName(config.communityOrder),
-        graphBrewIntraOrderName(config.intraCommunityOrder),
-        config.refinementPass == RefinementPass::TwoSwap ? "two-swap" : "none",
-        resolution_json,
-        config.superGraphResolution,
-        config.maxIterations,
-        config.maxPasses,
-        config.refinementDepth,
-        config.mComputation == MComputation::TOTAL_EDGES
-            ? "total-edges" : "half-edges",
-        config.deterministicCommunityDetection ? "true" : "false",
-        config.superGraphMoveBatch,
-        config.gorderWindow,
-        config.gorderFallback,
-        config.capacityL2Bytes,
-        config.capacityLLCBytes,
-        config.capacityPropertyBytesPerVertex,
-        config.finalAlgoId,
-        config.recursiveDepth,
-        config.subAlgoId,
-        config.rabbitDegreeSortPreprocess ? "true" : "false",
-        config.useRefinement ? "true" : "false",
-        config.useDynamicResolution ? "true" : "false",
-        config.useDegreeSorting ? "true" : "false",
-        config.useCommunityMerging ? "true" : "false",
-        config.useHubExtraction ? "true" : "false",
-        config.hubExtractionPct,
-        config.useGorderIntra ? "true" : "false",
-        config.useHubSort ? "true" : "false",
-        config.useRCMSuper ? "true" : "false",
-        config.useRCMIntra ? "true" : "false",
-        config.useSmallCommunityMerging ? "true" : "false",
-        config.hasExplicitOrdering ? "true" : "false");
+        "GraphBrew Effective Config: %s\n",
+        json.c_str());
 }
 
 struct GraphBrewRealizedConfig {
@@ -4618,17 +4632,26 @@ inline void faithfulGorderLocalOrder(
         throw std::overflow_error(
             "Faithful local Gorder community exceeds score range");
     }
-    #ifndef NDEBUG
     for (size_t local = 0; local < size; ++local) {
-        assert(std::is_sorted(
-            outNeighbors[local].begin(),
-            outNeighbors[local].end()));
-        for (size_t target : outNeighbors[local])
-            assert(target < size);
-        for (size_t source : inNeighbors[local])
-            assert(source < size);
+        if (!std::is_sorted(
+                outNeighbors[local].begin(),
+                outNeighbors[local].end())) {
+            throw std::invalid_argument(
+                "Faithful local Gorder requires sorted out-neighbors");
+        }
+        for (size_t target : outNeighbors[local]) {
+            if (target >= size) {
+                throw std::invalid_argument(
+                    "Faithful local Gorder out-neighbor is out of range");
+            }
+        }
+        for (size_t source : inNeighbors[local]) {
+            if (source >= size) {
+                throw std::invalid_argument(
+                    "Faithful local Gorder in-neighbor is out of range");
+            }
+        }
     }
-    #endif
 
     int seed = 0;
     int maxInDegree = -1;
@@ -5085,19 +5108,24 @@ struct CapacityGeometry {
 inline CapacityGeometry resolveCapacityGeometry(
     const GraphBrewConfig& config)
 {
+    if (
+        config.capacityL2Bytes == 0
+        || config.capacityLLCBytes == 0
+        || config.capacityPropertyBytesPerVertex == 0
+    ) {
+        throw std::invalid_argument(
+            "Capacity-run execution requires pinned L2, LLC, "
+            "and property-byte geometry");
+    }
+    if (config.capacityLLCBytes < config.capacityL2Bytes) {
+        throw std::invalid_argument(
+            "Capacity-run LLC bytes must be at least L2 bytes");
+    }
     CapacityGeometry geometry;
-    geometry.l2Bytes = config.capacityL2Bytes > 0
-        ? config.capacityL2Bytes : GetL2SizeBytes();
-    geometry.llcBytes = config.capacityLLCBytes > 0
-        ? config.capacityLLCBytes : GetLLCSizeBytes();
-    geometry.llcBytes = std::max(
-        geometry.l2Bytes, geometry.llcBytes);
+    geometry.l2Bytes = config.capacityL2Bytes;
+    geometry.llcBytes = config.capacityLLCBytes;
     geometry.propertyBytesPerVertex =
         config.capacityPropertyBytesPerVertex;
-    if (geometry.propertyBytesPerVertex == 0)
-        geometry.propertyBytesPerVertex = sizeof(double);
-    geometry.propertyBytesPerVertex = std::max<size_t>(
-        1, geometry.propertyBytesPerVertex);
     geometry.l2TargetVertices = std::max<size_t>(
         1, geometry.l2Bytes / geometry.propertyBytesPerVertex);
     geometry.llcTargetVertices = std::max(
@@ -5114,6 +5142,10 @@ buildCapacityCommunityAdjacency(
     size_t nodeCount,
     K communityCount)
 {
+    if (g.directed()) {
+        throw std::invalid_argument(
+            "Capacity-run adjacency requires an undirected graph");
+    }
     static_assert(
         std::is_unsigned<K>::value,
         "Capacity-run community IDs must be unsigned");
@@ -5137,7 +5169,6 @@ buildCapacityCommunityAdjacency(
                     v = neighbor;
                 else
                     v = neighbor.v;
-                if (g.out_degree(v) == 0) continue;
                 const K communityV = membership[v];
                 if (communityU == communityV) continue;
                 const K low = std::min(communityU, communityV);
@@ -6293,6 +6324,13 @@ void orderCompose(
     ) {
         throw std::invalid_argument(
             "Capacity-run ordering requires no Stage-1 order");
+    }
+    if (
+        config.communityOrder == CommunityOrder::CapacityRuns
+        && g.directed()
+    ) {
+        throw std::invalid_argument(
+            "Capacity-run ordering currently requires an undirected graph");
     }
 
     // Group vertices by community; isolated vertices go to the global tail.

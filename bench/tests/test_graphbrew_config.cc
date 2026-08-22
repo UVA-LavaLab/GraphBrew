@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <numeric>
 #include <random>
@@ -364,11 +365,16 @@ void TestCapacityRunCommunityOrder()
             && geometry.llcBytes == 16 * 1024
             && geometry.propertyBytesPerVertex == 8,
         "capacity-run geometry resolution changed explicit values");
+    bool geometryRejected = false;
+    try {
+        (void)graphbrew::resolveCapacityGeometry(
+            graphbrew::GraphBrewConfig{});
+    } catch (const std::invalid_argument&) {
+        geometryRejected = true;
+    }
     Require(
-        graphbrew::resolveCapacityGeometry(
-            graphbrew::GraphBrewConfig{}).propertyBytesPerVertex
-            == sizeof(double),
-        "capacity-run default property size became kernel-dependent");
+        geometryRejected,
+        "capacity-run execution accepted unpinned geometry");
 
     auto faithful = graphbrew::parseGraphBrewConfig({
         "compose",
@@ -388,59 +394,6 @@ void TestCapacityRunCommunityOrder()
                 .intraCommunityOrder
             == graphbrew::IntraCommunityOrder::GorderFaithful,
         "faithful local Gorder alias changed");
-
-    bool rejected = false;
-    try
-    {
-        (void)graphbrew::parseGraphBrewConfig(
-            {"compose", "comm_capacity_runs", "capl2k0"},
-            true);
-    }
-    catch (const std::invalid_argument&)
-    {
-        rejected = true;
-    }
-    Require(rejected, "capacity-run parser accepted zero L2 capacity");
-    for (const std::vector<std::string>& invalid : {
-             std::vector<std::string>{
-                 "compose", "comm_capacity_runs", "capv-1"},
-             std::vector<std::string>{
-                 "compose", "comm_capacity_runs",
-                 "capl2k2048", "capllck1024"},
-             std::vector<std::string>{
-                 "comm_capacity_runs",
-                 "capl2k4", "capllck16", "capv8"},
-             std::vector<std::string>{
-                 "compose", "comm_capacity_runs",
-                 "capl2k4", "capllck16"},
-             std::vector<std::string>{
-                 "compose", "comm_size",
-                 "capl2k4", "capllck16", "capv8"},
-             std::vector<std::string>{
-                 "compose", "sg_super_rcm", "comm_capacity_runs",
-                 "capl2k4", "capllck16", "capv8"},
-             std::vector<std::string>{
-                 "compose", "comm_capacity_runs",
-                 "capl2k4x", "capllck16", "capv8"},
-             std::vector<std::string>{
-                 "compose", "comm_capacity_runs",
-                 "capl2k18446744073709551616",
-                 "capllck16", "capv8"},
-             std::vector<std::string>{
-                 "intra_gorder_faithful"},
-         })
-    {
-        rejected = false;
-        try
-        {
-            (void)graphbrew::parseGraphBrewConfig(invalid, true);
-        }
-        catch (const std::invalid_argument&)
-        {
-            rejected = true;
-        }
-        Require(rejected, "capacity-run parser accepted invalid geometry");
-    }
 
     std::vector<std::vector<std::pair<uint32_t, uint64_t>>>
         adjacency(6);
@@ -609,22 +562,35 @@ void TestCapacityRunCommunityOrder()
         {0},
         {},
     });
-    const auto tailAdjacency =
-        graphbrew::buildCapacityCommunityAdjacency<
+    bool directedRejected = false;
+    try {
+        (void)graphbrew::buildCapacityCommunityAdjacency<
             uint32_t, NodeID, NodeID>(
                 std::vector<uint32_t>{0, 0, 1, 2},
                 directedTailGraph,
                 4,
                 3);
+    } catch (const std::invalid_argument&) {
+        directedRejected = true;
+    }
+    graphbrew::GraphBrewResult<uint32_t> directedCapacityResult;
+    directedCapacityResult.membership = {0, 0, 1, 2};
+    pvector<NodeID> directedCapacityMapping(4);
+    bool composeDirectedRejected = false;
+    try {
+        graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
+            directedCapacityMapping,
+            directedCapacityResult,
+            std::vector<uint32_t>{3, 1, 1, 0},
+            directedTailGraph,
+            4,
+            capacityConfig);
+    } catch (const std::invalid_argument&) {
+        composeDirectedRejected = true;
+    }
     Require(
-        tailAdjacency[0]
-                == std::vector<std::pair<uint32_t, uint64_t>>({
-                    {1, 2}})
-            && tailAdjacency[1]
-                == std::vector<std::pair<uint32_t, uint64_t>>({
-                    {0, 2}})
-            && tailAdjacency[2].empty(),
-        "capacity-run adjacency included an out-degree-zero tail vertex");
+        directedRejected && composeDirectedRejected,
+        "capacity-run ordering accepted a directed graph");
 
     std::mt19937 generator(0xC0FFEEu);
     for (size_t trial = 0; trial < 64; ++trial)
@@ -728,11 +694,135 @@ void TestCapacityRunCommunityOrder()
     }
 }
 
+bool SlowFaithfulUniqueOrder(
+    const std::vector<std::vector<size_t>>& outNeighbors,
+    int window,
+    std::vector<uint32_t>& order)
+{
+    const size_t size = outNeighbors.size();
+    std::vector<std::vector<size_t>> inNeighbors(size);
+    for (size_t source = 0; source < size; ++source) {
+        for (size_t target : outNeighbors[source])
+            inNeighbors[target].push_back(source);
+    }
+
+    size_t seed = 0;
+    size_t maximumInDegree = 0;
+    bool seedTie = false;
+    for (size_t vertex = 0; vertex < size; ++vertex) {
+        if (inNeighbors[vertex].size() > maximumInDegree) {
+            maximumInDegree = inNeighbors[vertex].size();
+            seed = vertex;
+            seedTie = false;
+        } else if (
+            inNeighbors[vertex].size() == maximumInDegree
+        ) {
+            seedTie = true;
+        }
+    }
+    if (maximumInDegree == 0 || seedTie) return false;
+
+    const size_t hugeVertex = static_cast<size_t>(
+        std::sqrt(static_cast<double>(size)));
+    std::vector<char> placed(size, 0);
+    placed[seed] = 1;
+    order = {static_cast<uint32_t>(seed)};
+    while (order.size() < size) {
+        uint64_t bestScore = 0;
+        size_t best = size;
+        bool tie = false;
+        for (size_t candidate = 0; candidate < size; ++candidate) {
+            if (placed[candidate]) continue;
+            uint64_t score = 0;
+            const size_t begin =
+                order.size() > static_cast<size_t>(window)
+                    ? order.size() - static_cast<size_t>(window)
+                    : 0;
+            for (size_t index = begin; index < order.size(); ++index) {
+                const size_t active = order[index];
+                if (
+                    outNeighbors[active].size() <= hugeVertex
+                    && std::binary_search(
+                        outNeighbors[active].begin(),
+                        outNeighbors[active].end(),
+                        candidate)
+                ) {
+                    ++score;
+                }
+                for (size_t predecessor : inNeighbors[active]) {
+                    if (
+                        outNeighbors[predecessor].size()
+                        > hugeVertex
+                    ) {
+                        continue;
+                    }
+                    if (candidate == predecessor) ++score;
+                    if (
+                        outNeighbors[predecessor].size() > 1
+                        && std::binary_search(
+                            outNeighbors[predecessor].begin(),
+                            outNeighbors[predecessor].end(),
+                            candidate)
+                    ) {
+                        ++score;
+                    }
+                }
+            }
+            if (best == size || score > bestScore) {
+                bestScore = score;
+                best = candidate;
+                tie = false;
+            } else if (score == bestScore) {
+                tie = true;
+            }
+        }
+        if (best == size || tie) return false;
+        placed[best] = 1;
+        order.push_back(static_cast<uint32_t>(best));
+    }
+    return true;
+}
+
 void TestFaithfulLocalGorder()
 {
     Require(
         !AblationConfig::Get().don_tiebreak,
         "faithful Gorder differential test requires DON disabled");
+
+    const std::vector<std::vector<size_t>> uniqueAdjacency = {
+        {1, 6, 8},
+        {0, 2, 3, 4, 5},
+        {1, 3, 8},
+        {1, 2, 7, 8},
+        {1, 8},
+        {1, 6, 7},
+        {0, 5},
+        {3, 5},
+        {0, 2, 3, 4},
+    };
+    std::vector<uint32_t> slowOrder;
+    std::vector<uint32_t> faithfulOrder;
+    std::vector<std::vector<size_t>> uniqueIn(
+        uniqueAdjacency.size());
+    for (size_t source = 0; source < uniqueAdjacency.size(); ++source) {
+        for (size_t target : uniqueAdjacency[source])
+            uniqueIn[target].push_back(source);
+    }
+    Require(
+        SlowFaithfulUniqueOrder(uniqueAdjacency, 3, slowOrder),
+        "independent faithful Gorder oracle has a score tie");
+    graphbrew::faithfulGorderLocalOrder<uint32_t>(
+        uniqueAdjacency,
+        uniqueIn,
+        uniqueAdjacency.size(),
+        3,
+        faithfulOrder);
+    Require(
+        faithfulOrder == slowOrder
+            && faithfulOrder
+                == std::vector<uint32_t>(
+                    {1, 8, 6, 0, 5, 7, 3, 2, 4}),
+        "faithful local Gorder diverged from independent scores");
 
     auto compareWithReference = [](
         const std::vector<std::vector<NodeID>>& outgoing,
@@ -1080,8 +1170,44 @@ void TestFaithfulLocalGorder()
             && realized.gorderFallbackVertices == 0,
         "faithful local Gorder end-to-end mapping or metadata changed");
 
+    const auto oneThreadMapping = std::vector<NodeID>(
+        endToEndMapping.begin(), endToEndMapping.end());
+    const auto oneThreadRealized = realized;
+    pvector<NodeID> fourThreadMapping(8);
+    graphbrew::GraphBrewRealizedConfig fourThreadRealized;
+    #ifdef OPENMP
+    omp_set_num_threads(4);
+    #endif
+    graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
+        fourThreadMapping,
+        endToEndResult,
+        endToEndDegrees,
+        endToEndGraph,
+        8,
+        endToEndConfig,
+        &fourThreadRealized);
+    Require(
+        std::equal(
+            oneThreadMapping.begin(),
+            oneThreadMapping.end(),
+            fourThreadMapping.begin())
+            && fourThreadRealized.gorderCommunities
+                == oneThreadRealized.gorderCommunities
+            && fourThreadRealized.gorderVertices
+                == oneThreadRealized.gorderVertices
+            && fourThreadRealized.gorderMaxCommunity
+                == oneThreadRealized.gorderMaxCommunity
+            && fourThreadRealized.gorderFallbackCommunities
+                == oneThreadRealized.gorderFallbackCommunities
+            && fourThreadRealized.gorderFallbackVertices
+                == oneThreadRealized.gorderFallbackVertices,
+        "faithful local Gorder changed across thread counts");
+
     endToEndConfig.gorderFallback = 1;
     realized = graphbrew::GraphBrewRealizedConfig{};
+    #ifdef OPENMP
+    omp_set_num_threads(1);
+    #endif
     graphbrew::orderCompose<uint32_t, NodeID, NodeID>(
         endToEndMapping,
         endToEndResult,
@@ -1100,6 +1226,117 @@ void TestFaithfulLocalGorder()
             && realized.gorderFallbackCommunities == 2
             && realized.gorderFallbackVertices == 7,
         "faithful local Gorder fallback metadata diverged from dispatch");
+}
+
+void TestNoveltyParserParityCorpus()
+{
+    std::ifstream input(
+        "bench/tests/data/graphbrew_novelty_parser_cases.json");
+    Require(input.good(), "novelty parser corpus is missing");
+    nlohmann::json corpus;
+    input >> corpus;
+    for (const auto& entry : corpus.at("cases")) {
+        const auto tokens =
+            entry.at("tokens").get<std::vector<std::string>>();
+        bool accepted = true;
+        graphbrew::GraphBrewConfig config;
+        try {
+            config = graphbrew::parseGraphBrewCliConfig(tokens, 0.5);
+        } catch (const std::invalid_argument&) {
+            accepted = false;
+        }
+        Require(
+            accepted == entry.at("valid").get<bool>(),
+            entry.at("name").get_ref<const std::string&>().c_str());
+        if (!accepted) continue;
+        Require(
+            std::string(graphbrew::graphBrewOrderingName(
+                config.ordering))
+                    == entry.at("ordering").get<std::string>()
+                && std::string(graphbrew::graphBrewCommunityOrderName(
+                    config.communityOrder))
+                    == entry.at("community_order").get<std::string>()
+                && std::string(graphbrew::graphBrewIntraOrderName(
+                    config.intraCommunityOrder))
+                    == entry.at("intra_community_order")
+                        .get<std::string>(),
+            "novelty parser corpus final state changed");
+    }
+}
+
+void TestEffectiveConfigIdentity()
+{
+    Require(
+        std::string(
+            graphbrew::database::REORDER_SEMANTICS_VERSION)
+            == "graphbrew-reorder/v3",
+        "native reorder semantics version changed");
+    const auto base = graphbrew::parseGraphBrewConfig(
+        {"compose", "comm_size", "intra_gorder"}, true);
+    auto serial = base;
+    auto parallel = base;
+    serial.deterministicCommunityDetection = true;
+    parallel.deterministicCommunityDetection = false;
+    auto refined = base;
+    refined.refinementPass = graphbrew::RefinementPass::TwoSwap;
+    auto totalEdges = base;
+    totalEdges.mComputation = graphbrew::MComputation::TOTAL_EDGES;
+    auto lazy = base;
+    lazy.useLazyUpdates = true;
+    auto verified = base;
+    verified.verifyTopology = true;
+    auto faithful = base;
+    faithful.intraCommunityOrder =
+        graphbrew::IntraCommunityOrder::GorderFaithful;
+    const auto capacity4 = graphbrew::parseGraphBrewConfig({
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8",
+    }, true);
+    const auto capacity8 = graphbrew::parseGraphBrewConfig({
+        "compose",
+        "comm_capacity_runs",
+        "capl2k8",
+        "capllck16",
+        "capv8",
+    }, true);
+
+    auto identity = [](const graphbrew::GraphBrewConfig& config) {
+        return graphbrew::graphBrewEffectiveConfigJson(config, false);
+    };
+    Require(
+        identity(serial) != identity(parallel)
+            && identity(base) != identity(refined)
+            && identity(base) != identity(totalEdges)
+            && identity(base) != identity(lazy)
+            && identity(base) != identity(verified)
+            && identity(base) != identity(faithful)
+            && identity(capacity4) != identity(capacity8),
+        "effective GraphBrew identities collided");
+    Require(
+        identity(base).find("\"schema\"") == std::string::npos
+            && graphbrew::graphBrewEffectiveConfigJson(base).find(
+                "\"schema\":\"graphbrew_config/v3\"")
+                != std::string::npos,
+        "effective config schema inclusion changed");
+
+    bool rejected = false;
+    try {
+        (void)graphbrew::parseGraphBrewConfig({
+            "compose",
+            "comm_capacity_runs",
+            "capl2k16",
+            "capllck4",
+            "capv8",
+        });
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+    Require(
+        rejected,
+        "non-strict capacity parsing clamped invalid geometry");
 }
 
 void TestRabbitComposeParsing()
@@ -1852,6 +2089,8 @@ int main()
         TestAllKernelLowReuseRule();
         TestSuperGraphMoveBatchParsing();
         TestCapacityRunCommunityOrder();
+        TestNoveltyParserParityCorpus();
+        TestEffectiveConfigIdentity();
         TestFaithfulLocalGorder();
         TestRabbitComposeParsing();
         TestNamedDepthAndStrictTokens();

@@ -26,18 +26,10 @@ def parse_graphbrew_effective_configs(output: Optional[str]) -> list[dict]:
             continue
         payload = line[len(GRAPHBREW_EFFECTIVE_CONFIG_PREFIX):]
         config = json.loads(payload)
-        if config.get("schema") not in {
-            "graphbrew_config/v1",
-            "graphbrew_config/v2",
-        }:
+        if config.get("schema") != "graphbrew_config/v3":
             raise RuntimeError(
                 f"Unsupported GraphBrew config schema: {config.get('schema')}"
             )
-        if config["schema"] == "graphbrew_config/v1":
-            config.setdefault("capacity_l2_bytes", 0)
-            config.setdefault("capacity_llc_bytes", 0)
-            config.setdefault(
-                "capacity_property_bytes_per_vertex", 0)
         configs.append(config)
     return configs
 
@@ -180,6 +172,8 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "sub_algo_id": 8,
         "rabbit_degree_sort_preprocess": False,
         "use_refinement": True,
+        "use_lazy_updates": False,
+        "verify_topology": False,
         "dynamic_resolution": False,
         "degree_sorting": False,
         "community_merging": False,
@@ -295,6 +289,10 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
             expected["community_merging"] = True
         elif token == "norefine":
             expected["use_refinement"] = False
+        elif token in {"lazyupdate", "lazyupdates"}:
+            expected["use_lazy_updates"] = True
+        elif token == "verify":
+            expected["verify_topology"] = True
         elif token == "dynamic":
             expected["dynamic_resolution"] = True
         elif token == "streaming":
@@ -375,109 +373,168 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
             elif 0.0 < value <= 3.0:
                 expected["resolution"] = value
 
-    compose_requested = any(
-        token in {"compose", "pluggable"} for token in tokens
-    )
-    capacity_order_tokens = {
-        "s2_capacity",
-        "comm_capacity_runs",
-        "comm_cache_fit",
-        "capacity_runs",
-        "cache_fit",
+    super_graph_tokens = {
+        "s1_none": "none",
+        "s1none": "none",
+        "sg_none": "none",
+        "sgnone": "none",
+        "s1_super_rabbit": "super-rabbit",
+        "s1srabbit": "super-rabbit",
+        "sg_super_rabbit": "super-rabbit",
+        "sgsrabbit": "super-rabbit",
+        "s1_super_rcm": "super-rcm",
+        "s1srcm": "super-rcm",
+        "sg_super_rcm": "super-rcm",
+        "sgsrcm": "super-rcm",
+        "s1_tile_rabbit": "tile-rabbit",
+        "s1tilerabbit": "tile-rabbit",
+        "sg_tile_rabbit": "tile-rabbit",
+        "sgtilerabbit": "tile-rabbit",
+        "s1_hilbert": "hilbert",
+        "s1hilbert": "hilbert",
+        "sg_hilbert": "hilbert",
+        "sghilbert": "hilbert",
+        "hilbert": "hilbert",
     }
-    capacity_order_requested = any(
-        token in capacity_order_tokens for token in tokens
+    community_tokens = {
+        "s2_identity": "identity",
+        "s2identity": "identity",
+        "comm_identity": "identity",
+        "commidentity": "identity",
+        "s2_size": "size-desc",
+        "s2size": "size-desc",
+        "comm_size": "size-desc",
+        "commsize": "size-desc",
+        "comm_size_desc": "size-desc",
+        "commsizedesc": "size-desc",
+        "s2_size_asc": "size-asc",
+        "s2sizeasc": "size-asc",
+        "comm_size_asc": "size-asc",
+        "commsizeasc": "size-asc",
+        "s2_degree": "degree-desc",
+        "s2degree": "degree-desc",
+        "comm_degree": "degree-desc",
+        "commdegree": "degree-desc",
+        "comm_degree_desc": "degree-desc",
+        "commdegreedesc": "degree-desc",
+        "s2_degree_asc": "degree-asc",
+        "s2degreeasc": "degree-asc",
+        "comm_degree_asc": "degree-asc",
+        "commdegreeasc": "degree-asc",
+        "s2_capacity": "capacity-runs",
+        "comm_capacity_runs": "capacity-runs",
+        "comm_cache_fit": "capacity-runs",
+        "capacity_runs": "capacity-runs",
+        "cache_fit": "capacity-runs",
+        "s2_cut_min": "cut-min",
+        "s2cutmin": "cut-min",
+        "comm_cut_min": "cut-min",
+        "commcutmin": "cut-min",
+        "cut_min": "cut-min",
+        "cutmin": "cut-min",
+    }
+    intra_tokens = {
+        "s3_bfs": "bfs",
+        "s3bfs": "bfs",
+        "intra_bfs": "bfs",
+        "intrabfs": "bfs",
+        "s3_rcm": "rcm",
+        "s3rcm": "rcm",
+        "intra_rcm": "rcm",
+        "intrarcm": "rcm",
+        "s3_rcmpp": "rcmpp",
+        "s3rcmpp": "rcmpp",
+        "intra_rcmpp": "rcmpp",
+        "intrarcmpp": "rcmpp",
+        "rcmpp": "rcmpp",
+        "rcm++": "rcmpp",
+        "s3_dendrogram": "dendrogram",
+        "s3dendrogram": "dendrogram",
+        "intra_dendrogram": "dendrogram",
+        "intradendrogram": "dendrogram",
+        "s3_dend": "dendrogram",
+        "intra_dend": "dendrogram",
+        "s3_gorder": "gorder",
+        "s3gorder": "gorder",
+        "intra_gorder": "gorder",
+        "intragorder": "gorder",
+        "s3_gord": "gorder",
+        "intra_gord": "gorder",
+        "s3_gorder_faithful": "gorder-faithful",
+        "intra_gorder_faithful": "gorder-faithful",
+        "intra_gorder2": "gorder-faithful",
+        "s3_hubsort": "hubsort",
+        "s3hubsort": "hubsort",
+        "intra_hubsort": "hubsort",
+        "intrahubsort": "hubsort",
+        "intra_hub": "hubsort",
+        "s3_deg_asc": "degree-asc",
+        "s3degasc": "degree-asc",
+        "intra_deg_asc": "degree-asc",
+        "intra_degasc": "degree-asc",
+        "intra_degree_asc": "degree-asc",
+        "deg_asc": "degree-asc",
+        "degasc": "degree-asc",
+        "s3_hub2": "hub2",
+        "s3hub2": "hub2",
+        "intra_hub2": "hub2",
+        "intrahub2": "hub2",
+        "hub2": "hub2",
+        "s3_alternate": "alternate",
+        "s3alt": "alternate",
+        "intra_alternate": "alternate",
+        "intra_alt": "alternate",
+        "alternate": "alternate",
+        "alt": "alternate",
+        "s3_random": "random",
+        "s3rand": "random",
+        "intra_random": "random",
+        "intra_rand": "random",
+        "random": "random",
+        "rand": "random",
+        "s3_boundary_last": "boundary-last",
+        "s3bndlast": "boundary-last",
+        "intra_boundary_last": "boundary-last",
+        "intra_bndlast": "boundary-last",
+        "boundary_last": "boundary-last",
+        "bndlast": "boundary-last",
+        "boundarylast": "boundary-last",
+        "s3_core": "core",
+        "s3core": "core",
+        "intra_core": "core",
+        "intracore": "core",
+        "core_order": "core",
+        "coreorder": "core",
+        "core": "core",
+    }
+    explicit_super_graph = any(
+        token in super_graph_tokens for token in tokens
     )
-    capacity_geometry_requested = any(
-        token.startswith(("capl2k", "capllck", "capv"))
-        for token in tokens
+    explicit_community_order = any(
+        token in community_tokens for token in tokens
     )
-    faithful_gorder_requested = any(
-        token in {
-            "s3_gorder_faithful",
-            "intra_gorder_faithful",
-            "intra_gorder2",
-        }
-        for token in tokens
-    )
-    if (
-        (capacity_order_requested or capacity_geometry_requested)
-        and not compose_requested
-    ):
-        raise RuntimeError(
-            f"Capacity-run ordering requires COMPOSE: {spec}"
-        )
-    if capacity_geometry_requested and not capacity_order_requested:
-        raise RuntimeError(
-            f"Capacity geometry requires capacity-run ordering: {spec}"
-        )
-    if faithful_gorder_requested and not compose_requested:
-        raise RuntimeError(
-            f"Faithful local Gorder requires COMPOSE: {spec}"
-        )
+    for token in tokens:
+        if token in super_graph_tokens:
+            expected["super_graph"] = super_graph_tokens[token]
+        elif token in community_tokens:
+            expected["community_order"] = community_tokens[token]
+        elif token in intra_tokens:
+            expected["intra_community_order"] = intra_tokens[token]
+        elif token == "refine_2swap":
+            expected["refinement_pass"] = "two-swap"
 
-    if compose_requested:
-        super_graph_tokens = {
-            "sg_none": "none",
-            "sg_super_rabbit": "super-rabbit",
-            "sg_super_rcm": "super-rcm",
-            "sg_tile_rabbit": "tile-rabbit",
-            "sg_hilbert": "hilbert",
-        }
-        community_tokens = {
-            "comm_identity": "identity",
-            "comm_size": "size-desc",
-            "comm_size_desc": "size-desc",
-            "comm_size_asc": "size-asc",
-            "comm_degree": "degree-desc",
-            "comm_degree_desc": "degree-desc",
-            "comm_degree_asc": "degree-asc",
-            "s2_capacity": "capacity-runs",
-            "comm_capacity_runs": "capacity-runs",
-            "comm_cache_fit": "capacity-runs",
-            "capacity_runs": "capacity-runs",
-            "cache_fit": "capacity-runs",
-            "comm_cut_min": "cut-min",
-        }
-        intra_tokens = {
-            "intra_bfs": "bfs",
-            "intra_rcm": "rcm",
-            "intra_rcmpp": "rcmpp",
-            "intra_dendrogram": "dendrogram",
-            "intra_gorder": "gorder",
-            "s3_gorder_faithful": "gorder-faithful",
-            "intra_gorder_faithful": "gorder-faithful",
-            "intra_gorder2": "gorder-faithful",
-            "intra_hubsort": "hubsort",
-            "intra_deg_asc": "degree-asc",
-            "intra_hub2": "hub2",
-            "intra_alternate": "alternate",
-            "intra_random": "random",
-            "intra_boundary_last": "boundary-last",
-            "intra_core": "core",
-        }
-        explicit_super_graph = any(
-            token in super_graph_tokens for token in tokens
-        )
-        explicit_community_order = any(
-            token in community_tokens for token in tokens
-        )
+    if expected["ordering"] == "compose":
         if explicit_super_graph and not explicit_community_order:
             raise RuntimeError(
                 "COMPOSE super-graph order requires an explicit "
                 f"community-order token: {spec}"
             )
-        for token in tokens:
-            if token in super_graph_tokens:
-                expected["super_graph"] = super_graph_tokens[token]
-            elif token in community_tokens:
-                expected["community_order"] = community_tokens[token]
-            elif token in intra_tokens:
-                expected["intra_community_order"] = intra_tokens[token]
-            elif token == "refine_2swap":
-                expected["refinement_pass"] = "two-swap"
 
     if expected["community_order"] == "capacity-runs":
+        if expected["ordering"] != "compose":
+            raise RuntimeError(
+                f"Capacity-run ordering requires COMPOSE: {spec}"
+            )
         for key in (
             "capacity_l2_bytes",
             "capacity_llc_bytes",
@@ -492,6 +549,24 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
             raise RuntimeError(
                 f"Capacity-run ordering requires sg_none: {spec}"
             )
+    elif any(
+        expected[key] > 0
+        for key in (
+            "capacity_l2_bytes",
+            "capacity_llc_bytes",
+            "capacity_property_bytes_per_vertex",
+        )
+    ):
+        raise RuntimeError(
+            f"Capacity geometry requires capacity-run ordering: {spec}"
+        )
+    if (
+        expected["intra_community_order"] == "gorder-faithful"
+        and expected["ordering"] != "compose"
+    ):
+        raise RuntimeError(
+            f"Faithful local Gorder requires COMPOSE: {spec}"
+        )
     if (
         isinstance(expected["capacity_l2_bytes"], int)
         and isinstance(expected["capacity_llc_bytes"], int)

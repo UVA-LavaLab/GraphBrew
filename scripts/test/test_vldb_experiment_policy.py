@@ -122,35 +122,6 @@ def test_capacity_runs_and_faithful_gorder_are_explicit():
         "12:leiden:compose:intra_gorder2"
     )
     assert alias["intra_community_order"] == "gorder-faithful"
-    for invalid in (
-        "12:compose:comm_capacity_runs:capv0",
-        "12:compose:comm_capacity_runs:capl2k2048:capllck1024",
-        "12:comm_capacity_runs:capl2k256:capllck22528:capv8",
-        "12:compose:comm_capacity_runs:capl2k256:capllck22528",
-        "12:compose:comm_size:capl2k256:capllck22528:capv8",
-        (
-            "12:compose:sg_super_rcm:comm_capacity_runs:"
-            "capl2k256:capllck22528:capv8"
-        ),
-        (
-            "12:compose:comm_capacity_runs:capl2k256x:"
-            "capllck22528:capv8"
-        ),
-        (
-            "12:compose:comm_capacity_runs:"
-            "capl2k18446744073709551616:capllck22528:capv8"
-        ),
-        (
-            "12:compose:comm_capacity_runs:"
-            "capl2k٣:capllck22528:capv8"
-        ),
-        "12:intra_gorder_faithful",
-    ):
-        with pytest.raises(
-            RuntimeError,
-            match="capacity|Capacity|Faithful",
-        ):
-            runner._expected_graphbrew_config(invalid)
 
 
 def test_experimental_reorder_headers_are_test_only():
@@ -164,9 +135,8 @@ def test_experimental_reorder_headers_are_test_only():
     ]
     violations = []
     experimental_include = re.compile(
-        r"#\s*include\s*[<\"][^>\"]*experimental/"
-        r"(?:common|compression_layout|dual_index|"
-        r"locality_probe|spectral_blocks)\.h[>\"]"
+        r"(?m)^\s*#\s*include[^\r\n]*"
+        r"experimental/[^\r\n>\"]+[>\"]"
     )
     for production_root in production_roots:
         for path in production_root.rglob("*"):
@@ -174,11 +144,69 @@ def test_experimental_reorder_headers_are_test_only():
                 ".h", ".hpp", ".hxx", ".cc", ".cpp", ".cu", ".def",
             }:
                 continue
+            if path == (
+                root / "bench" / "include" / "external"
+                / "nlohmann_json.hpp"
+            ):
+                continue
             if "reorder/experimental" in path.as_posix():
                 continue
             if experimental_include.search(path.read_text(errors="ignore")):
                 violations.append(str(path.relative_to(root)))
     assert violations == []
+    for _label, spec in COMPOSE_VARIANTS:
+        config = runner._expected_graphbrew_config(spec)
+        assert config["community_order"] != "capacity-runs"
+        assert config["intra_community_order"] != "gorder-faithful"
+    frozen_config_source = (
+        root / "scripts" / "experiments" / "vldb" / "config.py"
+    ).read_text()
+    assert re.search(
+        r"capacity_runs|cache_fit|gorder_faithful|"
+        r"intra_gorder2|capl2k|capllck|capv\d",
+        frozen_config_source,
+    ) is None
+
+    native_version = re.search(
+        r'REORDER_SEMANTICS_VERSION\s*=\s*\n?\s*"([^"]+)"',
+        (
+            root
+            / "bench"
+            / "include"
+            / "graphbrew"
+            / "reorder"
+            / "reorder_database.h"
+        ).read_text(),
+    )
+    assert native_version is not None
+    assert native_version.group(1) == runner.REORDER_SEMANTICS_VERSION
+
+
+def test_novelty_parser_cases_match_cpp_corpus():
+    root = Path(__file__).resolve().parents[2]
+    corpus = json.loads(
+        (
+            root
+            / "bench"
+            / "tests"
+            / "data"
+            / "graphbrew_novelty_parser_cases.json"
+        ).read_text()
+    )
+    for entry in corpus["cases"]:
+        spec = "12:" + ":".join(entry["tokens"])
+        try:
+            config = runner._expected_graphbrew_config(spec)
+        except RuntimeError:
+            assert not entry["valid"], entry["name"]
+            continue
+        assert entry["valid"], entry["name"]
+        assert config["ordering"] == entry["ordering"]
+        assert config["community_order"] == entry["community_order"]
+        assert (
+            config["intra_community_order"]
+            == entry["intra_community_order"]
+        )
 
 
 def test_budgeted_mechanism_config_is_fully_bound():
@@ -466,7 +494,7 @@ def test_structured_graphbrew_config_is_validated():
         "comm_identity:intra_hubsort"
     )
     config = {
-        "schema": "graphbrew_config/v1",
+        "schema": "graphbrew_config/v3",
         **runner._expected_graphbrew_config(spec),
     }
     output = (
@@ -481,13 +509,25 @@ def test_structured_graphbrew_config_is_validated():
         runner.validate_graphbrew_effective_configs(["-o", spec], parsed)
 
 
+def test_stale_graphbrew_effective_schema_is_rejected():
+    output = (
+        "GraphBrew Effective Config: "
+        '{"schema":"graphbrew_config/v2"}'
+    )
+    with pytest.raises(
+        RuntimeError,
+        match="Unsupported GraphBrew config schema",
+    ):
+        runner.parse_graphbrew_effective_configs(output)
+
+
 def test_structured_graphbrew_realization_is_validated():
     spec = (
         "12:rabbit:compose:sg_super_rabbit:"
         "comm_identity:intra_hubsort"
     )
     effective = {
-        "schema": "graphbrew_config/v1",
+        "schema": "graphbrew_config/v3",
         **runner._expected_graphbrew_config(spec),
     }
     realized = {
@@ -553,7 +593,7 @@ def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
     )
 
     effective = {
-        "schema": "graphbrew_config/v1",
+        "schema": "graphbrew_config/v3",
         **reorder_config.expected_graphbrew_config(spec),
     }
     realized = {

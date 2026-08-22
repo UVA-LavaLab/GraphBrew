@@ -216,7 +216,8 @@ All three geometry tokens are mandatory:
 The current model bounds the vertex-property footprint only. Crossing scores
 count edges, not weighted-edge distance values, and do not model CSR bytes.
 Capacity runs require `compose` and `sg_none`; the pinned geometry is embedded
-in mapping identity.
+in mapping identity. The current runtime requires an undirected graph rather
+than inventing dangling-vertex semantics for directed inputs.
 
 ### Faithful local Gorder
 

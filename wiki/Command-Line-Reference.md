@@ -318,8 +318,9 @@ Legacy alias tokens `s1_*`, `s2_*`, `s3_*` are still accepted (older parity scri
 
 `comm_capacity_runs` and `intra_gorder_faithful` are experimental, not
 validated recommendations. Capacity runs require `compose`, `sg_none`, and
-all three `cap*` tokens. Faithful local Gorder requires `compose`, an
-undirected graph, and DON tie-breaking disabled.
+all three `cap*` tokens, and currently require an undirected graph. Faithful
+local Gorder requires `compose`, an undirected graph, and DON tie-breaking
+disabled.
 
 Examples:
 - `-o 12:compose:sg_super_rabbit:comm_identity:intra_rcm` — equivalent to `12:hrab`

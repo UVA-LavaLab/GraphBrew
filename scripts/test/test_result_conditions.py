@@ -35,6 +35,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.lib.core.datastore import BenchmarkStore  # noqa: E402
+from scripts.lib.core.experiment_policy import (  # noqa: E402
+    REORDER_SEMANTICS_VERSION,
+)
 from scripts.lib.core.utils import (  # noqa: E402
     BenchmarkResult,
     BENCHMARK_OBSERVATION_SCHEMA,
@@ -344,7 +347,7 @@ def test_resume_key_matches_store_existing_key(tmp_path):
 
     resume_direct = benchmark_request_key({
         "graph": "g", "algorithm": "GORDER",
-        "reorder_semantics_version": "graphbrew-reorder/v2",
+        "reorder_semantics_version": REORDER_SEMANTICS_VERSION,
         "requested_algorithm_spec": "9:csr", "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,
         "mapping_identity_id": "direct", "attempt": 1,
@@ -355,7 +358,7 @@ def test_resume_key_matches_store_existing_key(tmp_path):
     # direct-only record must NOT satisfy its resume check.
     resume_map = benchmark_request_key({
         "graph": "g", "algorithm": "GORDER",
-        "reorder_semantics_version": "graphbrew-reorder/v2",
+        "reorder_semantics_version": REORDER_SEMANTICS_VERSION,
         "requested_algorithm_spec": "13:map:GORDER.lo",
         "benchmark": "pr",
         "labeling": "natural", "measurement_mode": "process", "threads": 16,

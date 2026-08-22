@@ -15,6 +15,7 @@ namespace graphbrew::experimental {
 inline constexpr size_t kCompressionMaxVertices = 256;
 inline constexpr size_t kCompressionMaxPasses = 32;
 inline constexpr size_t kCompressionMaxDirectedEdges = 65536;
+inline constexpr size_t kCompressionMaxRescannedEdges = 100000000;
 
 struct GapEncodingMetrics {
     // Sum of integer bit widths: a deterministic lower-bound proxy, not a
@@ -183,6 +184,18 @@ CompressionRefinementResult<K> refineCompressionOrder(
     if (directedEdges > kCompressionMaxDirectedEdges) {
         throw std::invalid_argument(
             "Compression refinement exceeds its edge limit");
+    }
+    const size_t candidateSwaps = checkedSizeMultiply(
+        maxPasses,
+        outgoing.empty() ? 0 : outgoing.size() - 1,
+        "Compression refinement candidate count overflowed");
+    const size_t rescannedEdges = checkedSizeMultiply(
+        candidateSwaps,
+        directedEdges,
+        "Compression refinement work estimate overflowed");
+    if (rescannedEdges > kCompressionMaxRescannedEdges) {
+        throw std::invalid_argument(
+            "Compression refinement exceeds its work limit");
     }
 
     CompressionRefinementResult<K> result;

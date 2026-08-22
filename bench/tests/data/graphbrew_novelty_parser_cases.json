@@ -1,0 +1,265 @@
+{
+  "cases": [
+    {
+      "name": "capacity-valid",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": true,
+      "ordering": "compose",
+      "community_order": "capacity-runs",
+      "intra_community_order": "bfs"
+    },
+    {
+      "name": "capacity-overwritten-with-geometry",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8",
+        "comm_size"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-overwritten-without-geometry",
+      "tokens": [
+        "leiden",
+        "comm_capacity_runs",
+        "comm_size"
+      ],
+      "valid": true,
+      "ordering": "layer",
+      "community_order": "size-desc",
+      "intra_community_order": "bfs"
+    },
+    {
+      "name": "faithful-overwritten",
+      "tokens": [
+        "leiden",
+        "intra_gorder_faithful",
+        "intra_bfs"
+      ],
+      "valid": true,
+      "ordering": "layer",
+      "community_order": "size-desc",
+      "intra_community_order": "bfs"
+    },
+    {
+      "name": "faithful-final-without-compose",
+      "tokens": [
+        "leiden",
+        "intra_bfs",
+        "intra_gorder_faithful"
+      ],
+      "valid": false
+    },
+    {
+      "name": "geometry-without-capacity",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_size",
+        "capl2k4",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-without-compose",
+      "tokens": [
+        "leiden",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-missing-property",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-last-token-wins",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_size",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": true,
+      "ordering": "compose",
+      "community_order": "capacity-runs",
+      "intra_community_order": "bfs"
+    },
+    {
+      "name": "capacity-stage1-overwritten",
+      "tokens": [
+        "leiden",
+        "compose",
+        "sg_super_rcm",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8",
+        "sg_none"
+      ],
+      "valid": true,
+      "ordering": "compose",
+      "community_order": "capacity-runs",
+      "intra_community_order": "bfs"
+    },
+    {
+      "name": "capacity-zero-l2",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k0",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-negative-property",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv-1"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-zero-property",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv0"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-llc-smaller",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k2048",
+        "capllck1024",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-stage1-invalid",
+      "tokens": [
+        "leiden",
+        "compose",
+        "sg_super_rcm",
+        "comm_capacity_runs",
+        "capl2k4",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-malformed-l2",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k4x",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-overflow-l2",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k18446744073709551616",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "capacity-unicode-l2",
+      "tokens": [
+        "leiden",
+        "compose",
+        "comm_capacity_runs",
+        "capl2k٣",
+        "capllck16",
+        "capv8"
+      ],
+      "valid": false
+    },
+    {
+      "name": "cut-min-alias",
+      "tokens": [
+        "leiden",
+        "compose",
+        "cut_min"
+      ],
+      "valid": true,
+      "ordering": "compose",
+      "community_order": "cut-min",
+      "intra_community_order": "bfs"
+    },
+    {
+      "name": "degree-asc-alias",
+      "tokens": [
+        "leiden",
+        "compose",
+        "commdegreeasc"
+      ],
+      "valid": true,
+      "ordering": "compose",
+      "community_order": "degree-asc",
+      "intra_community_order": "bfs"
+    },
+    {
+      "name": "hubsort-alias",
+      "tokens": [
+        "leiden",
+        "compose",
+        "intrahubsort"
+      ],
+      "valid": true,
+      "ordering": "compose",
+      "community_order": "size-desc",
+      "intra_community_order": "hubsort"
+    }
+  ]
+}

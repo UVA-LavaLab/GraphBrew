@@ -45,7 +45,9 @@ LDLIBS_NUMA = -L$(LOCAL_NUMA_PREFIX)/lib/x86_64-linux-gnu
 endif
 # =========================================================
 DEP_GAPBS     = $(wildcard $(INCLUDE_GAPBS)/*.h)
-DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/algorithms/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/analysis/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/edge/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/gas/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.def) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/experimental/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/cagra/*.h)
+DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/algorithms/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/analysis/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/edge/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/gas/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.def) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/cagra/*.h)
+DEP_GRAPHBREW_EXPERIMENTAL = $(wildcard $(INCLUDE_GRAPHBREW)/reorder/experimental/*.h)
+GRAPHBREW_NOVELTY_PARSER_CASES = $(TEST_SRC_DIR)/data/graphbrew_novelty_parser_cases.json
 DEP_RABBIT = $(wildcard $(INCLUDE_EXTERNAL)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INCLUDE_EXTERNAL)/gorder/*.h)
 DEP_CORDER = $(wildcard $(INCLUDE_EXTERNAL)/corder/*.h)
@@ -352,6 +354,9 @@ $(BIN_DIR)/graph_shard_export: $(SRC_DIR)/graph_shard_export.cc $(DEP_GAPBS) $(D
 
 $(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) Makefile $(BUILD_CONFIG_STAMP) | $(TEST_BIN_DIR)
 	@$(CXX) $(CXXFLAGS_GAP) $(CXXFLAGS_GORDER) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
+
+$(TEST_BIN_DIR)/test_graphbrew_experimental: $(DEP_GRAPHBREW_EXPERIMENTAL)
+$(TEST_BIN_DIR)/test_graphbrew_config: $(GRAPHBREW_NOVELTY_PARSER_CASES)
 
 # =========================================================
 # Directory Setup
