@@ -225,6 +225,15 @@ bool VerifyUnimplemented(...)
     return false;
 }
 
+inline void PrintVerificationResult(bool passed)
+{
+    PrintLabel("Verification", passed ? "PASS" : "FAIL");
+    std::cout
+        << "BLOX_VERIFICATION_JSON={\"schema\":"
+        << "\"blox.verification.v1\",\"passed\":"
+        << (passed ? "true" : "false") << "}" << std::endl;
+}
+
 // Calls (and times) kernel according to command line arguments
 template <typename GraphT_, typename GraphFunc, typename AnalysisFunc,
           typename VerifierFunc>
@@ -246,8 +255,8 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
         if (cli.do_verify())
         {
             trial_timer.Start();
-            PrintLabel("Verification",
-                       verify(std::ref(g), std::ref(result)) ? "PASS" : "FAIL");
+            PrintVerificationResult(
+                verify(std::ref(g), std::ref(result)));
             trial_timer.Stop();
             PrintTime("Verification Time", trial_timer.Seconds());
         }
@@ -334,7 +343,7 @@ void BenchmarkKernel(const CLApp &cli, const GraphT_ &g, GraphFunc kernel,
         {
             trial_timer.Start();
             bool passed = verify(std::ref(g), std::ref(result));
-            PrintLabel("Verification", passed ? "PASS" : "FAIL");
+            PrintVerificationResult(passed);
             trial_timer.Stop();
             PrintTime("Verification Time", trial_timer.Seconds());
             tr.verified = passed;
