@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc" fill="#27313A">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v3">
   <title id="title">Validated low-reuse selector: one rule, two real holdout outcomes</title>
   <desc id="desc">This is the current evidence-bound policy, separate from the proposed Rabbit-free generator.</desc>
   <defs>

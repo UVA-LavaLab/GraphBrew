@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc" fill="#27313A">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v3">
   <title id="title">Stage 4B: hub-rooted BFS orders the large C0 block</title>
   <desc id="desc">The tracked vertex v2 is the highest-degree root and receives local ID 0.</desc>
   <defs>

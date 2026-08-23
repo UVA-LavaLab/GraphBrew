@@ -15,14 +15,14 @@ Read [GraphBrew Running Example](GraphBrew-Running-Example) first. It carries
 the same graph, communities, tracked vertex, final mapping, CSR row, and
 cache-line calculation through every stage.
 
-[![GraphBrew six-stage architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
+[![GraphBrew six-stage architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v3)
 
 **Figure 1.** Numbered stages share one tracked vertex and leave enough
 horizontal space for the stage arrows to remain visible.
 
-[![Stage 1 input topology and CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg)
+[![Stage 1 input topology and CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v3)
 
-[![Stage 2 correlated partition](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)
+[![Stage 2 correlated partition](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v3)
 
 **Figures 2–3.** The same node-link graph appears before and after membership
 metadata is added. Node fills are deliberately different from the neutral
@@ -103,7 +103,7 @@ They refer to different super-graphs:
 
 ### `cd_parallel`
 
-[![cd_parallel](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg)
+[![cd_parallel](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg?v=graphbrew-public-v3)
 
 The default deterministic community-detection mode temporarily limits the
 Leiden section to one OpenMP thread. `cd_parallel` removes that limit.
@@ -126,7 +126,7 @@ parallel mapping.
 
 ### `sgmb4096`
 
-[![sgmb4096](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg)
+[![sgmb4096](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg?v=graphbrew-public-v3)
 
 Leiden repeatedly operates on an aggregated graph whose vertices are current
 communities. A fully sequential local-move loop became a preprocessing
@@ -147,7 +147,7 @@ from that same batch.
 
 ### `gordf5000`
 
-[![gordf5000](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)
+[![gordf5000](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v3)
 
 The running-example figure uses `gordf4` only to put one four-vertex block and
 one five-vertex block on opposite sides of the same decision. The evaluated
@@ -171,7 +171,7 @@ unvalidated treatment.
 
 ### `norefine`
 
-[![norefine](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg)
+[![norefine](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg?v=graphbrew-public-v3)
 
 Full Leiden performs:
 

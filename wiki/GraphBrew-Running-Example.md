@@ -19,7 +19,7 @@ separately reports the actual end-to-end converter output for the same CLI.
 
 ## 1. Load the graph and expose one CSR row
 
-[![Stage 1 graph to CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg)
+[![Stage 1 graph to CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v3)
 
 **Figure 1.** The topology, CSR row, and lightweight profile all refer to
 `v2`. No labels move and no graph kernel runs.
@@ -28,7 +28,7 @@ The next stage adds community membership to this exact graph.
 
 ## 2. Partition without relabeling
 
-[![Stage 2 partition](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)
+[![Stage 2 partition](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v3)
 
 **Figure 2.** The pedagogical partition fixes
 `C0={1,2,4,6,7}` and `C1={0,3,5,8}`. Vertex IDs and all twelve edges remain
@@ -38,7 +38,7 @@ The next stage converts those two sets into contiguous ID ranges.
 
 ## 3. Place community blocks
 
-[![Stage 3 SizeDesc](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg)
+[![Stage 3 SizeDesc](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg?v=graphbrew-public-v3)
 
 **Figure 3.** `comm_size_desc` places five-vertex `C0` in IDs `0..4` and
 four-vertex `C1` in IDs `5..8`. Tracked `v2` enters the first block.
@@ -48,14 +48,14 @@ each block.
 
 ## 4. Dispatch and order each block
 
-[![Stage 4 dispatch](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)
+[![Stage 4 dispatch](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v3)
 
 **Figure 4.** The threshold is per community. In this mechanism-scale example,
 `C1` takes relaxed local Gorder while `C0` takes hub-rooted BFS.
 
 ### 4A. Small block: relaxed local Gorder
 
-[![Stage 4A relaxed local Gorder](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg)
+[![Stage 4A relaxed local Gorder](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg?v=graphbrew-public-v3)
 
 **Figure 4A.** The active `intra_gorder` implementation is the historical
 direct-neighbor UnitHeap heuristic. It is not faithful standalone
@@ -63,7 +63,7 @@ direct-neighbor UnitHeap heuristic. It is not faithful standalone
 
 ### 4B. Large block: hub-rooted BFS
 
-[![Stage 4B BFS](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg)
+[![Stage 4B BFS](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg?v=graphbrew-public-v3)
 
 **Figure 4B.** `v2` is the highest-degree root. BFS emits
 `[v2,v1,v4,v6,v7]`, so `v2` receives local and global ID `0`.
@@ -72,7 +72,7 @@ The two local orders now compose with the block order into one permutation.
 
 ## 5. Emit and validate relabeled CSR
 
-[![Stage 5 relabeled CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg)
+[![Stage 5 relabeled CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg?v=graphbrew-public-v3)
 
 **Figure 5.** The final memory order is
 `[v2,v1,v4,v6,v7 | v8,v5,v0,v3]`. The permutation is bijective and the
@@ -82,7 +82,7 @@ The last stage follows the same `v2` property reads after relabeling.
 
 ## 6. Show the locality consequence
 
-[![Stage 6 locality](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg)
+[![Stage 6 locality](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)
 
 **Figure 6.** `v2` still reads four neighbor properties. Their IDs change from
 `[1,4,6,8]` to `[1,2,3,5]`, reducing four-property cache-line touches from

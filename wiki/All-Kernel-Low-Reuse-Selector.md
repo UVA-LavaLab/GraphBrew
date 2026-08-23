@@ -4,7 +4,7 @@ GraphBrew's validated automatic path is a frozen rule for mappings reused once
 or twice. It selects either one exact non-Rabbit GraphBrew composition or
 Boost Rabbit.
 
-[![GraphBrew low-reuse policy](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-lowreuse-policy.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-lowreuse-policy.svg)
+[![GraphBrew low-reuse policy](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-lowreuse-policy.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-lowreuse-policy.svg?v=graphbrew-public-v3)
 
 **Figure 1.** The top row is the runtime decision. The bottom row evaluates the
 same frozen predicate on two real rule2 holdouts: `amazon0601` selects

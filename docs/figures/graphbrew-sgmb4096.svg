@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc" fill="#27313A">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v3">
   <title id="title">Control B: sgmb4096 batches proposals but commits them in order</title>
   <desc id="desc">Illustrative singleton supernodes use adjacent targets from the running graph; they are not measured modularity winners.</desc>
   <defs>

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="545" viewBox="0 0 1200 545" role="img" aria-labelledby="title desc" fill="#27313A">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="545" viewBox="0 0 1200 545" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v3">
   <title id="title">Stage 5: compose the block and local orders into relabeled CSR</title>
   <desc id="desc">The final permutation maps tracked v2 to new ID 0 and rewrites CSR rows and destinations consistently.</desc>
   <defs>

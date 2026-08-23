@@ -70,6 +70,7 @@ def test_catalog_uses_one_measured_input_and_output_strips():
         root = ET.parse(svg).getroot()
         assert root.get("width") == "1200"
         assert root.get("height") == "430"
+        assert root.get("data-figure-schema") == "graphbrew-public/v3"
         source = svg.read_text()
         assert 'role="img"' in source
         assert "prefers-color-scheme:dark" in source
@@ -197,6 +198,7 @@ def test_top_level_figures_share_the_visual_contract():
         root = ET.parse(path).getroot()
         source = path.read_text()
         assert root.get("width") == "1200"
+        assert root.get("data-figure-schema") == "graphbrew-public/v3"
         assert float(root.get("width", "0")) / float(root.get("height", "1")) >= 1.4
         assert 'role="img"' in source
         assert "<title" in source and "<desc" in source
@@ -236,6 +238,8 @@ def test_top_level_figures_share_the_visual_contract():
 def test_public_manifest_binds_generated_outputs():
     payload = json.loads(PUBLIC_MANIFEST.read_text())
     assert payload["schema"] == "graphbrew-public-figures/v1"
+    assert payload["figure_schema"] == "graphbrew-public/v3"
+    assert payload["cache_key"] == "graphbrew-public-v3"
     paths = {record["path"] for record in payload["records"]}
     assert "wiki/Reordering-Figure-Catalog.md" in paths
     assert "docs/figures/reordering/manifest.json" in paths

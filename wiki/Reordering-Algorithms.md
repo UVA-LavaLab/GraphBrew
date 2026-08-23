@@ -26,7 +26,7 @@ the other IDs are individual primitives or baselines.
 
 ## One shared comparison input
 
-[![Shared reordering input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)
+[![Shared reordering input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v3)
 
 Every catalog strip uses this exact nine-vertex graph and records the converter
 output order under one pinned binary. That makes equal outputs visible and

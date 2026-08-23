@@ -6,7 +6,7 @@ hit rates under nine eviction policies. Use it to compare reorderings
 on a fixed cache geometry without machine noise — the metric is
 deterministic per process.
 
-[![Tracked locality mechanism](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg)
+[![Tracked locality mechanism](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)
 
 **Figure 1.** The running example isolates the address-level mechanism:
 tracked `v2` reads the same four properties before and after relabeling, but

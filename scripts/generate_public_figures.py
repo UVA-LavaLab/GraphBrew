@@ -26,6 +26,8 @@ CAPTURE = FIGURES / "catalog-capture.json"
 EXAMPLE_EDGE_LIST = FIGURES / "data/graphbrew-running-example.el"
 EXAMPLE_MAP = FIGURES / "data/graphbrew-running-example.lo"
 LOW_REUSE_EVIDENCE = ROOT / "docs/allkernel-lowreuse-evidence.json"
+FIGURE_SCHEMA = "graphbrew-public/v3"
+FIGURE_CACHE_KEY = "graphbrew-public-v3"
 
 INK = "#27313A"
 PAGE = "#FFFFFF"
@@ -541,7 +543,8 @@ class SVG:
             (
                 f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
                 f'height="{height}" viewBox="0 0 {width} {height}" '
-                f'role="img" aria-labelledby="title desc" fill="{INK}">'
+                f'role="img" aria-labelledby="title desc" fill="{INK}" '
+                f'data-figure-schema="{FIGURE_SCHEMA}">'
             ),
             f'  <title id="title">{esc(title)}</title>',
             f'  <desc id="desc">{esc(description)}</desc>',
@@ -2163,6 +2166,12 @@ def drawio_catalog_input(payload: dict) -> str:
 
 
 def generate_catalog_markdown(payload: dict) -> str:
+    def raw(path: str) -> str:
+        return (
+            "https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/"
+            f"{path}?v={FIGURE_CACHE_KEY}"
+        )
+
     groups = [
         ("Baselines", [0, 1]),
         ("Degree and bucket layouts", list(range(2, 8))),
@@ -2177,7 +2186,7 @@ def generate_catalog_markdown(payload: dict) -> str:
         "binary. The shared input is shown once; each algorithm then shows only its",
         "measured output order and the mechanism that produced it.",
         "",
-        "[![Shared catalog input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)",
+        f"[![Shared catalog input]({raw('docs/figures/reordering/example-input.svg')})]({raw('docs/figures/reordering/example-input.svg')})",
         "",
         "**Shared-example contract.** All 17 outputs preserve the same nine vertices",
         "and twelve undirected edges. The blue-outlined cell is the vertex with the",
@@ -2224,11 +2233,8 @@ def generate_catalog_markdown(payload: dict) -> str:
                     ),
                     "",
                     (
-                        f"[![{name} measured output](https://raw.githubusercontent.com/"
-                        f"UVA-LavaLab/GraphBrew/main/docs/figures/reordering/"
-                        f"{algorithm_id:02d}-{slug}.svg)](https://raw.githubusercontent.com/"
-                        f"UVA-LavaLab/GraphBrew/main/docs/figures/reordering/"
-                        f"{algorithm_id:02d}-{slug}.svg)"
+                        f"[![{name} measured output]({raw(f'docs/figures/reordering/{algorithm_id:02d}-{slug}.svg')})]"
+                        f"({raw(f'docs/figures/reordering/{algorithm_id:02d}-{slug}.svg')})"
                     ),
                     "",
                     f"**Figure.** {footer}",
@@ -2359,6 +2365,8 @@ def public_manifest(payload: dict, outputs: dict[Path, str]) -> dict:
         )
     return {
         "schema": "graphbrew-public-figures/v1",
+        "figure_schema": FIGURE_SCHEMA,
+        "cache_key": FIGURE_CACHE_KEY,
         "running_example_schema": payload["schema"],
         "sources": [
             {

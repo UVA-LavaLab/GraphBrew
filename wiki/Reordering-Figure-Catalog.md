@@ -4,7 +4,7 @@ Every strip uses the same measured 9-vertex input and the same converter
 binary. The shared input is shown once; each algorithm then shows only its
 measured output order and the mechanism that produced it.
 
-[![Shared catalog input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)
+[![Shared catalog input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v3)
 
 **Shared-example contract.** All 17 outputs preserve the same nine vertices
 and twelve undirected edges. The blue-outlined cell is the vertex with the
@@ -33,7 +33,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Identity permutation.
 - **Evidence:** output order captured from the shared example
 
-[![ORIGINAL measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/00-original.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/00-original.svg)
+[![ORIGINAL measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/00-original.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/00-original.svg?v=graphbrew-public-v3)
 
 **Figure.** Topology and memory order are identical.
 
@@ -45,7 +45,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Fixed seed-0 shuffle.
 - **Evidence:** output order captured from the shared example
 
-[![RANDOM measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/01-random.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/01-random.svg)
+[![RANDOM measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/01-random.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/01-random.svg?v=graphbrew-public-v3)
 
 **Figure.** Only labels change; the topology is fixed.
 
@@ -59,7 +59,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Global degree sort.
 - **Evidence:** output order captured from the shared example
 
-[![SORT measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/02-sort.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/02-sort.svg)
+[![SORT measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/02-sort.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/02-sort.svg?v=graphbrew-public-v3)
 
 **Figure.** High-degree vertices move toward the first memory region.
 
@@ -71,7 +71,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Sort selected hubs.
 - **Evidence:** output order captured from the shared example
 
-[![HUBSORT measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg)
+[![HUBSORT measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg?v=graphbrew-public-v3)
 
 **Figure.** Only the hub region receives a full degree sort.
 
@@ -83,7 +83,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Stable hub clustering.
 - **Evidence:** output order captured from the shared example
 
-[![HUBCLUSTER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/04-hubcluster.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/04-hubcluster.svg)
+[![HUBCLUSTER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/04-hubcluster.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/04-hubcluster.svg?v=graphbrew-public-v3)
 
 **Figure.** The hub/non-hub split changes regions without sorting every vertex.
 
@@ -95,7 +95,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Degree buckets.
 - **Evidence:** output order captured from the shared example
 
-[![DBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg)
+[![DBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg?v=graphbrew-public-v3)
 
 **Figure.** Bucket boundaries, not one global sort, define the output.
 
@@ -107,7 +107,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** HubSort + buckets.
 - **Evidence:** output order captured from the shared example
 
-[![HUBSORTDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg)
+[![HUBSORTDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg?v=graphbrew-public-v3)
 
 **Figure.** A sorted hub bucket is followed by grouped non-hubs.
 
@@ -119,7 +119,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Stable hub/non-hub buckets.
 - **Evidence:** output order captured from the shared example
 
-[![HUBCLUSTERDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg)
+[![HUBCLUSTERDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg?v=graphbrew-public-v3)
 
 **Figure.** Both regions preserve encounter order.
 
@@ -133,7 +133,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Community merge + DFS.
 - **Evidence:** output order captured from the shared example
 
-[![RABBITORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg)
+[![RABBITORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg?v=graphbrew-public-v3)
 
 **Figure.** Community blocks become contiguous; DFS chooses hierarchy order.
 
@@ -145,7 +145,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Standalone GORDER_csr.
 - **Evidence:** output order captured from the shared example
 
-[![GORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/09-gorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/09-gorder.svg)
+[![GORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/09-gorder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/09-gorder.svg?v=graphbrew-public-v3)
 
 **Figure.** This is distinct from GraphBrew's relaxed local intra_gorder.
 
@@ -157,7 +157,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Canonical hot/cold.
 - **Evidence:** output order captured from the shared example
 
-[![CORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg)
+[![CORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg?v=graphbrew-public-v3)
 
 **Figure.** The workload segmentation defines the memory regions.
 
@@ -169,7 +169,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** BNF + RCM.
 - **Evidence:** output order captured from the shared example
 
-[![RCM measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/11-rcm.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/11-rcm.svg)
+[![RCM measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/11-rcm.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/11-rcm.svg?v=graphbrew-public-v3)
 
 **Figure.** The output targets lower graph bandwidth.
 
@@ -181,7 +181,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Explicit three-axis compose.
 - **Evidence:** output order captured from the shared example
 
-[![GraphBrewOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg)
+[![GraphBrewOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg?v=graphbrew-public-v3)
 
 **Figure.** GraphBrew emits one explicit composition, not a competitor fallback.
 
@@ -195,7 +195,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** External label list.
 - **Evidence:** output order captured from the shared example
 
-[![MAP measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg)
+[![MAP measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg?v=graphbrew-public-v3)
 
 **Figure.** MAP materializes a supplied order; it does not discover one.
 
@@ -207,7 +207,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Policy-selected arm.
 - **Evidence:** selected-arm illustration; AdaptiveOrder has no fixed permutation
 
-[![AdaptiveOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg)
+[![AdaptiveOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v3)
 
 **Figure.** The output shown is the selected GraphBrew arm for this illustration.
 
@@ -219,7 +219,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Leiden + post-layout.
 - **Evidence:** output order captured from the shared example
 
-[![LeidenOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg)
+[![LeidenOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg?v=graphbrew-public-v3)
 
 **Figure.** Community detection alone is not an ordering.
 
@@ -233,7 +233,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 - **Mechanism:** Directed forward-edge.
 - **Evidence:** output order captured from the shared example
 
-[![GoGraphOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg)
+[![GoGraphOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg?v=graphbrew-public-v3)
 
 **Figure.** The objective is directed; the shown order is measured on this edge list.
 

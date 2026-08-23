@@ -11,7 +11,7 @@ validated path is a frozen deterministic rule, not a machine-learning model.
 
 `<reuse>` must be `1` or `2`.
 
-[![AdaptiveOrder selected-arm output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg)
+[![AdaptiveOrder selected-arm output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v3)
 
 **Figure 1.** AdaptiveOrder has no intrinsic permutation. The strip shows the
 output of one selected GraphBrew arm on the shared catalog input; a different
