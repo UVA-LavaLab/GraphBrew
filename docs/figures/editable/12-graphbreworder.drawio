@@ -128,10 +128,10 @@
         <mxCell id="permutation" value="permutation = [8, 5, 0, 3, 2, 4, 6, 1, 7]" style="text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontFamily=Consolas;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="390" y="260" width="400" height="28" as="geometry" />
         </mxCell>
-        <mxCell id="detail-0" value="measured end-to-end detector output" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
+        <mxCell id="detail-0" value="measured detector output" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="890" y="200" width="250" height="28" as="geometry" />
         </mxCell>
-        <mxCell id="detail-1" value="different from frozen pedagogical C0/C1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
+        <mxCell id="detail-1" value="not the frozen C0/C1 fixture" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="890" y="232" width="250" height="28" as="geometry" />
         </mxCell>
       </root>

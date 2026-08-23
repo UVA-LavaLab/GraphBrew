@@ -1,8 +1,8 @@
 # Public figures
 
 - `logo.png` — compact project mark used by the README
-- `graphbrew-architecture.svg` — current validated path, proposed Rabbit-free
-  direction, and the shared six-stage map
+- `graphbrew-architecture.svg` — GraphBrew infrastructure, validated policy
+  context, paper research direction, and the shared six-stage map
 - `graphbrew-graph-to-csr.svg` — Stage 1 input graph, tracked CSR row, and profile
 - `graphbrew-leiden-transform.svg` — Stage 2 community membership
 - `graphbrew-sizedesc-transform.svg` — Stage 3 contiguous block placement

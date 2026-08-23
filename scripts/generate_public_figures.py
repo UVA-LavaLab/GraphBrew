@@ -38,6 +38,7 @@ VIOLET = "#EEE9FF"
 ACTION = "#1769C2"
 MUTED = "#9AA3AD"
 COMMUNITY_B = "#B45309"
+OUTPUT = "#15803D"
 
 GRAPH_POSITIONS = {
     0: (80, 155),
@@ -119,7 +120,7 @@ CATALOG_COPY = {
     ),
     1: (
         "Fixed seed-0 shuffle",
-        ["Control for label sensitivity", "Deterministic seed, arbitrary locality"],
+        ["seed = 0", "label-sensitivity control"],
         "Only labels change; the topology is fixed.",
     ),
     2: (
@@ -130,14 +131,14 @@ CATALOG_COPY = {
     3: (
         "Sort selected hubs",
         [
-            "Hub: degree > integer average degree",
-            "Preserve source IDs where possible",
+            "degree > integer average",
+            "preserve source IDs if possible",
         ],
         "Only the hub region receives a full degree sort.",
     ),
     4: (
         "Stable hub clustering",
-        ["Same average-degree hub threshold", "Preserve source IDs where possible"],
+        ["same hub threshold", "preserve source IDs if possible"],
         "The hub/non-hub split changes regions without sorting every vertex.",
     ),
     5: (
@@ -561,6 +562,7 @@ class SVG:
             f'        [fill="{AMBER}"]{{fill:#3B3122}}[fill="{ROSE}"]{{fill:#3D292A}}',
             f'        [fill="{VIOLET}"]{{fill:#302C3C}}[stroke="{MUTED}"]{{stroke:#747D86}}',
             f'        [stroke="{ACTION}"]{{stroke:#63A8FF}}[fill="{ACTION}"]{{fill:#63A8FF}}',
+            f'        [stroke="{COMMUNITY_B}"]{{stroke:#F0B35A}}[stroke="{OUTPUT}"]{{stroke:#63D68B}}',
             "        .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}",
             "      }",
             '      .sans{font-family:Arial,Helvetica,sans-serif}',
@@ -577,6 +579,7 @@ class SVG:
                 f'      .label{{font-size:{scale["label"]}px;font-weight:700}}'
                 f'.body{{font-size:{scale["body"]}px}}'
                 f'.small{{font-size:{scale["small"]}px}}'
+                '.micro{font-size:14px;font-weight:700}'
             ),
             f'      .arrow{{fill:none;stroke:{ACTION};stroke-width:3;marker-end:url(#arrow)}}',
             f'      .edge{{stroke:{INK};stroke-width:2.2}}',
@@ -723,6 +726,9 @@ def draw_graph(
     scale: float = 0.82,
     tracked: int | None = 2,
     color_communities: bool = True,
+    node_radius: int = 20,
+    tracked_radius: int = 23,
+    label_css: str = "label",
 ) -> None:
     positions = {
         vertex: (
@@ -745,7 +751,7 @@ def draw_graph(
         svg.circle(
             x,
             y,
-            23 if is_tracked else 20,
+            tracked_radius if is_tracked else node_radius,
             (
                 GREEN
                 if is_tracked
@@ -757,7 +763,7 @@ def draw_graph(
             stroke_width=3 if is_tracked else 2,
         )
         label = labels[vertex] if labels else vertex
-        svg.text(x, y + 5, label, "label", anchor="middle")
+        svg.text(x, y + 5, label, label_css, anchor="middle")
 
 
 def array_strip(
@@ -796,77 +802,91 @@ def array_strip(
 
 def stage_card(
     svg: SVG,
+    payload: dict,
     x: int,
     y: int,
-    width: int,
-    height: int,
     number: str,
     title: str,
-    lines: list[str],
+    labels: dict[int, int] | None,
+    color_communities: bool,
     tracked: str,
-    fill: str,
+    border: str,
 ) -> None:
-    svg.rect(x, y, width, height, fill, stroke_width=3, radius=11)
+    width = 340
+    height = 230
+    svg.rect(x, y, width, height, PAGE, stroke=border, stroke_width=2, radius=11)
     svg.badge(x + 30, y + 30, number)
     svg.text(x + 58, y + 37, title, "heading")
-    for index, line in enumerate(lines):
-        svg.text(x + 25, y + 75 + index * 25, line, "body")
-    svg.rect(x + 25, y + height - 42, width - 50, 28, PAGE, radius=6)
-    svg.mono(x + width // 2, y + height - 23, tracked, "small", anchor="middle")
+    draw_graph(
+        svg,
+        payload,
+        x + 35,
+        y + 55,
+        labels=labels,
+        scale=0.48,
+        tracked=payload["tracked_vertex"]["old_id"],
+        color_communities=color_communities,
+        node_radius=13,
+        tracked_radius=15,
+        label_css="micro",
+    )
+    svg.rect(x + 20, y + 190, width - 40, 28, NEUTRAL, radius=6)
+    svg.mono(x + width // 2, y + 209, tracked, "small", anchor="middle")
 
 
 def generate_architecture(payload: dict) -> str:
     svg = SVG(
         1200,
-        690,
-        "GraphBrew: current system and Rabbit-free research direction",
+        840,
+        "GraphBrew infrastructure and paper research direction",
         (
-            "The validated low-reuse selector and proposed Rabbit-free generator "
-            "share one six-stage composition pipeline and one tracked vertex."
+            "The reusable composition/evaluation infrastructure supports the "
+            "validated system and the paper's Rabbit-free generator study."
         ),
-        "Running example: follow v2 from input CSR to new ID 0 and 3 cache lines -> 2.",
+        "One six-stage infrastructure; the paper direction studies automated Rabbit-free composition.",
     )
     svg.rect(35, 118, 545, 76, BLUE, stroke_width=3)
-    svg.text(60, 147, "CURRENT VALIDATED PATH", "domain")
-    svg.text(60, 174, "Explicit recipes + frozen low-reuse selector", "body")
+    svg.text(60, 147, "GRAPHBREW INFRASTRUCTURE", "domain")
+    svg.text(60, 174, "Explicit recipes + reproducible mapping/evaluation", "body")
     svg.rect(620, 118, 545, 76, VIOLET, stroke_width=3)
-    svg.text(645, 147, "PROPOSED RESEARCH PATH", "domain")
-    svg.text(645, 174, "Rabbit-free deterministic composition generator", "body")
+    svg.text(645, 147, "PAPER RESEARCH DIRECTION", "domain")
+    svg.text(645, 174, "Rabbit-free generator under held-out evaluation", "body")
     svg.rect(
         25,
-        208,
+        205,
         1150,
-        380,
+        555,
         "none",
         stroke=MUTED,
         stroke_width=2,
         radius=12,
         dash="8 7",
     )
-    svg.text(45, 232, "SHARED SIX-STAGE PIPELINE", "domain")
+    svg.text(45, 229, "SHARED SIX-STAGE PIPELINE", "domain")
+    block_labels = {
+        vertex: payload["composition"]["block_only_forward_mapping"][vertex]
+        for vertex in payload["graph"]["vertices"]
+    }
+    final_labels = {
+        vertex: payload["composition"]["forward_mapping"][vertex]
+        for vertex in payload["graph"]["vertices"]
+    }
     cards = [
-        (35, 250, "1", "Load + profile", ["Read CSR", "Compute lightweight features"], "row v2 = [1,4,6,8]", BLUE),
-        (430, 250, "2", "Partition", ["Assign C0 / C1", "Keep topology unchanged"], "v2 in C0", VIOLET),
-        (825, 250, "3", "Block layout", ["SizeDesc: C0 first", "Reserve contiguous ranges"], "C0 -> IDs 0..4", AMBER),
-        (35, 425, "4", "Vertex layout", ["BFS for C0", "relaxed Gorder for C1"], "v2 -> local ID 0", VIOLET),
-        (430, 425, "5", "Emit relabeled CSR", ["Compose old -> new IDs", "Validate permutation"], "v2 -> new ID 0", GREEN),
-        (825, 425, "6", "Kernel locality", ["Same neighbors", "Fewer property cache lines"], "v2: 3 lines -> 2", GREEN),
+        (35, 240, "1", "Load + profile", None, False, "row v2 = [1,4,6,8]", ACTION),
+        (430, 240, "2", "Partition", None, True, "v2 in C0", INK),
+        (825, 240, "3", "Block layout", block_labels, True, "v2: old 2 -> block 1", COMMUNITY_B),
+        (35, 500, "4", "Vertex layout", final_labels, True, "v2: block 1 -> local 0", INK),
+        (430, 500, "5", "Emit relabeled CSR", final_labels, True, "row 0 = [1,2,3,5]", OUTPUT),
+        (825, 500, "6", "Kernel locality", final_labels, True, "v2: 3 cache lines -> 2", OUTPUT),
     ]
     for card in cards:
-        stage_card(
-            svg,
-            card[0],
-            card[1],
-            340,
-            155,
-            *card[2:],
-        )
-    svg.arrow("M375 327 H426")
-    svg.arrow("M770 327 H821")
-    svg.arrow("M995 405 V413 H205 V421")
-    svg.arrow("M375 502 H426")
-    svg.arrow("M770 502 H821")
-    svg.footer(625, "Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.")
+        stage_card(svg, payload, *card)
+    svg.arrow("M375 355 H426")
+    svg.arrow("M770 355 H821")
+    svg.arrow("M995 470 V480 H205 V496")
+    svg.arrow("M375 615 H426")
+    svg.arrow("M770 615 H821")
+    svg.footer(785, "Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.")
     return svg.finish()
 
 
@@ -1286,7 +1306,7 @@ def generate_gorder(payload: dict) -> str:
     labels = {vertex: index for index, vertex in enumerate(after)}
     svg = SVG(
         1200,
-        535,
+        620,
         "Stage 4A: relaxed local Gorder orders the small C1 block",
         "The production intra_gorder is a direct-neighbor UnitHeap heuristic, not faithful standalone GORDER_csr.",
         (
@@ -1298,7 +1318,7 @@ def generate_gorder(payload: dict) -> str:
         25,
         112,
         1150,
-        350,
+        445,
         "none",
         stroke=MUTED,
         stroke_width=2,
@@ -1306,17 +1326,17 @@ def generate_gorder(payload: dict) -> str:
         dash="8 7",
     )
     svg.text(45, 136, "STAGE 4A · SMALL-BLOCK LOCAL LAYOUT", "domain")
-    svg.rect(45, 150, 490, 300, NEUTRAL, stroke=COMMUNITY_B, stroke_width=2)
+    svg.rect(45, 150, 490, 395, NEUTRAL, stroke=COMMUNITY_B, stroke_width=2)
     svg.text(70, 185, "Before local layout", "heading")
-    draw_subgraph(svg, payload, before, 290, 265, tracked=8, fill=AMBER)
-    array_strip(svg, 70, 390, before, width=440, fills=[AMBER] * 4, prefix="v")
-    svg.rect(665, 150, 490, 300, NEUTRAL, stroke=ACTION, stroke_width=2)
+    draw_subgraph(svg, payload, before, 290, 320, tracked=8, fill=AMBER)
+    array_strip(svg, 70, 470, before, width=440, fills=[AMBER] * 4, prefix="v")
+    svg.rect(665, 150, 490, 395, NEUTRAL, stroke=ACTION, stroke_width=2)
     svg.badge(695, 180, "4A")
     svg.text(735, 187, "After relaxed intra_gorder", "heading")
-    draw_subgraph(svg, payload, before, 910, 265, tracked=8, labels=labels, fill=AMBER)
-    array_strip(svg, 690, 390, after, width=440, fills=[AMBER] * 4, tracked_index=0, prefix="v")
-    svg.arrow("M535 300 H661")
-    svg.footer(475, "Invariant: C1 remains IDs 5..8 globally; only its four local positions change.")
+    draw_subgraph(svg, payload, before, 910, 320, tracked=8, labels=labels, fill=AMBER)
+    array_strip(svg, 690, 470, after, width=440, fills=[AMBER] * 4, tracked_index=0, prefix="v")
+    svg.arrow("M535 335 H661")
+    svg.footer(565, "Invariant: C1 remains IDs 5..8 globally; only its four local positions change.")
     return svg.finish()
 
 
@@ -1326,7 +1346,7 @@ def generate_bfs(payload: dict) -> str:
     labels = {vertex: index for index, vertex in enumerate(local["order"])}
     svg = SVG(
         1200,
-        535,
+        620,
         "Stage 4B: hub-rooted BFS orders the large C0 block",
         "The tracked vertex v2 is the highest-degree root and receives local ID 0.",
         "Same C0 = {1,2,4,6,7}; BFS levels are [2] -> [1,4,6] -> [7].",
@@ -1335,7 +1355,7 @@ def generate_bfs(payload: dict) -> str:
         25,
         112,
         1150,
-        350,
+        445,
         "none",
         stroke=MUTED,
         stroke_width=2,
@@ -1343,17 +1363,17 @@ def generate_bfs(payload: dict) -> str:
         dash="8 7",
     )
     svg.text(45, 136, "STAGE 4B · LARGE-BLOCK LOCAL LAYOUT", "domain")
-    svg.rect(45, 150, 490, 300, NEUTRAL, stroke=ACTION, stroke_width=2)
+    svg.rect(45, 150, 490, 395, NEUTRAL, stroke=ACTION, stroke_width=2)
     svg.text(70, 185, "Before local layout", "heading")
-    draw_subgraph(svg, payload, values, 290, 265, tracked=2, fill=BLUE)
-    array_strip(svg, 70, 390, values, width=440, fills=[BLUE] * 5, tracked_index=1, prefix="v")
-    svg.rect(665, 150, 490, 300, NEUTRAL, stroke=ACTION, stroke_width=2)
+    draw_subgraph(svg, payload, values, 290, 320, tracked=2, fill=BLUE)
+    array_strip(svg, 70, 470, values, width=440, fills=[BLUE] * 5, tracked_index=1, prefix="v")
+    svg.rect(665, 150, 490, 395, NEUTRAL, stroke=ACTION, stroke_width=2)
     svg.badge(695, 180, "4B")
     svg.text(735, 187, "After BFS levels", "heading")
-    draw_subgraph(svg, payload, values, 910, 265, tracked=2, labels=labels, fill=BLUE)
-    array_strip(svg, 690, 390, local["order"], width=440, fills=[BLUE] * 5, tracked_index=0, prefix="v")
-    svg.arrow("M535 300 H661")
-    svg.footer(475, "Invariant: C0 remains the first five global IDs; BFS only assigns its local order.")
+    draw_subgraph(svg, payload, values, 910, 320, tracked=2, labels=labels, fill=BLUE)
+    array_strip(svg, 690, 470, local["order"], width=440, fills=[BLUE] * 5, tracked_index=0, prefix="v")
+    svg.arrow("M535 335 H661")
+    svg.footer(565, "Invariant: C0 remains the first five global IDs; BFS only assigns its local order.")
     return svg.finish()
 
 
@@ -1495,7 +1515,7 @@ def generate_cd_parallel(payload: dict) -> str:
     svg = SVG(
         1200,
         500,
-        "Control: cd_serial versus cd_parallel",
+        "Control A: cd_serial versus cd_parallel",
         "Both modes use the same graph and recipe; parallel move scheduling may change the realized membership and mapping.",
         "Running example IDs v0..v8; fingerprint equality, not the branch name, proves byte identity.",
     )
@@ -1503,19 +1523,37 @@ def generate_cd_parallel(payload: dict) -> str:
         25, 112, 1150, 305, "none",
         stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
     )
-    svg.rect(35, 125, 520, 280, AMBER, stroke_width=3)
+    svg.rect(35, 125, 520, 280, PAGE, stroke=COMMUNITY_B, stroke_width=2)
     svg.text(60, 160, "cd_serial", "heading")
     svg.text(60, 195, "One ordered move stream.", "body")
-    array_strip(svg, 60, 225, range(9), width=470, fills=[AMBER] * 9, tracked_index=2, prefix="v")
+    array_strip(
+        svg,
+        60,
+        225,
+        range(9),
+        width=470,
+        fills=[NEUTRAL] * 9,
+        tracked_index=2,
+        prefix="v",
+    )
     svg.mono(60, 310, "membership fingerprint = M0", "body")
     svg.mono(60, 342, "mapping fingerprint = P0", "body")
-    svg.rect(645, 125, 520, 280, BLUE, stroke_width=3)
+    svg.rect(645, 125, 520, 280, PAGE, stroke=ACTION, stroke_width=2)
     svg.text(670, 160, "cd_parallel", "heading")
     svg.text(670, 195, "Workers evaluate vertices concurrently.", "body")
-    svg.mono(670, 232, "T0: v0, v3, v6", "small")
-    svg.mono(670, 262, "T1: v1, v4, v7", "small")
-    svg.mono(670, 292, "T2: v2, v5, v8", "small")
-    svg.mono(670, 332, "repeat draws -> compare M/P", "body")
+    array_strip(
+        svg,
+        670,
+        225,
+        range(9),
+        width=470,
+        fills=[NEUTRAL] * 9,
+        tracked_index=2,
+        prefix="v",
+    )
+    svg.mono(670, 305, "T0 {v0,v3,v6} | T1 {v1,v4,v7}", "small")
+    svg.mono(670, 335, "T2 {v2,v5,v8}", "small")
+    svg.mono(670, 372, "repeat draws -> compare M/P", "body")
     svg.arrow("M555 270 H641")
     svg.footer(430, "Contract: schedule-sensitive builds are repeated; differing fingerprints must not be pooled.")
     return svg.finish()
@@ -1525,31 +1563,58 @@ def generate_sgmb(payload: dict) -> str:
     svg = SVG(
         1200,
         520,
-        "Control: sgmb4096 batches proposals but commits them in order",
-        "The batch contains community super-nodes, not original graph vertices.",
-        "Illustrative C0/C1 supergraph derived from the same running example.",
+        "Control B: sgmb4096 batches proposals but commits them in order",
+        (
+            "Illustrative singleton supernodes use adjacent targets from the "
+            "running graph; they are not measured modularity winners."
+        ),
+        "The production value 4096 is a batch cap; this readable example uses four supernodes.",
     )
     svg.rect(
         25, 112, 1150, 315, "none",
         stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
     )
-    svg.rect(35, 125, 1130, 105, VIOLET, stroke_width=3)
-    svg.text(60, 160, "Community supergraph", "heading")
-    svg.circle(310, 182, 25, BLUE)
-    svg.text(310, 188, "C0", "label", anchor="middle")
-    svg.circle(890, 182, 25, AMBER)
-    svg.text(890, 188, "C1", "label", anchor="middle")
-    svg.line(337, 182, 863, 182, stroke=ACTION, stroke_width=4)
-    svg.mono(600, 174, "cross edges: (v8,v1), (v8,v2)", "small", anchor="middle")
-    svg.rect(35, 270, 520, 145, BLUE, stroke_width=3)
-    svg.text(60, 305, "1. Proposal phase", "heading")
-    svg.mono(60, 340, "batch = [C0, C1]", "body")
-    svg.text(60, 372, "Workers evaluate from one pre-commit state.", "body")
-    svg.rect(645, 270, 520, 145, GREEN, stroke_width=3)
-    svg.text(670, 305, "2. Ordered commit", "heading")
-    array_strip(svg, 670, 330, ["C0", "C1"], width=470, fills=[BLUE, AMBER])
-    svg.text(670, 395, "Commit order is deterministic within the batch.", "body")
-    svg.arrow("M555 342 H641")
+    svg.rect(35, 125, 1130, 85, NEUTRAL, stroke=VIOLET, stroke_width=2)
+    svg.text(60, 158, "Readable proposal batch", "heading")
+    array_strip(
+        svg,
+        360,
+        140,
+        ["S0=v0", "S1=v1", "S2=v2", "S3=v3"],
+        width=760,
+        height=48,
+        fills=[PAGE, PAGE, GREEN, PAGE],
+        tracked_index=2,
+    )
+    svg.rect(35, 245, 520, 170, PAGE, stroke=ACTION, stroke_width=2)
+    svg.text(60, 280, "1. Parallel proposal phase", "heading")
+    svg.mono(60, 312, "S0(v0) -> S3(v3)", "small")
+    svg.mono(60, 340, "S1(v1) -> S2(v2)", "small")
+    svg.mono(60, 368, "S2(v2) -> keep", "small")
+    svg.mono(60, 396, "S3(v3) -> S8(v8)", "small")
+    svg.rect(645, 245, 520, 170, PAGE, stroke=GREEN, stroke_width=2)
+    svg.text(670, 280, "2. Ordered commit by supernode ID", "heading")
+    array_strip(
+        svg,
+        670,
+        305,
+        ["S0", "S1", "S2", "S3"],
+        width=470,
+        height=44,
+        fills=[NEUTRAL, NEUTRAL, GREEN, NEUTRAL],
+        tracked_index=2,
+    )
+    array_strip(
+        svg,
+        670,
+        355,
+        ["S3", "S2", "keep", "S8"],
+        width=470,
+        height=44,
+        fills=[VIOLET, VIOLET, GREEN, VIOLET],
+        tracked_index=2,
+    )
+    svg.arrow("M555 330 H641")
     svg.footer(445, "Invariant: sgmb changes proposal batching, not the requested partition/layout recipe.")
     return svg.finish()
 
@@ -1558,7 +1623,7 @@ def generate_norefine(payload: dict) -> str:
     svg = SVG(
         1200,
         500,
-        "Control: norefine removes the constrained Leiden refinement phase",
+        "Control C: norefine removes the constrained Leiden refinement phase",
         "Local moving and aggregation still run; the connectivity and subset-optimality guarantees no longer apply.",
         "Same running graph and C0/C1 notation; this figure compares phase structure, not measured quality.",
     )
@@ -1673,13 +1738,13 @@ def catalog_details(payload: dict, algorithm_id: int, order: list[int]) -> list[
         ]
     if algorithm_id == 16:
         return [
-            "symmetric input: objective is a control",
-            "use a directed corpus for a GoGraph claim",
+            "symmetric input = control",
+            "directed corpus required",
         ]
     if algorithm_id == 12:
         return [
-            "measured end-to-end detector output",
-            "different from frozen pedagogical C0/C1",
+            "measured detector output",
+            "not the frozen C0/C1 fixture",
         ]
     if algorithm_id == 14:
         return ["features -> selected arm", "output equals selected arm"]
@@ -1815,7 +1880,18 @@ def generate_catalog_figure(payload: dict, algorithm_id: int) -> str:
         heading_css,
     )
     for index, line in enumerate(details[:3]):
-        css = "small" if len(line) > 36 else "body"
+        css = (
+            "small"
+            if approximate_text_width(line, 17) > 250
+            else "body"
+        )
+        if approximate_text_width(
+            line,
+            16 if css == "small" else 17,
+        ) > 280:
+            raise ValueError(
+                f"catalog detail does not fit for algorithm {algorithm_id}"
+            )
         svg.text(890, 215 + index * 32, line, css)
     svg.arrow("M315 240 H361")
     svg.arrow("M815 240 H861")
@@ -1987,11 +2063,15 @@ def drawio_catalog_page(payload: dict, algorithm_id: int) -> str:
         )
     )
     for index, line in enumerate(details[:3]):
+        detail_font = 14 if approximate_text_width(line, 15) > 250 else 15
         cells.append(
             mx_cell(
                 f"detail-{index}",
                 line,
-                "text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;",
+                (
+                    "text;html=1;strokeColor=none;fillColor=none;"
+                    f"fontSize={detail_font};fontColor=#27313A;"
+                ),
                 890,
                 200 + index * 32,
                 250,

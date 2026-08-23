@@ -4,17 +4,18 @@ GraphBrew is a framework for **composable vertex reordering**. It separates
 the partitioner, community-block layout, and within-block vertex layout so
 their cost and locality effects can be measured independently.
 
-[![GraphBrew current and proposed architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
+[![GraphBrew infrastructure and paper direction](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
 
-## Current versus proposed
+## Infrastructure, validated policy, and paper direction
 
-| Status | Path |
+| Layer | Role |
 |---|---|
-| **Validated today** | explicit compositions and the frozen reuse-1/2 selector; its fallback branch runs Boost Rabbit |
-| **Research direction** | a deterministic Rabbit-free composition generator selected from graph, kernel, reuse, and cost semantics |
+| **GraphBrew infrastructure** | explicit composition grammar, mapping generation, provenance, kernel evaluation, and reusable experiment orchestration |
+| **Validated policy today** | the frozen reuse-1/2 selector; its fallback branch runs Boost Rabbit |
+| **Paper research direction** | a deterministic Rabbit-free composition generator selected from graph, kernel, reuse, and cost semantics |
 
-The architecture figure keeps those claims separate while carrying one tracked
-vertex through the same six-stage ordering pipeline.
+The infrastructure is the reusable system. Rabbit-free automatic composition
+is the paper direction being evaluated on top of it.
 
 ## Read the project in this order
 

@@ -17,7 +17,7 @@ three explicit decisions:
 | Block layout | identity, size/degree sort, super-graph order | place groups globally |
 | Vertex layout | BFS, RCM, degree order, Gorder | order vertices inside each block |
 
-![GraphBrew current system and Rabbit-free research direction](./docs/figures/graphbrew-architecture.svg)
+![GraphBrew infrastructure and paper research direction](./docs/figures/graphbrew-architecture.svg)
 
 The [running example](https://github.com/UVA-LavaLab/GraphBrew/wiki/GraphBrew-Running-Example)
 carries one graph and tracked vertex through all six stages shown above.
@@ -26,8 +26,9 @@ carries one graph and tracked vertex through all six stages shown above.
 
 GraphBrew has two distinct interfaces.
 
-The proposed Rabbit-free composition generator is a research direction under
-held-out evaluation; it is not yet a third deployed interface.
+The proposed Rabbit-free composition generator is the paper research direction
+under held-out evaluation. It is built on the GraphBrew infrastructure; it is
+not the infrastructure's only goal or a third deployed interface.
 
 ### Explicit composition
 

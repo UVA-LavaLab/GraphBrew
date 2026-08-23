@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc" fill="#27313A">
-  <title id="title">Control: norefine removes the constrained Leiden refinement phase</title>
+  <title id="title">Control C: norefine removes the constrained Leiden refinement phase</title>
   <desc id="desc">Local moving and aggregation still run; the connectivity and subset-optimality guarantees no longer apply.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
@@ -14,19 +14,20 @@
         [fill="#FFF0D8"]{fill:#3B3122}[fill="#F7DEDC"]{fill:#3D292A}
         [fill="#EEE9FF"]{fill:#302C3C}[stroke="#9AA3AD"]{stroke:#747D86}
         [stroke="#1769C2"]{stroke:#63A8FF}[fill="#1769C2"]{fill:#63A8FF}
+        [stroke="#B45309"]{stroke:#F0B35A}[stroke="#15803D"]{stroke:#63D68B}
         .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}
       .mono{font-family:"SFMono-Regular",Consolas,monospace}
       .title{font-size:32px;font-weight:700}.subtitle{font-size:18px}
       .domain{font-size:16px;font-weight:700;letter-spacing:1.2px}.heading{font-size:22px;font-weight:700}
-      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}
+      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}.micro{font-size:14px;font-weight:700}
       .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
       .edge{stroke:#27313A;stroke-width:2.2}
     </style>
   </defs>
   <rect width="1200" height="500" fill="#FFFFFF"/>
-  <text x="42" y="47" class="sans title">Control: norefine removes the constrained Leiden refinement phase</text>
+  <text x="42" y="47" class="sans title">Control C: norefine removes the constrained Leiden refinement phase</text>
   <text x="42" y="75" class="sans subtitle">Same running graph and C0/C1 notation; this figure compares phase structure, not measured quality.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
   <rect x="25" y="112" width="1150" height="300" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>

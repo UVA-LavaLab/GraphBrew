@@ -128,10 +128,10 @@
         <mxCell id="permutation" value="permutation = [1, 0, 6, 2, 7, 3, 4, 8, 5]" style="text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontFamily=Consolas;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="390" y="260" width="400" height="28" as="geometry" />
         </mxCell>
-        <mxCell id="detail-0" value="Control for label sensitivity" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
+        <mxCell id="detail-0" value="seed = 0" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="890" y="200" width="250" height="28" as="geometry" />
         </mxCell>
-        <mxCell id="detail-1" value="Deterministic seed, arbitrary locality" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
+        <mxCell id="detail-1" value="label-sensitivity control" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="890" y="232" width="250" height="28" as="geometry" />
         </mxCell>
       </root>

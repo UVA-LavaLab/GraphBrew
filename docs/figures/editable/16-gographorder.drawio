@@ -128,10 +128,10 @@
         <mxCell id="permutation" value="permutation = [2, 4, 6, 0, 7, 1, 3, 5, 8]" style="text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontFamily=Consolas;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="390" y="260" width="400" height="28" as="geometry" />
         </mxCell>
-        <mxCell id="detail-0" value="symmetric input: objective is a control" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
+        <mxCell id="detail-0" value="symmetric input = control" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="890" y="200" width="250" height="28" as="geometry" />
         </mxCell>
-        <mxCell id="detail-1" value="use a directed corpus for a GoGraph claim" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
+        <mxCell id="detail-1" value="directed corpus required" style="text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;" vertex="1" parent="1">
           <mxGeometry x="890" y="232" width="250" height="28" as="geometry" />
         </mxCell>
       </root>

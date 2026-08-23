@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="690" viewBox="0 0 1200 690" role="img" aria-labelledby="title desc" fill="#27313A">
-  <title id="title">GraphBrew: current system and Rabbit-free research direction</title>
-  <desc id="desc">The validated low-reuse selector and proposed Rabbit-free generator share one six-stage composition pipeline and one tracked vertex.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840" role="img" aria-labelledby="title desc" fill="#27313A">
+  <title id="title">GraphBrew infrastructure and paper research direction</title>
+  <desc id="desc">The reusable composition/evaluation infrastructure supports the validated system and the paper&#x27;s Rabbit-free generator study.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
@@ -14,82 +14,251 @@
         [fill="#FFF0D8"]{fill:#3B3122}[fill="#F7DEDC"]{fill:#3D292A}
         [fill="#EEE9FF"]{fill:#302C3C}[stroke="#9AA3AD"]{stroke:#747D86}
         [stroke="#1769C2"]{stroke:#63A8FF}[fill="#1769C2"]{fill:#63A8FF}
+        [stroke="#B45309"]{stroke:#F0B35A}[stroke="#15803D"]{stroke:#63D68B}
         .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}
       .mono{font-family:"SFMono-Regular",Consolas,monospace}
       .title{font-size:32px;font-weight:700}.subtitle{font-size:18px}
       .domain{font-size:16px;font-weight:700;letter-spacing:1.2px}.heading{font-size:22px;font-weight:700}
-      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}
+      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}.micro{font-size:14px;font-weight:700}
       .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
       .edge{stroke:#27313A;stroke-width:2.2}
     </style>
   </defs>
-  <rect width="1200" height="690" fill="#FFFFFF"/>
-  <text x="42" y="47" class="sans title">GraphBrew: current system and Rabbit-free research direction</text>
-  <text x="42" y="75" class="sans subtitle">Running example: follow v2 from input CSR to new ID 0 and 3 cache lines -&gt; 2.</text>
+  <rect width="1200" height="840" fill="#FFFFFF"/>
+  <text x="42" y="47" class="sans title">GraphBrew infrastructure and paper research direction</text>
+  <text x="42" y="75" class="sans subtitle">One six-stage infrastructure; the paper direction studies automated Rabbit-free composition.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
   <rect x="35" y="118" width="545" height="76" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
-  <text x="60" y="147" class="sans domain">CURRENT VALIDATED PATH</text>
-  <text x="60" y="174" class="sans body">Explicit recipes + frozen low-reuse selector</text>
+  <text x="60" y="147" class="sans domain">GRAPHBREW INFRASTRUCTURE</text>
+  <text x="60" y="174" class="sans body">Explicit recipes + reproducible mapping/evaluation</text>
   <rect x="620" y="118" width="545" height="76" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
-  <text x="645" y="147" class="sans domain">PROPOSED RESEARCH PATH</text>
-  <text x="645" y="174" class="sans body">Rabbit-free deterministic composition generator</text>
-  <rect x="25" y="208" width="1150" height="380" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
-  <text x="45" y="232" class="sans domain">SHARED SIX-STAGE PIPELINE</text>
-  <rect x="35" y="250" width="340" height="155" rx="11" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
-  <circle cx="65" cy="280" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="65" y="286" class="sans label" text-anchor="middle" fill="#FFFFFF">1</text>
-  <text x="93" y="287" class="sans heading">Load + profile</text>
-  <text x="60" y="325" class="sans body">Read CSR</text>
-  <text x="60" y="350" class="sans body">Compute lightweight features</text>
-  <rect x="60" y="363" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="205" y="382" class="mono small" text-anchor="middle">row v2 = [1,4,6,8]</text>
-  <rect x="430" y="250" width="340" height="155" rx="11" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
-  <circle cx="460" cy="280" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="460" y="286" class="sans label" text-anchor="middle" fill="#FFFFFF">2</text>
-  <text x="488" y="287" class="sans heading">Partition</text>
-  <text x="455" y="325" class="sans body">Assign C0 / C1</text>
-  <text x="455" y="350" class="sans body">Keep topology unchanged</text>
-  <rect x="455" y="363" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="382" class="mono small" text-anchor="middle">v2 in C0</text>
-  <rect x="825" y="250" width="340" height="155" rx="11" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
-  <circle cx="855" cy="280" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="855" y="286" class="sans label" text-anchor="middle" fill="#FFFFFF">3</text>
-  <text x="883" y="287" class="sans heading">Block layout</text>
-  <text x="850" y="325" class="sans body">SizeDesc: C0 first</text>
-  <text x="850" y="350" class="sans body">Reserve contiguous ranges</text>
-  <rect x="850" y="363" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="995" y="382" class="mono small" text-anchor="middle">C0 -&gt; IDs 0..4</text>
-  <rect x="35" y="425" width="340" height="155" rx="11" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
-  <circle cx="65" cy="455" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="65" y="461" class="sans label" text-anchor="middle" fill="#FFFFFF">4</text>
-  <text x="93" y="462" class="sans heading">Vertex layout</text>
-  <text x="60" y="500" class="sans body">BFS for C0</text>
-  <text x="60" y="525" class="sans body">relaxed Gorder for C1</text>
-  <rect x="60" y="538" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="205" y="557" class="mono small" text-anchor="middle">v2 -&gt; local ID 0</text>
-  <rect x="430" y="425" width="340" height="155" rx="11" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <circle cx="460" cy="455" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="460" y="461" class="sans label" text-anchor="middle" fill="#FFFFFF">5</text>
-  <text x="488" y="462" class="sans heading">Emit relabeled CSR</text>
-  <text x="455" y="500" class="sans body">Compose old -&gt; new IDs</text>
-  <text x="455" y="525" class="sans body">Validate permutation</text>
-  <rect x="455" y="538" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="557" class="mono small" text-anchor="middle">v2 -&gt; new ID 0</text>
-  <rect x="825" y="425" width="340" height="155" rx="11" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <circle cx="855" cy="455" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="855" y="461" class="sans label" text-anchor="middle" fill="#FFFFFF">6</text>
-  <text x="883" y="462" class="sans heading">Kernel locality</text>
-  <text x="850" y="500" class="sans body">Same neighbors</text>
-  <text x="850" y="525" class="sans body">Fewer property cache lines</text>
-  <rect x="850" y="538" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="995" y="557" class="mono small" text-anchor="middle">v2: 3 lines -&gt; 2</text>
-  <path d="M375 327 H426" class="arrow"/>
-  <path d="M770 327 H821" class="arrow"/>
-  <path d="M995 405 V413 H205 V421" class="arrow"/>
-  <path d="M375 502 H426" class="arrow"/>
-  <path d="M770 502 H821" class="arrow"/>
-  <rect x="144" y="625" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="652" class="sans small" text-anchor="middle">Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.</text>
+  <text x="645" y="147" class="sans domain">PAPER RESEARCH DIRECTION</text>
+  <text x="645" y="174" class="sans body">Rabbit-free generator under held-out evaluation</text>
+  <rect x="25" y="205" width="1150" height="555" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="45" y="229" class="sans domain">SHARED SIX-STAGE PIPELINE</text>
+  <rect x="35" y="240" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#1769C2" stroke-width="2"/>
+  <circle cx="65" cy="270" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="65" y="276" class="sans label" text-anchor="middle" fill="#FFFFFF">1</text>
+  <text x="93" y="277" class="sans heading">Load + profile</text>
+  <line x1="108" y1="369" x2="144" y2="338" class="edge"/>
+  <line x1="108" y1="369" x2="144" y2="400" class="edge"/>
+  <line x1="144" y1="338" x2="187" y2="369" class="edge"/>
+  <line x1="144" y1="400" x2="187" y2="369" class="edge"/>
+  <line x1="187" y1="369" x2="230" y2="338" class="edge"/>
+  <line x1="187" y1="369" x2="269" y2="369" class="edge"/>
+  <line x1="230" y1="338" x2="269" y2="369" class="edge"/>
+  <line x1="230" y1="338" x2="312" y2="338" class="edge"/>
+  <line x1="269" y1="369" x2="247" y2="407" class="edge"/>
+  <line x1="269" y1="369" x2="312" y2="400" class="edge"/>
+  <line x1="247" y1="407" x2="312" y2="400" class="edge"/>
+  <line x1="312" y1="400" x2="312" y2="338" class="edge"/>
+  <circle cx="108" cy="369" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="108" y="374" class="sans micro" text-anchor="middle">0</text>
+  <circle cx="230" cy="338" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="230" y="343" class="sans micro" text-anchor="middle">1</text>
+  <circle cx="269" cy="369" r="15" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="269" y="374" class="sans micro" text-anchor="middle">2</text>
+  <circle cx="144" cy="338" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="144" y="343" class="sans micro" text-anchor="middle">3</text>
+  <circle cx="247" cy="407" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="247" y="412" class="sans micro" text-anchor="middle">4</text>
+  <circle cx="144" cy="400" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="144" y="405" class="sans micro" text-anchor="middle">5</text>
+  <circle cx="312" cy="400" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="312" y="405" class="sans micro" text-anchor="middle">6</text>
+  <circle cx="312" cy="338" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="312" y="343" class="sans micro" text-anchor="middle">7</text>
+  <circle cx="187" cy="369" r="13" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="187" y="374" class="sans micro" text-anchor="middle">8</text>
+  <rect x="55" y="430" width="300" height="28" rx="6" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="205" y="449" class="mono small" text-anchor="middle">row v2 = [1,4,6,8]</text>
+  <rect x="430" y="240" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <circle cx="460" cy="270" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="460" y="276" class="sans label" text-anchor="middle" fill="#FFFFFF">2</text>
+  <text x="488" y="277" class="sans heading">Partition</text>
+  <line x1="503" y1="369" x2="539" y2="338" class="edge"/>
+  <line x1="503" y1="369" x2="539" y2="400" class="edge"/>
+  <line x1="539" y1="338" x2="582" y2="369" class="edge"/>
+  <line x1="539" y1="400" x2="582" y2="369" class="edge"/>
+  <line x1="582" y1="369" x2="625" y2="338" class="edge"/>
+  <line x1="582" y1="369" x2="664" y2="369" class="edge"/>
+  <line x1="625" y1="338" x2="664" y2="369" class="edge"/>
+  <line x1="625" y1="338" x2="707" y2="338" class="edge"/>
+  <line x1="664" y1="369" x2="642" y2="407" class="edge"/>
+  <line x1="664" y1="369" x2="707" y2="400" class="edge"/>
+  <line x1="642" y1="407" x2="707" y2="400" class="edge"/>
+  <line x1="707" y1="400" x2="707" y2="338" class="edge"/>
+  <circle cx="503" cy="369" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="503" y="374" class="sans micro" text-anchor="middle">0</text>
+  <circle cx="625" cy="338" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="625" y="343" class="sans micro" text-anchor="middle">1</text>
+  <circle cx="664" cy="369" r="15" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="664" y="374" class="sans micro" text-anchor="middle">2</text>
+  <circle cx="539" cy="338" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="539" y="343" class="sans micro" text-anchor="middle">3</text>
+  <circle cx="642" cy="407" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="642" y="412" class="sans micro" text-anchor="middle">4</text>
+  <circle cx="539" cy="400" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="539" y="405" class="sans micro" text-anchor="middle">5</text>
+  <circle cx="707" cy="400" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="707" y="405" class="sans micro" text-anchor="middle">6</text>
+  <circle cx="707" cy="338" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="707" y="343" class="sans micro" text-anchor="middle">7</text>
+  <circle cx="582" cy="369" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="582" y="374" class="sans micro" text-anchor="middle">8</text>
+  <rect x="450" y="430" width="300" height="28" rx="6" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="449" class="mono small" text-anchor="middle">v2 in C0</text>
+  <rect x="825" y="240" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#B45309" stroke-width="2"/>
+  <circle cx="855" cy="270" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="855" y="276" class="sans label" text-anchor="middle" fill="#FFFFFF">3</text>
+  <text x="883" y="277" class="sans heading">Block layout</text>
+  <line x1="898" y1="369" x2="934" y2="338" class="edge"/>
+  <line x1="898" y1="369" x2="934" y2="400" class="edge"/>
+  <line x1="934" y1="338" x2="977" y2="369" class="edge"/>
+  <line x1="934" y1="400" x2="977" y2="369" class="edge"/>
+  <line x1="977" y1="369" x2="1020" y2="338" class="edge"/>
+  <line x1="977" y1="369" x2="1059" y2="369" class="edge"/>
+  <line x1="1020" y1="338" x2="1059" y2="369" class="edge"/>
+  <line x1="1020" y1="338" x2="1102" y2="338" class="edge"/>
+  <line x1="1059" y1="369" x2="1037" y2="407" class="edge"/>
+  <line x1="1059" y1="369" x2="1102" y2="400" class="edge"/>
+  <line x1="1037" y1="407" x2="1102" y2="400" class="edge"/>
+  <line x1="1102" y1="400" x2="1102" y2="338" class="edge"/>
+  <circle cx="898" cy="369" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="898" y="374" class="sans micro" text-anchor="middle">5</text>
+  <circle cx="1020" cy="338" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1020" y="343" class="sans micro" text-anchor="middle">0</text>
+  <circle cx="1059" cy="369" r="15" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="1059" y="374" class="sans micro" text-anchor="middle">1</text>
+  <circle cx="934" cy="338" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="934" y="343" class="sans micro" text-anchor="middle">6</text>
+  <circle cx="1037" cy="407" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1037" y="412" class="sans micro" text-anchor="middle">2</text>
+  <circle cx="934" cy="400" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="934" y="405" class="sans micro" text-anchor="middle">7</text>
+  <circle cx="1102" cy="400" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1102" y="405" class="sans micro" text-anchor="middle">3</text>
+  <circle cx="1102" cy="338" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1102" y="343" class="sans micro" text-anchor="middle">4</text>
+  <circle cx="977" cy="369" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="977" y="374" class="sans micro" text-anchor="middle">8</text>
+  <rect x="845" y="430" width="300" height="28" rx="6" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="995" y="449" class="mono small" text-anchor="middle">v2: old 2 -&gt; block 1</text>
+  <rect x="35" y="500" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <circle cx="65" cy="530" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="65" y="536" class="sans label" text-anchor="middle" fill="#FFFFFF">4</text>
+  <text x="93" y="537" class="sans heading">Vertex layout</text>
+  <line x1="108" y1="629" x2="144" y2="598" class="edge"/>
+  <line x1="108" y1="629" x2="144" y2="660" class="edge"/>
+  <line x1="144" y1="598" x2="187" y2="629" class="edge"/>
+  <line x1="144" y1="660" x2="187" y2="629" class="edge"/>
+  <line x1="187" y1="629" x2="230" y2="598" class="edge"/>
+  <line x1="187" y1="629" x2="269" y2="629" class="edge"/>
+  <line x1="230" y1="598" x2="269" y2="629" class="edge"/>
+  <line x1="230" y1="598" x2="312" y2="598" class="edge"/>
+  <line x1="269" y1="629" x2="247" y2="667" class="edge"/>
+  <line x1="269" y1="629" x2="312" y2="660" class="edge"/>
+  <line x1="247" y1="667" x2="312" y2="660" class="edge"/>
+  <line x1="312" y1="660" x2="312" y2="598" class="edge"/>
+  <circle cx="108" cy="629" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="108" y="634" class="sans micro" text-anchor="middle">7</text>
+  <circle cx="230" cy="598" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="230" y="603" class="sans micro" text-anchor="middle">1</text>
+  <circle cx="269" cy="629" r="15" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="269" y="634" class="sans micro" text-anchor="middle">0</text>
+  <circle cx="144" cy="598" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="144" y="603" class="sans micro" text-anchor="middle">8</text>
+  <circle cx="247" cy="667" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="247" y="672" class="sans micro" text-anchor="middle">2</text>
+  <circle cx="144" cy="660" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="144" y="665" class="sans micro" text-anchor="middle">6</text>
+  <circle cx="312" cy="660" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="312" y="665" class="sans micro" text-anchor="middle">3</text>
+  <circle cx="312" cy="598" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="312" y="603" class="sans micro" text-anchor="middle">4</text>
+  <circle cx="187" cy="629" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="187" y="634" class="sans micro" text-anchor="middle">5</text>
+  <rect x="55" y="690" width="300" height="28" rx="6" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="205" y="709" class="mono small" text-anchor="middle">v2: block 1 -&gt; local 0</text>
+  <rect x="430" y="500" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#15803D" stroke-width="2"/>
+  <circle cx="460" cy="530" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="460" y="536" class="sans label" text-anchor="middle" fill="#FFFFFF">5</text>
+  <text x="488" y="537" class="sans heading">Emit relabeled CSR</text>
+  <line x1="503" y1="629" x2="539" y2="598" class="edge"/>
+  <line x1="503" y1="629" x2="539" y2="660" class="edge"/>
+  <line x1="539" y1="598" x2="582" y2="629" class="edge"/>
+  <line x1="539" y1="660" x2="582" y2="629" class="edge"/>
+  <line x1="582" y1="629" x2="625" y2="598" class="edge"/>
+  <line x1="582" y1="629" x2="664" y2="629" class="edge"/>
+  <line x1="625" y1="598" x2="664" y2="629" class="edge"/>
+  <line x1="625" y1="598" x2="707" y2="598" class="edge"/>
+  <line x1="664" y1="629" x2="642" y2="667" class="edge"/>
+  <line x1="664" y1="629" x2="707" y2="660" class="edge"/>
+  <line x1="642" y1="667" x2="707" y2="660" class="edge"/>
+  <line x1="707" y1="660" x2="707" y2="598" class="edge"/>
+  <circle cx="503" cy="629" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="503" y="634" class="sans micro" text-anchor="middle">7</text>
+  <circle cx="625" cy="598" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="625" y="603" class="sans micro" text-anchor="middle">1</text>
+  <circle cx="664" cy="629" r="15" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="664" y="634" class="sans micro" text-anchor="middle">0</text>
+  <circle cx="539" cy="598" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="539" y="603" class="sans micro" text-anchor="middle">8</text>
+  <circle cx="642" cy="667" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="642" y="672" class="sans micro" text-anchor="middle">2</text>
+  <circle cx="539" cy="660" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="539" y="665" class="sans micro" text-anchor="middle">6</text>
+  <circle cx="707" cy="660" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="707" y="665" class="sans micro" text-anchor="middle">3</text>
+  <circle cx="707" cy="598" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="707" y="603" class="sans micro" text-anchor="middle">4</text>
+  <circle cx="582" cy="629" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="582" y="634" class="sans micro" text-anchor="middle">5</text>
+  <rect x="450" y="690" width="300" height="28" rx="6" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="709" class="mono small" text-anchor="middle">row 0 = [1,2,3,5]</text>
+  <rect x="825" y="500" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#15803D" stroke-width="2"/>
+  <circle cx="855" cy="530" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="855" y="536" class="sans label" text-anchor="middle" fill="#FFFFFF">6</text>
+  <text x="883" y="537" class="sans heading">Kernel locality</text>
+  <line x1="898" y1="629" x2="934" y2="598" class="edge"/>
+  <line x1="898" y1="629" x2="934" y2="660" class="edge"/>
+  <line x1="934" y1="598" x2="977" y2="629" class="edge"/>
+  <line x1="934" y1="660" x2="977" y2="629" class="edge"/>
+  <line x1="977" y1="629" x2="1020" y2="598" class="edge"/>
+  <line x1="977" y1="629" x2="1059" y2="629" class="edge"/>
+  <line x1="1020" y1="598" x2="1059" y2="629" class="edge"/>
+  <line x1="1020" y1="598" x2="1102" y2="598" class="edge"/>
+  <line x1="1059" y1="629" x2="1037" y2="667" class="edge"/>
+  <line x1="1059" y1="629" x2="1102" y2="660" class="edge"/>
+  <line x1="1037" y1="667" x2="1102" y2="660" class="edge"/>
+  <line x1="1102" y1="660" x2="1102" y2="598" class="edge"/>
+  <circle cx="898" cy="629" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="898" y="634" class="sans micro" text-anchor="middle">7</text>
+  <circle cx="1020" cy="598" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1020" y="603" class="sans micro" text-anchor="middle">1</text>
+  <circle cx="1059" cy="629" r="15" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="1059" y="634" class="sans micro" text-anchor="middle">0</text>
+  <circle cx="934" cy="598" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="934" y="603" class="sans micro" text-anchor="middle">8</text>
+  <circle cx="1037" cy="667" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1037" y="672" class="sans micro" text-anchor="middle">2</text>
+  <circle cx="934" cy="660" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="934" y="665" class="sans micro" text-anchor="middle">6</text>
+  <circle cx="1102" cy="660" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1102" y="665" class="sans micro" text-anchor="middle">3</text>
+  <circle cx="1102" cy="598" r="13" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="1102" y="603" class="sans micro" text-anchor="middle">4</text>
+  <circle cx="977" cy="629" r="13" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="977" y="634" class="sans micro" text-anchor="middle">5</text>
+  <rect x="845" y="690" width="300" height="28" rx="6" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="995" y="709" class="mono small" text-anchor="middle">v2: 3 cache lines -&gt; 2</text>
+  <path d="M375 355 H426" class="arrow"/>
+  <path d="M770 355 H821" class="arrow"/>
+  <path d="M995 470 V480 H205 V496" class="arrow"/>
+  <path d="M375 615 H426" class="arrow"/>
+  <path d="M770 615 H821" class="arrow"/>
+  <rect x="144" y="785" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="812" class="sans small" text-anchor="middle">Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.</text>
 </svg>

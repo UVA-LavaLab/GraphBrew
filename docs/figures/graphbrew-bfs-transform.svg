@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="535" viewBox="0 0 1200 535" role="img" aria-labelledby="title desc" fill="#27313A">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc" fill="#27313A">
   <title id="title">Stage 4B: hub-rooted BFS orders the large C0 block</title>
   <desc id="desc">The tracked vertex v2 is the highest-degree root and receives local ID 0.</desc>
   <defs>
@@ -14,82 +14,83 @@
         [fill="#FFF0D8"]{fill:#3B3122}[fill="#F7DEDC"]{fill:#3D292A}
         [fill="#EEE9FF"]{fill:#302C3C}[stroke="#9AA3AD"]{stroke:#747D86}
         [stroke="#1769C2"]{stroke:#63A8FF}[fill="#1769C2"]{fill:#63A8FF}
+        [stroke="#B45309"]{stroke:#F0B35A}[stroke="#15803D"]{stroke:#63D68B}
         .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}
       .mono{font-family:"SFMono-Regular",Consolas,monospace}
       .title{font-size:32px;font-weight:700}.subtitle{font-size:18px}
       .domain{font-size:16px;font-weight:700;letter-spacing:1.2px}.heading{font-size:22px;font-weight:700}
-      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}
+      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}.micro{font-size:14px;font-weight:700}
       .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
       .edge{stroke:#27313A;stroke-width:2.2}
     </style>
   </defs>
-  <rect width="1200" height="535" fill="#FFFFFF"/>
+  <rect width="1200" height="620" fill="#FFFFFF"/>
   <text x="42" y="47" class="sans title">Stage 4B: hub-rooted BFS orders the large C0 block</text>
   <text x="42" y="75" class="sans subtitle">Same C0 = {1,2,4,6,7}; BFS levels are [2] -&gt; [1,4,6] -&gt; [7].</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
-  <rect x="25" y="112" width="1150" height="350" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <rect x="25" y="112" width="1150" height="445" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="45" y="136" class="sans domain">STAGE 4B · LARGE-BLOCK LOCAL LAYOUT</text>
-  <rect x="45" y="150" width="490" height="300" rx="10" fill="#F8F6EC" stroke="#1769C2" stroke-width="2"/>
+  <rect x="45" y="150" width="490" height="395" rx="10" fill="#F8F6EC" stroke="#1769C2" stroke-width="2"/>
   <text x="70" y="185" class="sans heading">Before local layout</text>
-  <line x1="290" y1="160" x2="389" y2="233" class="edge"/>
-  <line x1="290" y1="160" x2="191" y2="233" class="edge"/>
-  <line x1="389" y1="233" x2="351" y2="349" class="edge"/>
-  <line x1="389" y1="233" x2="229" y2="349" class="edge"/>
-  <line x1="351" y1="349" x2="229" y2="349" class="edge"/>
-  <line x1="229" y1="349" x2="191" y2="233" class="edge"/>
-  <circle cx="290" cy="160" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="290" y="165" class="sans label" text-anchor="middle">1</text>
-  <circle cx="389" cy="233" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
-  <text x="389" y="238" class="sans label" text-anchor="middle">2</text>
-  <circle cx="351" cy="349" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="351" y="354" class="sans label" text-anchor="middle">4</text>
-  <circle cx="229" cy="349" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="229" y="354" class="sans label" text-anchor="middle">6</text>
-  <circle cx="191" cy="233" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="191" y="238" class="sans label" text-anchor="middle">7</text>
-  <rect x="70.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="114" y="416" class="mono small" text-anchor="middle">v1</text>
-  <rect x="158.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
-  <text x="202" y="416" class="mono small" text-anchor="middle">v2</text>
-  <rect x="246.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="290" y="416" class="mono small" text-anchor="middle">v4</text>
-  <rect x="334.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="378" y="416" class="mono small" text-anchor="middle">v6</text>
-  <rect x="422.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="466" y="416" class="mono small" text-anchor="middle">v7</text>
-  <rect x="665" y="150" width="490" height="300" rx="10" fill="#F8F6EC" stroke="#1769C2" stroke-width="2"/>
+  <line x1="290" y1="215" x2="389" y2="288" class="edge"/>
+  <line x1="290" y1="215" x2="191" y2="288" class="edge"/>
+  <line x1="389" y1="288" x2="351" y2="404" class="edge"/>
+  <line x1="389" y1="288" x2="229" y2="404" class="edge"/>
+  <line x1="351" y1="404" x2="229" y2="404" class="edge"/>
+  <line x1="229" y1="404" x2="191" y2="288" class="edge"/>
+  <circle cx="290" cy="215" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="290" y="220" class="sans label" text-anchor="middle">1</text>
+  <circle cx="389" cy="288" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="389" y="293" class="sans label" text-anchor="middle">2</text>
+  <circle cx="351" cy="404" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="351" y="409" class="sans label" text-anchor="middle">4</text>
+  <circle cx="229" cy="404" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="229" y="409" class="sans label" text-anchor="middle">6</text>
+  <circle cx="191" cy="288" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="191" y="293" class="sans label" text-anchor="middle">7</text>
+  <rect x="70.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="114" y="496" class="mono small" text-anchor="middle">v1</text>
+  <rect x="158.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
+  <text x="202" y="496" class="mono small" text-anchor="middle">v2</text>
+  <rect x="246.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="290" y="496" class="mono small" text-anchor="middle">v4</text>
+  <rect x="334.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="378" y="496" class="mono small" text-anchor="middle">v6</text>
+  <rect x="422.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="466" y="496" class="mono small" text-anchor="middle">v7</text>
+  <rect x="665" y="150" width="490" height="395" rx="10" fill="#F8F6EC" stroke="#1769C2" stroke-width="2"/>
   <circle cx="695" cy="180" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
   <text x="695" y="186" class="sans label" text-anchor="middle" fill="#FFFFFF">4B</text>
   <text x="735" y="187" class="sans heading">After BFS levels</text>
-  <line x1="910" y1="160" x2="1009" y2="233" class="edge"/>
-  <line x1="910" y1="160" x2="811" y2="233" class="edge"/>
-  <line x1="1009" y1="233" x2="971" y2="349" class="edge"/>
-  <line x1="1009" y1="233" x2="849" y2="349" class="edge"/>
-  <line x1="971" y1="349" x2="849" y2="349" class="edge"/>
-  <line x1="849" y1="349" x2="811" y2="233" class="edge"/>
-  <circle cx="910" cy="160" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="910" y="165" class="sans label" text-anchor="middle">1</text>
-  <circle cx="1009" cy="233" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
-  <text x="1009" y="238" class="sans label" text-anchor="middle">0</text>
-  <circle cx="971" cy="349" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="971" y="354" class="sans label" text-anchor="middle">2</text>
-  <circle cx="849" cy="349" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="849" y="354" class="sans label" text-anchor="middle">3</text>
-  <circle cx="811" cy="233" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <text x="811" y="238" class="sans label" text-anchor="middle">4</text>
-  <rect x="690.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
-  <text x="734" y="416" class="mono small" text-anchor="middle">v2</text>
-  <rect x="778.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="822" y="416" class="mono small" text-anchor="middle">v1</text>
-  <rect x="866.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="910" y="416" class="mono small" text-anchor="middle">v4</text>
-  <rect x="954.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="998" y="416" class="mono small" text-anchor="middle">v6</text>
-  <rect x="1042.00" y="390" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="1086" y="416" class="mono small" text-anchor="middle">v7</text>
-  <path d="M535 300 H661" class="arrow"/>
-  <rect x="144" y="475" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="502" class="sans small" text-anchor="middle">Invariant: C0 remains the first five global IDs; BFS only assigns its local order.</text>
+  <line x1="910" y1="215" x2="1009" y2="288" class="edge"/>
+  <line x1="910" y1="215" x2="811" y2="288" class="edge"/>
+  <line x1="1009" y1="288" x2="971" y2="404" class="edge"/>
+  <line x1="1009" y1="288" x2="849" y2="404" class="edge"/>
+  <line x1="971" y1="404" x2="849" y2="404" class="edge"/>
+  <line x1="849" y1="404" x2="811" y2="288" class="edge"/>
+  <circle cx="910" cy="215" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="910" y="220" class="sans label" text-anchor="middle">1</text>
+  <circle cx="1009" cy="288" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="1009" y="293" class="sans label" text-anchor="middle">0</text>
+  <circle cx="971" cy="404" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="971" y="409" class="sans label" text-anchor="middle">2</text>
+  <circle cx="849" cy="404" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="849" y="409" class="sans label" text-anchor="middle">3</text>
+  <circle cx="811" cy="288" r="20" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
+  <text x="811" y="293" class="sans label" text-anchor="middle">4</text>
+  <rect x="690.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
+  <text x="734" y="496" class="mono small" text-anchor="middle">v2</text>
+  <rect x="778.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="822" y="496" class="mono small" text-anchor="middle">v1</text>
+  <rect x="866.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="910" y="496" class="mono small" text-anchor="middle">v4</text>
+  <rect x="954.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="998" y="496" class="mono small" text-anchor="middle">v6</text>
+  <rect x="1042.00" y="470" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="1086" y="496" class="mono small" text-anchor="middle">v7</text>
+  <path d="M535 335 H661" class="arrow"/>
+  <rect x="144" y="565" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="592" class="sans small" text-anchor="middle">Invariant: C0 remains the first five global IDs; BFS only assigns its local order.</text>
 </svg>

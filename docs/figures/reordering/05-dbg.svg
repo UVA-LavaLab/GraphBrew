@@ -14,13 +14,14 @@
         [fill="#FFF0D8"]{fill:#3B3122}[fill="#F7DEDC"]{fill:#3D292A}
         [fill="#EEE9FF"]{fill:#302C3C}[stroke="#9AA3AD"]{stroke:#747D86}
         [stroke="#1769C2"]{stroke:#63A8FF}[fill="#1769C2"]{fill:#63A8FF}
+        [stroke="#B45309"]{stroke:#F0B35A}[stroke="#15803D"]{stroke:#63D68B}
         .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}
       .mono{font-family:"SFMono-Regular",Consolas,monospace}
       .title{font-size:32px;font-weight:700}.subtitle{font-size:18px}
       .domain{font-size:16px;font-weight:700;letter-spacing:1.2px}.heading{font-size:22px;font-weight:700}
-      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}
+      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}.micro{font-size:14px;font-weight:700}
       .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
       .edge{stroke:#27313A;stroke-width:2.2}
     </style>
@@ -89,7 +90,7 @@
   <text x="895" y="161" class="sans label" text-anchor="middle" fill="#FFFFFF">5</text>
   <text x="925" y="162" class="sans heading">Degree buckets</text>
   <text x="890" y="215" class="sans body">Logarithmic degree buckets</text>
-  <text x="890" y="247" class="sans body">Stable order inside each bucket</text>
+  <text x="890" y="247" class="sans small">Stable order inside each bucket</text>
   <path d="M315 240 H361" class="arrow"/>
   <path d="M815 240 H861" class="arrow"/>
   <rect x="144" y="380" width="912" height="36" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>

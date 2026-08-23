@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="535" viewBox="0 0 1200 535" role="img" aria-labelledby="title desc" fill="#27313A">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc" fill="#27313A">
   <title id="title">Stage 4A: relaxed local Gorder orders the small C1 block</title>
   <desc id="desc">The production intra_gorder is a direct-neighbor UnitHeap heuristic, not faithful standalone GORDER_csr.</desc>
   <defs>
@@ -14,70 +14,71 @@
         [fill="#FFF0D8"]{fill:#3B3122}[fill="#F7DEDC"]{fill:#3D292A}
         [fill="#EEE9FF"]{fill:#302C3C}[stroke="#9AA3AD"]{stroke:#747D86}
         [stroke="#1769C2"]{stroke:#63A8FF}[fill="#1769C2"]{fill:#63A8FF}
+        [stroke="#B45309"]{stroke:#F0B35A}[stroke="#15803D"]{stroke:#63D68B}
         .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}
       .mono{font-family:"SFMono-Regular",Consolas,monospace}
       .title{font-size:32px;font-weight:700}.subtitle{font-size:18px}
       .domain{font-size:16px;font-weight:700;letter-spacing:1.2px}.heading{font-size:22px;font-weight:700}
-      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}
+      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}.micro{font-size:14px;font-weight:700}
       .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
       .edge{stroke:#27313A;stroke-width:2.2}
     </style>
   </defs>
-  <rect width="1200" height="535" fill="#FFFFFF"/>
+  <rect width="1200" height="620" fill="#FFFFFF"/>
   <text x="42" y="47" class="sans title">Stage 4A: relaxed local Gorder orders the small C1 block</text>
   <text x="42" y="75" class="sans subtitle">Branch detail switches the highlight to v8 because tracked v2 is in C0; gw8 changes only C1 local IDs.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
-  <rect x="25" y="112" width="1150" height="350" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <rect x="25" y="112" width="1150" height="445" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="45" y="136" class="sans domain">STAGE 4A · SMALL-BLOCK LOCAL LAYOUT</text>
-  <rect x="45" y="150" width="490" height="300" rx="10" fill="#F8F6EC" stroke="#B45309" stroke-width="2"/>
+  <rect x="45" y="150" width="490" height="395" rx="10" fill="#F8F6EC" stroke="#B45309" stroke-width="2"/>
   <text x="70" y="185" class="sans heading">Before local layout</text>
-  <line x1="290" y1="160" x2="395" y2="265" class="edge"/>
-  <line x1="290" y1="160" x2="290" y2="370" class="edge"/>
-  <line x1="395" y1="265" x2="185" y2="265" class="edge"/>
-  <line x1="290" y1="370" x2="185" y2="265" class="edge"/>
-  <circle cx="290" cy="160" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <text x="290" y="165" class="sans label" text-anchor="middle">0</text>
-  <circle cx="395" cy="265" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <text x="395" y="270" class="sans label" text-anchor="middle">3</text>
-  <circle cx="290" cy="370" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <text x="290" y="375" class="sans label" text-anchor="middle">5</text>
-  <circle cx="185" cy="265" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
-  <text x="185" y="270" class="sans label" text-anchor="middle">8</text>
-  <rect x="70.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="125" y="416" class="mono small" text-anchor="middle">v0</text>
-  <rect x="180.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="235" y="416" class="mono small" text-anchor="middle">v3</text>
-  <rect x="290.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="345" y="416" class="mono small" text-anchor="middle">v5</text>
-  <rect x="400.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="455" y="416" class="mono small" text-anchor="middle">v8</text>
-  <rect x="665" y="150" width="490" height="300" rx="10" fill="#F8F6EC" stroke="#1769C2" stroke-width="2"/>
+  <line x1="290" y1="215" x2="395" y2="320" class="edge"/>
+  <line x1="290" y1="215" x2="290" y2="425" class="edge"/>
+  <line x1="395" y1="320" x2="185" y2="320" class="edge"/>
+  <line x1="290" y1="425" x2="185" y2="320" class="edge"/>
+  <circle cx="290" cy="215" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="290" y="220" class="sans label" text-anchor="middle">0</text>
+  <circle cx="395" cy="320" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="395" y="325" class="sans label" text-anchor="middle">3</text>
+  <circle cx="290" cy="425" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="290" y="430" class="sans label" text-anchor="middle">5</text>
+  <circle cx="185" cy="320" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="185" y="325" class="sans label" text-anchor="middle">8</text>
+  <rect x="70.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="125" y="496" class="mono small" text-anchor="middle">v0</text>
+  <rect x="180.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="235" y="496" class="mono small" text-anchor="middle">v3</text>
+  <rect x="290.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="345" y="496" class="mono small" text-anchor="middle">v5</text>
+  <rect x="400.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="455" y="496" class="mono small" text-anchor="middle">v8</text>
+  <rect x="665" y="150" width="490" height="395" rx="10" fill="#F8F6EC" stroke="#1769C2" stroke-width="2"/>
   <circle cx="695" cy="180" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
   <text x="695" y="186" class="sans label" text-anchor="middle" fill="#FFFFFF">4A</text>
   <text x="735" y="187" class="sans heading">After relaxed intra_gorder</text>
-  <line x1="910" y1="160" x2="1015" y2="265" class="edge"/>
-  <line x1="910" y1="160" x2="910" y2="370" class="edge"/>
-  <line x1="1015" y1="265" x2="805" y2="265" class="edge"/>
-  <line x1="910" y1="370" x2="805" y2="265" class="edge"/>
-  <circle cx="910" cy="160" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <text x="910" y="165" class="sans label" text-anchor="middle">2</text>
-  <circle cx="1015" cy="265" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <text x="1015" y="270" class="sans label" text-anchor="middle">3</text>
-  <circle cx="910" cy="370" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <text x="910" y="375" class="sans label" text-anchor="middle">1</text>
-  <circle cx="805" cy="265" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
-  <text x="805" y="270" class="sans label" text-anchor="middle">0</text>
-  <rect x="690.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#1769C2" stroke-width="3"/>
-  <text x="745" y="416" class="mono small" text-anchor="middle">v8</text>
-  <rect x="800.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="855" y="416" class="mono small" text-anchor="middle">v5</text>
-  <rect x="910.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="965" y="416" class="mono small" text-anchor="middle">v0</text>
-  <rect x="1020.00" y="390" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="1075" y="416" class="mono small" text-anchor="middle">v3</text>
-  <path d="M535 300 H661" class="arrow"/>
-  <rect x="144" y="475" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="502" class="sans small" text-anchor="middle">Invariant: C1 remains IDs 5..8 globally; only its four local positions change.</text>
+  <line x1="910" y1="215" x2="1015" y2="320" class="edge"/>
+  <line x1="910" y1="215" x2="910" y2="425" class="edge"/>
+  <line x1="1015" y1="320" x2="805" y2="320" class="edge"/>
+  <line x1="910" y1="425" x2="805" y2="320" class="edge"/>
+  <circle cx="910" cy="215" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="910" y="220" class="sans label" text-anchor="middle">2</text>
+  <circle cx="1015" cy="320" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="1015" y="325" class="sans label" text-anchor="middle">3</text>
+  <circle cx="910" cy="425" r="20" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="910" y="430" class="sans label" text-anchor="middle">1</text>
+  <circle cx="805" cy="320" r="23" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="805" y="325" class="sans label" text-anchor="middle">0</text>
+  <rect x="690.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#1769C2" stroke-width="3"/>
+  <text x="745" y="496" class="mono small" text-anchor="middle">v8</text>
+  <rect x="800.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="855" y="496" class="mono small" text-anchor="middle">v5</text>
+  <rect x="910.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="965" y="496" class="mono small" text-anchor="middle">v0</text>
+  <rect x="1020.00" y="470" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="1075" y="496" class="mono small" text-anchor="middle">v3</text>
+  <path d="M535 335 H661" class="arrow"/>
+  <rect x="144" y="565" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="592" class="sans small" text-anchor="middle">Invariant: C1 remains IDs 5..8 globally; only its four local positions change.</text>
 </svg>
