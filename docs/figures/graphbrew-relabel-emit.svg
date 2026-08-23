@@ -29,81 +29,83 @@
   <text x="42" y="47" class="sans title">Stage 5: compose the block and local orders into relabeled CSR</text>
   <text x="42" y="75" class="sans subtitle">Final memory order: [v2,v1,v4,v6,v7 | v8,v5,v0,v3].</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
-  <rect x="35" y="120" width="550" height="345" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
-  <circle cx="65" cy="150" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="65" y="156" class="sans label" text-anchor="middle" fill="#FFFFFF">5</text>
-  <text x="95" y="157" class="sans heading">Old ID -&gt; new ID</text>
-  <rect x="60.00" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="87" y="226" class="mono small" text-anchor="middle">v0</text>
-  <rect x="115.56" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="143" y="226" class="mono small" text-anchor="middle">v1</text>
-  <rect x="171.11" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="198" y="226" class="mono small" text-anchor="middle">v2</text>
-  <rect x="226.67" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="254" y="226" class="mono small" text-anchor="middle">v3</text>
-  <rect x="282.22" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="310" y="226" class="mono small" text-anchor="middle">v4</text>
-  <rect x="337.78" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="365" y="226" class="mono small" text-anchor="middle">v5</text>
-  <rect x="393.33" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="421" y="226" class="mono small" text-anchor="middle">v6</text>
-  <rect x="448.89" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="476" y="226" class="mono small" text-anchor="middle">v7</text>
-  <rect x="504.44" y="200" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="532" y="226" class="mono small" text-anchor="middle">v8</text>
-  <rect x="60.00" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="87" y="278" class="mono small" text-anchor="middle">n7</text>
-  <rect x="115.56" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="143" y="278" class="mono small" text-anchor="middle">n1</text>
-  <rect x="171.11" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
-  <text x="198" y="278" class="mono small" text-anchor="middle">n0</text>
-  <rect x="226.67" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="254" y="278" class="mono small" text-anchor="middle">n8</text>
-  <rect x="282.22" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="310" y="278" class="mono small" text-anchor="middle">n2</text>
-  <rect x="337.78" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="365" y="278" class="mono small" text-anchor="middle">n6</text>
-  <rect x="393.33" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="421" y="278" class="mono small" text-anchor="middle">n3</text>
-  <rect x="448.89" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="476" y="278" class="mono small" text-anchor="middle">n4</text>
-  <rect x="504.44" y="252" width="55.56" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="532" y="278" class="mono small" text-anchor="middle">n5</text>
-  <text x="60" y="330" class="sans label">Composed memory order</text>
-  <rect x="60.00" y="350" width="55.56" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
-  <text x="87" y="376" class="mono small" text-anchor="middle">v2</text>
-  <rect x="115.56" y="350" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="143" y="376" class="mono small" text-anchor="middle">v1</text>
-  <rect x="171.11" y="350" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="198" y="376" class="mono small" text-anchor="middle">v4</text>
-  <rect x="226.67" y="350" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="254" y="376" class="mono small" text-anchor="middle">v6</text>
-  <rect x="282.22" y="350" width="55.56" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="310" y="376" class="mono small" text-anchor="middle">v7</text>
-  <rect x="337.78" y="350" width="55.56" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="365" y="376" class="mono small" text-anchor="middle">v8</text>
-  <rect x="393.33" y="350" width="55.56" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="421" y="376" class="mono small" text-anchor="middle">v5</text>
-  <rect x="448.89" y="350" width="55.56" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="476" y="376" class="mono small" text-anchor="middle">v0</text>
-  <rect x="504.44" y="350" width="55.56" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="532" y="376" class="mono small" text-anchor="middle">v3</text>
-  <rect x="615" y="120" width="550" height="345" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <text x="640" y="157" class="sans heading">Relabeled CSR row 0 (old v2)</text>
-  <text x="640" y="200" class="mono body">offsets[0:2] = [0, 4]</text>
-  <text x="640" y="236" class="sans body">new neighbor IDs</text>
-  <rect x="640.00" y="255" width="125.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="702" y="281" class="mono small" text-anchor="middle">1</text>
-  <rect x="765.00" y="255" width="125.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="827" y="281" class="mono small" text-anchor="middle">2</text>
-  <rect x="890.00" y="255" width="125.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="952" y="281" class="mono small" text-anchor="middle">3</text>
-  <rect x="1015.00" y="255" width="125.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="1077" y="281" class="mono small" text-anchor="middle">5</text>
-  <text x="640" y="340" class="mono label">row 0 = [1, 2, 3, 5]</text>
-  <text x="640" y="382" class="sans body">All 24 directed arcs are preserved.</text>
-  <text x="640" y="412" class="sans body">Only row and destination indices change.</text>
-  <path d="M585 290 H611" class="arrow"/>
+  <rect x="25" y="112" width="1150" height="365" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="45" y="136" class="sans domain">STAGE 5 · RELABEL AND EMIT</text>
+  <rect x="45" y="150" width="520" height="315" rx="10" fill="#F8F6EC" stroke="#EEE9FF" stroke-width="2"/>
+  <circle cx="75" cy="180" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="75" y="186" class="sans label" text-anchor="middle" fill="#FFFFFF">5</text>
+  <text x="105" y="187" class="sans heading">Old ID -&gt; new ID</text>
+  <rect x="70.00" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="96" y="236" class="mono small" text-anchor="middle">v0</text>
+  <rect x="122.22" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="148" y="236" class="mono small" text-anchor="middle">v1</text>
+  <rect x="174.44" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="200" y="236" class="mono small" text-anchor="middle">v2</text>
+  <rect x="226.67" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="252" y="236" class="mono small" text-anchor="middle">v3</text>
+  <rect x="278.89" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="305" y="236" class="mono small" text-anchor="middle">v4</text>
+  <rect x="331.11" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="357" y="236" class="mono small" text-anchor="middle">v5</text>
+  <rect x="383.33" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="409" y="236" class="mono small" text-anchor="middle">v6</text>
+  <rect x="435.56" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="461" y="236" class="mono small" text-anchor="middle">v7</text>
+  <rect x="487.78" y="210" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="513" y="236" class="mono small" text-anchor="middle">v8</text>
+  <rect x="70.00" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="96" y="288" class="mono small" text-anchor="middle">n7</text>
+  <rect x="122.22" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="148" y="288" class="mono small" text-anchor="middle">n1</text>
+  <rect x="174.44" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#1769C2" stroke-width="3"/>
+  <text x="200" y="288" class="mono small" text-anchor="middle">n0</text>
+  <rect x="226.67" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="252" y="288" class="mono small" text-anchor="middle">n8</text>
+  <rect x="278.89" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="305" y="288" class="mono small" text-anchor="middle">n2</text>
+  <rect x="331.11" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="357" y="288" class="mono small" text-anchor="middle">n6</text>
+  <rect x="383.33" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="409" y="288" class="mono small" text-anchor="middle">n3</text>
+  <rect x="435.56" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="461" y="288" class="mono small" text-anchor="middle">n4</text>
+  <rect x="487.78" y="262" width="52.22" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="513" y="288" class="mono small" text-anchor="middle">n5</text>
+  <text x="70" y="340" class="sans label">Composed memory order</text>
+  <rect x="70.00" y="360" width="52.22" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
+  <text x="96" y="386" class="mono small" text-anchor="middle">v2</text>
+  <rect x="122.22" y="360" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="148" y="386" class="mono small" text-anchor="middle">v1</text>
+  <rect x="174.44" y="360" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="200" y="386" class="mono small" text-anchor="middle">v4</text>
+  <rect x="226.67" y="360" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="252" y="386" class="mono small" text-anchor="middle">v6</text>
+  <rect x="278.89" y="360" width="52.22" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="305" y="386" class="mono small" text-anchor="middle">v7</text>
+  <rect x="331.11" y="360" width="52.22" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="357" y="386" class="mono small" text-anchor="middle">v8</text>
+  <rect x="383.33" y="360" width="52.22" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="409" y="386" class="mono small" text-anchor="middle">v5</text>
+  <rect x="435.56" y="360" width="52.22" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="461" y="386" class="mono small" text-anchor="middle">v0</text>
+  <rect x="487.78" y="360" width="52.22" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="513" y="386" class="mono small" text-anchor="middle">v3</text>
+  <rect x="625" y="150" width="530" height="315" rx="10" fill="#F8F6EC" stroke="#E7F7EA" stroke-width="2"/>
+  <text x="650" y="187" class="sans heading">Relabeled CSR row 0 (old v2)</text>
+  <text x="650" y="230" class="mono body">offsets[0:2] = [0, 4]</text>
+  <text x="650" y="266" class="sans body">new neighbor IDs</text>
+  <rect x="650.00" y="285" width="120.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="710" y="311" class="mono small" text-anchor="middle">1</text>
+  <rect x="770.00" y="285" width="120.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="830" y="311" class="mono small" text-anchor="middle">2</text>
+  <rect x="890.00" y="285" width="120.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="950" y="311" class="mono small" text-anchor="middle">3</text>
+  <rect x="1010.00" y="285" width="120.00" height="42" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="1070" y="311" class="mono small" text-anchor="middle">5</text>
+  <text x="650" y="370" class="mono label">row 0 = [1, 2, 3, 5]</text>
+  <text x="650" y="405" class="sans body">All 24 directed arcs are preserved.</text>
+  <text x="650" y="435" class="sans body">Only row and destination indices change.</text>
+  <path d="M565 305 H621" class="arrow"/>
   <rect x="144" y="490" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
   <text x="600" y="517" class="sans small" text-anchor="middle">Invariant: the permutation is bijective and the relabeled CSR represents the same graph.</text>
 </svg>

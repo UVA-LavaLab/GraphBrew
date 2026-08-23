@@ -68,7 +68,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 3. HUBSORT
 
 - **CLI:** `3`
-- **Mechanism:** Sort the selected hub subset.
+- **Mechanism:** Sort selected hubs.
 - **Evidence:** output order captured from the shared example
 
 [![HUBSORT measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg)
@@ -92,7 +92,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 5. DBG
 
 - **CLI:** `5`
-- **Mechanism:** Degree-based grouping.
+- **Mechanism:** Degree buckets.
 - **Evidence:** output order captured from the shared example
 
 [![DBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg)
@@ -104,7 +104,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 6. HUBSORTDBG
 
 - **CLI:** `6`
-- **Mechanism:** HubSort plus degree buckets.
+- **Mechanism:** HubSort + buckets.
 - **Evidence:** output order captured from the shared example
 
 [![HUBSORTDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg)
@@ -116,7 +116,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 7. HUBCLUSTERDBG
 
 - **CLI:** `7`
-- **Mechanism:** Stable hub and non-hub buckets.
+- **Mechanism:** Stable hub/non-hub buckets.
 - **Evidence:** output order captured from the shared example
 
 [![HUBCLUSTERDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg)
@@ -130,7 +130,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 8. RABBITORDER
 
 - **CLI:** `8:csr`
-- **Mechanism:** Community agglomeration.
+- **Mechanism:** Community merge + DFS.
 - **Evidence:** output order captured from the shared example
 
 [![RABBITORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg)
@@ -154,7 +154,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 10. CORDER
 
 - **CLI:** `10:canonical`
-- **Mechanism:** Canonical hot/cold segmentation.
+- **Mechanism:** Canonical hot/cold.
 - **Evidence:** output order captured from the shared example
 
 [![CORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg)
@@ -178,7 +178,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 12. GraphBrewOrder
 
 - **CLI:** `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:gordf4:cd_serial:refine_none`
-- **Mechanism:** Explicit three-axis composition.
+- **Mechanism:** Explicit three-axis compose.
 - **Evidence:** output order captured from the shared example
 
 [![GraphBrewOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg)
@@ -192,7 +192,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 13. MAP
 
 - **CLI:** `13:graphbrew-running-example.lo`
-- **Mechanism:** External inverse label list.
+- **Mechanism:** External label list.
 - **Evidence:** output order captured from the shared example
 
 [![MAP measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg)
@@ -216,7 +216,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 15. LeidenOrder
 
 - **CLI:** `15`
-- **Mechanism:** Leiden partition plus post-layout.
+- **Mechanism:** Leiden + post-layout.
 - **Evidence:** output order captured from the shared example
 
 [![LeidenOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg)
@@ -230,7 +230,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 ### 16. GoGraphOrder
 
 - **CLI:** `16`
-- **Mechanism:** Directed forward-edge objective.
+- **Mechanism:** Directed forward-edge.
 - **Evidence:** output order captured from the shared example
 
 [![GoGraphOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg)

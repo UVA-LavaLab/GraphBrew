@@ -29,6 +29,7 @@
   <text x="42" y="47" class="sans title">Control: sgmb4096 batches proposals but commits them in order</text>
   <text x="42" y="75" class="sans subtitle">Illustrative C0/C1 supergraph derived from the same running example.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
+  <rect x="25" y="112" width="1150" height="315" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <rect x="35" y="125" width="1130" height="105" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
   <text x="60" y="160" class="sans heading">Community supergraph</text>
   <circle cx="310" cy="182" r="25" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>

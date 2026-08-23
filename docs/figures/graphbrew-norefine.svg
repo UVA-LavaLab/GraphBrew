@@ -29,6 +29,7 @@
   <text x="42" y="47" class="sans title">Control: norefine removes the constrained Leiden refinement phase</text>
   <text x="42" y="75" class="sans subtitle">Same running graph and C0/C1 notation; this figure compares phase structure, not measured quality.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
+  <rect x="25" y="112" width="1150" height="300" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <rect x="35" y="130" width="300" height="240" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
   <text x="60" y="165" class="sans heading">Local moving</text>
   <text x="60" y="202" class="sans body">Move vertices between groups.</text>

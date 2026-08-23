@@ -35,59 +35,61 @@
   <rect x="620" y="118" width="545" height="76" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
   <text x="645" y="147" class="sans domain">PROPOSED RESEARCH PATH</text>
   <text x="645" y="174" class="sans body">Rabbit-free deterministic composition generator</text>
-  <rect x="35" y="220" width="370" height="160" rx="11" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
-  <circle cx="65" cy="250" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="65" y="256" class="sans label" text-anchor="middle" fill="#FFFFFF">1</text>
-  <text x="93" y="257" class="sans heading">Load + profile</text>
-  <text x="60" y="295" class="sans body">Read CSR</text>
-  <text x="60" y="320" class="sans body">Compute lightweight features</text>
-  <rect x="60" y="338" width="320" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="220" y="357" class="mono small" text-anchor="middle">row v2 = [1,4,6,8]</text>
-  <rect x="415" y="220" width="370" height="160" rx="11" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
-  <circle cx="445" cy="250" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="445" y="256" class="sans label" text-anchor="middle" fill="#FFFFFF">2</text>
-  <text x="473" y="257" class="sans heading">Partition</text>
-  <text x="440" y="295" class="sans body">Assign C0 / C1</text>
-  <text x="440" y="320" class="sans body">Keep topology unchanged</text>
-  <rect x="440" y="338" width="320" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="357" class="mono small" text-anchor="middle">v2 in C0</text>
-  <rect x="795" y="220" width="370" height="160" rx="11" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
-  <circle cx="825" cy="250" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="825" y="256" class="sans label" text-anchor="middle" fill="#FFFFFF">3</text>
-  <text x="853" y="257" class="sans heading">Block layout</text>
-  <text x="820" y="295" class="sans body">SizeDesc: C0 first</text>
-  <text x="820" y="320" class="sans body">Reserve contiguous ranges</text>
-  <rect x="820" y="338" width="320" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="980" y="357" class="mono small" text-anchor="middle">C0 -&gt; IDs 0..4</text>
-  <rect x="35" y="415" width="370" height="160" rx="11" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
-  <circle cx="65" cy="445" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="65" y="451" class="sans label" text-anchor="middle" fill="#FFFFFF">4</text>
-  <text x="93" y="452" class="sans heading">Vertex layout</text>
-  <text x="60" y="490" class="sans body">BFS for C0</text>
-  <text x="60" y="515" class="sans body">relaxed Gorder for C1</text>
-  <rect x="60" y="533" width="320" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="220" y="552" class="mono small" text-anchor="middle">v2 -&gt; local ID 0</text>
-  <rect x="415" y="415" width="370" height="160" rx="11" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <circle cx="445" cy="445" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="445" y="451" class="sans label" text-anchor="middle" fill="#FFFFFF">5</text>
-  <text x="473" y="452" class="sans heading">Emit relabeled CSR</text>
-  <text x="440" y="490" class="sans body">Compose old -&gt; new IDs</text>
-  <text x="440" y="515" class="sans body">Validate permutation</text>
-  <rect x="440" y="533" width="320" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="552" class="mono small" text-anchor="middle">v2 -&gt; new ID 0</text>
-  <rect x="795" y="415" width="370" height="160" rx="11" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <circle cx="825" cy="445" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="825" y="451" class="sans label" text-anchor="middle" fill="#FFFFFF">6</text>
-  <text x="853" y="452" class="sans heading">Kernel locality</text>
-  <text x="820" y="490" class="sans body">Same neighbors</text>
-  <text x="820" y="515" class="sans body">Fewer property cache lines</text>
-  <rect x="820" y="533" width="320" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
-  <text x="980" y="552" class="mono small" text-anchor="middle">v2: 3 lines -&gt; 2</text>
-  <path d="M405 300 H411" class="arrow"/>
-  <path d="M785 300 H791" class="arrow"/>
-  <path d="M980 380 V397 H220 V411" class="arrow"/>
-  <path d="M405 495 H411" class="arrow"/>
-  <path d="M785 495 H791" class="arrow"/>
+  <rect x="25" y="208" width="1150" height="380" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="45" y="232" class="sans domain">SHARED SIX-STAGE PIPELINE</text>
+  <rect x="35" y="250" width="340" height="155" rx="11" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <circle cx="65" cy="280" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="65" y="286" class="sans label" text-anchor="middle" fill="#FFFFFF">1</text>
+  <text x="93" y="287" class="sans heading">Load + profile</text>
+  <text x="60" y="325" class="sans body">Read CSR</text>
+  <text x="60" y="350" class="sans body">Compute lightweight features</text>
+  <rect x="60" y="363" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <text x="205" y="382" class="mono small" text-anchor="middle">row v2 = [1,4,6,8]</text>
+  <rect x="430" y="250" width="340" height="155" rx="11" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
+  <circle cx="460" cy="280" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="460" y="286" class="sans label" text-anchor="middle" fill="#FFFFFF">2</text>
+  <text x="488" y="287" class="sans heading">Partition</text>
+  <text x="455" y="325" class="sans body">Assign C0 / C1</text>
+  <text x="455" y="350" class="sans body">Keep topology unchanged</text>
+  <rect x="455" y="363" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="382" class="mono small" text-anchor="middle">v2 in C0</text>
+  <rect x="825" y="250" width="340" height="155" rx="11" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
+  <circle cx="855" cy="280" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="855" y="286" class="sans label" text-anchor="middle" fill="#FFFFFF">3</text>
+  <text x="883" y="287" class="sans heading">Block layout</text>
+  <text x="850" y="325" class="sans body">SizeDesc: C0 first</text>
+  <text x="850" y="350" class="sans body">Reserve contiguous ranges</text>
+  <rect x="850" y="363" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <text x="995" y="382" class="mono small" text-anchor="middle">C0 -&gt; IDs 0..4</text>
+  <rect x="35" y="425" width="340" height="155" rx="11" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
+  <circle cx="65" cy="455" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="65" y="461" class="sans label" text-anchor="middle" fill="#FFFFFF">4</text>
+  <text x="93" y="462" class="sans heading">Vertex layout</text>
+  <text x="60" y="500" class="sans body">BFS for C0</text>
+  <text x="60" y="525" class="sans body">relaxed Gorder for C1</text>
+  <rect x="60" y="538" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <text x="205" y="557" class="mono small" text-anchor="middle">v2 -&gt; local ID 0</text>
+  <rect x="430" y="425" width="340" height="155" rx="11" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <circle cx="460" cy="455" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="460" y="461" class="sans label" text-anchor="middle" fill="#FFFFFF">5</text>
+  <text x="488" y="462" class="sans heading">Emit relabeled CSR</text>
+  <text x="455" y="500" class="sans body">Compose old -&gt; new IDs</text>
+  <text x="455" y="525" class="sans body">Validate permutation</text>
+  <rect x="455" y="538" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="557" class="mono small" text-anchor="middle">v2 -&gt; new ID 0</text>
+  <rect x="825" y="425" width="340" height="155" rx="11" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <circle cx="855" cy="455" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="855" y="461" class="sans label" text-anchor="middle" fill="#FFFFFF">6</text>
+  <text x="883" y="462" class="sans heading">Kernel locality</text>
+  <text x="850" y="500" class="sans body">Same neighbors</text>
+  <text x="850" y="525" class="sans body">Fewer property cache lines</text>
+  <rect x="850" y="538" width="290" height="28" rx="6" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
+  <text x="995" y="557" class="mono small" text-anchor="middle">v2: 3 lines -&gt; 2</text>
+  <path d="M375 327 H426" class="arrow"/>
+  <path d="M770 327 H821" class="arrow"/>
+  <path d="M995 405 V413 H205 V421" class="arrow"/>
+  <path d="M375 502 H426" class="arrow"/>
+  <path d="M770 502 H821" class="arrow"/>
   <rect x="144" y="625" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
   <text x="600" y="652" class="sans small" text-anchor="middle">Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.</text>
 </svg>

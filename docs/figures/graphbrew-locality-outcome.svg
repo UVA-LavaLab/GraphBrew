@@ -29,43 +29,45 @@
   <text x="42" y="47" class="sans title">Stage 6: the same v2 neighbors touch fewer property cache lines</text>
   <text x="42" y="75" class="sans subtitle">Same neighbor set; only the neighbor IDs and property addresses are relabeled.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
-  <rect x="35" y="120" width="500" height="330" rx="10" fill="#F7DEDC" stroke="#27313A" stroke-width="3"/>
-  <text x="60" y="155" class="sans heading">Before: old neighbor IDs</text>
-  <rect x="60.00" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="116" y="247" class="mono small" text-anchor="middle">1</text>
-  <rect x="172.50" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="228" y="247" class="mono small" text-anchor="middle">4</text>
-  <rect x="285.00" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="341" y="247" class="mono small" text-anchor="middle">6</text>
-  <rect x="397.50" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="453" y="247" class="mono small" text-anchor="middle">8</text>
-  <rect x="60.00" y="206" width="112.50" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
-  <text x="116" y="297" class="mono small" text-anchor="middle">line 0</text>
-  <rect x="172.50" y="206" width="225.00" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
-  <text x="285" y="297" class="mono small" text-anchor="middle">line 1</text>
-  <rect x="397.50" y="206" width="112.50" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
-  <text x="453" y="297" class="mono small" text-anchor="middle">line 2</text>
-  <text x="285" y="331" class="sans label" text-anchor="middle">3 distinct property cache lines</text>
-  <text x="285" y="390" class="mono label" text-anchor="middle">span = 7</text>
-  <rect x="665" y="120" width="500" height="330" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <circle cx="695" cy="150" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
-  <text x="695" y="156" class="sans label" text-anchor="middle" fill="#FFFFFF">6</text>
-  <text x="735" y="157" class="sans heading">After: new neighbor IDs</text>
-  <rect x="690.00" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="746" y="247" class="mono small" text-anchor="middle">1</text>
-  <rect x="802.50" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="858" y="247" class="mono small" text-anchor="middle">2</text>
-  <rect x="915.00" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="971" y="247" class="mono small" text-anchor="middle">3</text>
-  <rect x="1027.50" y="215" width="112.50" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
-  <text x="1083" y="247" class="mono small" text-anchor="middle">5</text>
-  <rect x="690.00" y="206" width="337.50" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
-  <text x="858" y="297" class="mono small" text-anchor="middle">line 0</text>
-  <rect x="1027.50" y="206" width="112.50" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
-  <text x="1083" y="297" class="mono small" text-anchor="middle">line 1</text>
-  <text x="915" y="331" class="sans label" text-anchor="middle">2 distinct property cache lines</text>
-  <text x="915" y="390" class="mono label" text-anchor="middle">span = 4</text>
-  <path d="M535 290 H661" class="arrow"/>
+  <rect x="25" y="112" width="1150" height="350" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="45" y="136" class="sans domain">STAGE 6 · LOCALITY OUTCOME</text>
+  <rect x="45" y="150" width="490" height="300" rx="10" fill="#F8F6EC" stroke="#F7DEDC" stroke-width="2"/>
+  <text x="70" y="185" class="sans heading">Before: old neighbor IDs</text>
+  <rect x="70.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="125" y="257" class="mono small" text-anchor="middle">1</text>
+  <rect x="180.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="235" y="257" class="mono small" text-anchor="middle">4</text>
+  <rect x="290.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="345" y="257" class="mono small" text-anchor="middle">6</text>
+  <rect x="400.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="455" y="257" class="mono small" text-anchor="middle">8</text>
+  <rect x="70.00" y="216" width="110.00" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="125" y="307" class="mono small" text-anchor="middle">line 0</text>
+  <rect x="180.00" y="216" width="220.00" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="290" y="307" class="mono small" text-anchor="middle">line 1</text>
+  <rect x="400.00" y="216" width="110.00" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="455" y="307" class="mono small" text-anchor="middle">line 2</text>
+  <text x="290" y="341" class="sans label" text-anchor="middle">3 distinct property cache lines</text>
+  <text x="290" y="400" class="mono label" text-anchor="middle">span = 7</text>
+  <rect x="665" y="150" width="490" height="300" rx="10" fill="#F8F6EC" stroke="#E7F7EA" stroke-width="2"/>
+  <circle cx="695" cy="180" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="695" y="186" class="sans label" text-anchor="middle" fill="#FFFFFF">6</text>
+  <text x="735" y="187" class="sans heading">After: new neighbor IDs</text>
+  <rect x="690.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="745" y="257" class="mono small" text-anchor="middle">1</text>
+  <rect x="800.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="855" y="257" class="mono small" text-anchor="middle">2</text>
+  <rect x="910.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="965" y="257" class="mono small" text-anchor="middle">3</text>
+  <rect x="1020.00" y="225" width="110.00" height="54" fill="#E7F7EA" stroke="#27313A" stroke-width="1.5"/>
+  <text x="1075" y="257" class="mono small" text-anchor="middle">5</text>
+  <rect x="690.00" y="216" width="330.00" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="855" y="307" class="mono small" text-anchor="middle">line 0</text>
+  <rect x="1020.00" y="216" width="110.00" height="72" fill="none" stroke="#1769C2" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="1075" y="307" class="mono small" text-anchor="middle">line 1</text>
+  <text x="910" y="341" class="sans label" text-anchor="middle">2 distinct property cache lines</text>
+  <text x="910" y="400" class="mono label" text-anchor="middle">span = 4</text>
+  <path d="M535 300 H661" class="arrow"/>
   <rect x="144" y="475" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
   <text x="600" y="502" class="sans small" text-anchor="middle">Invariant: v2 still reads the same four neighbor properties; address locality is the only payoff shown.</text>
 </svg>

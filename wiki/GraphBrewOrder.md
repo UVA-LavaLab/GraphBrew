@@ -15,6 +15,19 @@ Read [GraphBrew Running Example](GraphBrew-Running-Example) first. It carries
 the same graph, communities, tracked vertex, final mapping, CSR row, and
 cache-line calculation through every stage.
 
+[![GraphBrew six-stage architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
+
+**Figure 1.** Numbered stages share one tracked vertex and leave enough
+horizontal space for the stage arrows to remain visible.
+
+[![Stage 1 input topology and CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg)
+
+[![Stage 2 correlated partition](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)
+
+**Figures 2–3.** The same node-link graph appears before and after membership
+metadata is added. Node fills are deliberately different from the neutral
+graph canvas so communities remain visible.
+
 The key distinction inside Stage 4 is:
 
 ```text

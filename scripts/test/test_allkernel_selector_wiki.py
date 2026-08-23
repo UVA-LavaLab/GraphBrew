@@ -158,6 +158,9 @@ def test_selector_documentation_uses_evidence_bound_figures():
     assert "graphbrew-sgmb4096.svg" in graphbrew
     assert "graphbrew-gordf5000.svg" in graphbrew
     assert "graphbrew-norefine.svg" in graphbrew
+    assert "graphbrew-architecture.svg" in graphbrew
+    assert "graphbrew-graph-to-csr.svg" in graphbrew
+    assert "graphbrew-leiden-transform.svg" in graphbrew
     assert payload["candidate"] in selector.replace("\n", "")
     assert payload["candidate"] in graphbrew.replace("\n", "")
     for threshold in ("3.2", "2.68", "60", "0.82", "8"):

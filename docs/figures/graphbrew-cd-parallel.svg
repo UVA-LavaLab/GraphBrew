@@ -29,6 +29,7 @@
   <text x="42" y="47" class="sans title">Control: cd_serial versus cd_parallel</text>
   <text x="42" y="75" class="sans subtitle">Running example IDs v0..v8; fingerprint equality, not the branch name, proves byte identity.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
+  <rect x="25" y="112" width="1150" height="305" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <rect x="35" y="125" width="520" height="280" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
   <text x="60" y="160" class="sans heading">cd_serial</text>
   <text x="60" y="195" class="sans body">One ordered move stream.</text>

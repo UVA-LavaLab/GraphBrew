@@ -69,11 +69,14 @@ def test_catalog_uses_one_measured_input_and_output_strips():
         drawio = PROJECT_ROOT / row["drawio"]
         root = ET.parse(svg).getroot()
         assert root.get("width") == "1200"
-        assert root.get("height") == "360"
+        assert root.get("height") == "430"
         source = svg.read_text()
         assert 'role="img"' in source
         assert "prefers-color-scheme:dark" in source
         assert ".arrow{stroke:#63A8FF!important}" in source
+        assert "Same input graph" in source
+        assert len(re.findall(r'<line[^>]+class="edge"', source)) == 12
+        assert len(re.findall(r'<circle[^>]+r="(?:20|23)"', source)) == 9
         order_match = re.search(r"permutation = \[([0-9, ]+)\]", source)
         assert order_match
         order = [int(value) for value in order_match.group(1).split(",")]
@@ -101,6 +104,14 @@ def test_catalog_uses_one_measured_input_and_output_strips():
         assert [cell.get("value") for cell in output_cells] == [
             f"v{vertex}" for vertex in order
         ]
+        assert sum(
+            re.fullmatch(r"node-\d+", cell.get("id", "")) is not None
+            for cell in cells
+        ) == 9
+        assert sum(
+            re.fullmatch(r"edge-\d+", cell.get("id", "")) is not None
+            for cell in cells
+        ) == 12
 
         assert row["name"] in catalog
         assert Path(row["svg"]).name in catalog
@@ -197,6 +208,29 @@ def test_top_level_figures_share_the_visual_contract():
         ]
         assert font_sizes and min(font_sizes) >= 14
         assert max(font_sizes) <= 32
+
+    architecture = (FIGURES / "graphbrew-architecture.svg").read_text()
+    horizontal_arrows = [
+        abs(int(end) - int(start))
+        for start, end in re.findall(
+            r'<path d="M(\d+) \d+ H(\d+)" class="arrow"',
+            architecture,
+        )
+    ]
+    assert horizontal_arrows and min(horizontal_arrows) >= 40
+
+    stage1 = (FIGURES / "graphbrew-graph-to-csr.svg").read_text()
+    nodes = [
+        tuple(map(int, match))
+        for match in re.findall(
+            r'<circle cx="(\d+)" cy="(\d+)" r="(20|23)"',
+            stage1,
+        )
+    ]
+    assert len(nodes) == 9
+    for index, (x1, y1, r1) in enumerate(nodes):
+        for x2, y2, r2 in nodes[index + 1:]:
+            assert (x1 - x2) ** 2 + (y1 - y2) ** 2 >= (r1 + r2) ** 2
 
 
 def test_public_manifest_binds_generated_outputs():

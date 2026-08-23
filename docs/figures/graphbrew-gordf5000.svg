@@ -29,36 +29,38 @@
   <text x="42" y="47" class="sans title">Stage 4 dispatch: tiny fast path, then one local-layout threshold</text>
   <text x="42" y="75" class="sans subtitle">Same blocks from Stage 3: C0 has 5 vertices and C1 has 4.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
+  <rect x="25" y="108" width="1150" height="322" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="45" y="132" class="sans domain">STAGE 4 · PER-BLOCK DISPATCH</text>
   <rect x="405" y="118" width="390" height="112" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
   <circle cx="435" cy="155" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
   <text x="435" y="161" class="sans label" text-anchor="middle" fill="#FFFFFF">4</text>
   <text x="465" y="157" class="sans heading">Example: is |C| &lt;= 4?</text>
   <text x="600" y="188" class="mono small" text-anchor="middle">|C| &lt;= 3 keeps input order</text>
   <text x="600" y="214" class="mono small" text-anchor="middle">4..4: Gorder; &gt;4: BFS</text>
-  <rect x="35" y="260" width="500" height="160" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
+  <rect x="45" y="260" width="490" height="160" rx="10" fill="#F8F6EC" stroke="#B45309" stroke-width="2"/>
   <text x="60" y="296" class="sans heading">YES: C1, size 4</text>
   <text x="60" y="330" class="sans body">Use relaxed local Gorder (gw8).</text>
-  <rect x="60.00" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="116" y="376" class="mono small" text-anchor="middle">v8</text>
-  <rect x="172.50" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="228" y="376" class="mono small" text-anchor="middle">v5</text>
-  <rect x="285.00" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="341" y="376" class="mono small" text-anchor="middle">v0</text>
-  <rect x="397.50" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
-  <text x="453" y="376" class="mono small" text-anchor="middle">v3</text>
-  <rect x="665" y="260" width="500" height="160" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <rect x="70.00" y="350" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="125" y="376" class="mono small" text-anchor="middle">v8</text>
+  <rect x="180.00" y="350" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="235" y="376" class="mono small" text-anchor="middle">v5</text>
+  <rect x="290.00" y="350" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="345" y="376" class="mono small" text-anchor="middle">v0</text>
+  <rect x="400.00" y="350" width="110.00" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="455" y="376" class="mono small" text-anchor="middle">v3</text>
+  <rect x="665" y="260" width="490" height="160" rx="10" fill="#F8F6EC" stroke="#1769C2" stroke-width="2"/>
   <text x="690" y="296" class="sans heading">NO: C0, size 5</text>
   <text x="690" y="330" class="sans body">Use hub-rooted BFS fallback.</text>
-  <rect x="690.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
-  <text x="735" y="376" class="mono small" text-anchor="middle">v2</text>
-  <rect x="780.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="825" y="376" class="mono small" text-anchor="middle">v1</text>
-  <rect x="870.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="915" y="376" class="mono small" text-anchor="middle">v4</text>
-  <rect x="960.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="1005" y="376" class="mono small" text-anchor="middle">v6</text>
-  <rect x="1050.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
-  <text x="1095" y="376" class="mono small" text-anchor="middle">v7</text>
+  <rect x="690.00" y="350" width="88.00" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
+  <text x="734" y="376" class="mono small" text-anchor="middle">v2</text>
+  <rect x="778.00" y="350" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="822" y="376" class="mono small" text-anchor="middle">v1</text>
+  <rect x="866.00" y="350" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="910" y="376" class="mono small" text-anchor="middle">v4</text>
+  <rect x="954.00" y="350" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="998" y="376" class="mono small" text-anchor="middle">v6</text>
+  <rect x="1042.00" y="350" width="88.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="1086" y="376" class="mono small" text-anchor="middle">v7</text>
   <path d="M500 230 V242 H285 V256" class="arrow"/>
   <path d="M700 230 V242 H915 V256" class="arrow"/>
   <rect x="144" y="445" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>

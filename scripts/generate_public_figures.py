@@ -128,7 +128,7 @@ CATALOG_COPY = {
         "High-degree vertices move toward the first memory region.",
     ),
     3: (
-        "Sort the selected hub subset",
+        "Sort selected hubs",
         [
             "Hub: degree > integer average degree",
             "Preserve source IDs where possible",
@@ -141,22 +141,22 @@ CATALOG_COPY = {
         "The hub/non-hub split changes regions without sorting every vertex.",
     ),
     5: (
-        "Degree-based grouping",
+        "Degree buckets",
         ["Logarithmic degree buckets", "Stable order inside each bucket"],
         "Bucket boundaries, not one global sort, define the output.",
     ),
     6: (
-        "HubSort plus degree buckets",
+        "HubSort + buckets",
         ["Sort the hub bucket", "Then emit the remaining buckets"],
         "A sorted hub bucket is followed by grouped non-hubs.",
     ),
     7: (
-        "Stable hub and non-hub buckets",
+        "Stable hub/non-hub buckets",
         ["Compact hubs first", "Preserve encounter order"],
         "Both regions preserve encounter order.",
     ),
     8: (
-        "Community agglomeration",
+        "Community merge + DFS",
         ["Build merge dendrogram", "Emit a dendrogram DFS"],
         "Community blocks become contiguous; DFS chooses hierarchy order.",
     ),
@@ -166,7 +166,7 @@ CATALOG_COPY = {
         "This is distinct from GraphBrew's relaxed local intra_gorder.",
     ),
     10: (
-        "Canonical hot/cold segmentation",
+        "Canonical hot/cold",
         ["Classify workload regions", "Pack hot properties first"],
         "The workload segmentation defines the memory regions.",
     ),
@@ -176,12 +176,12 @@ CATALOG_COPY = {
         "The output targets lower graph bandwidth.",
     ),
     12: (
-        "Explicit three-axis composition",
+        "Explicit three-axis compose",
         ["Partition -> block -> local layout", "Shown spec uses gordf4 for scale"],
         "GraphBrew emits one explicit composition, not a competitor fallback.",
     ),
     13: (
-        "External inverse label list",
+        "External label list",
         ["file[new_id] = original_id", "Load, validate, then apply"],
         "MAP materializes a supplied order; it does not discover one.",
     ),
@@ -191,12 +191,12 @@ CATALOG_COPY = {
         "The output shown is the selected GraphBrew arm for this illustration.",
     ),
     15: (
-        "Leiden partition plus post-layout",
+        "Leiden + post-layout",
         ["Detect communities", "Apply the selected layout"],
         "Community detection alone is not an ordering.",
     ),
     16: (
-        "Directed forward-edge objective",
+        "Directed forward-edge",
         [
             "Increase edges with new(src) < new(dst)",
             "Symmetric input is only a control",
@@ -832,28 +832,40 @@ def generate_architecture(payload: dict) -> str:
     svg.rect(620, 118, 545, 76, VIOLET, stroke_width=3)
     svg.text(645, 147, "PROPOSED RESEARCH PATH", "domain")
     svg.text(645, 174, "Rabbit-free deterministic composition generator", "body")
+    svg.rect(
+        25,
+        208,
+        1150,
+        380,
+        "none",
+        stroke=MUTED,
+        stroke_width=2,
+        radius=12,
+        dash="8 7",
+    )
+    svg.text(45, 232, "SHARED SIX-STAGE PIPELINE", "domain")
     cards = [
-        (35, 220, "1", "Load + profile", ["Read CSR", "Compute lightweight features"], "row v2 = [1,4,6,8]", BLUE),
-        (415, 220, "2", "Partition", ["Assign C0 / C1", "Keep topology unchanged"], "v2 in C0", VIOLET),
-        (795, 220, "3", "Block layout", ["SizeDesc: C0 first", "Reserve contiguous ranges"], "C0 -> IDs 0..4", AMBER),
-        (35, 415, "4", "Vertex layout", ["BFS for C0", "relaxed Gorder for C1"], "v2 -> local ID 0", VIOLET),
-        (415, 415, "5", "Emit relabeled CSR", ["Compose old -> new IDs", "Validate permutation"], "v2 -> new ID 0", GREEN),
-        (795, 415, "6", "Kernel locality", ["Same neighbors", "Fewer property cache lines"], "v2: 3 lines -> 2", GREEN),
+        (35, 250, "1", "Load + profile", ["Read CSR", "Compute lightweight features"], "row v2 = [1,4,6,8]", BLUE),
+        (430, 250, "2", "Partition", ["Assign C0 / C1", "Keep topology unchanged"], "v2 in C0", VIOLET),
+        (825, 250, "3", "Block layout", ["SizeDesc: C0 first", "Reserve contiguous ranges"], "C0 -> IDs 0..4", AMBER),
+        (35, 425, "4", "Vertex layout", ["BFS for C0", "relaxed Gorder for C1"], "v2 -> local ID 0", VIOLET),
+        (430, 425, "5", "Emit relabeled CSR", ["Compose old -> new IDs", "Validate permutation"], "v2 -> new ID 0", GREEN),
+        (825, 425, "6", "Kernel locality", ["Same neighbors", "Fewer property cache lines"], "v2: 3 lines -> 2", GREEN),
     ]
     for card in cards:
         stage_card(
             svg,
             card[0],
             card[1],
-            370,
-            160,
+            340,
+            155,
             *card[2:],
         )
-    svg.arrow("M405 300 H411")
-    svg.arrow("M785 300 H791")
-    svg.arrow("M980 380 V397 H220 V411")
-    svg.arrow("M405 495 H411")
-    svg.arrow("M785 495 H791")
+    svg.arrow("M375 327 H426")
+    svg.arrow("M770 327 H821")
+    svg.arrow("M995 405 V413 H205 V421")
+    svg.arrow("M375 502 H426")
+    svg.arrow("M770 502 H821")
     svg.footer(625, "Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.")
     return svg.finish()
 
@@ -878,28 +890,40 @@ def generate_graph_to_csr(payload: dict) -> str:
         "The input graph, CSR arrays, and lightweight profile all refer to vertex v2.",
         "Illustrative 9-vertex graph; tracked object v2 is outlined in blue.",
     )
-    svg.rect(35, 120, 340, 360, BLUE, stroke_width=3)
-    svg.badge(65, 150, "1")
-    svg.text(92, 157, "Input topology", "heading")
+    svg.rect(
+        25,
+        112,
+        1150,
+        380,
+        "none",
+        stroke=MUTED,
+        stroke_width=2,
+        radius=12,
+        dash="8 7",
+    )
+    svg.text(45, 136, "STAGE 1 · INPUT AND PROFILE", "domain")
+    svg.rect(45, 150, 320, 325, PAGE, stroke=MUTED, stroke_width=2)
+    svg.badge(75, 180, "1")
+    svg.text(102, 187, "Input topology", "heading")
     draw_graph(
         svg,
         payload,
-        35,
-        130,
-        scale=0.55,
+        38,
+        180,
+        scale=0.60,
         color_communities=False,
     )
     svg.text(
-        60,
-        440,
+        65,
+        445,
         f"{undirected_edges} undirected edges / {directed_arcs} CSR arcs",
         "small",
     )
-    svg.rect(405, 120, 365, 360, AMBER, stroke_width=3)
-    svg.text(430, 157, "CSR row for v2", "heading")
+    svg.rect(405, 150, 355, 325, AMBER, stroke_width=2)
+    svg.text(430, 187, "CSR row for v2", "heading")
     svg.mono(
         430,
-        194,
+        224,
         (
             f"offsets[{tracked_id}:{tracked_id + 2}] = "
             f"{original['offsets'][tracked_id:tracked_id + 2]}"
@@ -908,14 +932,14 @@ def generate_graph_to_csr(payload: dict) -> str:
     )
     svg.text(
         430,
-        230,
+        260,
         f"col_idx positions {row_start}..{row_end - 1}",
         "body",
     )
     array_strip(
         svg,
         430,
-        250,
+        280,
         tracked["old_neighbors"],
         width=310,
         height=54,
@@ -923,45 +947,45 @@ def generate_graph_to_csr(payload: dict) -> str:
     )
     svg.text(
         430,
-        338,
+        358,
         (
             f"neighbor IDs span {min(tracked['old_neighbors'])}.."
             f"{max(tracked['old_neighbors'])}"
         ),
         "body",
     )
-    svg.mono(430, 368, f"span = {tracked['old_id_span']}", "label")
-    svg.text(430, 410, "Property IDs touch cache lines:", "body")
+    svg.mono(430, 388, f"span = {tracked['old_id_span']}", "label")
+    svg.text(430, 420, "Property IDs touch cache lines:", "body")
     svg.mono(
         430,
-        440,
+        450,
         f"{line_ids} -> {tracked['old_cache_lines']} distinct lines",
         "small",
     )
-    svg.rect(800, 120, 365, 360, VIOLET, stroke_width=3)
-    svg.text(825, 157, "Lightweight profile", "heading")
+    svg.rect(800, 150, 355, 325, VIOLET, stroke_width=2)
+    svg.text(825, 187, "Lightweight profile", "heading")
     degrees = [len(adjacency(payload)[vertex]) for vertex in payload["graph"]["vertices"]]
-    svg.mono(825, 200, f"N = {vertex_count}", "body")
-    svg.mono(825, 232, f"directed arcs = {directed_arcs}", "body")
+    svg.mono(825, 230, f"N = {vertex_count}", "body")
+    svg.mono(825, 262, f"directed arcs = {directed_arcs}", "body")
     svg.mono(
         825,
-        264,
+        294,
         f"degree(v{tracked_id}) = {degrees[tracked_id]}",
         "body",
     )
-    svg.mono(825, 296, f"max degree = {max(degrees)}", "body")
-    svg.text(825, 342, "These values describe the input.", "body")
-    svg.text(825, 370, "No kernel has run and no labels moved.", "body")
-    svg.rect(825, 406, 315, 42, PAGE, radius=7)
+    svg.mono(825, 326, f"max degree = {max(degrees)}", "body")
+    svg.text(825, 365, "These values describe the input.", "body")
+    svg.text(825, 395, "No kernel has run and no labels moved.", "body")
+    svg.rect(825, 420, 305, 38, PAGE, radius=7)
     svg.mono(
         982,
-        433,
+        445,
         f"tracked = v{tracked_id}",
         "label",
         anchor="middle",
     )
-    svg.arrow("M375 300 H401")
-    svg.arrow("M770 300 H796")
+    svg.arrow("M365 315 H401")
+    svg.arrow("M760 315 H796")
     svg.footer(500, "Invariant: Stage 1 observes the graph; it does not change IDs, edges, or kernel work.")
     return svg.finish()
 
@@ -979,38 +1003,50 @@ def generate_partition(payload: dict) -> str:
         ),
         "This is not the detector output for the tiny graph; v2 is tracked inside C0.",
     )
-    svg.rect(35, 120, 520, 390, BLUE, stroke_width=3)
-    svg.text(60, 155, "Before partition metadata", "heading")
+    svg.rect(
+        25,
+        112,
+        1150,
+        405,
+        "none",
+        stroke=MUTED,
+        stroke_width=2,
+        radius=12,
+        dash="8 7",
+    )
+    svg.text(45, 136, "STAGE 2 · PARTITION", "domain")
+    svg.rect(45, 150, 500, 345, PAGE, stroke=MUTED, stroke_width=2)
+    svg.text(70, 185, "Before partition metadata", "heading")
     draw_graph(
         svg,
         payload,
-        50,
-        160,
-        scale=0.78,
+        55,
+        180,
+        scale=0.72,
         color_communities=False,
     )
-    svg.mono(60, 470, "membership = unknown", "small")
-    svg.rect(645, 120, 520, 390, VIOLET, stroke_width=3)
-    svg.badge(675, 150, "2")
-    svg.text(702, 157, "Frozen example membership", "heading")
-    draw_graph(svg, payload, 660, 160, scale=0.78)
-    svg.rect(680, 430, 210, 48, BLUE, radius=7)
+    svg.mono(70, 465, "membership = unknown", "small")
+    svg.rect(655, 150, 500, 345, PAGE, stroke=MUTED, stroke_width=2)
+    svg.badge(685, 180, "2")
+    svg.text(712, 187, "Frozen example membership", "heading")
+    draw_graph(svg, payload, 665, 180, scale=0.72)
+    svg.rect(680, 430, 210, 42, BLUE, radius=7)
     svg.mono(
         785,
-        460,
+        457,
         f"C0 = {{{','.join(map(str, communities['C0']))}}}",
         "small",
         anchor="middle",
     )
-    svg.rect(920, 430, 210, 48, AMBER, radius=7)
+    svg.rect(920, 430, 210, 42, AMBER, radius=7)
     svg.mono(
         1025,
-        460,
+        457,
         f"C1 = {{{','.join(map(str, communities['C1']))}}}",
         "small",
         anchor="middle",
     )
-    svg.arrow("M555 310 H641")
+    svg.arrow("M545 320 H651")
     svg.footer(
         525,
         (
@@ -1043,27 +1079,39 @@ def generate_size_desc(payload: dict) -> str:
         ),
         "Same C0/C1 membership from Stage 2; only the global block order changes.",
     )
-    svg.rect(35, 125, 520, 330, BLUE, stroke_width=3)
-    svg.text(60, 160, "Input-ID memory order", "heading")
+    svg.rect(
+        25,
+        112,
+        1150,
+        350,
+        "none",
+        stroke=MUTED,
+        stroke_width=2,
+        radius=12,
+        dash="8 7",
+    )
+    svg.text(45, 136, "STAGE 3 · BLOCK LAYOUT", "domain")
+    svg.rect(45, 150, 500, 300, NEUTRAL, stroke=MUTED, stroke_width=2)
+    svg.text(70, 185, "Input-ID memory order", "heading")
     array_strip(
         svg,
-        60,
-        195,
+        70,
+        210,
         payload["graph"]["vertices"],
-        width=470,
+        width=450,
         height=52,
         fills=community_fills(payload, payload["graph"]["vertices"]),
         tracked_index=tracked_id,
         prefix="v",
     )
-    svg.text(60, 290, "C0 and C1 are interleaved.", "body")
+    svg.text(70, 295, "C0 and C1 are interleaved.", "body")
     svg.mono(
-        60,
-        326,
+        70,
+        331,
         f"v{tracked_id} is at old ID {tracked_id}",
         "body",
     )
-    svg.rect(60, 365, 470, 54, PAGE, radius=7)
+    svg.rect(70, 365, 450, 54, PAGE, radius=7)
     svg.mono(
         295,
         398,
@@ -1071,39 +1119,39 @@ def generate_size_desc(payload: dict) -> str:
         "label",
         anchor="middle",
     )
-    svg.rect(645, 125, 520, 330, AMBER, stroke_width=3)
-    svg.badge(675, 155, "3")
-    svg.text(702, 162, "SizeDesc block order", "heading")
+    svg.rect(655, 150, 500, 300, NEUTRAL, stroke=COMMUNITY_B, stroke_width=2)
+    svg.badge(685, 180, "3")
+    svg.text(712, 187, "SizeDesc block order", "heading")
     array_strip(
         svg,
-        670,
-        195,
+        680,
+        210,
         block_order,
-        width=470,
+        width=450,
         height=52,
         fills=community_fills(payload, block_order),
         tracked_index=block_order.index(tracked_id),
         prefix="v",
     )
     svg.text(
-        670,
-        290,
+        680,
+        295,
         f"C0 occupies new IDs 0..{c0_size - 1}.",
         "body",
     )
     svg.text(
-        670,
-        320,
+        680,
+        325,
         f"C1 occupies new IDs {c0_size}..{c0_size + c1_size - 1}.",
         "body",
     )
     svg.mono(
-        670,
+        680,
         365,
         f"old v{tracked_id} -> block ID {forward[tracked_id]}",
         "label",
     )
-    svg.arrow("M555 290 H641")
+    svg.arrow("M545 300 H651")
     svg.footer(480, "Invariant: community membership and graph topology are unchanged; only block placement changes.")
     return svg.finish()
 
@@ -1124,6 +1172,18 @@ def generate_gordf(payload: dict) -> str:
         ),
         f"Same blocks from Stage 3: C0 has {c0_size} vertices and C1 has {c1_size}.",
     )
+    svg.rect(
+        25,
+        108,
+        1150,
+        322,
+        "none",
+        stroke=MUTED,
+        stroke_width=2,
+        radius=12,
+        dash="8 7",
+    )
+    svg.text(45, 132, "STAGE 4 · PER-BLOCK DISPATCH", "domain")
     svg.rect(405, 118, 390, 112, VIOLET, stroke_width=3)
     svg.badge(435, 155, "4")
     svg.text(465, 157, f"Example: is |C| <= {threshold}?", "heading")
@@ -1135,19 +1195,19 @@ def generate_gordf(payload: dict) -> str:
         "small",
         anchor="middle",
     )
-    svg.rect(35, 260, 500, 160, AMBER, stroke_width=3)
+    svg.rect(45, 260, 490, 160, NEUTRAL, stroke=COMMUNITY_B, stroke_width=2)
     svg.text(60, 296, f"YES: C1, size {c1_size}", "heading")
     svg.text(60, 330, "Use relaxed local Gorder (gw8).", "body")
     array_strip(
         svg,
-        60,
+        70,
         350,
         local_orders["C1"]["order"],
-        width=450,
+        width=440,
         fills=[AMBER] * c1_size,
         prefix="v",
     )
-    svg.rect(665, 260, 500, 160, BLUE, stroke_width=3)
+    svg.rect(665, 260, 490, 160, NEUTRAL, stroke=ACTION, stroke_width=2)
     svg.text(690, 296, f"NO: C0, size {c0_size}", "heading")
     svg.text(690, 330, "Use hub-rooted BFS fallback.", "body")
     array_strip(
@@ -1155,7 +1215,7 @@ def generate_gordf(payload: dict) -> str:
         690,
         350,
         local_orders["C0"]["order"],
-        width=450,
+        width=440,
         fills=[BLUE] * c0_size,
         tracked_index=0,
         prefix="v",
@@ -1234,16 +1294,28 @@ def generate_gorder(payload: dict) -> str:
             "in C0; gw8 changes only C1 local IDs."
         ),
     )
-    svg.rect(35, 120, 500, 330, AMBER, stroke_width=3)
-    svg.text(60, 155, "Before local layout", "heading")
-    draw_subgraph(svg, payload, before, 285, 260, tracked=8, fill=AMBER)
-    array_strip(svg, 60, 390, before, width=450, fills=[AMBER] * 4, prefix="v")
-    svg.rect(665, 120, 500, 330, VIOLET, stroke_width=3)
-    svg.badge(695, 150, "4A")
-    svg.text(735, 157, "After relaxed intra_gorder", "heading")
-    draw_subgraph(svg, payload, before, 915, 260, tracked=8, labels=labels, fill=AMBER)
-    array_strip(svg, 690, 390, after, width=450, fills=[AMBER] * 4, tracked_index=0, prefix="v")
-    svg.arrow("M535 290 H661")
+    svg.rect(
+        25,
+        112,
+        1150,
+        350,
+        "none",
+        stroke=MUTED,
+        stroke_width=2,
+        radius=12,
+        dash="8 7",
+    )
+    svg.text(45, 136, "STAGE 4A · SMALL-BLOCK LOCAL LAYOUT", "domain")
+    svg.rect(45, 150, 490, 300, NEUTRAL, stroke=COMMUNITY_B, stroke_width=2)
+    svg.text(70, 185, "Before local layout", "heading")
+    draw_subgraph(svg, payload, before, 290, 265, tracked=8, fill=AMBER)
+    array_strip(svg, 70, 390, before, width=440, fills=[AMBER] * 4, prefix="v")
+    svg.rect(665, 150, 490, 300, NEUTRAL, stroke=ACTION, stroke_width=2)
+    svg.badge(695, 180, "4A")
+    svg.text(735, 187, "After relaxed intra_gorder", "heading")
+    draw_subgraph(svg, payload, before, 910, 265, tracked=8, labels=labels, fill=AMBER)
+    array_strip(svg, 690, 390, after, width=440, fills=[AMBER] * 4, tracked_index=0, prefix="v")
+    svg.arrow("M535 300 H661")
     svg.footer(475, "Invariant: C1 remains IDs 5..8 globally; only its four local positions change.")
     return svg.finish()
 
@@ -1259,16 +1331,28 @@ def generate_bfs(payload: dict) -> str:
         "The tracked vertex v2 is the highest-degree root and receives local ID 0.",
         "Same C0 = {1,2,4,6,7}; BFS levels are [2] -> [1,4,6] -> [7].",
     )
-    svg.rect(35, 120, 500, 330, BLUE, stroke_width=3)
-    svg.text(60, 155, "Before local layout", "heading")
-    draw_subgraph(svg, payload, values, 285, 260, tracked=2, fill=BLUE)
-    array_strip(svg, 60, 390, values, width=450, fills=[BLUE] * 5, tracked_index=1, prefix="v")
-    svg.rect(665, 120, 500, 330, GREEN, stroke_width=3)
-    svg.badge(695, 150, "4B")
-    svg.text(735, 157, "After BFS levels", "heading")
-    draw_subgraph(svg, payload, values, 915, 260, tracked=2, labels=labels, fill=BLUE)
-    array_strip(svg, 690, 390, local["order"], width=450, fills=[BLUE] * 5, tracked_index=0, prefix="v")
-    svg.arrow("M535 290 H661")
+    svg.rect(
+        25,
+        112,
+        1150,
+        350,
+        "none",
+        stroke=MUTED,
+        stroke_width=2,
+        radius=12,
+        dash="8 7",
+    )
+    svg.text(45, 136, "STAGE 4B · LARGE-BLOCK LOCAL LAYOUT", "domain")
+    svg.rect(45, 150, 490, 300, NEUTRAL, stroke=ACTION, stroke_width=2)
+    svg.text(70, 185, "Before local layout", "heading")
+    draw_subgraph(svg, payload, values, 290, 265, tracked=2, fill=BLUE)
+    array_strip(svg, 70, 390, values, width=440, fills=[BLUE] * 5, tracked_index=1, prefix="v")
+    svg.rect(665, 150, 490, 300, NEUTRAL, stroke=ACTION, stroke_width=2)
+    svg.badge(695, 180, "4B")
+    svg.text(735, 187, "After BFS levels", "heading")
+    draw_subgraph(svg, payload, values, 910, 265, tracked=2, labels=labels, fill=BLUE)
+    array_strip(svg, 690, 390, local["order"], width=440, fills=[BLUE] * 5, tracked_index=0, prefix="v")
+    svg.arrow("M535 300 H661")
     svg.footer(475, "Invariant: C0 remains the first five global IDs; BFS only assigns its local order.")
     return svg.finish()
 
@@ -1284,47 +1368,52 @@ def generate_relabel(payload: dict) -> str:
         "The final permutation maps tracked v2 to new ID 0 and rewrites CSR rows and destinations consistently.",
         "Final memory order: [v2,v1,v4,v6,v7 | v8,v5,v0,v3].",
     )
-    svg.rect(35, 120, 550, 345, VIOLET, stroke_width=3)
-    svg.badge(65, 150, "5")
-    svg.text(95, 157, "Old ID -> new ID", "heading")
-    array_strip(svg, 60, 200, payload["graph"]["vertices"], width=500, fills=[BLUE] * 9, prefix="v")
-    array_strip(svg, 60, 252, forward, width=500, fills=[GREEN] * 9, tracked_index=2, prefix="n")
-    svg.text(60, 330, "Composed memory order", "label")
+    svg.rect(
+        25, 112, 1150, 365, "none",
+        stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
+    )
+    svg.text(45, 136, "STAGE 5 · RELABEL AND EMIT", "domain")
+    svg.rect(45, 150, 520, 315, NEUTRAL, stroke=VIOLET, stroke_width=2)
+    svg.badge(75, 180, "5")
+    svg.text(105, 187, "Old ID -> new ID", "heading")
+    array_strip(svg, 70, 210, payload["graph"]["vertices"], width=470, fills=[BLUE] * 9, prefix="v")
+    array_strip(svg, 70, 262, forward, width=470, fills=[GREEN] * 9, tracked_index=2, prefix="n")
+    svg.text(70, 340, "Composed memory order", "label")
     array_strip(
         svg,
-        60,
-        350,
+        70,
+        360,
         order,
-        width=500,
+        width=470,
         fills=community_fills(payload, order),
         tracked_index=0,
         prefix="v",
     )
-    svg.rect(615, 120, 550, 345, GREEN, stroke_width=3)
-    svg.text(640, 157, "Relabeled CSR row 0 (old v2)", "heading")
+    svg.rect(625, 150, 530, 315, NEUTRAL, stroke=GREEN, stroke_width=2)
+    svg.text(650, 187, "Relabeled CSR row 0 (old v2)", "heading")
     relabeled = composition["relabeled_csr"]
     row_zero = relabeled["neighbors"][
         relabeled["offsets"][0]:relabeled["offsets"][1]
     ]
-    svg.mono(640, 200, f"offsets[0:2] = {relabeled['offsets'][0:2]}", "body")
-    svg.text(640, 236, "new neighbor IDs", "body")
+    svg.mono(650, 230, f"offsets[0:2] = {relabeled['offsets'][0:2]}", "body")
+    svg.text(650, 266, "new neighbor IDs", "body")
     array_strip(
         svg,
-        640,
-        255,
+        650,
+        285,
         row_zero,
-        width=500,
+        width=480,
         fills=[GREEN] * len(row_zero),
     )
-    svg.mono(640, 340, f"row 0 = {row_zero}", "label")
+    svg.mono(650, 370, f"row 0 = {row_zero}", "label")
     svg.text(
-        640,
-        382,
+        650,
+        405,
         f"All {len(relabeled['neighbors'])} directed arcs are preserved.",
         "body",
     )
-    svg.text(640, 412, "Only row and destination indices change.", "body")
-    svg.arrow("M585 290 H611")
+    svg.text(650, 435, "Only row and destination indices change.", "body")
+    svg.arrow("M565 305 H621")
     svg.footer(490, "Invariant: the permutation is bijective and the relabeled CSR represents the same graph.")
     return svg.finish()
 
@@ -1369,30 +1458,35 @@ def generate_locality(payload: dict) -> str:
         "With four vertex properties per cache line, relabeling changes three touched lines into two.",
         "Same neighbor set; only the neighbor IDs and property addresses are relabeled.",
     )
-    svg.rect(35, 120, 500, 330, ROSE, stroke_width=3)
-    svg.text(60, 155, "Before: old neighbor IDs", "heading")
+    svg.rect(
+        25, 112, 1150, 350, "none",
+        stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
+    )
+    svg.text(45, 136, "STAGE 6 · LOCALITY OUTCOME", "domain")
+    svg.rect(45, 150, 490, 300, NEUTRAL, stroke=ROSE, stroke_width=2)
+    svg.text(70, 185, "Before: old neighbor IDs", "heading")
     cache_line_strip(
         svg,
-        60,
-        215,
+        70,
+        225,
         tracked["old_neighbors"],
-        width=450,
+        width=440,
         tracked_line_count=tracked["old_cache_lines"],
     )
-    svg.mono(285, 390, f"span = {tracked['old_id_span']}", "label", anchor="middle")
-    svg.rect(665, 120, 500, 330, GREEN, stroke_width=3)
-    svg.badge(695, 150, "6")
-    svg.text(735, 157, "After: new neighbor IDs", "heading")
+    svg.mono(290, 400, f"span = {tracked['old_id_span']}", "label", anchor="middle")
+    svg.rect(665, 150, 490, 300, NEUTRAL, stroke=GREEN, stroke_width=2)
+    svg.badge(695, 180, "6")
+    svg.text(735, 187, "After: new neighbor IDs", "heading")
     cache_line_strip(
         svg,
         690,
-        215,
+        225,
         tracked["new_neighbor_ids"],
-        width=450,
+        width=440,
         tracked_line_count=tracked["new_cache_lines"],
     )
-    svg.mono(915, 390, f"span = {tracked['new_id_span']}", "label", anchor="middle")
-    svg.arrow("M535 290 H661")
+    svg.mono(910, 400, f"span = {tracked['new_id_span']}", "label", anchor="middle")
+    svg.arrow("M535 300 H661")
     svg.footer(475, "Invariant: v2 still reads the same four neighbor properties; address locality is the only payoff shown.")
     return svg.finish()
 
@@ -1404,6 +1498,10 @@ def generate_cd_parallel(payload: dict) -> str:
         "Control: cd_serial versus cd_parallel",
         "Both modes use the same graph and recipe; parallel move scheduling may change the realized membership and mapping.",
         "Running example IDs v0..v8; fingerprint equality, not the branch name, proves byte identity.",
+    )
+    svg.rect(
+        25, 112, 1150, 305, "none",
+        stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
     )
     svg.rect(35, 125, 520, 280, AMBER, stroke_width=3)
     svg.text(60, 160, "cd_serial", "heading")
@@ -1430,6 +1528,10 @@ def generate_sgmb(payload: dict) -> str:
         "Control: sgmb4096 batches proposals but commits them in order",
         "The batch contains community super-nodes, not original graph vertices.",
         "Illustrative C0/C1 supergraph derived from the same running example.",
+    )
+    svg.rect(
+        25, 112, 1150, 315, "none",
+        stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
     )
     svg.rect(35, 125, 1130, 105, VIOLET, stroke_width=3)
     svg.text(60, 160, "Community supergraph", "heading")
@@ -1459,6 +1561,10 @@ def generate_norefine(payload: dict) -> str:
         "Control: norefine removes the constrained Leiden refinement phase",
         "Local moving and aggregation still run; the connectivity and subset-optimality guarantees no longer apply.",
         "Same running graph and C0/C1 notation; this figure compares phase structure, not measured quality.",
+    )
+    svg.rect(
+        25, 112, 1150, 300, "none",
+        stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
     )
     svg.rect(35, 130, 300, 240, BLUE, stroke_width=3)
     svg.text(60, 165, "Local moving", "heading")
@@ -1630,7 +1736,7 @@ def generate_catalog_figure(payload: dict, algorithm_id: int) -> str:
     details = catalog_details(payload, algorithm_id, order)
     svg = SVG(
         1200,
-        360,
+        430,
         title,
         f"{mechanism}. Output measured on the shared 9-vertex example.",
         (
@@ -1642,51 +1748,78 @@ def generate_catalog_figure(payload: dict, algorithm_id: int) -> str:
             )
         ),
     )
-    svg.rect(35, 120, 720, 170, BLUE, stroke_width=3)
-    svg.text(60, 155, "Measured output order", "heading")
+    svg.rect(
+        25, 112, 1150, 255, "none",
+        stroke=MUTED, stroke_width=2, radius=12, dash="8 7",
+    )
+    svg.rect(35, 125, 280, 230, PAGE, stroke=MUTED, stroke_width=2)
+    svg.text(60, 158, "Same input graph", "heading")
+    draw_graph(
+        svg,
+        payload,
+        25,
+        150,
+        scale=0.48,
+        tracked=moved if has_movement else None,
+        color_communities=False,
+    )
+    svg.mono(
+        60,
+        330,
+        (
+            f"v{moved}: old {moved} -> new {positions[moved]}"
+            if has_movement
+            else "identity: no vertex moves"
+        ),
+        "small",
+    )
+    svg.rect(365, 125, 450, 230, NEUTRAL, stroke=ACTION, stroke_width=2)
+    svg.text(390, 158, "Measured output order", "heading")
     fills = [
         GREEN
         if has_movement and vertex == moved
-        else graph_fill(payload, vertex)
+        else PAGE
         for vertex in order
     ]
     array_strip(
         svg,
-        60,
-        185,
+        390,
+        190,
         order,
-        width=670,
+        width=400,
         height=58,
         fills=fills,
         tracked_index=positions[moved] if has_movement else None,
         prefix="v",
     )
-    svg.mono(60, 270, f"permutation = {order}", "small")
-    svg.rect(790, 120, 375, 170, VIOLET, stroke_width=3)
-    svg.badge(820, 150, str(algorithm_id))
+    svg.mono(390, 280, f"permutation = {order}", "small")
+    svg.rect(865, 125, 300, 230, VIOLET, stroke_width=2)
+    svg.badge(895, 155, str(algorithm_id))
     heading_css = (
         "label"
-        if approximate_text_width(mechanism, 22, bold=True) > 300
+        if approximate_text_width(mechanism, 22, bold=True) > 250
         else "heading"
     )
     if approximate_text_width(
         mechanism,
         18 if heading_css == "label" else 22,
         bold=True,
-    ) > 315:
+    ) > 250:
         raise ValueError(
             f"catalog heading does not fit for algorithm {algorithm_id}"
         )
     svg.text(
-        850,
-        157,
+        925,
+        162,
         mechanism,
         heading_css,
     )
     for index, line in enumerate(details[:3]):
         css = "small" if len(line) > 36 else "body"
-        svg.text(815, 200 + index * 30, line, css)
-    svg.footer(310, footer, height=36)
+        svg.text(890, 215 + index * 32, line, css)
+    svg.arrow("M315 240 H361")
+    svg.arrow("M815 240 H861")
+    svg.footer(380, footer, height=36)
     return svg.finish()
 
 
@@ -1740,7 +1873,7 @@ def drawio_catalog_page(payload: dict, algorithm_id: int) -> str:
     details = catalog_details(payload, algorithm_id, order)
     heading_css = (
         "label"
-        if approximate_text_width(mechanism, 22, bold=True) > 300
+        if approximate_text_width(mechanism, 22, bold=True) > 250
         else "heading"
     )
     cells = [
@@ -1748,9 +1881,11 @@ def drawio_catalog_page(payload: dict, algorithm_id: int) -> str:
         '        <mxCell id="1" parent="0" />',
         mx_cell("title", f"{algorithm_id}. {CATALOG_NAMES[algorithm_id]}", "text;html=1;strokeColor=none;fillColor=none;fontSize=30;fontStyle=1;fontColor=#27313A;", 42, 15, 700, 42),
         mx_cell("subtitle", mechanism, "text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontColor=#27313A;", 42, 58, 1050, 28),
-        mx_cell("order-card", "", "rounded=1;html=1;fillColor=#EDF5FF;strokeColor=#27313A;strokeWidth=3;", 35, 120, 720, 170),
-        mx_cell("mechanism-card", "", "rounded=1;html=1;fillColor=#EEE9FF;strokeColor=#27313A;strokeWidth=3;", 790, 120, 375, 170),
-        mx_cell("order-heading", "Measured output order", "text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;fontColor=#27313A;", 60, 135, 300, 35),
+        mx_cell("graph-card", "", "rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#9AA3AD;strokeWidth=2;", 35, 125, 280, 230),
+        mx_cell("order-card", "", "rounded=1;html=1;fillColor=#F8F6EC;strokeColor=#1769C2;strokeWidth=2;", 365, 125, 450, 230),
+        mx_cell("mechanism-card", "", "rounded=1;html=1;fillColor=#EEE9FF;strokeColor=#27313A;strokeWidth=2;", 865, 125, 300, 230),
+        mx_cell("graph-heading", "Same input graph", "text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;fontColor=#27313A;", 60, 140, 220, 35),
+        mx_cell("order-heading", "Measured output order", "text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;fontColor=#27313A;", 390, 140, 300, 35),
         mx_cell(
             "mechanism-heading",
             mechanism,
@@ -1759,17 +1894,70 @@ def drawio_catalog_page(payload: dict, algorithm_id: int) -> str:
                 f"fontSize={18 if heading_css == 'label' else 20};"
                 "fontStyle=1;fontColor=#27313A;"
             ),
-            845,
-            135,
-            300,
+            920,
+            140,
+            220,
             35,
         ),
-        mx_cell("footer", footer, "rounded=1;html=1;fillColor=#F8F6EC;strokeColor=#27313A;strokeWidth=2;fontSize=14;fontColor=#27313A;align=center;", 144, 310, 912, 36),
+        mx_cell("footer", footer, "rounded=1;html=1;fillColor=#F8F6EC;strokeColor=#27313A;strokeWidth=2;fontSize=14;fontColor=#27313A;align=center;", 144, 380, 912, 36),
     ]
-    cell_width = 670 / 9
+    graph_positions = {
+        vertex: (
+            25 + int(x * 0.48),
+            150 + int(y * 0.48),
+        )
+        for vertex, (x, y) in GRAPH_POSITIONS.items()
+    }
+    for index, (source, target) in enumerate(
+        payload["graph"]["undirected_edges"]
+    ):
+        cells.append(
+            mx_edge(
+                f"edge-{index}",
+                f"node-{source}",
+                f"node-{target}",
+            )
+        )
+    for vertex in payload["graph"]["vertices"]:
+        x, y = graph_positions[vertex]
+        highlighted = has_movement and vertex == moved
+        diameter = 46 if highlighted else 40
+        cells.append(
+            mx_cell(
+                f"node-{vertex}",
+                str(vertex),
+                (
+                    "ellipse;html=1;aspect=fixed;align=center;"
+                    f"fillColor={GREEN if highlighted else NEUTRAL};"
+                    f"strokeColor={ACTION if highlighted else INK};"
+                    f"strokeWidth={3 if highlighted else 2};"
+                    "fontSize=18;fontStyle=1;fontColor=#27313A;"
+                ),
+                x - diameter / 2,
+                y - diameter / 2,
+                diameter,
+                diameter,
+            )
+        )
+    cells.append(
+        mx_cell(
+            "movement",
+            (
+                f"v{moved}: old {moved} -> new {positions[moved]}"
+                if has_movement
+                else "identity: no vertex moves"
+            ),
+            "text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontFamily=Consolas;fontColor=#27313A;",
+            60,
+            315,
+            230,
+            28,
+        )
+    )
+    cell_width = 400 / 9
     for index, vertex in enumerate(order):
         highlighted = has_movement and vertex == moved
-        fill = GREEN if highlighted else graph_fill(payload, vertex)
+        fill = GREEN if highlighted else PAGE
         stroke = ACTION if highlighted else INK
         cells.append(
             mx_cell(
@@ -1781,8 +1969,8 @@ def drawio_catalog_page(payload: dict, algorithm_id: int) -> str:
                     f"strokeWidth={'3' if highlighted else '1.5'};"
                     "fontSize=16;fontColor=#27313A;"
                 ),
-                60 + index * cell_width,
-                185,
+                390 + index * cell_width,
+                190,
                 cell_width,
                 58,
             )
@@ -1792,9 +1980,9 @@ def drawio_catalog_page(payload: dict, algorithm_id: int) -> str:
             "permutation",
             f"permutation = {order}",
             "text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontFamily=Consolas;fontColor=#27313A;",
-            60,
-            252,
-            670,
+            390,
+            260,
+            400,
             28,
         )
     )
@@ -1804,18 +1992,18 @@ def drawio_catalog_page(payload: dict, algorithm_id: int) -> str:
                 f"detail-{index}",
                 line,
                 "text;html=1;strokeColor=none;fillColor=none;fontSize=15;fontColor=#27313A;",
-                815,
-                185 + index * 32,
-                325,
+                890,
+                200 + index * 32,
+                250,
                 28,
             )
         )
     return (
         f'  <diagram id="graphbrew-{algorithm_id}" '
         f'name="{esc(CATALOG_NAMES[algorithm_id])}">\n'
-        '    <mxGraphModel dx="1200" dy="360" grid="1" gridSize="10" '
+        '    <mxGraphModel dx="1200" dy="430" grid="1" gridSize="10" '
         'guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" '
-        'pageScale="1" pageWidth="1200" pageHeight="360" math="0" shadow="0">\n'
+        'pageScale="1" pageWidth="1200" pageHeight="430" math="0" shadow="0">\n'
         "      <root>\n"
         + "\n".join(cells)
         + "\n      </root>\n    </mxGraphModel>\n  </diagram>"
