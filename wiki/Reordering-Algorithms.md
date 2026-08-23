@@ -163,13 +163,11 @@ should not be treated as automatic recommendations. See
 [GraphBrewOrder](GraphBrewOrder) for stage tokens and the measurement
 contract.
 
-Two experimental COMPOSE primitives are implemented but not part of the
-validated evidence: `comm_capacity_runs` packs whole communities into pinned
-L2/LLC property-capacity runs, while `intra_gorder_faithful` restores exact
-Gorder's local sibling/common-predecessor score. The evidence-bound
-`intra_gorder` token remains the historical relaxed direct-neighbor heuristic.
-See [GraphBrewOrder](GraphBrewOrder#experimental-primitives) for constraints
-and reproducibility tokens.
+The six rejected novelty directions remain only as removable correctness
+prototypes under `reorder/experimental/`; none is a public algorithm or CLI
+variant. The evidence-bound `intra_gorder` token remains the historical
+relaxed direct-neighbor heuristic. See
+[GraphBrewOrder](GraphBrewOrder#contained-validity-only-prototypes).
 
 ### Meta (13, 14)
 

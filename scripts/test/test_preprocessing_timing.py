@@ -15,7 +15,11 @@ from scripts.lib.pipeline.benchmark import (
     parse_benchmark_output,
 )
 from scripts.lib.pipeline.benchmark import mapping_permutation_fingerprint
-from scripts.lib.pipeline.reorder import parse_reorder_time_from_converter
+from scripts.lib.pipeline.reorder import (
+    _load_mapping_reorder_time,
+    _remove_stale_mapping_artifacts,
+    parse_reorder_time_from_converter,
+)
 from scripts.lib.pipeline.reorder_timing import (
     metadata_path as reorder_time_metadata_path,
     read_reorder_time,
@@ -27,6 +31,32 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PR_BINARY = PROJECT_ROOT / "bench" / "bin" / "pr"
 CONVERTER = PROJECT_ROOT / "bench" / "bin" / "converter"
 TINY_GRAPH = PROJECT_ROOT / "scripts" / "test" / "data" / "tiny.el"
+
+
+def test_stale_mapping_timing_cleanup_removes_mapping_and_sidecars(
+    tmp_path,
+):
+    mapping = tmp_path / "stale.lo"
+    timing = tmp_path / "stale.time"
+    mapping.write_text("0\n1\n")
+    timing.write_text("1.0\n")
+    fingerprint = mapping_permutation_fingerprint(mapping)
+    reorder_time_metadata_path(timing).write_text(json.dumps({
+        "schema": "reorder-time/v2",
+        "reorder_semantics_version": "graphbrew-reorder/v3",
+        "timing_boundary": "core+validation+apply",
+        "complete_reorder_time": 1.0,
+        "mapping_fingerprint": fingerprint,
+        "algorithm_spec": "5",
+    }))
+
+    with pytest.raises(ValueError, match="Stale reorder semantics"):
+        _load_mapping_reorder_time(str(timing), str(mapping))
+    _remove_stale_mapping_artifacts(str(mapping), str(timing))
+
+    assert not mapping.exists()
+    assert not timing.exists()
+    assert not reorder_time_metadata_path(timing).exists()
 
 
 def test_parser_exposes_explicit_preprocessing_boundaries():

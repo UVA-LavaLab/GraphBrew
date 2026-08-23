@@ -38,36 +38,6 @@ inline GraphBrewConfig parseGraphBrewConfig(
             return false;
         }
     };
-    auto parseExactSize = [](const std::string& text, size_t& value) {
-        if (
-            text.empty()
-            || !std::all_of(
-                text.begin(), text.end(),
-                [](unsigned char character) {
-                    return std::isdigit(character) != 0;
-                })
-        ) {
-            return false;
-        }
-        try {
-            size_t parsed = 0;
-            const unsigned long long parsedValue =
-                std::stoull(text, &parsed);
-            if (
-                parsed != text.size()
-                || parsedValue
-                    > static_cast<unsigned long long>(
-                        std::numeric_limits<size_t>::max())
-            ) {
-                return false;
-            }
-            value = static_cast<size_t>(parsedValue);
-            return true;
-        } catch (...) {
-            return false;
-        }
-    };
-
     for (size_t i = 0; i < options.size(); ++i) {
         const std::string& opt = options[i];
         if (opt.empty()) continue;
@@ -97,42 +67,6 @@ inline GraphBrewConfig parseGraphBrewConfig(
             config.superGraphMoveBatch = batch;
             continue;
         }
-        if (opt.size() > 6 && opt.substr(0, 6) == "capl2k") {
-            size_t kib = 0;
-            if (
-                !parseExactSize(opt.substr(6), kib)
-                || kib == 0
-                || kib > std::numeric_limits<size_t>::max() / 1024
-            ) {
-                reject(opt);
-                continue;
-            }
-            config.capacityL2Bytes = kib * 1024;
-            continue;
-        }
-        if (opt.size() > 7 && opt.substr(0, 7) == "capllck") {
-            size_t kib = 0;
-            if (
-                !parseExactSize(opt.substr(7), kib)
-                || kib == 0
-                || kib > std::numeric_limits<size_t>::max() / 1024
-            ) {
-                reject(opt);
-                continue;
-            }
-            config.capacityLLCBytes = kib * 1024;
-            continue;
-        }
-        if (opt.size() > 4 && opt.substr(0, 4) == "capv") {
-            size_t bytes = 0;
-            if (!parseExactSize(opt.substr(4), bytes) || bytes == 0) {
-                reject(opt);
-                continue;
-            }
-            config.capacityPropertyBytesPerVertex = bytes;
-            continue;
-        }
-
         // Check for main algorithm selection (RabbitOrder from paper)
         if (opt == "rabbit" || opt == "rabbitorder" ||
             opt == "cd_rabbit" || opt == "cd:rabbit" || opt == "cdrabbit") {
@@ -218,16 +152,6 @@ inline GraphBrewConfig parseGraphBrewConfig(
         } else if (opt == "s2_degree_asc" || opt == "s2:degree_asc" || opt == "s2degreeasc" ||
                    opt == "comm_degree_asc" || opt == "comm:degree_asc" || opt == "commdegreeasc") {
             config.communityOrder = CommunityOrder::DegreeAsc;
-        } else if (
-            opt == "s2_capacity"
-            || opt == "s2:capacity"
-            || opt == "comm_capacity_runs"
-            || opt == "comm:capacity_runs"
-            || opt == "comm_cache_fit"
-            || opt == "capacity_runs"
-            || opt == "cache_fit"
-        ) {
-            config.communityOrder = CommunityOrder::CapacityRuns;
         } else if (opt == "s2_cut_min" || opt == "s2:cut_min" || opt == "s2cutmin" ||
                    opt == "comm_cut_min" || opt == "comm:cut_min" || opt == "commcutmin" ||
                    opt == "cut_min" || opt == "cutmin") {
@@ -258,15 +182,6 @@ inline GraphBrewConfig parseGraphBrewConfig(
             // (no Rabbit dendrogram dependency).  Window size honors
             // config.gorderWindow (default 5; tune via gw<n>).
             config.intraCommunityOrder = IntraCommunityOrder::Gorder;
-        } else if (
-            opt == "s3_gorder_faithful"
-            || opt == "s3:gorder_faithful"
-            || opt == "intra_gorder_faithful"
-            || opt == "intra:gorder_faithful"
-            || opt == "intra_gorder2"
-        ) {
-            config.intraCommunityOrder =
-                IntraCommunityOrder::GorderFaithful;
         } else if (opt == "s3_hubsort" || opt == "s3:hubsort" || opt == "s3hubsort" ||
                    opt == "intra_hubsort" || opt == "intra:hubsort" || opt == "intrahubsort" ||
                    opt == "intra_hub" || opt == "intra:hub") {
@@ -648,9 +563,7 @@ inline GraphBrewConfig parseGraphBrewConfig(
                 opt.rfind("comm_", 0) == 0 ||
                 opt.rfind("comm:", 0) == 0 ||
                 opt.rfind("s2_", 0) == 0 ||
-                opt.rfind("s2:", 0) == 0 ||
-                opt == "capacity_runs" ||
-                opt == "cache_fit";
+                opt.rfind("s2:", 0) == 0;
         }
         if (explicitSuperGraph && !explicitCommunityOrder) {
             throw std::invalid_argument(
@@ -658,51 +571,6 @@ inline GraphBrewConfig parseGraphBrewConfig(
                 "community-order token");
         }
     }
-    const bool hasCapacityGeometry =
-        config.capacityL2Bytes > 0
-        || config.capacityLLCBytes > 0
-        || config.capacityPropertyBytesPerVertex > 0;
-    if (strict && config.communityOrder == CommunityOrder::CapacityRuns) {
-        if (config.ordering != OrderingStrategy::COMPOSE) {
-            throw std::invalid_argument(
-                "Capacity-run community ordering requires COMPOSE");
-        }
-        if (config.superGraphOrder != SuperGraphOrder::None) {
-            throw std::invalid_argument(
-                "Capacity-run community ordering requires sg_none");
-        }
-        if (
-            config.capacityL2Bytes == 0
-            || config.capacityLLCBytes == 0
-            || config.capacityPropertyBytesPerVertex == 0
-        ) {
-            throw std::invalid_argument(
-                "Capacity-run community ordering requires pinned "
-                "capl2k, capllck, and capv tokens");
-        }
-    } else if (strict && hasCapacityGeometry) {
-        throw std::invalid_argument(
-            "Capacity geometry tokens require capacity-run "
-            "community ordering");
-    }
-    if (
-        strict
-        && config.intraCommunityOrder
-            == IntraCommunityOrder::GorderFaithful
-        && config.ordering != OrderingStrategy::COMPOSE
-    ) {
-        throw std::invalid_argument(
-            "Faithful local Gorder requires COMPOSE");
-    }
-    if (
-        config.capacityL2Bytes > 0
-        && config.capacityLLCBytes > 0
-        && config.capacityLLCBytes < config.capacityL2Bytes
-    ) {
-        throw std::invalid_argument(
-            "Capacity-run LLC bytes must be at least L2 bytes");
-    }
-
     return config;
 }
 

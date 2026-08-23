@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 import math
-import struct
 from typing import Optional
 
 GRAPHBREW_EFFECTIVE_CONFIG_PREFIX = "GraphBrew Effective Config: "
@@ -13,7 +12,6 @@ GRAPHBREW_REALIZED_CONFIG_PREFIX = "GraphBrew Realized Config: "
 
 _GRAPHBREW_CONFIG_PREFIX = GRAPHBREW_EFFECTIVE_CONFIG_PREFIX
 _GRAPHBREW_REALIZED_PREFIX = GRAPHBREW_REALIZED_CONFIG_PREFIX
-_SIZE_T_MAX = (1 << (8 * struct.calcsize("P"))) - 1
 
 
 def parse_graphbrew_effective_configs(output: Optional[str]) -> list[dict]:
@@ -26,7 +24,7 @@ def parse_graphbrew_effective_configs(output: Optional[str]) -> list[dict]:
             continue
         payload = line[len(GRAPHBREW_EFFECTIVE_CONFIG_PREFIX):]
         config = json.loads(payload)
-        if config.get("schema") != "graphbrew_config/v3":
+        if config.get("schema") != "graphbrew_config/v4":
             raise RuntimeError(
                 f"Unsupported GraphBrew config schema: {config.get('schema')}"
             )
@@ -44,29 +42,11 @@ def parse_graphbrew_realized_configs(output: Optional[str]) -> list[dict]:
             continue
         payload = line[len(GRAPHBREW_REALIZED_CONFIG_PREFIX):]
         config = json.loads(payload)
-        if config.get("schema") not in {
-            "graphbrew_realized/v1",
-            "graphbrew_realized/v2",
-        }:
+        if config.get("schema") != "graphbrew_realized/v3":
             raise RuntimeError(
                 "Unsupported GraphBrew realized-config schema: "
                 f"{config.get('schema')}"
             )
-        if config["schema"] == "graphbrew_realized/v1":
-            config.setdefault("capacity_l2_bytes", 0)
-            config.setdefault("capacity_llc_bytes", 0)
-            config.setdefault(
-                "capacity_property_bytes_per_vertex", 0)
-            config.setdefault("capacity_l2_runs", 0)
-            config.setdefault("capacity_llc_runs", 0)
-            for key in (
-                "gorder_communities",
-                "gorder_vertices",
-                "gorder_max_community",
-                "gorder_fallback_communities",
-                "gorder_fallback_vertices",
-            ):
-                config.setdefault(key, 0)
         configs.append(config)
     return configs
 
@@ -101,9 +81,6 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         except ValueError:
             return False
         return str(value) == token
-
-    def is_ascii_digits(token: str) -> bool:
-        return token.isascii() and token.isdigit()
 
     named_tokens = [first]
     positional: dict[int, str] = {}
@@ -164,9 +141,6 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "supergraph_move_batch": 1,
         "gorder_window": 5,
         "gorder_fallback": 0,
-        "capacity_l2_bytes": 0,
-        "capacity_llc_bytes": 0,
-        "capacity_property_bytes_per_vertex": 0,
         "final_algo_id": 8,
         "recursive_depth": -1,
         "sub_algo_id": 8,
@@ -237,6 +211,19 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "bfs": "dendrogram-bfs",
         "community": "community-sort",
     }
+    retired_token_pairs = {
+        ("s2", "capacity"),
+        ("comm", "capacity_runs"),
+        ("s3", "gorder_faithful"),
+        ("intra", "gorder_faithful"),
+    }
+    if any(
+        pair in retired_token_pairs
+        for pair in zip(tokens, tokens[1:])
+    ):
+        raise RuntimeError(
+            f"Retired experimental GraphBrew token in {spec}"
+        )
     for token in named_tokens:
         if token in ordering_tokens:
             expected["ordering"] = ordering_tokens[token]
@@ -318,41 +305,21 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         elif token.startswith("sgmb") and token[4:].isdigit():
             expected["supergraph_move_batch"] = int(token[4:])
         elif (
-            token.startswith("capl2k")
-            and is_ascii_digits(token[6:])
+            token.startswith(("capl2k", "capllck", "capv"))
+            or token in {
+                "s2_capacity",
+                "comm_capacity_runs",
+                "comm_cache_fit",
+                "capacity_runs",
+                "cache_fit",
+                "s3_gorder_faithful",
+                "intra_gorder_faithful",
+                "intra_gorder2",
+            }
         ):
-            value = int(token[6:])
-            if value <= 0 or value > _SIZE_T_MAX // 1024:
-                raise RuntimeError(
-                    f"Invalid capacity L2 token in {spec}: {token}")
-            expected["capacity_l2_bytes"] = value * 1024
-        elif token.startswith("capl2k"):
             raise RuntimeError(
-                f"Malformed capacity L2 token in {spec}: {token}")
-        elif (
-            token.startswith("capllck")
-            and is_ascii_digits(token[7:])
-        ):
-            value = int(token[7:])
-            if value <= 0 or value > _SIZE_T_MAX // 1024:
-                raise RuntimeError(
-                    f"Invalid capacity LLC token in {spec}: {token}")
-            expected["capacity_llc_bytes"] = value * 1024
-        elif token.startswith("capllck"):
-            raise RuntimeError(
-                f"Malformed capacity LLC token in {spec}: {token}")
-        elif (
-            token.startswith("capv")
-            and is_ascii_digits(token[4:])
-        ):
-            value = int(token[4:])
-            if value <= 0 or value > _SIZE_T_MAX:
-                raise RuntimeError(
-                    f"Invalid capacity property token in {spec}: {token}")
-            expected["capacity_property_bytes_per_vertex"] = value
-        elif token.startswith("capv"):
-            raise RuntimeError(
-                f"Malformed capacity property token in {spec}: {token}")
+                f"Retired experimental GraphBrew token in {spec}: {token}"
+            )
         elif token.startswith("sgres") or token.startswith("gamma"):
             expected["super_graph_resolution"] = float(token[5:])
         elif token.startswith("gw") and token[2:].isdigit():
@@ -421,11 +388,6 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "s2degreeasc": "degree-asc",
         "comm_degree_asc": "degree-asc",
         "commdegreeasc": "degree-asc",
-        "s2_capacity": "capacity-runs",
-        "comm_capacity_runs": "capacity-runs",
-        "comm_cache_fit": "capacity-runs",
-        "capacity_runs": "capacity-runs",
-        "cache_fit": "capacity-runs",
         "s2_cut_min": "cut-min",
         "s2cutmin": "cut-min",
         "comm_cut_min": "cut-min",
@@ -460,9 +422,6 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "intragorder": "gorder",
         "s3_gord": "gorder",
         "intra_gord": "gorder",
-        "s3_gorder_faithful": "gorder-faithful",
-        "intra_gorder_faithful": "gorder-faithful",
-        "intra_gorder2": "gorder-faithful",
         "s3_hubsort": "hubsort",
         "s3hubsort": "hubsort",
         "intra_hubsort": "hubsort",
@@ -529,53 +488,6 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
                 "COMPOSE super-graph order requires an explicit "
                 f"community-order token: {spec}"
             )
-
-    if expected["community_order"] == "capacity-runs":
-        if expected["ordering"] != "compose":
-            raise RuntimeError(
-                f"Capacity-run ordering requires COMPOSE: {spec}"
-            )
-        for key in (
-            "capacity_l2_bytes",
-            "capacity_llc_bytes",
-            "capacity_property_bytes_per_vertex",
-        ):
-            if expected[key] == 0:
-                raise RuntimeError(
-                    "Capacity-run ordering requires pinned capl2k, "
-                    f"capllck, and capv tokens: {spec}"
-                )
-        if expected["super_graph"] != "none":
-            raise RuntimeError(
-                f"Capacity-run ordering requires sg_none: {spec}"
-            )
-    elif any(
-        expected[key] > 0
-        for key in (
-            "capacity_l2_bytes",
-            "capacity_llc_bytes",
-            "capacity_property_bytes_per_vertex",
-        )
-    ):
-        raise RuntimeError(
-            f"Capacity geometry requires capacity-run ordering: {spec}"
-        )
-    if (
-        expected["intra_community_order"] == "gorder-faithful"
-        and expected["ordering"] != "compose"
-    ):
-        raise RuntimeError(
-            f"Faithful local Gorder requires COMPOSE: {spec}"
-        )
-    if (
-        isinstance(expected["capacity_l2_bytes"], int)
-        and isinstance(expected["capacity_llc_bytes"], int)
-        and expected["capacity_l2_bytes"] > 0
-        and expected["capacity_llc_bytes"]
-            < expected["capacity_l2_bytes"]
-    ):
-        raise RuntimeError(
-            f"Capacity LLC is smaller than L2 in {spec}")
 
     if 1 in positional:
         final_algo = int(positional[1])
@@ -712,11 +624,6 @@ def validate_graphbrew_realized_configs(
         "gorder_max_community",
         "gorder_fallback_communities",
         "gorder_fallback_vertices",
-        "capacity_l2_bytes",
-        "capacity_llc_bytes",
-        "capacity_property_bytes_per_vertex",
-        "capacity_l2_runs",
-        "capacity_llc_runs",
         "final_algo_id",
         "sub_algo_id",
         "num_passes",
@@ -762,20 +669,7 @@ def validate_graphbrew_realized_configs(
             "final_algo_id": effective["final_algo_id"],
             "sub_algo_id": effective["sub_algo_id"],
         }
-        if effective["community_order"] != "capacity-runs":
-            exact.update({
-                "capacity_l2_bytes":
-                    effective["capacity_l2_bytes"],
-                "capacity_llc_bytes":
-                    effective["capacity_llc_bytes"],
-                "capacity_property_bytes_per_vertex":
-                    effective["capacity_property_bytes_per_vertex"],
-                "capacity_l2_runs": 0,
-                "capacity_llc_runs": 0,
-            })
-        if effective["intra_community_order"] not in {
-            "gorder", "gorder-faithful",
-        }:
+        if effective["intra_community_order"] != "gorder":
             exact.update({
                 "gorder_communities": 0,
                 "gorder_vertices": 0,
@@ -862,55 +756,7 @@ def validate_graphbrew_realized_configs(
         elif actual_depth is not None:
             mismatches["recursive_depth"] = (actual_depth, None)
 
-        if effective["community_order"] == "capacity-runs":
-            for key in (
-                "capacity_l2_bytes",
-                "capacity_llc_bytes",
-                "capacity_property_bytes_per_vertex",
-            ):
-                if (
-                    not isinstance(realized[key], int)
-                    or realized[key] < 1
-                ):
-                    mismatches[key] = (
-                        realized[key], "positive integer",
-                    )
-            for key in ("capacity_l2_runs", "capacity_llc_runs"):
-                if (
-                    not isinstance(realized[key], int)
-                    or realized[key] < 0
-                ):
-                    mismatches[key] = (
-                        realized[key], "nonnegative integer",
-                    )
-            for key in (
-                "capacity_l2_bytes",
-                "capacity_llc_bytes",
-                "capacity_property_bytes_per_vertex",
-            ):
-                requested = effective[key]
-                if requested > 0 and realized[key] != requested:
-                    mismatches[key] = (realized[key], requested)
-            if (
-                realized["capacity_llc_bytes"]
-                < realized["capacity_l2_bytes"]
-            ):
-                mismatches["capacity_llc_bytes"] = (
-                    realized["capacity_llc_bytes"],
-                    ">= capacity_l2_bytes",
-                )
-            if (
-                realized["capacity_l2_runs"]
-                < realized["capacity_llc_runs"]
-            ):
-                mismatches["capacity_l2_runs"] = (
-                    realized["capacity_l2_runs"],
-                    ">= capacity_llc_runs",
-                )
-
-        if effective["intra_community_order"] in {
-            "gorder", "gorder-faithful",
-        }:
+        if effective["intra_community_order"] == "gorder":
             for key in (
                 "gorder_communities",
                 "gorder_vertices",

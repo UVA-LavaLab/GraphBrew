@@ -187,56 +187,9 @@ uses modularity local moving, explicit aggregation passes, and a separate
 block/vertex layout. Without constrained refinement, however, it must not be
 described as providing Leiden's connectivity or subset-optimality guarantees.
 
-## Experimental primitives
+## Contained validity-only prototypes
 
-These tokens are implemented for the current novelty sprint. They are not in
-the validated selector, paper matrix, or frozen evidence above.
-
-### Capacity-pinned community runs
-
-```text
-12:leiden:compose:sg_none:comm_capacity_runs:
-capl2k256:capllck22528:capv8:intra_bfs
-```
-
-`comm_capacity_runs` keeps each detected community indivisible, packs
-communities into nested L2 and LLC vertex-capacity runs, and favors the
-strongest unplaced inter-community edge count that still fits. Disconnected
-space is filled deterministically from the largest fitting community.
-Oversized communities become singleton runs.
-
-All three geometry tokens are mandatory:
-
-| Token | Meaning |
-|---|---|
-| `capl2k<N>` | modeled L2 capacity in KiB |
-| `capllck<N>` | modeled LLC capacity in KiB; must be at least L2 |
-| `capv<N>` | modeled property bytes per vertex |
-
-The current model bounds the vertex-property footprint only. Crossing scores
-count edges, not weighted-edge distance values, and do not model CSR bytes.
-Capacity runs require `compose` and `sg_none`; the pinned geometry is embedded
-in mapping identity. The current runtime requires an undirected graph rather
-than inventing dangling-vertex semantics for directed inputs.
-
-### Faithful local Gorder
-
-`intra_gorder` remains the deployed direct-neighbor heuristic whose mappings
-back the published GraphBrew evidence. `intra_gorder_faithful` is a separate
-experimental token that restores exact Gorder's induced-subgraph indegree
-initialization, two-hop sibling/common-predecessor score, sliding-window
-push/pop algebra, UnitHeap tie behavior, and `sqrt(|community|)` fan-out
-guard. Duplicate local edges are collapsed before scoring.
-
-The faithful token currently requires an undirected graph and `compose`.
-`gw<N>` and `gordf<N>` retain their usual window and per-community BFS
-fallback meanings. This implementation establishes a faithful local
-primitive; it does not yet establish a performance win over global
-`9:csr`.
-
-### Contained validity-only prototypes
-
-The remaining sprint directions are isolated under
+All six sprint directions are isolated under
 `bench/include/graphbrew/reorder/experimental/` and are compiled only by
 `test_graphbrew_experimental`. A policy test rejects production includes of
 these headers. They have no CLI token, mapping artifact, kernel path, or
@@ -244,13 +197,33 @@ evaluation claim.
 
 | Direction | Header | Validated property |
 |---|---|---|
+| capacity-pinned runs | `capacity_runs.h` | deterministic whole-community L2/LLC run construction and quotient-edge accounting |
 | asymmetric dual index | `dual_index.h` | two independent ID domains preserve the exact directed edge multiset and expose logical storage cost |
 | small spectral blocks | `spectral_blocks.h` | exact bounded Fiedler ordering or explicit size, convergence, and degeneracy failure |
+| faithful local Gorder | `faithful_gorder.h` | exact-reference local one-hop/two-hop sliding-window ordering |
 | structural locality probe | `locality_probe.h` | deterministic direct-link/common-predecessor score and exact integer decision threshold over supplied orders |
 | modeled compression layout | `compression_layout.h` | signed-first-delta/successive-gap metrics and bounded refinement that never worsens modeled gap bits |
 
 Each header can be deleted independently with its corresponding test section
-if later evidence rejects the direction.
+if it is no longer useful. The three-graph pilot rejected CapacityRuns as a
+general runtime arm and found it strictly dominated by Rabbit CSR even on the
+road graph where it improved over SizeDesc. The faithful token showed no
+measurable benefit over relaxed local Gorder under the tested composition.
+
+The frozen pilot is stored at
+`/media/NVMeData/00_GraphDatasets/GraphBrew/artifacts/novelty_pareto_pilot_v1`
+and must be audited with commit `e1e83bd6`, which emitted
+`graphbrew_config/v3` and `graphbrew_realized/v2`. Its append-only
+`audit_receipt.json` SHA256 is
+`24a91737e9b89e00ee32281eb393e8f92be5a2676366011cf11e2717aea937f8`;
+the corrected scope supplement SHA256 is
+`f193476a82bb5da74e81f9ebdbeb7769e3945e1552a9b0a5be51ab56a0f695f0`.
+After sealing that manifest, 42 regenerable mapping and duplicate-graph files
+(1.36 GB) were pruned; their paths and SHA256 values are preserved in
+`cleanup_receipt.json` SHA256
+`a018ece707c7e8a43f33fd2802092cd0c3e8506c789e2c2a4f2afb962c173645`.
+The manifest's converter hash identifies the pilot-time binary, not a current
+workspace build.
 
 ## Why these controls were combined
 

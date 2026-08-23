@@ -351,6 +351,15 @@ def _load_mapping_reorder_time(
     return value if value is not None else 0.0
 
 
+def _remove_stale_mapping_artifacts(
+    mapping_path: str,
+    timing_path: str,
+) -> None:
+    Path(mapping_path).unlink(missing_ok=True)
+    Path(timing_path).unlink(missing_ok=True)
+    reorder_time_metadata_path(timing_path).unlink(missing_ok=True)
+
+
 def _write_mapping_reorder_time(
     time_path: str,
     output: str,
@@ -955,20 +964,29 @@ def generate_reorderings_with_variants(
                             )
                         ):
                             actual_timing = legacy_tf
-                reorder_time = _load_mapping_reorder_time(
-                    actual_timing, actual_map_file)
-                
-                log.info(f"  [{current}/{total}] {cfg.name}: exists ({reorder_time:.4f}s)")
-                label_maps[graph.name][cfg.name] = actual_map_file
-                results.append(ReorderResult(
-                    graph=graph.name,
-                    algorithm_id=cfg.algo_id,
-                    algorithm_name=cfg.name,
-                    reorder_time=reorder_time,
-                    mapping_file=actual_map_file,
-                    success=True
-                ))
-                continue
+                try:
+                    reorder_time = _load_mapping_reorder_time(
+                        actual_timing, actual_map_file)
+                except ValueError:
+                    log.warning(
+                        f"  [{current}/{total}] {cfg.name}: "
+                        "stale mapping timing; regenerating")
+                    _remove_stale_mapping_artifacts(
+                        actual_map_file, actual_timing)
+                else:
+                    log.info(
+                        f"  [{current}/{total}] {cfg.name}: "
+                        f"exists ({reorder_time:.4f}s)")
+                    label_maps[graph.name][cfg.name] = actual_map_file
+                    results.append(ReorderResult(
+                        graph=graph.name,
+                        algorithm_id=cfg.algo_id,
+                        algorithm_name=cfg.name,
+                        reorder_time=reorder_time,
+                        mapping_file=actual_map_file,
+                        success=True
+                    ))
+                    continue
             
             # Remove if force_reorder
             if force_reorder:

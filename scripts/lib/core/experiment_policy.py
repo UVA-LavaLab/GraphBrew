@@ -52,7 +52,7 @@ PAPER_CACHE_PREVIEW_CAPACITIES_MIB = (2, 8, 64)
 CACHE_PR_ITERATIONS = 5
 END_TO_END_REUSE_COUNTS = (1, 5, 10, 20, 50, 100)
 SHUFFLED_LABEL_SEED = 0
-REORDER_SEMANTICS_VERSION = "graphbrew-reorder/v3"
+REORDER_SEMANTICS_VERSION = "graphbrew-reorder/v4"
 
 LEGACY_NON_NESTED_LOGO_ERROR = (
     "Legacy non-nested LOGO is retired and is not valid evidence for the "

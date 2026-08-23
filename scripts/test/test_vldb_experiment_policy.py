@@ -101,29 +101,6 @@ def test_published_compose_specs_pin_both_block_axes():
         assert any(token.startswith("comm_") for token in tokens)
 
 
-def test_capacity_runs_and_faithful_gorder_are_explicit():
-    spec = (
-        "12:leiden:compose:sg_none:comm_capacity_runs:"
-        "intra_gorder_faithful:gw8:capl2k256:capllck22528:"
-        "capv8:norefine:2:2"
-    )
-    config = runner._expected_graphbrew_config(spec)
-    assert config["community_order"] == "capacity-runs"
-    assert config["intra_community_order"] == "gorder-faithful"
-    assert config["gorder_window"] == 8
-    assert config["capacity_l2_bytes"] == 256 * 1024
-    assert config["capacity_llc_bytes"] == 22528 * 1024
-    assert config["capacity_property_bytes_per_vertex"] == 8
-    alias = runner._expected_graphbrew_config(
-        "12:leiden:compose:s3_gorder_faithful"
-    )
-    assert alias["intra_community_order"] == "gorder-faithful"
-    alias = runner._expected_graphbrew_config(
-        "12:leiden:compose:intra_gorder2"
-    )
-    assert alias["intra_community_order"] == "gorder-faithful"
-
-
 def test_experimental_reorder_headers_are_test_only():
     root = Path(__file__).resolve().parents[2]
     production_roots = [
@@ -182,31 +159,40 @@ def test_experimental_reorder_headers_are_test_only():
     assert native_version.group(1) == runner.REORDER_SEMANTICS_VERSION
 
 
-def test_novelty_parser_cases_match_cpp_corpus():
-    root = Path(__file__).resolve().parents[2]
-    corpus = json.loads(
+@pytest.mark.parametrize(
+    "spec",
+    [
+        "12:leiden:compose:comm_capacity_runs:"
+        "capl2k1024:capllck22528:capv8",
+        "12:leiden:compose:intra_gorder_faithful",
+    ],
+)
+def test_rejected_runtime_novelty_tokens_fail_closed(spec):
+    with pytest.raises(
+        RuntimeError,
+        match="Retired experimental GraphBrew token",
+    ):
+        runner._expected_graphbrew_config(spec)
+
+
+@pytest.mark.parametrize(
+    ("spec", "field", "value"),
+    [
+        ("12:leiden:compose:cut_min", "community_order", "cut-min"),
         (
-            root
-            / "bench"
-            / "tests"
-            / "data"
-            / "graphbrew_novelty_parser_cases.json"
-        ).read_text()
-    )
-    for entry in corpus["cases"]:
-        spec = "12:" + ":".join(entry["tokens"])
-        try:
-            config = runner._expected_graphbrew_config(spec)
-        except RuntimeError:
-            assert not entry["valid"], entry["name"]
-            continue
-        assert entry["valid"], entry["name"]
-        assert config["ordering"] == entry["ordering"]
-        assert config["community_order"] == entry["community_order"]
-        assert (
-            config["intra_community_order"]
-            == entry["intra_community_order"]
-        )
+            "12:leiden:compose:commdegreeasc",
+            "community_order",
+            "degree-asc",
+        ),
+        (
+            "12:leiden:compose:intrahubsort",
+            "intra_community_order",
+            "hubsort",
+        ),
+    ],
+)
+def test_stable_compose_aliases_match_cpp(spec, field, value):
+    assert runner._expected_graphbrew_config(spec)[field] == value
 
 
 def test_budgeted_mechanism_config_is_fully_bound():
@@ -494,7 +480,7 @@ def test_structured_graphbrew_config_is_validated():
         "comm_identity:intra_hubsort"
     )
     config = {
-        "schema": "graphbrew_config/v3",
+        "schema": "graphbrew_config/v4",
         **runner._expected_graphbrew_config(spec),
     }
     output = (
@@ -512,7 +498,7 @@ def test_structured_graphbrew_config_is_validated():
 def test_stale_graphbrew_effective_schema_is_rejected():
     output = (
         "GraphBrew Effective Config: "
-        '{"schema":"graphbrew_config/v2"}'
+        '{"schema":"graphbrew_config/v3"}'
     )
     with pytest.raises(
         RuntimeError,
@@ -521,17 +507,29 @@ def test_stale_graphbrew_effective_schema_is_rejected():
         runner.parse_graphbrew_effective_configs(output)
 
 
+def test_stale_graphbrew_realized_schema_is_rejected():
+    output = (
+        "GraphBrew Realized Config: "
+        '{"schema":"graphbrew_realized/v2"}'
+    )
+    with pytest.raises(
+        RuntimeError,
+        match="Unsupported GraphBrew realized-config schema",
+    ):
+        runner.parse_graphbrew_realized_configs(output)
+
+
 def test_structured_graphbrew_realization_is_validated():
     spec = (
         "12:rabbit:compose:sg_super_rabbit:"
         "comm_identity:intra_hubsort"
     )
     effective = {
-        "schema": "graphbrew_config/v3",
+        "schema": "graphbrew_config/v4",
         **runner._expected_graphbrew_config(spec),
     }
     realized = {
-        "schema": "graphbrew_realized/v1",
+        "schema": "graphbrew_realized/v3",
         "algorithm": "rabbit",
         "aggregation": "rabbit-incremental",
         "ordering": "compose",
@@ -549,11 +547,6 @@ def test_structured_graphbrew_realization_is_validated():
         "gorder_max_community": 0,
         "gorder_fallback_communities": 0,
         "gorder_fallback_vertices": 0,
-        "capacity_l2_bytes": 0,
-        "capacity_llc_bytes": 0,
-        "capacity_property_bytes_per_vertex": 0,
-        "capacity_l2_runs": 0,
-        "capacity_llc_runs": 0,
         "final_algo_id": -1,
         "sub_algo_id": 8,
         "num_passes": 1,
@@ -593,11 +586,11 @@ def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
     )
 
     effective = {
-        "schema": "graphbrew_config/v3",
+        "schema": "graphbrew_config/v4",
         **reorder_config.expected_graphbrew_config(spec),
     }
     realized = {
-        "schema": "graphbrew_realized/v1",
+        "schema": "graphbrew_realized/v3",
         "algorithm": "rabbit",
         "aggregation": "rabbit-incremental",
         "ordering": "compose",
@@ -615,11 +608,6 @@ def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
         "gorder_max_community": 0,
         "gorder_fallback_communities": 0,
         "gorder_fallback_vertices": 0,
-        "capacity_l2_bytes": 0,
-        "capacity_llc_bytes": 0,
-        "capacity_property_bytes_per_vertex": 0,
-        "capacity_l2_runs": 0,
-        "capacity_llc_runs": 0,
         "final_algo_id": -1,
         "sub_algo_id": 8,
         "num_passes": 1,

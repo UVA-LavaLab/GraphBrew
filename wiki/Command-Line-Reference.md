@@ -299,28 +299,22 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | Axis | Prefix | Picks | Maps to |
 |------|--------|-------|---------|
 | Super-graph order | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit`, `hilbert` | `SuperGraphOrder` enum |
-| Community order   | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity`, `cut_min`, `capacity_runs` | `CommunityOrder` enum |
-| Intra-community order | `intra_` | `bfs`, `rcm`, `rcmpp`, `hubsort`, `hub2`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder`, `gorder_faithful` | `IntraCommunityOrder` enum |
+| Community order   | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity`, `cut_min` | `CommunityOrder` enum |
+| Intra-community order | `intra_` | `bfs`, `rcm`, `rcmpp`, `hubsort`, `hub2`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` | `IntraCommunityOrder` enum |
 | Refinement pass | `refine_` | `none`, `2swap` | `RefinementPass` enum |
 
 Extra compose modifiers (anywhere after `compose:`):
 
 | Token | Effect |
 |-------|--------|
-| `gw<N>` | Gorder window size for relaxed or faithful local Gorder (default 5); choose through a controlled comparison |
-| `capl2k<N>` | Capacity-run L2 geometry in KiB; required with `comm_capacity_runs` |
-| `capllck<N>` | Capacity-run LLC geometry in KiB; required and must be at least L2 |
-| `capv<N>` | Capacity-run modeled property bytes per vertex; required |
+| `gw<N>` | Gorder window size for relaxed local Gorder (default 5); choose through a controlled comparison |
 | `sgres<F>` | Super-graph modularity resolution γ (default 0.10) |
 | `cd_rabbit` / `cd_leiden` | Override the GraphBrewOrder community-detection backend after algorithm ID `12` |
 
 Legacy alias tokens `s1_*`, `s2_*`, `s3_*` are still accepted (older parity scripts depend on them).
 
-`comm_capacity_runs` and `intra_gorder_faithful` are experimental, not
-validated recommendations. Capacity runs require `compose`, `sg_none`, and
-all three `cap*` tokens, and currently require an undirected graph. Faithful
-local Gorder requires `compose`, an undirected graph, and DON tie-breaking
-disabled.
+The rejected capacity-run and faithful-local-Gorder prototypes are test-only
+and intentionally have no public CLI tokens.
 
 Examples:
 - `-o 12:compose:sg_super_rabbit:comm_identity:intra_rcm` — equivalent to `12:hrab`

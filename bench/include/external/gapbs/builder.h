@@ -3683,30 +3683,6 @@ public:
         graphbrew::GraphBrewConfig config = ParseGraphBrewConfig(reordering_options, auto_resolution);
         config.rabbitDegreeSortPreprocess =
             config.algorithm == graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
-        if (
-            g.directed()
-            && (
-                config.communityOrder
-                    == graphbrew::CommunityOrder::CapacityRuns
-                || config.intraCommunityOrder
-                    == graphbrew::IntraCommunityOrder::GorderFaithful
-            )
-        ) {
-            throw std::invalid_argument(
-                "Capacity runs and faithful local Gorder "
-                "currently require an undirected graph");
-        }
-        if (
-            config.communityOrder
-            == graphbrew::CommunityOrder::CapacityRuns
-        ) {
-            const auto geometry =
-                graphbrew::resolveCapacityGeometry(config);
-            config.capacityL2Bytes = geometry.l2Bytes;
-            config.capacityLLCBytes = geometry.llcBytes;
-            config.capacityPropertyBytesPerVertex =
-                geometry.propertyBytesPerVertex;
-        }
         graphbrew::printGraphBrewEffectiveConfig(config);
         {
             graphbrew::database::GetStagedReorderMeta().algorithm_spec =
