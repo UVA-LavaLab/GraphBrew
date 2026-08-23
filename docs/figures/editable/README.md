@@ -26,5 +26,17 @@ https://help.lucid.co/hc/en-us/articles/16389149809428-Import-files-into-Lucidch
 - Do not import the SVG when shape-level editing is required; Lucidchart does
   not document SVG as a native fully editable diagram import.
 
+## Visual contract
+
+- Use a white canvas with the shared light/dark GraphBrew palette.
+- Keep the input and output graphs inside separate rounded cards.
+- Use circular graph nodes, at least 21 px exported SVG text, 54 px regular
+  node diameters, and 60 px emphasized-hub diameters.
+- Use dark node outlines and 2.5 px node strokes so IDs remain legible.
+- Keep titles, cards, graph geometry, and memory-order rows aligned across all
+  17 pages.
+- Update the same-stem SVG and draw.io file together, then refresh the
+  multi-page bundle.
+
 The catalog manifest is
 [`../reordering/manifest.json`](../reordering/manifest.json).

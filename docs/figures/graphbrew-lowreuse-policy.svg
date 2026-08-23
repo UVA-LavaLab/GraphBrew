@@ -2,19 +2,29 @@
   <title id="title">GraphBrew low-reuse decision</title>
   <desc id="desc">A new graph is sampled without running a graph kernel. A frozen rule chooses the non-Rabbit GraphBrew arm or Boost Rabbit fallback. Selected graphs must beat Rabbit; fallback graphs tie the baseline.</desc>
   <defs>
-    <marker id="blue-arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
-      <path d="M0 0 L12 5 L0 10 Z" fill="#1683BD"/>
+    <marker id="blue-arrow" viewBox="0 0 18 14" markerWidth="18" markerHeight="14" refX="18" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L18 7 L0 14 Z" fill="#1683BD"/>
     </marker>
-    <marker id="orange-arrow" viewBox="0 0 12 10" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
-      <path d="M0 0 L12 5 L0 10 Z" fill="#F7941D"/>
+    <marker id="orange-arrow" viewBox="0 0 18 14" markerWidth="18" markerHeight="14" refX="18" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L18 7 L0 14 Z" fill="#F7941D"/>
     </marker>
     <style>
+      :root{color-scheme:light dark}
+      @media(prefers-color-scheme:dark){
+        [fill="#FFFFFF"]{fill:#1E2327}
+        [fill="#EEF6FC"]{fill:#273846}
+        [fill="#EAF7F3"]{fill:#24382A}
+        [fill="#FFF3DB"]{fill:#3B3122}
+        [fill="#F8FAFB"]{fill:#252A2E}
+        .title,.heading,.body,.label{fill:#ECE7DD}
+        .subtitle{fill:#B6BEC7}
+      }
       .sans{font-family:Arial,Helvetica,sans-serif}
-      .title{font-size:40px;font-weight:700;fill:#17212B}
-      .subtitle{font-size:22px;fill:#4B5560}
-      .heading{font-size:27px;font-weight:700;fill:#17212B}
-      .body{font-size:21px;fill:#27313A}
-      .label{font-size:20px;font-weight:700;fill:#27313A}
+      .title{font-size:44px;font-weight:700;fill:#17212B}
+      .subtitle{font-size:24px;fill:#4B5560}
+      .heading{font-size:30px;font-weight:700;fill:#17212B}
+      .body{font-size:23px;fill:#27313A}
+      .label{font-size:22px;font-weight:700;fill:#27313A}
       .blueflow{fill:none;stroke:#1683BD;stroke-width:5;marker-end:url(#blue-arrow)}
       .orangeflow{fill:none;stroke:#F7941D;stroke-width:5;marker-end:url(#orange-arrow)}
     </style>

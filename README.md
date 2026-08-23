@@ -17,7 +17,7 @@ three explicit decisions:
 | Block layout | identity, size/degree sort, super-graph order | place groups globally |
 | Vertex layout | BFS, RCM, degree order, Gorder | order vertices inside each block |
 
-![GraphBrew architecture](./docs/figures/graphbrew-architecture.svg)
+![Proposed GraphBrew Rabbit-free research direction](./docs/figures/graphbrew-architecture.svg)
 
 ## Manual composition versus automatic selection
 

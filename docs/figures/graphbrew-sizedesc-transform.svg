@@ -2,12 +2,13 @@
   <title id="title">SizeDesc block-layout transformation</title>
   <desc id="desc">Community memberships are known but labels are interleaved. SizeDesc assigns the largest community the first contiguous ID range and the smaller community the next range.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto">
+    <marker id="arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
     </marker>
     <style>
       :root{color-scheme:light dark}
       @media(prefers-color-scheme:dark){
+        [fill="#FFFFFF"]{fill:#1E2327}
         [fill="#27313A"]{fill:#ECE7DD}[stroke="#27313A"]{stroke:#ECE7DD}
         [fill="#F8F6EC"]{fill:#252A2E}[fill="#EDF5FF"]{fill:#273846}
         [fill="#E7F7EA"]{fill:#24382A}[fill="#FFF0D8"]{fill:#3B3122}
@@ -15,15 +16,17 @@
         [stroke="#9AA3AD"]{stroke:#747D86}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}
-      .title{font-size:40px;font-weight:700}.subtitle{font-size:22px}
-      .domain{font-size:20px;font-weight:700;letter-spacing:1.3px}
-      .heading{font-size:28px;font-weight:700}.body{font-size:22px}
-      .label{font-size:20px;font-weight:700}
+      .title{font-size:44px;font-weight:700}.subtitle{font-size:24px}
+      .domain{font-size:21px;font-weight:700;letter-spacing:1.3px}
+      .heading{font-size:31px;font-weight:700}.body{font-size:24px}
+      .label{font-size:22px;font-weight:700}
       .edge{stroke:#747D86;stroke-width:3.5}
-      .node{stroke:#27313A;stroke-width:2}
+      .node{stroke:#27313A;stroke-width:2.5}
       .flow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
+          .graph-panel{stroke:#9AA3AD;stroke-width:2}
     </style>
   </defs>
+  <rect width="1400" height="700" fill="#FFFFFF"/>
 
   <text x="45" y="55" class="sans title">2. SizeDesc: memberships -&gt; contiguous community blocks</text>
   <text x="45" y="88" class="sans subtitle">The largest community receives the first ID range; topology remains fixed.</text>
@@ -33,6 +36,8 @@
   <text x="52" y="162" class="sans domain">BLOCK-LAYOUT TRANSFORMATION</text>
   <text x="350" y="195" text-anchor="middle" class="sans heading">Interleaved labels</text>
   <text x="1050" y="195" text-anchor="middle" class="sans heading">SizeDesc labels</text>
+  <rect x="55" y="205" width="590" height="440" rx="12" fill="#F8F6EC" class="graph-panel"/>
+  <rect x="755" y="205" width="590" height="440" rx="12" fill="#EDF5FF" class="graph-panel"/>
 
   <g transform="translate(0 55)">
   <g class="edge">
@@ -53,23 +58,23 @@
   <circle cx="1160" cy="315" r="145" fill="none" stroke="#1769C2" stroke-width="3" stroke-dasharray="6 7"/>
 
   <g class="sans body" text-anchor="middle">
-    <circle cx="180" cy="285" r="23" fill="#FFF0D8" class="node"/><text x="180" y="292">0</text>
-    <circle cx="260" cy="235" r="23" fill="#FFF0D8" class="node"/><text x="260" y="242">4</text>
-    <circle cx="250" cy="370" r="23" fill="#FFF0D8" class="node"/><text x="250" y="377">7</text>
-    <circle cx="330" cy="305" r="25" fill="#E7F7EA" class="node"/><text x="330" y="312">2</text>
-    <circle cx="430" cy="245" r="23" fill="#EDF5FF" class="node"/><text x="430" y="252">1</text>
-    <circle cx="500" cy="315" r="25" fill="#E7F7EA" class="node"/><text x="500" y="322">5</text>
-    <circle cx="455" cy="395" r="23" fill="#EDF5FF" class="node"/><text x="455" y="402">3</text>
-    <circle cx="560" cy="390" r="23" fill="#EDF5FF" class="node"/><text x="560" y="397">6</text>
+    <circle cx="180" cy="285" r="28" fill="#FFF0D8" class="node"/><text x="180" y="292">0</text>
+    <circle cx="260" cy="235" r="28" fill="#FFF0D8" class="node"/><text x="260" y="242">4</text>
+    <circle cx="250" cy="370" r="28" fill="#FFF0D8" class="node"/><text x="250" y="377">7</text>
+    <circle cx="330" cy="305" r="30" fill="#E7F7EA" class="node"/><text x="330" y="312">2</text>
+    <circle cx="430" cy="245" r="28" fill="#EDF5FF" class="node"/><text x="430" y="252">1</text>
+    <circle cx="500" cy="315" r="30" fill="#E7F7EA" class="node"/><text x="500" y="322">5</text>
+    <circle cx="455" cy="395" r="28" fill="#EDF5FF" class="node"/><text x="455" y="402">3</text>
+    <circle cx="560" cy="390" r="28" fill="#EDF5FF" class="node"/><text x="560" y="397">6</text>
 
-    <circle cx="880" cy="285" r="23" fill="#FFF0D8" class="node"/><text x="880" y="292">5</text>
-    <circle cx="960" cy="235" r="23" fill="#FFF0D8" class="node"/><text x="960" y="242">6</text>
-    <circle cx="950" cy="370" r="23" fill="#FFF0D8" class="node"/><text x="950" y="377">7</text>
-    <circle cx="1030" cy="305" r="25" fill="#E7F7EA" class="node"/><text x="1030" y="312">0</text>
-    <circle cx="1130" cy="245" r="23" fill="#EDF5FF" class="node"/><text x="1130" y="252">1</text>
-    <circle cx="1200" cy="315" r="25" fill="#E7F7EA" class="node"/><text x="1200" y="322">2</text>
-    <circle cx="1155" cy="395" r="23" fill="#EDF5FF" class="node"/><text x="1155" y="402">3</text>
-    <circle cx="1260" cy="390" r="23" fill="#EDF5FF" class="node"/><text x="1260" y="397">4</text>
+    <circle cx="880" cy="285" r="28" fill="#FFF0D8" class="node"/><text x="880" y="292">5</text>
+    <circle cx="960" cy="235" r="28" fill="#FFF0D8" class="node"/><text x="960" y="242">6</text>
+    <circle cx="950" cy="370" r="28" fill="#FFF0D8" class="node"/><text x="950" y="377">7</text>
+    <circle cx="1030" cy="305" r="30" fill="#E7F7EA" class="node"/><text x="1030" y="312">0</text>
+    <circle cx="1130" cy="245" r="28" fill="#EDF5FF" class="node"/><text x="1130" y="252">1</text>
+    <circle cx="1200" cy="315" r="30" fill="#E7F7EA" class="node"/><text x="1200" y="322">2</text>
+    <circle cx="1155" cy="395" r="28" fill="#EDF5FF" class="node"/><text x="1155" y="402">3</text>
+    <circle cx="1260" cy="390" r="28" fill="#EDF5FF" class="node"/><text x="1260" y="397">4</text>
   </g>
 
   <path d="M625 315 H775" class="flow"/>

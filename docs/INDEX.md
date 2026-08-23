@@ -21,7 +21,7 @@
 - [`allkernel-lowreuse-evidence.json`](allkernel-lowreuse-evidence.json) —
   30-graph derivation and holdout rows for the frozen policy
 - [`figures/graphbrew-architecture.svg`](figures/graphbrew-architecture.svg) —
-  canonical architecture figure
+  proposed Rabbit-free research direction under evaluation
 - [`figures/graphbrew-lowreuse-policy.svg`](figures/graphbrew-lowreuse-policy.svg)
   — history-free selector decision and Rabbit fallback semantics
 - [`figures/graphbrew-leiden-transform.svg`](figures/graphbrew-leiden-transform.svg)

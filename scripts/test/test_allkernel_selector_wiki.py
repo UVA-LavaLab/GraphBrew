@@ -33,7 +33,7 @@ MECHANISM_FIGURES = (
     "graphbrew-norefine.svg",
 )
 ARCHITECTURE_SHA256 = (
-    "3cfe1e0b1c8cf14b2a5b9db152de0ccd1f2def428fbe225a421bc93dfc639891"
+    "f02f46ad621ae5e9ccf5a8c4c43ac6bcf56db4a54ff8c81cda022d36babebdf3"
 )
 README = PROJECT_ROOT / "README.md"
 WIKI_HOME = PROJECT_ROOT / "wiki/Home.md"

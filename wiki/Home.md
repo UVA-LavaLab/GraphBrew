@@ -4,7 +4,7 @@ GraphBrew is a framework for **composable vertex reordering**. It separates
 the partitioner, community-block layout, and within-block vertex layout so
 their cost and locality effects can be measured independently.
 
-![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
+![Proposed GraphBrew Rabbit-free research direction](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
 
 ## Read the project in this order
 

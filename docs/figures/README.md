@@ -1,7 +1,8 @@
 # Public figures
 
 - `logo.png` — compact project mark used by the README
-- `graphbrew-architecture.svg` — system architecture and public interfaces
+- `graphbrew-architecture.svg` — proposed Rabbit-free research direction
+  under evaluation
 - `graphbrew-lowreuse-policy.svg` — new-graph decision path and fallback claim
 - `graphbrew-leiden-transform.svg` — community-membership transformation
 - `graphbrew-sizedesc-transform.svg` — SizeDesc block transformation

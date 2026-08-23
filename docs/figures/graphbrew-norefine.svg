@@ -2,15 +2,16 @@
   <title id="title">norefine execution path</title>
   <desc id="desc">After Leiden local moving, norefine goes directly to aggregation. Full Leiden performs a constrained refinement phase before aggregation.</desc>
   <defs>
-    <marker id="blue-arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto">
+    <marker id="blue-arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
     </marker>
-    <marker id="orange-arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto">
+    <marker id="orange-arrow" viewBox="0 0 10 8" markerWidth="9" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
     </marker>
     <style>
       :root{color-scheme:light dark}
       @media(prefers-color-scheme:dark){
+        [fill="#FFFFFF"]{fill:#1E2327}
         [fill="#27313A"]{fill:#ECE7DD}[stroke="#27313A"]{stroke:#ECE7DD}
         [fill="#F8F6EC"]{fill:#252A2E}[fill="#EDF5FF"]{fill:#273846}
         [fill="#E7F7EA"]{fill:#24382A}[fill="#FFF0D8"]{fill:#3B3122}
@@ -18,14 +19,15 @@
         [stroke="#9AA3AD"]{stroke:#747D86}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}
-      .title{font-size:40px;font-weight:700}.subtitle{font-size:22px}
-      .domain{font-size:20px;font-weight:700;letter-spacing:1.3px}
-      .heading{font-size:28px;font-weight:700}.body{font-size:22px}
-      .label{font-size:20px;font-weight:700}
+      .title{font-size:44px;font-weight:700}.subtitle{font-size:24px}
+      .domain{font-size:21px;font-weight:700;letter-spacing:1.3px}
+      .heading{font-size:31px;font-weight:700}.body{font-size:24px}
+      .label{font-size:22px;font-weight:700}
       .blueflow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#blue-arrow)}
       .orangeflow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#orange-arrow)}
     </style>
   </defs>
+  <rect width="1400" height="600" fill="#FFFFFF"/>
   <text x="45" y="55" class="sans title">norefine: remove one Leiden move phase</text>
   <text x="45" y="88" class="sans subtitle">Local moving and aggregation still run; only constrained refinement is bypassed.</text>
   <line x1="45" y1="112" x2="1355" y2="112" stroke="#27313A" stroke-width="2"/>
@@ -50,12 +52,12 @@
   <text x="397" y="396" text-anchor="middle" class="sans label">full Leiden</text>
   <rect x="500" y="380" width="360" height="145" rx="9" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
   <text x="680" y="428" text-anchor="middle" class="sans heading">Constrained refinement</text>
-  <text x="680" y="470" text-anchor="middle" class="sans body">split and move again inside bounds</text>
+  <text x="680" y="470" text-anchor="middle" class="sans body">split and move inside bounds</text>
 
   <path d="M860 452 H1040" class="blueflow"/>
   <rect x="1040" y="380" width="305" height="145" rx="9" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
   <text x="1192" y="428" text-anchor="middle" class="sans heading">Aggregate</text>
-  <text x="1192" y="470" text-anchor="middle" class="sans body">higher cost; different partition</text>
+  <text x="1192" y="470" text-anchor="middle" class="sans body">higher cost; new partition</text>
 
   <rect x="930" y="180" width="415" height="145" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="3"/>
   <text x="1137" y="225" text-anchor="middle" class="sans heading">Trade-off</text>

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860" role="img" aria-labelledby="title desc" fill="#27313A">
-  <title id="title">GraphBrew architecture</title>
-  <desc id="desc">A graph, kernel, machine context, and reuse count enter lightweight analysis. Users either provide an explicit composition or use a frozen deterministic rule. GraphBrew then applies a partitioner, block layout, vertex layout, validates the permutation, and runs graph kernels on relabeled CSR.</desc>
+  <title id="title">Proposed GraphBrew Rabbit-free research architecture</title>
+  <desc id="desc">Proposed research direction under evaluation. A graph, kernel, machine context, and reuse count enter lightweight analysis. Users either provide an explicit composition or use a theory-driven composition generator. GraphBrew then applies a Rabbit-free partitioner, block layout, vertex layout, validates the permutation, and runs graph kernels on relabeled CSR. The separately documented low-reuse Rabbit-fallback policy remains the currently validated policy.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 13 11" markerWidth="13" markerHeight="11" refX="13" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L13 5.5 L0 11 Z" fill="#1769C2"/>
@@ -9,22 +9,24 @@
       :root{color-scheme:light dark}
       @media(prefers-color-scheme:dark){
         [fill="#27313A"]{fill:#ECE7DD}[stroke="#27313A"]{stroke:#ECE7DD}
+        [fill="#FFFFFF"]{fill:#1E2327}
         [fill="#F8F6EC"]{fill:#252A2E}[fill="#EDF5FF"]{fill:#273846}
         [fill="#E7F7EA"]{fill:#24382A}[fill="#FFF0D8"]{fill:#3B3122}
         [fill="#F7DEDC"]{fill:#3D292A}[fill="#EEE9FF"]{fill:#302C3C}
         [stroke="#9AA3AD"]{stroke:#747D86}
       }
       .sans{font-family:Arial,Helvetica,sans-serif}.mono{font-family:"SFMono-Regular",Consolas,monospace}
-      .title{font-size:42px;font-weight:700}.subtitle{font-size:20px}
-      .domain{font-size:15px;font-weight:700;letter-spacing:1.3px}
-      .heading{font-size:24px;font-weight:700}.label{font-size:18px;font-weight:700}
-      .body{font-size:17px}.small{font-size:15px}.tiny{font-size:13px}
+      .title{font-size:46px;font-weight:700}.subtitle{font-size:23px}
+      .domain{font-size:20px;font-weight:700;letter-spacing:1.3px}
+      .heading{font-size:28px;font-weight:700}.label{font-size:22px;font-weight:700}
+      .body{font-size:21px}.small{font-size:19px}
       .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
     </style>
   </defs>
+  <rect width="1600" height="860" fill="#FFFFFF"/>
 
-  <text x="45" y="58" class="sans title">GraphBrew: composable, cost-aware graph reordering</text>
-  <text x="45" y="92" class="sans subtitle">Explicit compositions for research; one frozen deterministic policy for validated reuse-1/2 deployment</text>
+  <text x="45" y="58" class="sans title">GraphBrew research direction: Rabbit-free composition generation</text>
+  <text x="45" y="92" class="sans subtitle">Proposed architecture under evaluation; the validated low-reuse fallback policy remains documented separately</text>
   <line x1="45" y1="118" x2="1555" y2="118" stroke="#27313A" stroke-width="2"/>
 
   <rect x="35" y="140" width="320" height="590" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
@@ -42,30 +44,33 @@
   <text x="80" y="544" class="sans body">average degree and CV</text>
   <text x="80" y="578" class="sans body">hub concentration</text>
   <text x="80" y="612" class="sans body">property working set / LLC</text>
-  <text x="195" y="658" text-anchor="middle" class="sans small">sampled Tier-0 features; no graph name</text>
+  <text x="195" y="650" text-anchor="middle" class="sans small">sampled Tier-0 features</text>
+  <text x="195" y="672" text-anchor="middle" class="sans small">no graph-name branch</text>
 
   <rect x="385" y="140" width="350" height="590" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="402" y="166" class="sans domain">CONFIGURATION</text>
   <rect x="405" y="185" width="310" height="205" rx="9" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
   <text x="560" y="220" text-anchor="middle" class="sans heading">Explicit composition</text>
   <text x="430" y="260" class="sans body">User selects exact axes</text>
-  <text x="430" y="296" class="mono small">partitioner : block : vertex</text>
+  <text x="430" y="296" class="mono small">partitioner:block:vertex</text>
   <text x="430" y="332" class="sans body">Used for controlled experiments</text>
-  <text x="560" y="370" text-anchor="middle" class="sans small">hand configured; never searched at runtime</text>
+  <text x="560" y="360" text-anchor="middle" class="sans small">hand configured</text>
+  <text x="560" y="382" text-anchor="middle" class="sans small">never searched at runtime</text>
 
   <rect x="405" y="425" width="310" height="260" rx="9" fill="#F7DEDC" stroke="#27313A" stroke-width="3"/>
-  <text x="560" y="462" text-anchor="middle" class="sans heading">Frozen runtime policy</text>
-  <text x="430" y="505" class="sans body">Deterministic feature rule</text>
-  <text x="430" y="539" class="sans body">Candidate or Boost Rabbit</text>
-  <text x="430" y="573" class="sans body">Validated only for reuse 1–2</text>
-  <text x="430" y="607" class="sans body">Seven measured kernels</text>
-  <text x="560" y="655" text-anchor="middle" class="sans small">not ML; no runtime training or oracle lookup</text>
+  <text x="560" y="462" text-anchor="middle" class="sans heading">Composition generator</text>
+  <text x="430" y="505" class="sans body">Theory-driven deterministic rule</text>
+  <text x="430" y="539" class="sans body">Graph + kernel semantics</text>
+  <text x="430" y="573" class="sans body">Reuse + mapping budget</text>
+  <text x="430" y="607" class="sans body">Emits one explicit recipe</text>
+  <text x="560" y="645" text-anchor="middle" class="sans small">under held-out evaluation</text>
+  <text x="560" y="667" text-anchor="middle" class="sans small">no competitor fallback or oracle</text>
 
   <rect x="765" y="140" width="500" height="590" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="782" y="166" class="sans domain">GRAPHBREW ORDERING PIPELINE</text>
   <rect x="790" y="190" width="450" height="115" rx="9" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
   <text x="1015" y="225" text-anchor="middle" class="sans heading">1. Partitioner</text>
-  <text x="1015" y="260" text-anchor="middle" class="sans body">Leiden / Rabbit / bounded FastLeiden</text>
+  <text x="1015" y="260" text-anchor="middle" class="sans body">Leiden / bounded FastLeiden</text>
   <text x="1015" y="286" text-anchor="middle" class="sans small">discovers vertex groups</text>
 
   <rect x="790" y="335" width="450" height="115" rx="9" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
@@ -107,6 +112,7 @@
   <path d="M1240 657 H1315" class="arrow"/>
   <path d="M1430 370 V410" class="arrow"/>
 
-  <rect x="55" y="765" width="1490" height="62" rx="8" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="80" y="802" class="sans body">Scientific contract: exact configuration + graph/kernel/reuse scope + mapping cost + kernel time + held-out validation. Detailed rows live in evidence JSON, not in the landing pages.</text>
+  <rect x="55" y="758" width="1490" height="76" rx="8" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="800" y="790" text-anchor="middle" class="sans small">Scientific contract: exact recipe + graph/kernel/reuse scope + mapping cost + kernel time + held-out validation.</text>
+  <text x="800" y="816" text-anchor="middle" class="sans small">Detailed rows live in evidence JSON, not in landing pages.</text>
 </svg>
