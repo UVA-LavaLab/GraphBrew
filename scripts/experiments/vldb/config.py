@@ -721,6 +721,39 @@ DIAGNOSTIC_CONFIGS = [
     )
 ]
 
+COMPOSITION_P0_CONFIGS = [
+    {
+        "name": name,
+        "algo": spec,
+        "desc": "Explicit-only composition P0 treatment",
+    }
+    for name, spec in (
+        (
+            "P0-Identity-HubSort",
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_hubsort:cd_serial:refine_none",
+        ),
+        (
+            "P0-Identity-Alternate",
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_alternate:cd_serial:refine_none",
+        ),
+        (
+            "P0-SuperRCM-Identity-HubSort",
+            "12:leiden:compose:sg_super_rcm:comm_identity:"
+            "intra_hubsort:cd_serial:refine_none",
+        ),
+        (
+            "P0-SuperRCM-Identity-Alternate",
+            "12:leiden:compose:sg_super_rcm:comm_identity:"
+            "intra_alternate:cd_serial:refine_none",
+        ),
+    )
+]
+COMPOSITION_P0_ALGORITHM_KEYS = tuple(
+    config["algo"] for config in COMPOSITION_P0_CONFIGS
+)
+
 ALGORITHM_GRAPH_EXCLUSIONS = {
     "twitter7": {
         _ABLATION_REFINED_HUBSORT: (

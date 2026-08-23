@@ -1417,6 +1417,9 @@ public:
     {
         // Unified timing wrapper for all reordering algorithms
         Timer reorder_timer;
+        const double excluded_diagnostic_before =
+            graphbrew::database::GetPreprocessingTimingHint()
+                .excluded_diagnostic_time;
         reorder_timer.Start();
 
         // Clear staged reorder metadata before dispatch
@@ -1590,12 +1593,20 @@ public:
         
         // Print unified reorder time for easy parsing
         reorder_timer.Stop();
+        const double excluded_reorder_diagnostics = std::max(
+            0.0,
+            graphbrew::database::GetPreprocessingTimingHint()
+                    .excluded_diagnostic_time
+                - excluded_diagnostic_before);
+        const double reorder_core_seconds = std::max(
+            0.0,
+            reorder_timer.Seconds() - excluded_reorder_diagnostics);
         std::cout << "=== Reorder Summary ===" << std::endl;
         PrintLabel("Algorithm", ReorderingAlgoStr(reordering_algo));
-        PrintTime("Reorder Core Time", reorder_timer.Seconds());
-        PrintTime("Reorder Time", reorder_timer.Seconds());
+        PrintTime("Reorder Core Time", reorder_core_seconds);
+        PrintTime("Reorder Time", reorder_core_seconds);
         GetPreprocessingTimingHint().reorder_core_time +=
-            reorder_timer.Seconds();
+            reorder_core_seconds;
         const char* quality_env =
             std::getenv("GRAPHBREW_MAPPING_QUALITY");
         if (quality_env != nullptr && std::string(quality_env) == "1") {
@@ -1618,7 +1629,7 @@ public:
         {
             // Note: 'using namespace graphbrew::database' already in scope from above
             std::string algo_name = ReorderingAlgoStr(reordering_algo);
-            double reorder_secs = reorder_timer.Seconds();
+            double reorder_secs = reorder_core_seconds;
             int algo_id = static_cast<int>(reordering_algo);
             if (
                 reordering_algo == COrder
@@ -3781,6 +3792,11 @@ public:
         }
         realized.numPasses = result.totalPasses;
         realized.numCommunities = result.numCommunities;
+        if (!result.membership.empty()) {
+            realized.membershipFingerprint =
+                graphbrew::graphBrewMembershipFingerprint(
+                    result.membership);
+        }
 
         // Stage reorder metadata for GenerateMapping's ReorderMeta hint
         {

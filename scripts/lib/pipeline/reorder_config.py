@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from typing import Optional
 
 GRAPHBREW_EFFECTIVE_CONFIG_PREFIX = "GraphBrew Effective Config: "
@@ -12,6 +13,39 @@ GRAPHBREW_REALIZED_CONFIG_PREFIX = "GraphBrew Realized Config: "
 
 _GRAPHBREW_CONFIG_PREFIX = GRAPHBREW_EFFECTIVE_CONFIG_PREFIX
 _GRAPHBREW_REALIZED_PREFIX = GRAPHBREW_REALIZED_CONFIG_PREFIX
+
+
+def _validate_membership_fingerprint(
+    value: object,
+    *,
+    allow_null: bool,
+) -> None:
+    if value is None:
+        if allow_null:
+            return
+        raise RuntimeError("Missing GraphBrew membership fingerprint")
+    if not isinstance(value, str) or not re.fullmatch(
+        r"[0-9a-f]{32}",
+        value,
+    ):
+        raise RuntimeError(
+            f"Invalid GraphBrew membership fingerprint: {value}"
+        )
+
+
+def graphbrew_schedule_sensitive(effective: dict[str, object]) -> bool:
+    return bool(
+        effective["algorithm"] == "rabbit"
+        or not effective["deterministic_community_detection"]
+        or effective["ordering"] in {"hrab", "hlr", "tqr"}
+        or (
+            effective["ordering"] == "layer"
+            and effective["final_algo_id"] == 8
+        )
+        or effective["super_graph"] in {
+            "super-rabbit", "super-rcm", "tile-rabbit",
+        }
+    )
 
 
 def parse_graphbrew_effective_configs(output: Optional[str]) -> list[dict]:
@@ -42,11 +76,15 @@ def parse_graphbrew_realized_configs(output: Optional[str]) -> list[dict]:
             continue
         payload = line[len(GRAPHBREW_REALIZED_CONFIG_PREFIX):]
         config = json.loads(payload)
-        if config.get("schema") != "graphbrew_realized/v3":
+        if config.get("schema") != "graphbrew_realized/v4":
             raise RuntimeError(
                 "Unsupported GraphBrew realized-config schema: "
                 f"{config.get('schema')}"
             )
+        _validate_membership_fingerprint(
+            config.get("membership_fingerprint"),
+            allow_null=True,
+        )
         configs.append(config)
     return configs
 
@@ -628,6 +666,7 @@ def validate_graphbrew_realized_configs(
         "sub_algo_id",
         "num_passes",
         "num_communities",
+        "membership_fingerprint",
         "fallbacks",
         "block_algorithms",
     }
@@ -645,17 +684,12 @@ def validate_graphbrew_realized_configs(
             if effective["algorithm"] == "rabbit"
             else effective["aggregation"]
         )
-        expected_schedule_sensitive = (
-            effective["algorithm"] == "rabbit"
-            or not effective["deterministic_community_detection"]
-            or effective["ordering"] in {"hrab", "hlr", "tqr"}
-            or (
-                effective["ordering"] == "layer"
-                and effective["final_algo_id"] == 8
-            )
-            or effective["super_graph"] in {
-                "super-rabbit", "tile-rabbit",
-            }
+        expected_schedule_sensitive = graphbrew_schedule_sensitive(
+            effective,
+        )
+        _validate_membership_fingerprint(
+            realized["membership_fingerprint"],
+            allow_null=realized["ordering"] == "rabbit-native-dfs",
         )
         exact = {
             "algorithm": effective["algorithm"],

@@ -32,6 +32,8 @@ from scripts.experiments.vldb.config import (
     CACHE_SIZES,
     CACHE_TRIALS,
     COMPOSE_VARIANTS,
+    COMPOSITION_P0_ALGORITHM_KEYS,
+    COMPOSITION_P0_CONFIGS,
     DIAGNOSTIC_CONFIGS,
     E2E_PAPER_ALGORITHM_KEYS,
     EVALUATION_BASELINES,
@@ -295,6 +297,56 @@ def test_parallel_leiden_budget_frontier_is_diagnostic_only():
     )
 
 
+def test_composition_p0_treatments_are_explicit_only():
+    specs = [config["algo"] for config in COMPOSITION_P0_CONFIGS]
+    assert tuple(specs) == COMPOSITION_P0_ALGORITHM_KEYS
+    assert len(specs) == 4
+    for spec in specs:
+        config = runner._expected_graphbrew_config(spec)
+        assert config["algorithm"] == "leiden"
+        assert config["ordering"] == "compose"
+        assert config["community_order"] == "identity"
+        assert config["deterministic_community_detection"] is True
+        assert config["refinement_pass"] == "none"
+        assert config["super_graph"] in {"none", "super-rcm"}
+        assert config["intra_community_order"] in {
+            "hubsort", "alternate",
+        }
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        } == set(specs)
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert not (
+        set(specs)
+        & {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
+    )
+    assert not (
+        set(specs)
+        & {key for key, _name, _flags in runner._overhead_algorithm_specs()}
+    )
+    assert not set(specs) & set(ALL_ALGORITHMS)
+    assert not set(specs) & {
+        spec for _name, spec in COMPOSE_VARIANTS
+    }
+    assert not set(specs) & {
+        config["algo"] for config in ABLATION_CONFIGS
+    }
+    assert not set(specs) & {
+        config["algo"] for config in DIAGNOSTIC_CONFIGS
+    }
+    assert all(
+        runner._mapping_draw_count(["-o", spec]) > 1
+        for spec in specs
+    )
+
+
 def test_cost_matched_gorder8_is_promoted_to_compose_matrix():
     spec = dict(COMPOSE_VARIANTS)["FastLeiden-Gorder8"]
     config = runner._expected_graphbrew_config(spec)
@@ -510,13 +562,52 @@ def test_stale_graphbrew_effective_schema_is_rejected():
 def test_stale_graphbrew_realized_schema_is_rejected():
     output = (
         "GraphBrew Realized Config: "
-        '{"schema":"graphbrew_realized/v2"}'
+        '{"schema":"graphbrew_realized/v3"}'
     )
     with pytest.raises(
         RuntimeError,
         match="Unsupported GraphBrew realized-config schema",
     ):
         runner.parse_graphbrew_realized_configs(output)
+
+
+@pytest.mark.parametrize(
+    "fingerprint",
+    [
+        "XYZ",
+        "a" * 31,
+        "a" * 33,
+        "A" * 32,
+        12345678901234567890123456789012,
+    ],
+)
+def test_invalid_graphbrew_membership_fingerprint_is_rejected(
+    fingerprint,
+):
+    output = (
+        "GraphBrew Realized Config: "
+        + json.dumps({
+            "schema": "graphbrew_realized/v4",
+            "membership_fingerprint": fingerprint,
+        })
+    )
+    with pytest.raises(
+        RuntimeError,
+        match="Invalid GraphBrew membership fingerprint",
+    ):
+        runner.parse_graphbrew_realized_configs(output)
+
+
+def test_null_graphbrew_membership_fingerprint_is_parseable():
+    output = (
+        "GraphBrew Realized Config: "
+        '{"schema":"graphbrew_realized/v4",'
+        '"membership_fingerprint":null}'
+    )
+    assert runner.parse_graphbrew_realized_configs(output) == [{
+        "schema": "graphbrew_realized/v4",
+        "membership_fingerprint": None,
+    }]
 
 
 def test_structured_graphbrew_realization_is_validated():
@@ -529,7 +620,7 @@ def test_structured_graphbrew_realization_is_validated():
         **runner._expected_graphbrew_config(spec),
     }
     realized = {
-        "schema": "graphbrew_realized/v3",
+        "schema": "graphbrew_realized/v4",
         "algorithm": "rabbit",
         "aggregation": "rabbit-incremental",
         "ordering": "compose",
@@ -551,6 +642,8 @@ def test_structured_graphbrew_realization_is_validated():
         "sub_algo_id": 8,
         "num_passes": 1,
         "num_communities": 12,
+        "membership_fingerprint":
+            "0123456789abcdef0123456789abcdef",
         "fallbacks": [],
         "block_algorithms": {},
     }
@@ -562,6 +655,16 @@ def test_structured_graphbrew_realization_is_validated():
     runner.validate_graphbrew_realized_configs(
         ["-o", spec], [effective], parsed,
     )
+
+    missing_membership = [dict(parsed[0])]
+    missing_membership[0]["membership_fingerprint"] = None
+    with pytest.raises(
+        RuntimeError,
+        match="Missing GraphBrew membership fingerprint",
+    ):
+        runner.validate_graphbrew_realized_configs(
+            ["-o", spec], [effective], missing_membership,
+        )
 
     parsed[0]["community_order"] = "degree-desc"
     with pytest.raises(RuntimeError, match="realized config mismatch"):
@@ -590,7 +693,7 @@ def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
         **reorder_config.expected_graphbrew_config(spec),
     }
     realized = {
-        "schema": "graphbrew_realized/v3",
+        "schema": "graphbrew_realized/v4",
         "algorithm": "rabbit",
         "aggregation": "rabbit-incremental",
         "ordering": "compose",
@@ -612,6 +715,8 @@ def test_shared_graphbrew_config_helpers_match_vldb_runner_contract():
         "sub_algo_id": 8,
         "num_passes": 1,
         "num_communities": 12,
+        "membership_fingerprint":
+            "0123456789abcdef0123456789abcdef",
         "fallbacks": [],
         "block_algorithms": {},
     }
@@ -958,9 +1063,62 @@ def test_rabbit_mapping_draw_classification():
     ]) == 1
     assert runner._mapping_draw_count([
         "-o",
+        "12:leiden:compose:sg_super_rcm:comm_identity:"
+        "intra_hubsort:cd_serial:refine_none",
+    ]) > 1
+    assert runner._mapping_draw_count([
+        "-o",
         "12:leiden:compose:sg_none:comm_identity:"
         "intra_gorder:cd_parallel",
     ]) > 1
+
+
+def test_mapping_draw_policy_matches_schedule_contract():
+    specs = set(ALL_ALGORITHMS)
+    specs.update(config["algo"] for config in ABLATION_CONFIGS)
+    specs.update(config["algo"] for config in DIAGNOSTIC_CONFIGS)
+    specs.update(COMPOSITION_P0_ALGORITHM_KEYS)
+    for spec in specs:
+        if not spec.startswith("12:"):
+            continue
+        effective = runner._expected_graphbrew_config(spec)
+        repeated = runner._mapping_draw_count(["-o", spec]) > 1
+        assert repeated == (
+            spec in COMPOSITION_P0_ALGORITHM_KEYS
+            or reorder_config.graphbrew_schedule_sensitive(effective)
+        )
+
+
+def test_composition_p0_draw_cohort_fails_closed():
+    spec = COMPOSITION_P0_ALGORITHM_KEYS[0]
+    effective = runner._expected_graphbrew_config(spec)
+
+    def record(membership: str, mapping: str) -> dict:
+        return {
+            "mapping_fingerprint": mapping,
+            "graphbrew_effective_configs": [effective],
+            "graphbrew_realized_configs": [{
+                "membership_fingerprint": membership,
+            }],
+        }
+
+    stable = [
+        record("a" * 32, "mapping"),
+        record("a" * 32, "mapping"),
+        record("a" * 32, "mapping"),
+    ]
+    runner._validate_mapping_draw_cohort(spec, stable)
+
+    with pytest.raises(RuntimeError, match="membership drift"):
+        runner._validate_mapping_draw_cohort(
+            spec,
+            [stable[0], record("b" * 32, "mapping")],
+        )
+    with pytest.raises(RuntimeError, match="mapping drift"):
+        runner._validate_mapping_draw_cohort(
+            spec,
+            [stable[0], record("a" * 32, "other")],
+        )
 
 
 def test_mapping_dry_run_reports_applicability_matrix_with_stale_provenance(

@@ -215,6 +215,7 @@
 #include <graph.h>
 #include <pvector.h>
 #include <timer.h>
+#include "graphbrew/partition/diagnostics.h"
 
 
 namespace graphbrew {
@@ -767,6 +768,20 @@ inline void printGraphBrewEffectiveConfig(const GraphBrewConfig& config)
         json.c_str());
 }
 
+template <typename K>
+inline std::string graphBrewMembershipFingerprint(
+    const std::vector<K>& membership) {
+    if (membership.empty()) return {};
+    Timer timer;
+    timer.Start();
+    graphbrew::partition::OrderedFingerprint fingerprint;
+    fingerprint.AddRange(membership);
+    timer.Stop();
+    graphbrew::database::GetPreprocessingTimingHint()
+        .excluded_diagnostic_time += timer.Seconds();
+    return fingerprint.Hex();
+}
+
 struct GraphBrewRealizedConfig {
     struct Fallback {
         std::string reason;
@@ -797,6 +812,7 @@ struct GraphBrewRealizedConfig {
     int subAlgoId = -1;
     int numPasses = 0;
     size_t numCommunities = 0;
+    std::string membershipFingerprint;
     std::vector<Fallback> fallbacks;
     std::map<std::string, size_t> blockAlgorithms;
 };
@@ -842,6 +858,7 @@ inline GraphBrewRealizedConfig makeGraphBrewRealizedConfig(
             config.finalAlgoId == 8
         ) ||
         config.superGraphOrder == SuperGraphOrder::SuperRabbit ||
+        config.superGraphOrder == SuperGraphOrder::SuperRCM ||
         config.superGraphOrder == SuperGraphOrder::TileRabbit;
     realized.gorderWindow = config.gorderWindow;
     realized.gorderFallback = config.gorderFallback;
@@ -854,7 +871,7 @@ inline void printGraphBrewRealizedConfig(
     const GraphBrewRealizedConfig& realized) {
     printf(
         "GraphBrew Realized Config: "
-        "{\"schema\":\"graphbrew_realized/v3\","
+        "{\"schema\":\"graphbrew_realized/v4\","
         "\"algorithm\":\"%s\",\"aggregation\":\"%s\","
         "\"ordering\":\"%s\",\"super_graph\":\"%s\","
         "\"community_order\":\"%s\",\"intra_community_order\":\"%s\","
@@ -885,7 +902,8 @@ inline void printGraphBrewRealizedConfig(
         "\"gorder_fallback_communities\":%zu,"
         "\"gorder_fallback_vertices\":%zu,"
         "\"final_algo_id\":%d,\"sub_algo_id\":%d,"
-        "\"num_passes\":%d,\"num_communities\":%zu,\"fallbacks\":[",
+        "\"num_passes\":%d,\"num_communities\":%zu,"
+        "\"membership_fingerprint\":",
         realized.scheduleSensitive ? "true" : "false",
         realized.gorderWindow,
         realized.gorderFallback,
@@ -898,6 +916,12 @@ inline void printGraphBrewRealizedConfig(
         realized.subAlgoId,
         realized.numPasses,
         realized.numCommunities);
+    if (realized.membershipFingerprint.empty()) {
+        printf("null");
+    } else {
+        printf("\"%s\"", realized.membershipFingerprint.c_str());
+    }
+    printf(",\"fallbacks\":[");
     for (size_t i = 0; i < realized.fallbacks.size(); ++i) {
         const auto& fallback = realized.fallbacks[i];
         printf(
@@ -6830,6 +6854,10 @@ void applyOrderingStrategy(
     if (realized) {
         realized->numPasses = result.totalPasses;
         realized->numCommunities = result.numCommunities;
+        if (!result.membership.empty()) {
+            realized->membershipFingerprint =
+                graphBrewMembershipFingerprint(result.membership);
+        }
     }
 
     // Build dendrogram if needed by the ordering strategy
@@ -7074,6 +7102,10 @@ void generateGraphBrewMapping(
             runRabbitOrder<K>(g, newIds, config, &result, false);
             realized.numPasses = result.totalPasses;
             realized.numCommunities = result.numCommunities;
+            if (!result.membership.empty()) {
+                realized.membershipFingerprint =
+                    graphBrewMembershipFingerprint(result.membership);
+            }
 
             // Verify if requested
             if (config.verifyTopology) {

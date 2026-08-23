@@ -73,6 +73,8 @@ from scripts.experiments.vldb.config import (
     CACHE_TRIALS,
     CACHE_PR_ITERATIONS,
     CHAINED_ORDERINGS,
+    COMPOSITION_P0_ALGORITHM_KEYS,
+    COMPOSITION_P0_CONFIGS,
     EVALUATION_BASELINES,
     E2E_REUSE_COUNTS,
     EVAL_GRAPHS,
@@ -133,6 +135,7 @@ from scripts.lib.pipeline.reorder_config import (
     GRAPHBREW_REALIZED_CONFIG_PREFIX,
     expected_graphbrew_config,
     extract_graphbrew_order_specs,
+    graphbrew_schedule_sensitive,
     parse_graphbrew_effective_configs,
     parse_graphbrew_realized_configs,
     validate_graphbrew_effective_configs,
@@ -300,6 +303,7 @@ def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
     known = set(ALL_ALGORITHMS)
     known.update(config["algo"] for config in ABLATION_CONFIGS)
     known.update(config["algo"] for config in DIAGNOSTIC_CONFIGS)
+    known.update(config["algo"] for config in COMPOSITION_P0_CONFIGS)
     known.update(f"chain:{name}" for name, _flags in CHAINED_ORDERINGS)
     unknown = sorted(set(algorithms) - known)
     if unknown:
@@ -1671,19 +1675,49 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
             continue
         expected = _expected_graphbrew_config(spec)
         if (
-            expected["algorithm"] == "rabbit"
-            or not expected["deterministic_community_detection"]
-            or expected["ordering"] in {"hrab", "hlr", "tqr"}
-            or (
-                expected["ordering"] == "layer"
-                and expected["final_algo_id"] == 8
-            )
-            or expected["super_graph"] in {
-                "super-rabbit", "tile-rabbit",
-            }
+            spec in COMPOSITION_P0_ALGORITHM_KEYS
+            or graphbrew_schedule_sensitive(expected)
         ):
             return RABBIT_MAPPING_DRAWS
     return 1
+
+
+def _validate_mapping_draw_cohort(
+    algo_key: str,
+    draw_records: list[dict[str, Any]],
+) -> None:
+    if not draw_records:
+        raise RuntimeError(f"No mapping draws recorded for {algo_key}")
+    deterministic_membership_indexes = [
+        index
+        for index, effective in enumerate(
+            draw_records[0]["graphbrew_effective_configs"]
+        )
+        if effective["deterministic_community_detection"]
+    ]
+    for config_index in deterministic_membership_indexes:
+        membership_fingerprints = {
+            record["graphbrew_realized_configs"][config_index][
+                "membership_fingerprint"
+            ]
+            for record in draw_records
+        }
+        if len(membership_fingerprints) != 1:
+            raise RuntimeError(
+                f"Deterministic membership drift for "
+                f"{algo_key}/config{config_index}: "
+                f"{sorted(membership_fingerprints)}"
+            )
+    if algo_key in COMPOSITION_P0_ALGORITHM_KEYS:
+        mapping_fingerprints = {
+            record["mapping_fingerprint"]
+            for record in draw_records
+        }
+        if len(mapping_fingerprints) != 1:
+            raise RuntimeError(
+                f"Composition P0 mapping drift for {algo_key}: "
+                f"{sorted(mapping_fingerprints)}"
+            )
 
 
 def _mapping_generation_policy_id(
@@ -1869,6 +1903,9 @@ def _algorithm_spec_for_key(key: str) -> tuple[str, str, list[str]]:
     for config in DIAGNOSTIC_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
+    for config in COMPOSITION_P0_CONFIGS:
+        if config["algo"] == key:
+            return key, config["name"], get_converter_flags(key)
     for chain_name, chain_flags in CHAINED_ORDERINGS:
         if key == f"chain:{chain_name}":
             return key, chain_name, list(chain_flags)
@@ -1897,6 +1934,11 @@ def _overhead_algorithm_specs() -> list[tuple[str, str, list[str]]]:
         keys.extend(
             config["algo"]
             for config in DIAGNOSTIC_CONFIGS
+            if config["algo"] in _ALGORITHM_FILTER
+        )
+        keys.extend(
+            config["algo"]
+            for config in COMPOSITION_P0_CONFIGS
             if config["algo"] in _ALGORITHM_FILTER
         )
     keys.extend(f"chain:{name}" for name, _flags in CHAINED_ORDERINGS)
@@ -1965,7 +2007,7 @@ def _pregenerate_mappings(
         if not any(k == key for k, _ in algo_list):
             algo_list.append((key, get_converter_flags(key)))
     if _ALGORITHM_FILTER is not None:
-        for cfg in DIAGNOSTIC_CONFIGS:
+        for cfg in (*DIAGNOSTIC_CONFIGS, *COMPOSITION_P0_CONFIGS):
             key = cfg["algo"]
             if (
                 key in _ALGORITHM_FILTER
@@ -2168,6 +2210,10 @@ def _pregenerate_mappings(
                     draw_path.unlink(missing_ok=True)
                 failed += 1
                 continue
+            try:
+                _validate_mapping_draw_cohort(algo_key, draw_records)
+            except RuntimeError as exc:
+                raise RuntimeError(f"{gname}: {exc}") from exc
             if draw_count > 1:
                 selected_draw_path = (
                     lo.parent / draw_records[0]["path"]
