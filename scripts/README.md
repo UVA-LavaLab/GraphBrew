@@ -14,6 +14,7 @@ scripts/
 │   └── tools/                  misc CLIs
 ├── test/                      ← pytest tests
 ├── graphbrew_experiment.py    public experiment orchestrator
+├── generate_public_figures.py running-example figure/wiki generator
 └── requirements.txt
 ```
 
@@ -57,6 +58,8 @@ SLURM templates: `scripts/experiments/vldb/stages/slurm/*.sbatch`.
 
 - `scripts/experiments/vldb/runner.py --all --local` — monolithic VLDB runner
 - `scripts/graphbrew_experiment.py --phase all` — original one-click pipeline
+- `scripts/generate_public_figures.py --check` — verify generated public
+  SVG/draw.io/catalog artifacts against the running-example fixture
 - `scripts/experiments/vldb/slurm/monolithic.sbatch` — monolithic SLURM template
 
 ## Tests

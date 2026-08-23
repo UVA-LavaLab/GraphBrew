@@ -206,13 +206,17 @@ See [[Command-Line-Reference]] for complete option reference, output format deta
 
 See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm table (IDs 0-16) and variant syntax.
 
-| Use Case | Algorithm | ID |
+| Purpose | Algorithm | ID |
 |----------|-----------|-----|
-| General purpose | HUBCLUSTERDBG | 7 |
-| Social networks | GraphBrewOrder | 12 |
-| Unknown graphs | AdaptiveOrder | 14 |
-| Maximum locality | GraphBrewOrder | 12 |
-| Road networks | RCM | 11 |
+| no-reorder baseline | ORIGINAL | 0 |
+| cheap degree/bucket control | HUBCLUSTERDBG | 7 |
+| exact hand-configured composition | GraphBrewOrder | 12 |
+| frozen reuse-1/2 portfolio within its validated scope | AdaptiveOrder | 14 |
+| bandwidth-oriented control | RCM-BNF | `11:bnf` |
+
+Do not choose from graph-domain labels such as “social” or “road.” Start with
+the [GraphBrew Running Example](GraphBrew-Running-Example), then select an
+explicit mechanism or an evidence-bound policy.
 
 ---
 

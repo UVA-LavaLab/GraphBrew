@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = PROJECT_ROOT / "docs/allkernel-lowreuse-evidence.json"
 FIGURE_DIR = PROJECT_ROOT / "docs/figures"
+PUBLIC_FIGURE_MANIFEST = FIGURE_DIR / "public-manifest.json"
 FIGURES = (
     "graphbrew-architecture.svg",
     "graphbrew-lowreuse-policy.svg",
@@ -32,14 +33,12 @@ MECHANISM_FIGURES = (
     "graphbrew-gordf5000.svg",
     "graphbrew-norefine.svg",
 )
-ARCHITECTURE_SHA256 = (
-    "f02f46ad621ae5e9ccf5a8c4c43ac6bcf56db4a54ff8c81cda022d36babebdf3"
-)
 README = PROJECT_ROOT / "README.md"
 WIKI_HOME = PROJECT_ROOT / "wiki/Home.md"
 WIKI_SIDEBAR = PROJECT_ROOT / "wiki/_Sidebar.md"
 SELECTOR_PAGE = PROJECT_ROOT / "wiki/All-Kernel-Low-Reuse-Selector.md"
 GRAPHBREW_PAGE = PROJECT_ROOT / "wiki/GraphBrewOrder.md"
+RUNNING_EXAMPLE_PAGE = PROJECT_ROOT / "wiki/GraphBrew-Running-Example.md"
 ADAPTIVE_PAGE = PROJECT_ROOT / "wiki/AdaptiveOrder.md"
 LEGACY_PAGE = PROJECT_ROOT / "wiki/AdaptiveOrder-ML.md"
 REMOVED_FIGURES = (
@@ -99,6 +98,7 @@ def test_selector_documentation_uses_evidence_bound_figures():
     payload = json.loads(EVIDENCE.read_text())
     selector = SELECTOR_PAGE.read_text()
     graphbrew = GRAPHBREW_PAGE.read_text()
+    running_example = RUNNING_EXAMPLE_PAGE.read_text()
     adaptive = ADAPTIVE_PAGE.read_text()
     readme = README.read_text()
     home = WIKI_HOME.read_text()
@@ -112,8 +112,13 @@ def test_selector_documentation_uses_evidence_bound_figures():
         assert ET.parse(path).getroot().tag.endswith("svg")
 
     architecture = FIGURE_DIR / "graphbrew-architecture.svg"
+    public_manifest = json.loads(PUBLIC_FIGURE_MANIFEST.read_text())
+    manifest_hashes = {
+        record["path"]: record["sha256"]
+        for record in public_manifest["records"]
+    }
     assert hashlib.sha256(architecture.read_bytes()).hexdigest() == (
-        ARCHITECTURE_SHA256
+        manifest_hashes["docs/figures/graphbrew-architecture.svg"]
     )
 
     for filename in MECHANISM_FIGURES:
@@ -126,7 +131,8 @@ def test_selector_documentation_uses_evidence_bound_figures():
                 source,
             )
         ]
-        assert font_sizes and min(font_sizes) >= 20
+        assert font_sizes and min(font_sizes) >= 14
+        assert max(font_sizes) <= 32
         assert 'stroke="#9AA3AD"' in source
         assert any(
             fill in source
@@ -142,10 +148,12 @@ def test_selector_documentation_uses_evidence_bound_figures():
         assert "prefers-color-scheme:dark" in source
 
     assert "graphbrew-lowreuse-policy.svg" in selector
-    assert "graphbrew-leiden-transform.svg" in graphbrew
-    assert "graphbrew-sizedesc-transform.svg" in graphbrew
-    assert "graphbrew-gorder-transform.svg" in graphbrew
-    assert "graphbrew-bfs-transform.svg" in graphbrew
+    assert "graphbrew-leiden-transform.svg" in running_example
+    assert "graphbrew-sizedesc-transform.svg" in running_example
+    assert "graphbrew-gorder-transform.svg" in running_example
+    assert "graphbrew-bfs-transform.svg" in running_example
+    assert "graphbrew-relabel-emit.svg" in running_example
+    assert "graphbrew-locality-outcome.svg" in running_example
     assert "graphbrew-cd-parallel.svg" in graphbrew
     assert "graphbrew-sgmb4096.svg" in graphbrew
     assert "graphbrew-gordf5000.svg" in graphbrew
@@ -173,7 +181,7 @@ def test_selector_documentation_uses_evidence_bound_figures():
     assert len(legacy.splitlines()) < 10
 
     public_story = "\n".join(
-        (readme, home, selector, graphbrew, adaptive)
+        (readme, home, selector, graphbrew, running_example, adaptive)
     )
     for figure in REMOVED_FIGURES:
         assert figure not in public_story

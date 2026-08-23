@@ -6,15 +6,24 @@ hit rates under nine eviction policies. Use it to compare reorderings
 on a fixed cache geometry without machine noise — the metric is
 deterministic per process.
 
+[![Tracked locality mechanism](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg)
+
+**Figure 1.** The running example isolates the address-level mechanism:
+tracked `v2` reads the same four properties before and after relabeling, but
+their IDs occupy three modeled cache lines before and two afterward. The
+simulator measures complete kernel traces rather than this one-row illustration.
+
 ## Quick start
 
 ```bash
 make all-sim
-./bench/bin_sim/pr -f graph.sg -s -n 1 -o 12:hrab
+./bench/bin_sim/pr -f graph.sg -s -n 1 \
+  -o 12:leiden:compose:sg_none:comm_size_desc:intra_hubsort:cd_serial:refine_none
 
 # Custom cache geometry / policy
 CACHE_L3_SIZE=1048576 CACHE_POLICY=SRRIP \
-    ./bench/bin_sim/pr -f graph.sg -s -n 1 -o 12:hrab
+    ./bench/bin_sim/pr -f graph.sg -s -n 1 \
+    -o 12:leiden:compose:sg_none:comm_size_desc:intra_hubsort:cd_serial:refine_none
 ```
 
 The summary block in the output reports `Memory Accesses` and

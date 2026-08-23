@@ -4,7 +4,12 @@ GraphBrew's validated automatic path is a frozen rule for mappings reused once
 or twice. It selects either one exact non-Rabbit GraphBrew composition or
 Boost Rabbit.
 
-![GraphBrew low-reuse policy](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-lowreuse-policy.svg)
+[![GraphBrew low-reuse policy](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-lowreuse-policy.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-lowreuse-policy.svg)
+
+**Figure 1.** The top row is the runtime decision. The bottom row evaluates the
+same frozen predicate on two real rule2 holdouts: `amazon0601` selects
+FastLeiden-Gorder8 and wins end to end at reuse 2; `soc-Slashdot0811` falls
+outside the frozen region and runs the Rabbit baseline.
 
 ## Direct answers
 
@@ -120,7 +125,8 @@ This means:
 - parallel bounded Leiden community detection;
 - no additional final super-graph block order;
 - largest community blocks first;
-- Gorder8 in communities of at most 5000 vertices;
+- input order for communities of size at most three;
+- the relaxed local Gorder heuristic for sizes 4 through 5000;
 - BFS in larger communities;
 - ordered proposal batches of 4096 internal community super-nodes;
 - no Leiden refinement; and

@@ -5,6 +5,7 @@
 
 ## Core idea
 
+- [Running Example](GraphBrew-Running-Example)
 - [GraphBrewOrder](GraphBrewOrder)
 - [Low-Reuse Selector](All-Kernel-Low-Reuse-Selector)
 - [AdaptiveOrder](AdaptiveOrder)

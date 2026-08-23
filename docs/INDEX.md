@@ -21,7 +21,12 @@
 - [`allkernel-lowreuse-evidence.json`](allkernel-lowreuse-evidence.json) —
   30-graph derivation and holdout rows for the frozen policy
 - [`figures/graphbrew-architecture.svg`](figures/graphbrew-architecture.svg) —
-  proposed Rabbit-free research direction under evaluation
+  current validated path, proposed Rabbit-free direction, and six-stage map
+- [`figures/graphbrew-running-example.json`](figures/graphbrew-running-example.json)
+  — machine-checked topology, partition, mapping, CSR, catalog outputs, and
+  policy examples used by every public explanatory figure
+- [`figures/graphbrew-graph-to-csr.svg`](figures/graphbrew-graph-to-csr.svg) —
+  Stage 1 input graph and tracked CSR row
 - [`figures/graphbrew-lowreuse-policy.svg`](figures/graphbrew-lowreuse-policy.svg)
   — history-free selector decision and Rabbit fallback semantics
 - [`figures/graphbrew-leiden-transform.svg`](figures/graphbrew-leiden-transform.svg)
@@ -32,6 +37,10 @@
   — small-community Gorder8 transformation
 - [`figures/graphbrew-bfs-transform.svg`](figures/graphbrew-bfs-transform.svg)
   — large-community BFS transformation
+- [`figures/graphbrew-relabel-emit.svg`](figures/graphbrew-relabel-emit.svg) —
+  Stage 5 mapping and relabeled CSR
+- [`figures/graphbrew-locality-outcome.svg`](figures/graphbrew-locality-outcome.svg)
+  — Stage 6 tracked cache-line locality outcome
 - [`figures/graphbrew-cd-parallel.svg`](figures/graphbrew-cd-parallel.svg) —
   serial versus parallel community detection
 - [`figures/graphbrew-sgmb4096.svg`](figures/graphbrew-sgmb4096.svg) —

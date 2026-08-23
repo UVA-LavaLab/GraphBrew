@@ -1,149 +1,240 @@
 # Reordering Figure Catalog
 
-Each algorithm ID has a consistent transformation figure and an editable
-`.drawio` source that Lucidchart can import as shapes and connectors.
+Every strip uses the same measured 9-vertex input and the same converter
+binary. The shared input is shown once; each algorithm then shows only its
+measured output order and the mechanism that produced it.
 
-See [Editable Figure Sources](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/README.md) for the Lucidchart workflow.
+[![Shared catalog input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)
 
-[Download the 17-page editable bundle](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/GraphBrew-reordering-figures.drawio).
+**Shared-example contract.** All 17 outputs preserve the same nine vertices
+and twelve undirected edges. The blue-outlined cell is the vertex with the
+largest displacement in that measured output.
 
-> These are mechanism illustrations on one fixed toy topology, not mapping
-> fingerprints from benchmark graphs. Tie-breaking, schedule-sensitive
-> algorithms, variants, and external mapping files can produce different
-> exact permutations.
+Converter SHA256: `70580d71854e222d299c488274feced6cdd8005667bc87b07fc326c3d6fc5d41`.
 
-## 0. ORIGINAL
+[Capture receipt](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/catalog-capture.json) with commands, mapping fingerprints, and raw stdout tails.
 
-![ORIGINAL transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/00-original.svg)
+Re-capture and regenerate:
 
-- **CLI:** `-o 0`
-- **Mechanism:** Keep the input labels unchanged.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/00-original.drawio)
+```bash
+python3 scripts/generate_public_figures.py --capture-catalog
+python3 scripts/generate_public_figures.py --check
+```
 
-## 1. RANDOM
+[Download the generated 18-page draw.io bundle](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/GraphBrew-reordering-figures.drawio).
 
-![RANDOM transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/01-random.svg)
+On a narrow screen, select any figure to open the full-resolution SVG.
 
-- **CLI:** `-o 1`
-- **Mechanism:** Apply the fixed seed-0 shuffled control.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/01-random.drawio)
+## Baselines
 
-## 2. SORT
+### 0. ORIGINAL
 
-![SORT transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/02-sort.svg)
+- **CLI:** `0`
+- **Mechanism:** Identity permutation.
+- **Evidence:** output order captured from the shared example
 
-- **CLI:** `-o 2`
-- **Mechanism:** Sort every vertex by descending degree.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/02-sort.drawio)
+[![ORIGINAL measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/00-original.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/00-original.svg)
 
-## 3. HUBSORT
+**Figure.** Topology and memory order are identical.
 
-![HUBSORT transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg)
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/00-original.drawio).
 
-- **CLI:** `-o 3`
-- **Mechanism:** Sort the hub subset; preserve non-hub IDs when possible.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/03-hubsort.drawio)
+### 1. RANDOM
 
-## 4. HUBCLUSTER
+- **CLI:** `1`
+- **Mechanism:** Fixed seed-0 shuffle.
+- **Evidence:** output order captured from the shared example
 
-![HUBCLUSTER transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/04-hubcluster.svg)
+[![RANDOM measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/01-random.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/01-random.svg)
 
-- **CLI:** `-o 4`
-- **Mechanism:** Place stable hubs first and retain non-hub order.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/04-hubcluster.drawio)
+**Figure.** Only labels change; the topology is fixed.
 
-## 5. DBG
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/01-random.drawio).
 
-![DBG transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg)
+## Degree and bucket layouts
 
-- **CLI:** `-o 5`
-- **Mechanism:** Group vertices into logarithmic degree buckets.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/05-dbg.drawio)
+### 2. SORT
 
-## 6. HUBSORTDBG
+- **CLI:** `2`
+- **Mechanism:** Global degree sort.
+- **Evidence:** output order captured from the shared example
 
-![HUBSORTDBG transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg)
+[![SORT measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/02-sort.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/02-sort.svg)
 
-- **CLI:** `-o 6`
-- **Mechanism:** Compact hubs first and sort the hub bucket.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/06-hubsortdbg.drawio)
+**Figure.** High-degree vertices move toward the first memory region.
 
-## 7. HUBCLUSTERDBG
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/02-sort.drawio).
 
-![HUBCLUSTERDBG transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg)
+### 3. HUBSORT
 
-- **CLI:** `-o 7`
-- **Mechanism:** Compact stable hubs first and stable non-hubs second.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/07-hubclusterdbg.drawio)
+- **CLI:** `3`
+- **Mechanism:** Sort the selected hub subset.
+- **Evidence:** output order captured from the shared example
 
-## 8. RABBITORDER
+[![HUBSORT measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/03-hubsort.svg)
 
-![RABBITORDER transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg)
+**Figure.** Only the hub region receives a full degree sort.
 
-- **CLI:** `-o 8:csr`
-- **Mechanism:** Detect communities and emit dendrogram DFS order.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/08-rabbitorder.drawio)
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/03-hubsort.drawio).
 
-## 9. GORDER
+### 4. HUBCLUSTER
 
-![GORDER transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/09-gorder.svg)
+- **CLI:** `4`
+- **Mechanism:** Stable hub clustering.
+- **Evidence:** output order captured from the shared example
 
-- **CLI:** `-o 9:csr`
-- **Mechanism:** Greedily maximize neighbor overlap in a sliding window.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/09-gorder.drawio)
+[![HUBCLUSTER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/04-hubcluster.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/04-hubcluster.svg)
 
-## 10. CORDER
+**Figure.** The hub/non-hub split changes regions without sorting every vertex.
 
-![CORDER transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg)
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/04-hubcluster.drawio).
 
-- **CLI:** `-o 10:canonical`
-- **Mechanism:** Partition the output into hot and cold workload segments.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/10-corder.drawio)
+### 5. DBG
 
-## 11. RCM
+- **CLI:** `5`
+- **Mechanism:** Degree-based grouping.
+- **Evidence:** output order captured from the shared example
 
-![RCM transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/11-rcm.svg)
+[![DBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/05-dbg.svg)
 
-- **CLI:** `-o 11:bnf`
-- **Mechanism:** Use a peripheral BFS order and reverse it to reduce bandwidth.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/11-rcm.drawio)
+**Figure.** Bucket boundaries, not one global sort, define the output.
 
-## 12. GraphBrewOrder
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/05-dbg.drawio).
 
-![GraphBrewOrder transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg)
+### 6. HUBSORTDBG
 
-- **CLI:** `-o 12:<recipe>`
-- **Mechanism:** Compose partitioner, block layout, and local vertex layout.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/12-graphbreworder.drawio)
+- **CLI:** `6`
+- **Mechanism:** HubSort plus degree buckets.
+- **Evidence:** output order captured from the shared example
 
-## 13. MAP
+[![HUBSORTDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/06-hubsortdbg.svg)
 
-![MAP transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg)
+**Figure.** A sorted hub bucket is followed by grouped non-hubs.
 
-- **CLI:** `-o 13:<file>`
-- **Mechanism:** Load and apply an external .lo or .so permutation.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/13-map.drawio)
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/06-hubsortdbg.drawio).
 
-## 14. AdaptiveOrder
+### 7. HUBCLUSTERDBG
 
-![AdaptiveOrder transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg)
+- **CLI:** `7`
+- **Mechanism:** Stable hub and non-hub buckets.
+- **Evidence:** output order captured from the shared example
 
-- **CLI:** `-o 14:<policy>`
-- **Mechanism:** Select one validated reordering arm, then execute that arm.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/14-adaptiveorder.drawio)
+[![HUBCLUSTERDBG measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/07-hubclusterdbg.svg)
 
-## 15. LeidenOrder
+**Figure.** Both regions preserve encounter order.
 
-![LeidenOrder transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg)
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/07-hubclusterdbg.drawio).
 
-- **CLI:** `-o 15:<layout>`
-- **Mechanism:** Detect Leiden communities and apply an explicit post-layout.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/15-leidenorder.drawio)
+## Community and locality layouts
 
-## 16. GoGraphOrder
+### 8. RABBITORDER
 
-![GoGraphOrder transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg)
+- **CLI:** `8:csr`
+- **Mechanism:** Community agglomeration.
+- **Evidence:** output order captured from the shared example
 
-- **CLI:** `-o 16`
-- **Mechanism:** Reassign IDs to increase directed edges with src < dst.
-- [Editable `.drawio` source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/16-gographorder.drawio)
+[![RABBITORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/08-rabbitorder.svg)
+
+**Figure.** Community blocks become contiguous; DFS chooses hierarchy order.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/08-rabbitorder.drawio).
+
+### 9. GORDER
+
+- **CLI:** `9:csr`
+- **Mechanism:** Standalone GORDER_csr.
+- **Evidence:** output order captured from the shared example
+
+[![GORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/09-gorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/09-gorder.svg)
+
+**Figure.** This is distinct from GraphBrew's relaxed local intra_gorder.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/09-gorder.drawio).
+
+### 10. CORDER
+
+- **CLI:** `10:canonical`
+- **Mechanism:** Canonical hot/cold segmentation.
+- **Evidence:** output order captured from the shared example
+
+[![CORDER measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/10-corder.svg)
+
+**Figure.** The workload segmentation defines the memory regions.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/10-corder.drawio).
+
+### 11. RCM
+
+- **CLI:** `11:bnf`
+- **Mechanism:** BNF + RCM.
+- **Evidence:** output order captured from the shared example
+
+[![RCM measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/11-rcm.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/11-rcm.svg)
+
+**Figure.** The output targets lower graph bandwidth.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/11-rcm.drawio).
+
+### 12. GraphBrewOrder
+
+- **CLI:** `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:gordf4:cd_serial:refine_none`
+- **Mechanism:** Explicit three-axis composition.
+- **Evidence:** output order captured from the shared example
+
+[![GraphBrewOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/12-graphbreworder.svg)
+
+**Figure.** GraphBrew emits one explicit composition, not a competitor fallback.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/12-graphbreworder.drawio).
+
+## External and selected layouts
+
+### 13. MAP
+
+- **CLI:** `13:graphbrew-running-example.lo`
+- **Mechanism:** External inverse label list.
+- **Evidence:** output order captured from the shared example
+
+[![MAP measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/13-map.svg)
+
+**Figure.** MAP materializes a supplied order; it does not discover one.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/13-map.drawio).
+
+### 14. AdaptiveOrder
+
+- **CLI:** `14:<policy>`
+- **Mechanism:** Policy-selected arm.
+- **Evidence:** selected-arm illustration; AdaptiveOrder has no fixed permutation
+
+[![AdaptiveOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg)
+
+**Figure.** The output shown is the selected GraphBrew arm for this illustration.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/14-adaptiveorder.drawio).
+
+### 15. LeidenOrder
+
+- **CLI:** `15`
+- **Mechanism:** Leiden partition plus post-layout.
+- **Evidence:** output order captured from the shared example
+
+[![LeidenOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/15-leidenorder.svg)
+
+**Figure.** Community detection alone is not an ordering.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/15-leidenorder.drawio).
+
+## Directed layout
+
+### 16. GoGraphOrder
+
+- **CLI:** `16`
+- **Mechanism:** Directed forward-edge objective.
+- **Evidence:** output order captured from the shared example
+
+[![GoGraphOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/16-gographorder.svg)
+
+**Figure.** The objective is directed; the shown order is measured on this edge list.
+
+[Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/16-gographorder.drawio).

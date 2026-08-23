@@ -1,65 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="600" viewBox="0 0 1400 600" role="img" aria-labelledby="title desc" fill="#27313A">
-  <title id="title">gordf5000 community-size fallback</title>
-  <desc id="desc">Communities with at most 5000 vertices use Gorder with window eight. Communities larger than 5000 vertices use a hub-rooted BFS fallback.</desc>
-  <style>
-    :root{color-scheme:light dark}
-    @media(prefers-color-scheme:dark){
-      [fill="#27313A"]{fill:#ECE7DD}[stroke="#27313A"]{stroke:#ECE7DD}
-        [fill="#FFFFFF"]{fill:#1E2327}
-      [fill="#F8F6EC"]{fill:#252A2E}[fill="#EDF5FF"]{fill:#273846}
-      [fill="#E7F7EA"]{fill:#24382A}[fill="#FFF0D8"]{fill:#3B3122}
-      [fill="#F7DEDC"]{fill:#3D292A}[fill="#EEE9FF"]{fill:#302C3C}
-      [stroke="#9AA3AD"]{stroke:#747D86}
-    }
-    .sans{font-family:Arial,Helvetica,sans-serif}
-    .title{font-size:44px;font-weight:700}.subtitle{font-size:24px}
-    .domain{font-size:21px;font-weight:700;letter-spacing:1.3px}
-    .heading{font-size:31px;font-weight:700}.body{font-size:24px}
-    .label{font-size:22px;font-weight:700}
-    .edge{stroke:#747D86;stroke-width:3.5}
-  </style>
-  <rect width="1400" height="600" fill="#FFFFFF"/>
-  <text x="45" y="55" class="sans title">gordf5000: choose local ordering by community size</text>
-  <text x="45" y="88" class="sans subtitle">The threshold applies to each detected community, never to the whole graph.</text>
-  <line x1="45" y1="112" x2="1355" y2="112" stroke="#27313A" stroke-width="2"/>
-
-  <rect x="35" y="140" width="1330" height="410" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
-  <text x="52" y="166" class="sans domain">PER-COMMUNITY VERTEX LAYOUT</text>
-  <g transform="translate(0 35)">
-  <rect x="55" y="150" width="600" height="365" rx="9" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
-  <text x="355" y="195" text-anchor="middle" class="sans heading">Community size &lt;= 5,000</text>
-  <circle cx="355" cy="315" r="105" fill="none" stroke="#C58A28" stroke-width="3" stroke-dasharray="6 7"/>
-  <line x1="290" y1="300" x2="350" y2="245" class="edge"/>
-  <line x1="290" y1="300" x2="340" y2="375" class="edge"/>
-  <line x1="350" y1="245" x2="425" y2="310" class="edge"/>
-  <line x1="340" y1="375" x2="425" y2="310" class="edge"/>
-  <circle cx="290" cy="300" r="27" fill="#F7DEDC" stroke="#27313A" stroke-width="2"/>
-  <circle cx="350" cy="245" r="27" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <circle cx="340" cy="375" r="27" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <circle cx="425" cy="310" r="27" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
-  <rect x="175" y="440" width="360" height="55" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="3"/>
-  <text x="355" y="475" text-anchor="middle" class="sans heading">Gorder, window = 8</text>
-
-  <rect x="745" y="150" width="600" height="365" rx="9" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
-  <text x="1045" y="195" text-anchor="middle" class="sans heading">Community size &gt; 5,000</text>
-  <circle cx="1045" cy="315" r="120" fill="none" stroke="#1769C2" stroke-width="3" stroke-dasharray="6 7"/>
-  <circle cx="1045" cy="315" r="30" fill="#E7F7EA" stroke="#27313A" stroke-width="2"/>
-  <circle cx="965" cy="255" r="25" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <circle cx="1125" cy="255" r="25" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <circle cx="930" cy="355" r="23" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <circle cx="990" cy="405" r="23" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <circle cx="1100" cy="405" r="23" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <circle cx="1160" cy="355" r="23" fill="#EDF5FF" stroke="#27313A" stroke-width="2"/>
-  <line x1="1021" y1="297" x2="986" y2="271" class="edge"/>
-  <line x1="1069" y1="297" x2="1104" y2="271" class="edge"/>
-  <line x1="1016" y1="326" x2="951" y2="350" class="edge"/>
-  <line x1="1031" y1="342" x2="998" y2="385" class="edge"/>
-  <line x1="1059" y1="342" x2="1092" y2="385" class="edge"/>
-  <line x1="1074" y1="326" x2="1139" y2="350" class="edge"/>
-  <rect x="865" y="440" width="360" height="55" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="3"/>
-  <text x="1045" y="475" text-anchor="middle" class="sans heading">hub-rooted BFS</text>
-  </g>
-
-  <rect x="170" y="560" width="1060" height="30" rx="8" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="700" y="584" text-anchor="middle" class="sans body">One graph can use Gorder on small blocks and BFS only on its large blocks.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="510" viewBox="0 0 1200 510" role="img" aria-labelledby="title desc" fill="#27313A">
+  <title id="title">Stage 4 dispatch: tiny fast path, then one local-layout threshold</title>
+  <desc id="desc">For readability the example uses gordf4; the evaluated recipe uses gordf5000.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
+    </marker>
+    <style>
+      :root{color-scheme:light dark}
+      @media(prefers-color-scheme:dark){
+        [fill="#27313A"]{fill:#ECE7DD}[stroke="#27313A"]{stroke:#ECE7DD}
+        [fill="#FFFFFF"]{fill:#1E2327}[fill="#F8F6EC"]{fill:#252A2E}
+        [fill="#EDF5FF"]{fill:#273846}[fill="#E7F7EA"]{fill:#24382A}
+        [fill="#FFF0D8"]{fill:#3B3122}[fill="#F7DEDC"]{fill:#3D292A}
+        [fill="#EEE9FF"]{fill:#302C3C}[stroke="#9AA3AD"]{stroke:#747D86}
+        [stroke="#1769C2"]{stroke:#63A8FF}[fill="#1769C2"]{fill:#63A8FF}
+        .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}
+      }
+      .sans{font-family:Arial,Helvetica,sans-serif}
+      .mono{font-family:"SFMono-Regular",Consolas,monospace}
+      .title{font-size:32px;font-weight:700}.subtitle{font-size:18px}
+      .domain{font-size:16px;font-weight:700;letter-spacing:1.2px}.heading{font-size:22px;font-weight:700}
+      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}
+      .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
+      .edge{stroke:#27313A;stroke-width:2.2}
+    </style>
+  </defs>
+  <rect width="1200" height="510" fill="#FFFFFF"/>
+  <text x="42" y="47" class="sans title">Stage 4 dispatch: tiny fast path, then one local-layout threshold</text>
+  <text x="42" y="75" class="sans subtitle">Same blocks from Stage 3: C0 has 5 vertices and C1 has 4.</text>
+  <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
+  <rect x="405" y="118" width="390" height="112" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
+  <circle cx="435" cy="155" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
+  <text x="435" y="161" class="sans label" text-anchor="middle" fill="#FFFFFF">4</text>
+  <text x="465" y="157" class="sans heading">Example: is |C| &lt;= 4?</text>
+  <text x="600" y="188" class="mono small" text-anchor="middle">|C| &lt;= 3 keeps input order</text>
+  <text x="600" y="214" class="mono small" text-anchor="middle">4..4: Gorder; &gt;4: BFS</text>
+  <rect x="35" y="260" width="500" height="160" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
+  <text x="60" y="296" class="sans heading">YES: C1, size 4</text>
+  <text x="60" y="330" class="sans body">Use relaxed local Gorder (gw8).</text>
+  <rect x="60.00" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="116" y="376" class="mono small" text-anchor="middle">v8</text>
+  <rect x="172.50" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="228" y="376" class="mono small" text-anchor="middle">v5</text>
+  <rect x="285.00" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="341" y="376" class="mono small" text-anchor="middle">v0</text>
+  <rect x="397.50" y="350" width="112.50" height="42" fill="#FFF0D8" stroke="#27313A" stroke-width="1.5"/>
+  <text x="453" y="376" class="mono small" text-anchor="middle">v3</text>
+  <rect x="665" y="260" width="500" height="160" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <text x="690" y="296" class="sans heading">NO: C0, size 5</text>
+  <text x="690" y="330" class="sans body">Use hub-rooted BFS fallback.</text>
+  <rect x="690.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#1769C2" stroke-width="3"/>
+  <text x="735" y="376" class="mono small" text-anchor="middle">v2</text>
+  <rect x="780.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="825" y="376" class="mono small" text-anchor="middle">v1</text>
+  <rect x="870.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="915" y="376" class="mono small" text-anchor="middle">v4</text>
+  <rect x="960.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="1005" y="376" class="mono small" text-anchor="middle">v6</text>
+  <rect x="1050.00" y="350" width="90.00" height="42" fill="#EDF5FF" stroke="#27313A" stroke-width="1.5"/>
+  <text x="1095" y="376" class="mono small" text-anchor="middle">v7</text>
+  <path d="M500 230 V242 H285 V256" class="arrow"/>
+  <path d="M700 230 V242 H915 V256" class="arrow"/>
+  <rect x="144" y="445" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="472" class="sans small" text-anchor="middle">Invariant: both local orders stay inside their assigned block ranges.</text>
 </svg>

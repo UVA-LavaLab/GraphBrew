@@ -24,11 +24,19 @@ Three interacting locality dimensions matter:
 GraphBrew (`-o 12`) is the framework that composes these dimensions;
 the other IDs are individual primitives or baselines.
 
+## One shared comparison input
+
+[![Shared reordering input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg)
+
+Every catalog strip uses this exact nine-vertex graph and records the converter
+output order under one pinned binary. That makes equal outputs visible and
+prevents algorithm-specific figures from quietly changing the topology.
+
 ## Quick reference
 
 See the [Reordering Figure Catalog](Reordering-Figure-Catalog) for a
-before/after graph transformation and Lucidchart-editable source for every
-algorithm ID.
+measured output strip, mechanism-specific explanation, and generated
+draw.io source for every algorithm ID.
 
 | ID | Flag | Algorithm | Complexity | Notes |
 |---|---|---|---|---|

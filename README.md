@@ -17,11 +17,17 @@ three explicit decisions:
 | Block layout | identity, size/degree sort, super-graph order | place groups globally |
 | Vertex layout | BFS, RCM, degree order, Gorder | order vertices inside each block |
 
-![Proposed GraphBrew Rabbit-free research direction](./docs/figures/graphbrew-architecture.svg)
+![GraphBrew current system and Rabbit-free research direction](./docs/figures/graphbrew-architecture.svg)
+
+The [running example](https://github.com/UVA-LavaLab/GraphBrew/wiki/GraphBrew-Running-Example)
+carries one graph and tracked vertex through all six stages shown above.
 
 ## Manual composition versus automatic selection
 
 GraphBrew has two distinct interfaces.
+
+The proposed Rabbit-free composition generator is a research direction under
+held-out evaluation; it is not yet a third deployed interface.
 
 ### Explicit composition
 
@@ -69,8 +75,9 @@ cd_parallel:sgmb4096:gordf5000:norefine:2:2
 
 It caps parallel Leiden at two local-moving iterations and two aggregation
 passes, uses ordered internal super-graph proposal batches, places blocks by
-SizeDesc, runs Gorder8 for communities up to 5000 vertices, and falls back to
-BFS for larger communities.
+SizeDesc, preserves input order for communities of size at most three, runs
+the relaxed local Gorder heuristic for sizes 4 through 5000, and uses BFS for
+larger communities.
 
 The rule was derived on 18 graphs and frozen before 12 additional graphs were
 opened. It selected GraphBrew on seven holdouts and Boost Rabbit on five.

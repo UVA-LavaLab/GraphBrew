@@ -4,41 +4,33 @@ GraphBrewOrder (`-o 12`) constructs a vertex permutation from explicit,
 independent decisions. It changes vertex IDs and CSR memory placement; it
 does not add, remove, or redirect edges.
 
-## Transformation gallery
+## Six-stage map
 
-### 1. Detect communities
+The public figures share one stage map: **1** load and profile,
+**2** partition, **3** block layout, **4** vertex layout,
+**5** relabeled-CSR emission, and **6** kernel access pattern.
+Serialization, validation, and timing are shown without new stage numbers.
 
-![Leiden community transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg)
+Read [GraphBrew Running Example](GraphBrew-Running-Example) first. It carries
+the same graph, communities, tracked vertex, final mapping, CSR row, and
+cache-line calculation through every stage.
 
-The community detector adds membership to the existing graph. At this stage,
-edges and vertex IDs are unchanged.
+The key distinction inside Stage 4 is:
 
-### 2. Place community blocks
+```text
+small community -> relaxed local intra_gorder
+large community -> hub-rooted BFS fallback
+```
 
-![SizeDesc block transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg)
+These are alternative local layouts chosen per community, not sequential
+whole-graph stages. The active `intra_gorder` implementation is the historical
+direct-neighbor UnitHeap heuristic; faithful standalone `GORDER_csr` is
+algorithm 9 and is shown separately in the
+[Reordering Figure Catalog](Reordering-Figure-Catalog).
 
-`comm_size_desc` assigns one contiguous ID range to each community and places
-the largest range first. This is the first stage that changes global IDs.
+## The validated low-reuse composition
 
-### 3. Order a small community
-
-![Gorder8 transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg)
-
-For communities with at most 5000 vertices, Gorder8 changes only IDs inside
-that block. It favors vertices whose neighborhoods overlap the most recent
-window of up to eight placements.
-
-### 4. Order a large community
-
-![BFS fallback transformation](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg)
-
-For larger communities, the fallback starts at a high-degree vertex and
-assigns local IDs by breadth-first level. The community's global block range
-does not move.
-
-## The active composition
-
-The non-Rabbit arm used by the low-reuse policy is:
+The non-Rabbit arm used by the currently validated low-reuse policy is:
 
 ```text
 12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:
@@ -53,7 +45,8 @@ relaxed Gorder8-or-BFS vertices
 ```
 
 This is one fixed experimental treatment. Algorithm 12 does not search for a
-better combination at runtime.
+better combination at runtime. The proposed Rabbit-free composition generator
+is a separate research direction under evaluation.
 
 ## Three layout decisions
 
@@ -97,7 +90,7 @@ They refer to different super-graphs:
 
 ### `cd_parallel`
 
-![cd_parallel](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg)
+[![cd_parallel](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-cd-parallel.svg)
 
 The default deterministic community-detection mode temporarily limits the
 Leiden section to one OpenMP thread. `cd_parallel` removes that limit.
@@ -120,7 +113,7 @@ parallel mapping.
 
 ### `sgmb4096`
 
-![sgmb4096](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg)
+[![sgmb4096](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sgmb4096.svg)
 
 Leiden repeatedly operates on an aggregated graph whose vertices are current
 communities. A fully sequential local-move loop became a preprocessing
@@ -141,13 +134,18 @@ from that same batch.
 
 ### `gordf5000`
 
-![gordf5000](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)
+[![gordf5000](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg)
+
+The running-example figure uses `gordf4` only to put one four-vertex block and
+one five-vertex block on opposite sides of the same decision. The evaluated
+recipe uses the identical mechanism with threshold `5000`.
 
 The threshold is evaluated independently for every detected community:
 
 ```text
-community size <= 5000  -> Gorder with window 8
-community size >  5000  -> hub-rooted BFS
+community size <= 3     -> preserve input order (tiny fast path)
+community size 4..5000  -> relaxed local Gorder with window 8
+community size > 5000   -> hub-rooted BFS
 ```
 
 It is not a whole-graph cutoff. A graph with millions of vertices can still
@@ -160,7 +158,7 @@ unvalidated treatment.
 
 ### `norefine`
 
-![norefine](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg)
+[![norefine](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-norefine.svg)
 
 Full Leiden performs:
 

@@ -2,6 +2,13 @@
 
 Understanding the GraphBrew codebase structure for developers.
 
+[![GraphBrew pipeline architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg)
+
+The six numbered cards are the public stage map. Use
+[GraphBrew Running Example](GraphBrew-Running-Example) for the exact graph,
+mapping, CSR row, and locality values before following the implementation
+paths below.
+
 ## Directory Structure
 
 ```

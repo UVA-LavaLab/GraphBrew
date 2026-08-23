@@ -72,14 +72,21 @@ GRAPH=scripts/test/graphs/tiny/tiny.el
 # No reordering (baseline)
 ./bench/bin/pr -f $GRAPH -s -o 0 -n 3
 
-# Hub-clustered (degree-based; cheap, decent on power-law graphs)
+# Cheap degree/bucket control
 ./bench/bin/pr -f $GRAPH -s -o 7 -n 3
 
-# GraphBrewOrder (Leiden + per-community ordering)
-./bench/bin/pr -f $GRAPH -s -o 12 -n 3
+# Explicit Rabbit-free GraphBrew composition
+./bench/bin/pr -f $GRAPH -s \
+  -o 12:leiden:compose:sg_none:comm_size_desc:intra_hubsort:cd_serial:refine_none \
+  -n 3
 ```
 
 `-o N` selects the reordering algorithm (see [Reordering-Algorithms](Reordering-Algorithms)). `-s` symmetrises a directed input. `-n N` runs N trials.
+
+The HubSort recipe above is a simple starter composition. The
+[running example](GraphBrew-Running-Example) uses the Gorder/BFS dispatch to
+explain both local-layout branches, while the validated low-reuse arm uses
+`gordf5000`.
 
 ## Run a real graph
 
@@ -89,11 +96,16 @@ wget https://snap.stanford.edu/data/ego-Facebook.txt.gz
 gunzip ego-Facebook.txt.gz
 mv ego-Facebook.txt facebook.el
 
-./bench/bin/pr -f facebook.el -s -o 12:hrab -n 5
+./bench/bin/pr -f facebook.el -s \
+  -o 12:leiden:compose:sg_none:comm_size_desc:intra_hubsort:cd_serial:refine_none \
+  -n 5
 ```
 
-`12:hrab` is the HRAB variant — Leiden + Rabbit-on-supergraph. Other variants:
-`12:leiden`, `12:rabbit`, `12:tqr`, `12:hcache`, `12:rcm`, `12:hubcluster`, `12:streaming`. See [GraphBrewOrder](GraphBrewOrder).
+GraphBrew recipes explicitly select the partitioner, block layout, and local
+vertex layout. Rabbit-dependent presets remain available as baselines, but
+they are not part of the Rabbit-free research direction. Start with the
+[GraphBrew Running Example](GraphBrew-Running-Example), then use
+[GraphBrewOrder](GraphBrewOrder) as the token reference.
 
 ## Common flags
 
@@ -162,6 +174,7 @@ More in [Troubleshooting](Troubleshooting).
 ## Next steps
 
 - [Reordering-Algorithms](Reordering-Algorithms) — what each algorithm does and when to use it
-- [GraphBrewOrder](GraphBrewOrder) — the composable pipeline that produces ten variants
+- [GraphBrew Running Example](GraphBrew-Running-Example) — one graph carried through all six stages
+- [GraphBrewOrder](GraphBrewOrder) — the explicit composition grammar and cost controls
 - [Running-Benchmarks](Running-Benchmarks) — manual benchmark workflow
 - [Reproducible-Experiments](Reproducible-Experiments) — reproducing the frozen study

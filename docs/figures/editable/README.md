@@ -7,36 +7,35 @@ https://help.lucid.co/hc/en-us/articles/16389149809428-Import-files-into-Lucidch
 
 ## Recommended Lucidchart workflow
 
-1. Download `GraphBrew-reordering-figures.drawio` to import all 17 algorithm
-   pages at once, or download one numbered `.drawio` file.
+1. Download `GraphBrew-reordering-figures.drawio` to import the shared input
+   plus all 17 algorithm pages, or download one numbered `.drawio` file.
 2. In Lucidchart, select **New > Import documents** and choose the file.
-3. Edit the individual nodes, edges, labels, memory cells, colors, and
-   connectors as Lucidchart shapes.
-4. Export the finished page as SVG.
-5. Replace the paired file under `docs/figures/reordering/` and keep the
-   `.drawio` source synchronized.
+3. Use the imported shapes to prototype a visual improvement.
+4. Port the accepted change to `scripts/generate_public_figures.py` or
+   `graphbrew-running-example.json`.
+5. Regenerate every SVG, draw.io page, bundle page, and manifest.
 
 ## Source policy
 
-- `.drawio` is the editable source for manual polishing.
-- `.svg` is the publication artifact embedded by the wiki.
+- `graphbrew-running-example.json` and `scripts/generate_public_figures.py`
+  are the canonical sources.
+- `.drawio` is the generated editable form for visual prototyping.
+- `.svg` is the generated publication artifact embedded by the wiki.
 - Each algorithm ID has one same-stem pair, for example:
   `08-rabbitorder.drawio` and `08-rabbitorder.svg`.
-- `GraphBrew-reordering-figures.drawio` is a convenience multi-page bundle.
+- `example-input.drawio` is the shared input page.
+- `GraphBrew-reordering-figures.drawio` is the generated 18-page bundle.
 - Do not import the SVG when shape-level editing is required; Lucidchart does
   not document SVG as a native fully editable diagram import.
 
 ## Visual contract
 
-- Use a white canvas with the shared light/dark GraphBrew palette.
-- Keep the input and output graphs inside separate rounded cards.
-- Use circular graph nodes, at least 21 px exported SVG text, 54 px regular
-  node diameters, and 60 px emphasized-hub diameters.
-- Use dark node outlines and 2.5 px node strokes so IDs remain legible.
-- Keep titles, cards, graph geometry, and memory-order rows aligned across all
-  17 pages.
-- Update the same-stem SVG and draw.io file together, then refresh the
-  multi-page bundle.
+- Show the shared graph once, then compare output-only algorithm strips.
+- Use the shared light/dark palette, stage/algorithm badge, measured output
+  array, mechanism card, and invariant footer.
+- Highlight exactly one maximally displaced vertex in each output.
+- Keep all 17 strips at 1200x360 so their arrays align visually.
+- Regenerate the same-stem SVG/draw.io pair and bundle together.
 
 The catalog manifest is
 [`../reordering/manifest.json`](../reordering/manifest.json).
