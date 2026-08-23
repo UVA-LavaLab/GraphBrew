@@ -858,7 +858,6 @@ inline GraphBrewRealizedConfig makeGraphBrewRealizedConfig(
             config.finalAlgoId == 8
         ) ||
         config.superGraphOrder == SuperGraphOrder::SuperRabbit ||
-        config.superGraphOrder == SuperGraphOrder::SuperRCM ||
         config.superGraphOrder == SuperGraphOrder::TileRabbit;
     realized.gorderWindow = config.gorderWindow;
     realized.gorderFallback = config.gorderFallback;
@@ -5099,6 +5098,14 @@ std::vector<K> runRCMOnSuperCSR(
             if (nbr != c) superAdj[nbr].push_back({c, w});
         }
     }
+    for (auto& neighbors : superAdj) {
+        std::sort(
+            neighbors.begin(), neighbors.end(),
+            [](const std::pair<K, float>& a,
+               const std::pair<K, float>& b) {
+                return a.first < b.first;
+            });
+    }
 
     std::vector<K> rcmDegree(C);
     for (K c = 0; c < C; ++c) rcmDegree[c] = static_cast<K>(superAdj[c].size());
@@ -5160,7 +5167,13 @@ std::vector<K> runRCMOnSuperCSR(
         K nextNode = farthest[0];
         K nextDeg = rcmDegree[farthest[0]];
         for (size_t i = 1; i < farthest.size(); ++i) {
-            if (rcmDegree[farthest[i]] < nextDeg) {
+            if (
+                rcmDegree[farthest[i]] < nextDeg ||
+                (
+                    rcmDegree[farthest[i]] == nextDeg &&
+                    farthest[i] < nextNode
+                )
+            ) {
                 nextDeg = rcmDegree[farthest[i]];
                 nextNode = farthest[i];
             }
@@ -5176,7 +5189,10 @@ std::vector<K> runRCMOnSuperCSR(
     std::vector<K> seedOrder(C);
     std::iota(seedOrder.begin(), seedOrder.end(), K(0));
     std::sort(seedOrder.begin(), seedOrder.end(),
-              [&](K a, K b) { return rcmDegree[a] < rcmDegree[b]; });
+              [&](K a, K b) {
+                  return rcmDegree[a] < rcmDegree[b] ||
+                      (rcmDegree[a] == rcmDegree[b] && a < b);
+              });
 
     auto doCMBFS = [&](K seed) {
         if (rcmVisited[seed] || !isActive(seed)) return;
@@ -5189,7 +5205,11 @@ std::vector<K> runRCMOnSuperCSR(
             auto& nbrs = superAdj[cur];
             std::sort(nbrs.begin(), nbrs.end(),
                 [&](const std::pair<K, float>& a, const std::pair<K, float>& b) {
-                    return rcmDegree[a.first] < rcmDegree[b.first];
+                    return rcmDegree[a.first] < rcmDegree[b.first] ||
+                        (
+                            rcmDegree[a.first] == rcmDegree[b.first] &&
+                            a.first < b.first
+                        );
                 });
             for (auto& [nbr, w] : nbrs) {
                 if (!rcmVisited[nbr] && isActive(nbr)) {

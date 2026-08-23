@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "benchmark.h"
@@ -841,6 +842,101 @@ void TestTier0PackingUsesSampledTopDegreeVertices()
         "Tier-0 normalized edge span is out of range");
 }
 
+void TestSuperRCMIsIndependentOfHashInsertionOrder()
+{
+    using Key = uint32_t;
+    graphbrew::CommunitySuperGraph<Key> first;
+    graphbrew::CommunitySuperGraph<Key> second;
+    first.edges.resize(6);
+    second.edges.resize(6);
+    first.degrees.assign(6, 0.0f);
+    second.degrees.assign(6, 0.0f);
+
+    const std::vector<std::tuple<Key, Key, float>> edges = {
+        {0, 1, 1.0f},
+        {0, 2, 1.0f},
+        {1, 3, 1.0f},
+        {2, 3, 1.0f},
+        {3, 4, 1.0f},
+        {3, 5, 1.0f},
+    };
+    for (const auto& [source, target, weight] : edges)
+        first.edges[source].emplace(target, weight);
+    for (auto it = edges.rbegin(); it != edges.rend(); ++it) {
+        const auto& [source, target, weight] = *it;
+        second.edges[source].emplace(target, weight);
+    }
+
+    const std::vector<size_t> community_sizes(6, 1);
+    const auto first_order =
+        graphbrew::runRCMOnSuperCSR(first, community_sizes);
+    const auto second_order =
+        graphbrew::runRCMOnSuperCSR(second, community_sizes);
+    Require(
+        first_order == second_order,
+        "SuperRCM depends on unordered-map insertion order");
+    Require(
+        first_order == std::vector<Key>({5, 4, 3, 2, 1, 0}),
+        "SuperRCM changed its canonical connected-graph order");
+
+    graphbrew::CommunitySuperGraph<Key> disconnected;
+    disconnected.edges.resize(6);
+    disconnected.degrees.assign(6, 0.0f);
+    disconnected.edges[0].emplace(1, 1.0f);
+    disconnected.edges[2].emplace(3, 1.0f);
+    const std::vector<size_t> disconnected_sizes = {
+        1, 1, 1, 1, 1, 0,
+    };
+    Require(
+        graphbrew::runRCMOnSuperCSR(
+            disconnected, disconnected_sizes)
+            == std::vector<Key>({4, 3, 1, 0, 2, 5}),
+        "SuperRCM changed component seeds or empty-community tail order");
+
+    graphbrew::CommunitySuperGraph<Key> farthest_tie;
+    farthest_tie.edges.resize(7);
+    farthest_tie.degrees.assign(7, 0.0f);
+    for (const auto& [source, target] : std::vector<std::pair<Key, Key>>{
+        {0, 1}, {0, 3}, {1, 4}, {1, 6}, {2, 3},
+        {2, 4}, {3, 4}, {3, 5}, {4, 5}, {5, 6},
+    }) {
+        farthest_tie.edges[source].emplace(target, 1.0f);
+    }
+    Require(
+        graphbrew::runRCMOnSuperCSR(
+            farthest_tie, std::vector<size_t>(7, 1))
+            == std::vector<Key>({3, 1, 6, 5, 4, 2, 0}),
+        "SuperRCM changed the George-Liu farthest-node tie-break");
+
+    graphbrew::CommunitySuperGraph<Key> many_components;
+    many_components.edges.resize(18);
+    many_components.degrees.assign(18, 0.0f);
+    for (Key source = 0; source < 18; source += 2)
+        many_components.edges[source].emplace(source + 1, 1.0f);
+    std::vector<Key> reverse_ids(18);
+    for (Key id = 0; id < 18; ++id)
+        reverse_ids[id] = 17 - id;
+    Require(
+        graphbrew::runRCMOnSuperCSR(
+            many_components, std::vector<size_t>(18, 1))
+            == reverse_ids,
+        "SuperRCM changed equal-degree component seed ordering");
+
+    graphbrew::GraphBrewConfig serial_config;
+    serial_config.superGraphOrder =
+        graphbrew::SuperGraphOrder::SuperRCM;
+    serial_config.deterministicCommunityDetection = true;
+    Require(
+        !graphbrew::makeGraphBrewRealizedConfig(
+            serial_config).scheduleSensitive,
+        "deterministic SuperRCM remained schedule-sensitive");
+    serial_config.deterministicCommunityDetection = false;
+    Require(
+        graphbrew::makeGraphBrewRealizedConfig(
+            serial_config).scheduleSensitive,
+        "parallel community detection lost schedule sensitivity");
+}
+
 void TestExplicitSourceListContract()
 {
     optind = 1;
@@ -1119,6 +1215,7 @@ int main()
         TestAdaptiveArtifactAndCriterionContract();
         TestAdaptiveModelIndicesFailClosed();
         TestTier0PackingUsesSampledTopDegreeVertices();
+        TestSuperRCMIsIndependentOfHashInsertionOrder();
         TestExplicitSourceListContract();
         TestAdaptiveSourcePolicySelection();
         TestGraphNameNormalization();

@@ -1089,6 +1089,24 @@ def test_mapping_draw_policy_matches_schedule_contract():
         )
 
 
+def test_non_p0_super_rcm_is_deterministic_by_default():
+    serial = (
+        "12:leiden:compose:sg_super_rcm:comm_identity:"
+        "intra_rcmpp:cd_serial:refine_none"
+    )
+    parallel = f"{serial}:cd_parallel"
+    serial_effective = runner._expected_graphbrew_config(serial)
+    parallel_effective = runner._expected_graphbrew_config(parallel)
+    assert not reorder_config.graphbrew_schedule_sensitive(
+        serial_effective,
+    )
+    assert runner._mapping_draw_count(["-o", serial]) == 1
+    assert reorder_config.graphbrew_schedule_sensitive(
+        parallel_effective,
+    )
+    assert runner._mapping_draw_count(["-o", parallel]) > 1
+
+
 def test_composition_p0_draw_cohort_fails_closed():
     spec = COMPOSITION_P0_ALGORITHM_KEYS[0]
     effective = runner._expected_graphbrew_config(spec)

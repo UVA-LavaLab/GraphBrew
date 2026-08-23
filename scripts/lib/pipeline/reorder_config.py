@@ -43,7 +43,7 @@ def graphbrew_schedule_sensitive(effective: dict[str, object]) -> bool:
             and effective["final_algo_id"] == 8
         )
         or effective["super_graph"] in {
-            "super-rabbit", "super-rcm", "tile-rabbit",
+            "super-rabbit", "tile-rabbit",
         }
     )
 
