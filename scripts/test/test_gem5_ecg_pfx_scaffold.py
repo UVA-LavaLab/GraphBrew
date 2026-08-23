@@ -621,6 +621,14 @@ def test_proposal_compact_k2m_streamshield_is_fail_closed():
     assert "in_edge_pair32_flat.size() * sizeof(uint32_t)" in guest
     assert "GEM5_ECG_COMPACT_K2M_SS=1 but" in guest
     assert "[ECG_K2_MLOAD_C_SS]" in guest
+    assert "epochPairOffsetsMatchInCsr" in guest
+    assert "[ECG-CSR-SUBSTITUTION active=1" in guest
+    measured_roi = guest.split(
+        "GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE)", 1)[1].split(
+            "GEM5_WORK_END(GEM5_WORK_COMPUTE)", 1)[0]
+    assert not re.search(r"\bpair_off\b", measured_roi)
+    assert "g.in_offset(u)" in measured_roi
+    assert "g.in_offset(u + 1)" in measured_roi
     assert "GEM5_ECG_COMPACT_K2M_SS" in graph_se
 
     active = {"timing_valid_for_speedup": "1"}
@@ -675,6 +683,56 @@ def test_proposal_compact_k2m_streamshield_is_fail_closed():
         requested=True)
     assert wrong_width["status"] == "error"
     assert "4-byte request-flag record requests" in wrong_width["error"]
+
+
+def test_gem5_csr_substitution_receipt_is_fail_closed():
+    receipt = (
+        "[ECG-CSR-SUBSTITUTION active=1 valid=1 "
+        "offset_source=csr rows=256 records=4096]")
+    row = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_csr_substitution_receipt(
+        row, receipt, required=True)
+    assert row["ecg_csr_substitution_receipt_count"] == 1
+    assert row["ecg_csr_substitution_active"] == 1
+    assert row["ecg_csr_substitution_valid"] == 1
+    assert row["ecg_offset_source"] == "csr"
+    assert row["ecg_csr_substitution_rows"] == 256
+    assert row["ecg_csr_substitution_records"] == 4096
+    assert "error" not in row
+
+    missing = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_csr_substitution_receipt(
+        missing, "", required=True)
+    assert missing["status"] == "error"
+
+    duplicate = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_csr_substitution_receipt(
+        duplicate, f"{receipt}\n{receipt}", required=True)
+    assert duplicate["status"] == "error"
+
+    invalid = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_csr_substitution_receipt(
+        invalid,
+        "[ECG-CSR-SUBSTITUTION active=1 valid=0 "
+        "offset_source=pair rows=256 records=4096]",
+        required=True)
+    assert invalid["status"] == "error"
+    assert invalid["timing_valid_for_speedup"] == "0"
+
+    optional_duplicate = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_csr_substitution_receipt(
+        optional_duplicate, f"{receipt}\n{receipt}", required=False)
+    assert "error" not in optional_duplicate
+    assert optional_duplicate["timing_valid_for_speedup"] == "1"
+
+    optional_invalid = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_csr_substitution_receipt(
+        optional_invalid,
+        "[ECG-CSR-SUBSTITUTION active=0 valid=0 "
+        "offset_source=pair rows=256 records=4096]",
+        required=False)
+    assert "error" not in optional_invalid
+    assert optional_invalid["timing_valid_for_speedup"] == "1"
 
 
 def test_proposal_compact_k2m_streamshield_cli_guards():
@@ -1155,6 +1213,10 @@ def test_proposal_compact_k2m_streamshield_native_path_is_reachable(
     compact_text = compact.stdout + compact.stderr
     assert compact.returncode == 0, compact_text
     assert "[ECG_K2_MLOAD_C_SS]" in compact_text
+    assert (
+        "[ECG-CSR-SUBSTITUTION active=1 valid=1 "
+        "offset_source=csr"
+    ) in compact_text
     assert "[ECG-METADATA-FATAL]" not in compact_text
 
     wide_env = dict(compact_env)
@@ -1180,6 +1242,10 @@ def test_proposal_compact_k2m_streamshield_native_path_is_reachable(
         "+ StreamShield record load ACTIVE"
     ) in wide_text
     assert "[ECG_K2_MLOAD_C_SS]" not in wide_text
+    assert (
+        "[ECG-CSR-SUBSTITUTION active=1 valid=1 "
+        "offset_source=csr"
+    ) in wide_text
     assert "[ECG-METADATA-FATAL]" not in wide_text
 
     receipt = re.compile(

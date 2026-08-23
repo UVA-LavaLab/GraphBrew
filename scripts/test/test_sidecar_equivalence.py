@@ -542,6 +542,7 @@ def test_compact_records_decode_identically_to_the_64_bit_form():
     out = proc.stdout + proc.stderr
     assert proc.returncode == 0, f"compact/64-bit records diverge:\n{out[-2000:]}"
     assert "ALL EQUIVALENT" in out, out[-2000:]
+    assert "CSR OFFSETS AND DESTINATIONS MATCH" in out, out[-2000:]
     # Guard against a vacuous pass if the builder silently refused every size.
     assert out.count("records checked") >= 3, (
         "too few epoch counts exercised; the compact builder may be refusing "
