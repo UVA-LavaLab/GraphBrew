@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare matched 16-, 15-, and 14-way K2 full-graph matrices."""
+"""Compare matched 16-, 15-, and 14-way ReusePlan full-graph matrices."""
 
 from __future__ import annotations
 
@@ -7,15 +7,18 @@ import argparse
 import csv
 import json
 import math
+import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from policy_specs import policy_output_label  # noqa: E402
 
-K2_POLICIES = (
-    "ECG_K2",
-    "ECG_K2_ONLINE",
-    "ECG_K2_STREAMSHIELD",
-    "ECG_K2_ONLINE_STREAMSHIELD",
+REUSEPLAN_POLICIES = (
+    "ECG_REUSEPLAN",
+    "ECG_REUSEPLAN_ONLINE",
+    "ECG_REUSEPLAN_FLOWTHROUGH",
+    "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH",
 )
 BASELINE_POLICIES = ("LRU", "SRRIP", "GRASP", "HAWKEYE_PROXY", "POPT")
 
@@ -32,6 +35,9 @@ def read_rows(path: Path) -> list[dict[str, str]]:
     ]
     if bad:
         raise ValueError(f"matrix has non-ok rows: {', '.join(bad[:5])}")
+    for row in rows:
+        row["policy_label"] = policy_output_label(
+            str(row.get("policy_label", "")))
     return rows
 
 
@@ -56,11 +62,12 @@ def load_matrix(path: Path, expected_k2_ways: int) -> dict[tuple[str, str, str],
         raise ValueError(
             f"expected 135 unique rows in {path}, got {len(indexed)}")
     for key, row in indexed.items():
-        if key[2] in K2_POLICIES:
+        if key[2] in REUSEPLAN_POLICIES:
             actual = int(row.get("l3_effective_ways") or 0)
             if actual != expected_k2_ways:
                 raise ValueError(
-                    f"{key}: K2 ways={actual}, expected {expected_k2_ways}")
+                    f"{key}: ReusePlan ways={actual}, "
+                    f"expected {expected_k2_ways}")
         elif key[2] != "POPT":
             actual = int(row.get("l3_effective_ways") or 0)
             if actual != 16:
@@ -106,7 +113,7 @@ def analyze(
                 })
     if baseline_mismatches:
         raise ValueError(
-            f"non-K2 baselines drift across matrices: "
+            f"non-ReusePlan baselines drift across matrices: "
             f"{baseline_mismatches[:3]}")
 
     cells = []
@@ -117,7 +124,7 @@ def analyze(
         "baseline_mismatches": 0,
         "policies": {},
     }
-    for policy in K2_POLICIES:
+    for policy in REUSEPLAN_POLICIES:
         vs_lru: dict[int, list[float]] = {16: [], 15: [], 14: []}
         vs_16: dict[int, list[float]] = {15: [], 14: []}
         for graph, benchmark, row_policy in sorted(keys):
@@ -163,7 +170,7 @@ def analyze(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Analyze matched 16/15/14-way K2 matrices.")
+        description="Analyze matched 16/15/14-way ReusePlan matrices.")
     parser.add_argument("--matrix-16", type=Path, required=True)
     parser.add_argument("--matrix-15", type=Path, required=True)
     parser.add_argument("--matrix-14", type=Path, required=True)

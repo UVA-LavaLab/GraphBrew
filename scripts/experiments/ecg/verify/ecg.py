@@ -328,19 +328,19 @@ def run_gem5_isa_modes(receipt_dir=None):
         "[test_ecg_load_modes] RESULT: FAIL" in proposal_teeth)
     print(f"  gem5 ISA decode every (mode,width) via REAL decoder -> PASS: "
           f"{'[OK ]' if normal_pass else '[FAIL]'}")
-    print(f"  gem5 StreamShield request-bound LOAD2/K2 round-trip: "
+    print(f"  gem5 FlowThrough request-bound LOAD2/ReusePlan round-trip: "
           f"{'[OK ]' if stream_load_pass else '[FAIL]'}")
-    print(f"  gem5 compact StreamShield decoder -> canonical K2-M mask: "
+    print(f"  gem5 compact FlowThrough decoder -> canonical ReuseBind mask: "
           f"{'[OK ]' if compact_stream_k2m_pass else '[FAIL]'}")
-    print(f"  gem5 compact StreamShield request-flag bypass: "
+    print(f"  gem5 compact FlowThrough request-flag bypass: "
           f"{'[OK ]' if compact_request_bypass_pass else '[FAIL]'}")
-    print(f"  gem5 compact K2-M exact O3 Request metadata: "
+    print(f"  gem5 compact ReuseBind exact O3 Request metadata: "
           f"{'[OK ]' if compact_request_bound_pass else '[FAIL]'}")
-    print(f"  gem5 weighted 4B WLOAD2/K2 round-trip: "
+    print(f"  gem5 weighted 4B WLOAD2/ReusePlan round-trip: "
           f"{'[OK ]' if weighted_load_pass else '[FAIL]'}")
-    print(f"  gem5 request-bound K2 property-load round-trip: "
+    print(f"  gem5 request-bound ReusePlan property-load round-trip: "
           f"{'[OK ]' if masked_pload_pass else '[FAIL]'}")
-    print(f"  gem5 computed-address K2-M typed-load round-trip: "
+    print(f"  gem5 computed-address ReuseBind typed-load round-trip: "
           f"{'[OK ]' if mask_only_pass else '[FAIL]'}")
     print(f"  gem5 ISA teeth (forced-wrong ECG_WIDTH must mis-decode -> FAIL): "
           f"{'[OK ]' if teeth_fail else '[FAIL]'}")
@@ -721,7 +721,7 @@ def run_field_parity():
 
 
 def run_epoch_pair_unit():
-    """Build and run the shared pull/push K2 builder + wire/distance test."""
+    """Build and run the shared pull/push ReusePlan builder + wire/distance test."""
     binp = Path("/tmp") / "verify_ecg_epoch_pair"
     cc = subprocess.run(
         ["g++", "-O2", "-std=c++17", f"-I{ROOT}/bench/include",
@@ -744,7 +744,7 @@ def verify_k2_trace(
         require_request_bound=False):
     """Verify Schedule-2 reached resident lines and each traced `dist` is
     min(distance(epoch1), distance(epoch2)). Combined with verify_trace's exact
-    victim rule, this certifies the K2 adapter and eviction decision."""
+    victim rule, this certifies the ReusePlan adapter and eviction decision."""
     text, ran_ok = result
     ok = verify_trace(
         name, result, prefix=prefix, coverage=coverage,
@@ -902,7 +902,7 @@ def verify_k2_trace(
         # records can target one line, so request order is not expected to match
         # the raw sideband sequence. validate_sniper_fused_receipts independently
         # checks every receipt's raw index and exact packed record against the
-        # exported K2 files; this verifier additionally pins line/dest/tier shape.
+        # exported ReusePlan files; this verifier additionally pins line/dest/tier shape.
         exact_bind_ok = receipt_bind_match if require_exact_bind else True
         delivery_ok = (
             set(expected) == required and
@@ -1074,7 +1074,7 @@ def verify_k2_trace(
         })
     if bad or not live or not delivery_ok:
         ok = False
-    print(f"  {prefix}{name:14s}: K2 ways={pairs} distinct={distinct} "
+    print(f"  {prefix}{name:14s}: ReusePlan ways={pairs} distinct={distinct} "
           f"distance_mismatches={bad} delivery={len(expected)}/"
           f"{len(sideband) if sideband else len(received)}"
           f"{' match' if delivery_ok else ' MISMATCH'}   "
@@ -1090,7 +1090,7 @@ def verify_k2_request_accepts(
     O3 may execute and replay custom loads out of order, so guest-side EXPECT
     sequence numbers are not a stable key. The Request sequence is: every LLC
     accept must point at an emitted request and reproduce its destination and
-    complete K2 payload on the exact filled line.
+    complete ReusePlan payload on the exact filled line.
     """
     requests = {}
     accepts = []
@@ -1257,7 +1257,7 @@ def main(argv=None):
                     help="Also verify Sniper ECG variants (guarded sg_kernel run under prlimit).")
     ap.add_argument(
         "--gem5-isa-only", action="store_true",
-        help="Run only the real RISC-V decoder plus O3 K2-M proposal probe.")
+        help="Run only the real RISC-V decoder plus O3 ReuseBind proposal probe.")
     ap.add_argument(
         "--isa-receipt-dir", default="",
         help="Persist real-decoder commands, logs, hashes, and result JSON.")

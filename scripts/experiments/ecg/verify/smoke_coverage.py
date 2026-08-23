@@ -6,20 +6,26 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from policy_specs import policy_output_label  # noqa: E402
 
 SIMULATORS = ("cache_sim", "gem5", "sniper")
 BENCHMARKS = ("pr", "bfs", "sssp", "bc", "cc")
 DEFAULT_GRAPHS = ("kron_s12_k4",)
 POLICIES = (
     "LRU", "SRRIP", "GRASP", "POPT",
-    "ECG_K2", "ECG_K2_ONLINE",
-    "ECG_K2_STREAMSHIELD", "ECG_K2_ONLINE_STREAMSHIELD",
+    "ECG_REUSEPLAN", "ECG_REUSEPLAN_ONLINE",
+    "ECG_REUSEPLAN_FLOWTHROUGH", "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH",
 )
-K2_POLICIES = set(POLICIES[4:])
-SS_POLICIES = {"ECG_K2_STREAMSHIELD", "ECG_K2_ONLINE_STREAMSHIELD"}
+REUSEPLAN_POLICIES = set(POLICIES[4:])
+FLOWTHROUGH_POLICIES = {
+    "ECG_REUSEPLAN_FLOWTHROUGH",
+    "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH",
+}
 
 
 def row_name(row: dict[str, str]) -> str:
@@ -64,7 +70,8 @@ def validate(
         simulator = row.get("simulator", "")
         graph = row.get("final_graph", "")
         benchmark = row.get("benchmark", "")
-        policy = row.get("policy_label", "")
+        policy = policy_output_label(row.get("policy_label", ""))
+        row["policy_label"] = policy
         if simulator not in simulators:
             errors.append(f"unexpected simulator={simulator!r}")
             continue
@@ -127,7 +134,7 @@ def validate(
                 errors.append(
                     f"{row_name(row)}: capped timing marked speed-valid")
 
-        if policy in K2_POLICIES:
+        if policy in REUSEPLAN_POLICIES:
             if number(row, "ecg_schedule_k") != 2:
                 errors.append(f"{row_name(row)}: schedule_k != 2")
             if number(row, "ecg_epochs_effective") != 32768:
@@ -139,10 +146,10 @@ def validate(
                     else "iload")
                 expected = (
                     f"ecg.stream.weighted64+ecg.k2.{isa_name}.cw24"
-                    if policy in SS_POLICIES and
+                    if policy in FLOWTHROUGH_POLICIES and
                     row.get("benchmark") == "sssp"
                     else f"ecg.stream.load2+ecg.k2.{isa_name}"
-                    if policy in SS_POLICIES
+                    if policy in FLOWTHROUGH_POLICIES
                     else f"ecg.weighted64+ecg.k2.{isa_name}.cw24"
                     if row.get("benchmark") == "sssp"
                     else f"ecg.k2.{isa_name}")
@@ -150,7 +157,7 @@ def validate(
                     errors.append(
                         f"{row_name(row)}: delivery="
                         f"{row.get('gem5_ecg_delivery')!r}, expected={expected!r}")
-                if (policy in SS_POLICIES and
+                if (policy in FLOWTHROUGH_POLICIES and
                         not (number(
                             row, "gem5_stream_bypass_trace_events") or 0) > 0):
                     errors.append(
@@ -173,7 +180,7 @@ def validate(
                     errors.append(
                         f"{row_name(row)}: "
                         f"bad fused receipts={bad_receipts:g}")
-                if policy in SS_POLICIES:
+                if policy in FLOWTHROUGH_POLICIES:
                     require_number(
                         errors, row, "sniper_stream_bypass_reads",
                         positive=True)
@@ -215,7 +222,7 @@ def main() -> int:
         help="Expected simulator set. Defaults to all three backends.")
     parser.add_argument(
         "--allow-unvalidated-fused-receipts", action="store_true",
-        help="Accept fused K2 rows without per-row receipt traces when a "
+        help="Accept fused ReusePlan rows without per-row receipt traces when a "
              "separate mechanism gate validates the transport.")
     args = parser.parse_args()
     path = Path(args.csv)

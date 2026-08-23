@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manifest-driven K2 experiment orchestrator.
+"""Manifest-driven ReusePlan experiment orchestrator.
 
 This script does not replace ``roi_matrix.py`` or ``proof_matrix.py``. It wraps
 them with the pieces needed for long-running experiments:
@@ -50,6 +50,10 @@ DEFAULT_LOCK = Path(os.environ.get("GRAPHBREW_EXPERIMENT_RUNNER_LOCK", "/tmp/gra
 PINNED_PYTHON = Path("/usr/bin/python3.12")
 PINNED_PYTHON_SHA256 = (
     "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118")
+PROFILE_ALIASES = {
+    "k2_pagerank_study": "reuseplan_pagerank_study",
+    "k2_final_campaign": "reuseplan_final_campaign",
+}
 ROI_RUNTIME_METADATA_ENV = frozenset({
     "GRAPHBREW_MATRIX_CONFIG_HASH",
     "GRAPHBREW_MATRIX_GROUP_HASH",
@@ -119,6 +123,10 @@ def filter_policy_specs(policies: list[str], filters: list[str]) -> list[str]:
         policy for policy in policies
         if policy_output_label(policy) in requested_labels
     ]
+
+
+def canonical_profile_name(profile: str) -> str:
+    return PROFILE_ALIASES.get(profile, profile)
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
@@ -359,7 +367,7 @@ def apply_screen_config(
             f"screen iteration {iteration} is not declared by {path_text}")
     if screen["k2_timing_mode"] != "compact_trace_free":
         raise SystemExit(
-            f"unsupported K2 timing mode {screen['k2_timing_mode']!r}")
+            f"unsupported ReusePlan timing mode {screen['k2_timing_mode']!r}")
 
     merged = dict(settings)
     screen_env = dict(settings.get("env", {}))
@@ -607,7 +615,8 @@ def make_roi_job(
         out_dir = out_dir / core_tag
     job_id = sanitize(f"{settings['name']}_{graph_name}_{benchmark}" + (f"_{core_tag}" if core_tag else ""))
     all_policies = [
-        str(policy) for policy in settings.get("policies", [])]
+        policy_output_label(str(policy))
+        for policy in settings.get("policies", [])]
     policies = filter_policy_specs(all_policies, args.policy)
     if not policies:
         raise SystemExit(
@@ -903,7 +912,8 @@ def csv_status(
             expected = {
                 policy_output_label(policy) for policy in expected_policies}
             actual = {
-                row.get("policy_label", "") for row in rows
+                policy_output_label(str(row.get("policy_label", "")))
+                for row in rows
                 if row.get("policy_label")}
             missing = sorted(expected - actual)
             if missing:
@@ -1157,7 +1167,7 @@ def recover_roi_comparison_config_hash(
             isinstance(expected_labels, list) and
             isinstance(recorded_env, dict) and
             [policy_output_label(policy) for policy in policies] ==
-            expected_labels):
+            [policy_output_label(label) for label in expected_labels]):
         return ""
     material_env = {
         str(key): str(value)
@@ -1289,6 +1299,11 @@ def write_combined_outputs(run_dir: Path, jobs: list[Job]) -> None:
         if not job_rows:
             continue
         for row in job_rows:
+            raw_policy_label = str(row.get("policy_label", ""))
+            canonical_policy_label = policy_output_label(raw_policy_label)
+            if canonical_policy_label != raw_policy_label:
+                row["legacy_policy_label"] = raw_policy_label
+            row["policy_label"] = canonical_policy_label
             row.update({
                 "final_job_id": job.job_id,
                 "final_matrix_id": str(job.metadata.get(
@@ -1299,7 +1314,11 @@ def write_combined_outputs(run_dir: Path, jobs: list[Job]) -> None:
                 "per_core_l3_size": str(job.metadata.get(
                     "per_core_l3_size", "")),
                 "final_expected_policy_labels": json.dumps(
-                    job.metadata.get("expected_policy_labels", []),
+                    [
+                        policy_output_label(str(label))
+                        for label in job.metadata.get(
+                            "expected_policy_labels", [])
+                    ],
                     separators=(",", ":")),
                 "final_matrix_config_hash": str(job.metadata.get(
                     "matrix_config_hash", "")),
@@ -1628,7 +1647,7 @@ def filter_jobs(jobs: list[Job], args: argparse.Namespace) -> list[Job]:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run manifest-defined K2 experiment profiles.")
+        description="Run manifest-defined ReusePlan experiment profiles.")
     parser.add_argument(
         "--manifest", default=str(DEFAULT_MANIFEST),
         help="JSON experiment manifest.")
@@ -1673,6 +1692,8 @@ def main(argv: list[str]) -> int:
             status_dir = PROJECT_ROOT / status_dir
         return print_run_status(status_dir)
 
+    args.profile = [
+        canonical_profile_name(profile) for profile in args.profile]
     manifest_path = resolve_path(args.manifest)
     manifest = load_manifest(manifest_path)
     run_dir = Path(args.run_dir) if args.run_dir else RESULTS_ROOT / f"{'_'.join(args.profile)}_{now_tag()}"

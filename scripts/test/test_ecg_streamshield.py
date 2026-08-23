@@ -230,7 +230,7 @@ def test_k2_transport_supports_full_algorithm_suite():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
 
-    k2 = module.parse_policy_spec("ECG:K2")
+    k2 = module.parse_policy_spec("ECG:REUSEPLAN")
     expected_variants = {
         "pr": "epoch_first",
         "bfs": "degree_first",
@@ -352,19 +352,19 @@ def test_streamshield_is_policy_isolated_and_verified():
     assert '"CACHE_FAST": "0"' in runner
     assert '"CACHE_SAMPLED": "0"' in runner
     assert '"CACHE_MULTICORE": "0"' in runner
-    assert "StreamShield requested but cache_sim bypass path was inactive" in runner
-    assert '"ECG:K2_STREAMSHIELD"' in policy_specs
+    assert "FlowThrough requested but cache_sim bypass path was inactive" in runner
+    assert '"ECG:REUSEPLAN_FLOWTHROUGH"' in policy_specs
     assert '"ecg_stream_bypass"' in runner
     assert "--stream-bypass" in verifier
     assert "stream-bypass-reads" in verifier
     assert "stream-bypass-writes" in verifier
     assert "dest // vpl == line_id" in ecg_verifier
     assert "cache_sim_ecg_epoch_region_indices" in runner
-    assert "Sniper StreamShield requires --sniper-workload sg_kernel" in runner
+    assert "Sniper FlowThrough requires --sniper-workload sg_kernel" in runner
     assert 'env.get("ECG_STREAM_BYPASS") == "1"' in runner
     assert "--stream-bypass requires --schedule-k 2" in verifier
     assert "SNIPER_ECG_FUSED_K2" in runner
-    assert "StreamShield inactive" in runner
+    assert "FlowThrough inactive" in runner
     assert "ECG_STREAM_BYPASS_ADAPTIVE" in runner
     assert 'env.pop("SNIPER_ECG_FUSED_K2", None)' in runner
     assert 'env.pop("SNIPER_ECG_FUSED_VALIDATE", None)' in runner

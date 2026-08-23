@@ -55,15 +55,19 @@ def test_public_documentation_and_figures_are_tracked():
     required = {
         "README.md",
         "wiki/Home.md",
-        "wiki/K2-StreamShield.md",
+        "wiki/ReusePlan-FlowThrough.md",
         "wiki/Evaluation-Methodology.md",
         "wiki/Reproduction.md",
         "wiki/Repository-Hygiene.md",
         "scripts/experiments/ecg/configs/pagerank_study.json",
+        "wiki/assets/reuse-plan-overview.svg",
+        "wiki/assets/reuse-plan-record.svg",
+        "wiki/assets/reuse-plan-example.svg",
+        "wiki/assets/reuse-plan-cpu-pipeline.svg",
+        "wiki/assets/reuse-plan-cpu-pipeline-regions.svg",
+        "wiki/assets/reuse-plan-cpu-pipeline-lsu.svg",
+        "wiki/assets/flowthrough-path.svg",
     }
-    required.update(
-        str(path.relative_to(ROOT))
-        for path in (ROOT / "wiki/assets").glob("*.svg"))
     assert required <= tracked
 
 

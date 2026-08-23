@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="590" viewBox="0 0 1200 590" role="img" aria-labelledby="title desc">
-  <title id="title">K2 load-store unit request path</title>
-  <desc id="desc">A focused diagram shows K2-M and StreamShield operands entering the load-store unit, forming a request extension, traversing translation and caches, and returning data.</desc>
+  <title id="title">ReusePlan load-store unit request path</title>
+  <desc id="desc">A focused diagram shows ReuseBind and FlowThrough operands entering the load-store unit, forming a request extension, traversing translation and caches, and returning data.</desc>
   <defs>
     <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="7" markerHeight="6" refX="6.2" refY="3" orient="auto">
       <path d="M0,0 L7,3 L0,6 Z" fill="#344f63"/>
@@ -22,7 +22,7 @@
   </defs>
   <rect width="1200" height="590" fill="#ffffff"/>
   <text x="40" y="42" class="title">LSU-focused view: two custom loads, one request path</text>
-  <text x="40" y="67" class="subtitle">This option emphasizes exactly where K2 and StreamShield metadata enter and where each field is consumed.</text>
+  <text x="40" y="67" class="subtitle">This option emphasizes exactly where ReusePlan and FlowThrough metadata enter and where each field is consumed.</text>
 
   <rect x="55" y="110" width="245" height="105" rx="14" fill="#e8f6f3" stroke="#2a9d8f"/>
   <text x="177" y="140" text-anchor="middle" class="box-title">Property load</text>
@@ -50,12 +50,12 @@
   <line x1="300" y1="297" x2="361" y2="297" stroke="#e76f51" stroke-width="1.8" marker-end="url(#coral)"/>
 
   <rect x="690" y="110" width="230" height="105" rx="14" fill="#e8f6f3" stroke="#2a9d8f"/>
-  <text x="805" y="140" text-anchor="middle" class="box-title">K2 request extension</text>
+  <text x="805" y="140" text-anchor="middle" class="box-title">ReuseBind request extension</text>
   <text x="716" y="169" class="body">dest / tier / epoch1 / epoch2</text>
-  <text x="716" y="191" class="body">current epoch / context from CSRs</text>
+  <text x="716" y="191" class="body">epoch / context CSRs</text>
 
   <rect x="690" y="245" width="230" height="105" rx="14" fill="#fff0eb" stroke="#e76f51"/>
-  <text x="805" y="275" text-anchor="middle" class="box-title">StreamShield extension</text>
+  <text x="805" y="275" text-anchor="middle" class="box-title">FlowThrough extension</text>
   <text x="716" y="304" class="body">record request only</text>
   <text x="716" y="326" class="body">no-allocate-on-fill at LLC</text>
 
@@ -63,7 +63,7 @@
   <line x1="625" y1="297" x2="686" y2="297" stroke="#e76f51" stroke-width="1.8" marker-end="url(#coral)"/>
 
   <rect x="365" y="365" width="260" height="30" rx="8" fill="#eef2f5" stroke="#738596"/>
-  <text x="495" y="385" text-anchor="middle" class="body">Request = address + selected typed extension</text>
+  <text x="495" y="385" text-anchor="middle" class="body">Request = address + typed extension</text>
   <line x1="495" y1="350" x2="495" y2="361" stroke="#344f63" stroke-width="1.6" marker-end="url(#arrow)"/>
   <polyline points="805,215 805,380 629,380" fill="none" stroke="#2a9d8f" stroke-width="1.5" marker-end="url(#teal)"/>
   <polyline points="805,350 805,392 629,392" fill="none" stroke="#e76f51" stroke-width="1.5" marker-end="url(#coral)"/>
@@ -81,7 +81,7 @@
   <rect x="545" y="410" width="190" height="105" rx="14" fill="#fff7e8" stroke="#c38f27"/>
   <text x="640" y="440" text-anchor="middle" class="box-title">LLC</text>
   <circle cx="575" cy="468" r="4" fill="#2a9d8f"/>
-  <text x="588" y="472" class="body">property: store K2 state</text>
+  <text x="588" y="472" class="body">property: store hint</text>
   <circle cx="575" cy="492" r="4" fill="#e76f51"/>
   <text x="588" y="496" class="body">record miss: no insert</text>
 
@@ -93,7 +93,7 @@
   <rect x="985" y="410" width="160" height="105" rx="14" fill="#eef2f5" stroke="#738596"/>
   <text x="1065" y="440" text-anchor="middle" class="box-title">Writeback</text>
   <text x="1012" y="474" class="body">complete load</text>
-  <text x="1012" y="496" class="body">write integer / FP result</text>
+  <text x="1012" y="496" class="body">write integer / FP</text>
 
   <line x1="365" y1="380" x2="150" y2="380" stroke="#344f63" stroke-width="1.8"/>
   <line x1="150" y1="380" x2="150" y2="406" stroke="#344f63" stroke-width="1.8" marker-end="url(#arrow)"/>
@@ -108,12 +108,12 @@
   <rect x="960" y="110" width="185" height="240" rx="14" fill="#f5f8fb" stroke="#738596"/>
   <text x="1052" y="142" text-anchor="middle" class="box-title">Field ownership</text>
   <circle cx="985" cy="174" r="5" fill="#2a9d8f"/>
-  <text x="999" y="178" class="small">K2-M governs property reuse</text>
+  <text x="999" y="178" class="small">ReuseBind governs reuse</text>
   <circle cx="985" cy="207" r="5" fill="#e76f51"/>
-  <text x="999" y="207" class="small">StreamShield governs</text>
+  <text x="999" y="207" class="small">FlowThrough governs</text>
   <text x="999" y="224" class="small">record placement</text>
   <text x="985" y="252" class="small">Both travel on the specific</text>
   <text x="985" y="270" class="small">Request that they describe.</text>
   <text x="985" y="310" class="small">Neither changes the normal</text>
-  <text x="985" y="328" class="small">load response and writeback path.</text>
+  <text x="985" y="328" class="small">response and writeback path.</text>
 </svg>

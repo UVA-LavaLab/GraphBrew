@@ -232,7 +232,7 @@ def synthetic_rows(primary_ratio=0.94, cfg=None):
                             int(cfg["popt_model"]["epochs"])),
                         "popt_roi_rereference_queries": "100",
                     })
-                elif policy.startswith("ECG_K2_"):
+                elif policy.startswith("ECG_REUSEPLAN_"):
                     receipt = cfg["variant_receipts"][policy]
                     row.update({
                         "proposal_path_active": "1",
@@ -288,7 +288,7 @@ def test_preregistration_is_compact_and_has_no_hash_qualification():
     assert cfg["iterations"] == [1, 2, 4, 8]
     assert len(cfg["policies"]["all"]) == 7
     assert cfg["policies"]["primary_candidate"] == (
-        "ECG:K2_RRIP_STREAMSHIELD")
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH")
     assert cfg["compact_tier_bits"] == 2
     assert "outcome" not in cfg["execution"]
     assert "superseded_screens" not in cfg
@@ -324,16 +324,16 @@ def test_only_one_pagerank_configuration_is_published():
     for name in files:
         assert "_v1" not in name and "_v2" not in name
     result = gate().evaluate(synthetic_rows(cfg=cfg), cfg)
-    assert result["primary_candidate"] == "ECG_K2_RRIP_STREAMSHIELD"
+    assert result["primary_candidate"] == "ECG_REUSEPLAN_RRIP_FLOWTHROUGH"
     assert result["screen_passes"] is True
 
 
 def test_final_campaign_is_role_separated():
     manifest = json.loads(MANIFEST_PATH.read_text())
-    assert "k2_final_campaign" in manifest["profiles"]
+    assert "reuseplan_final_campaign" in manifest["profiles"]
     stages = [
         stage for stage in manifest["stages"]
-        if "k2_final_campaign" in stage.get("profiles", [])
+        if "reuseplan_final_campaign" in stage.get("profiles", [])
     ]
     assert len(stages) == 11
     by_name = {stage["name"]: stage for stage in stages}
@@ -364,9 +364,9 @@ def test_final_campaign_is_role_separated():
     }
     assert functional["policies"] == [
         "LRU", "GRASP",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH",
     ]
 
     scale = by_name["81_sniper_final_semantic"]
@@ -383,9 +383,9 @@ def test_final_campaign_is_role_separated():
     assert "POPT" not in scale["policies"]
     assert scale["policies"] == [
         "LRU", "GRASP",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH",
     ]
     final_graphs = manifest["graph_sets"][
         "factorial_graphs_uniform_8mb"]
@@ -419,8 +419,8 @@ def test_final_campaign_is_role_separated():
     }
     assert wide16["policies"] == [
         "LRU",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD",
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
     ]
 
     wide256 = by_name["83_cache_sim_final_wide256"]
@@ -581,9 +581,10 @@ def test_profile_expands_to_twelve_whole_cells(tmp_path):
     for iterations in (1, 2, 4, 8):
         assert text.count(f"-i {iterations} -t 0'") == 3
     assert text.count(
-        "--policies LRU GRASP POPT POPT:UNCHARGED "
-        "ECG:K2_LRU_STREAMSHIELD ECG:K2_RRIP_STREAMSHIELD "
-        "ECG:K2_ONLINE_STREAMSHIELD") == 12
+        "--policies LRU GRASP POPT POPT_UNCHARGED "
+        "ECG_REUSEPLAN_LRU_FLOWTHROUGH "
+        "ECG_REUSEPLAN_RRIP_FLOWTHROUGH "
+        "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH") == 12
     assert text.count("--popt-active-columns 3") == 12
     assert text.count("--popt-matrix-stream analytic") == 12
     assert text.count("--timeout-gem5 86400") == 12
@@ -606,13 +607,13 @@ def test_no_v1_v2_screen_profile_or_stage_is_active():
     manifest = json.loads(MANIFEST_PATH.read_text())
     profile_names = set(manifest["profiles"])
     stage_names = {stage["name"] for stage in manifest["stages"]}
-    assert "k2_pagerank_study" in profile_names
+    assert "reuseplan_pagerank_study" in profile_names
     for name in profile_names | stage_names:
         assert "proposal_k2m_sota_pr_screen" not in name
         assert not name.endswith("_v1") and not name.endswith("_v2")
     screen_stages = [
         stage for stage in manifest["stages"]
-        if "k2_pagerank_study" in stage.get("profiles", [])
+        if "reuseplan_pagerank_study" in stage.get("profiles", [])
     ]
     assert len(screen_stages) == 4
     for stage in screen_stages:
@@ -622,7 +623,7 @@ def test_no_v1_v2_screen_profile_or_stage_is_active():
     screen_profiles = [
         name for name in profile_names if "pagerank_study" in name
     ]
-    assert screen_profiles == ["k2_pagerank_study"]
+    assert screen_profiles == ["reuseplan_pagerank_study"]
 
 
 def test_popt_model_matches_roi_matrix_producer():
@@ -687,8 +688,8 @@ def test_policy_sharding_is_rejected(tmp_path):
 
 def test_valid_screen_passes_and_reports_attribution():
     result = gate().evaluate(synthetic_rows(), config())
-    primary = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
-    online = result["candidates"]["ECG_K2_ONLINE_STREAMSHIELD"]
+    primary = result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]
+    online = result["candidates"]["ECG_REUSEPLAN_ONLINE_FLOWTHROUGH"]
     assert result["cell_count"] == 12
     assert result["row_count"] == 84
     assert result["screen_valid"] is True
@@ -707,11 +708,11 @@ def test_valid_screen_passes_and_reports_attribution():
 def test_online_characterization_cannot_pass_screen_alone():
     rows = synthetic_rows()
     for row in rows:
-        if row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD":
+        if row["policy_label"] == "ECG_REUSEPLAN_RRIP_FLOWTHROUGH":
             row["sim_ticks"] = "100"
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
-    assert result["candidates"]["ECG_K2_ONLINE_STREAMSHIELD"]["passes"] is True
+    assert result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]["passes"] is False
+    assert result["candidates"]["ECG_REUSEPLAN_ONLINE_FLOWTHROUGH"]["passes"] is True
     assert result["screen_passes"] is False
 
 
@@ -760,7 +761,7 @@ def test_k2_performance_mode_and_online_dueling_fail_closed():
     rows = synthetic_rows()
     primary = next(
         row for row in rows
-        if row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD")
+        if row["policy_label"] == "ECG_REUSEPLAN_RRIP_FLOWTHROUGH")
     primary["proposal_performance_mode_active"] = "0"
     with pytest.raises(ValueError, match="proposal_performance_mode_active"):
         gate().evaluate(rows, config())
@@ -768,7 +769,7 @@ def test_k2_performance_mode_and_online_dueling_fail_closed():
     rows = synthetic_rows()
     online = next(
         row for row in rows
-        if row["policy_label"] == "ECG_K2_ONLINE_STREAMSHIELD")
+        if row["policy_label"] == "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH")
     online["gem5_variant_dueling_receipt"] = "0"
     with pytest.raises(ValueError, match="gem5_variant_dueling_receipt"):
         gate().evaluate(rows, config())
@@ -776,7 +777,7 @@ def test_k2_performance_mode_and_online_dueling_fail_closed():
     rows = synthetic_rows()
     online = next(
         row for row in rows
-        if row["policy_label"] == "ECG_K2_ONLINE_STREAMSHIELD")
+        if row["policy_label"] == "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH")
     online["gem5_k2_dueling_completed_windows"] = "0"
     with pytest.raises(ValueError, match="must be positive"):
         gate().evaluate(rows, config())
@@ -784,7 +785,7 @@ def test_k2_performance_mode_and_online_dueling_fail_closed():
     rows = synthetic_rows()
     online = next(
         row for row in rows
-        if row["policy_label"] == "ECG_K2_ONLINE_STREAMSHIELD")
+        if row["policy_label"] == "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH")
     online["gem5_k2_dueling_leader_samples"] = "1023"
     with pytest.raises(ValueError, match="full leader-sample window"):
         gate().evaluate(rows, config())
@@ -810,12 +811,12 @@ def test_per_cell_guard_prevents_masking():
     rows = synthetic_rows(primary_ratio=0.80)
     for row in rows:
         if (
-                row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD" and
+                row["policy_label"] == "ECG_REUSEPLAN_RRIP_FLOWTHROUGH" and
                 row["final_graph"] == "web-Google-n16" and
                 "-i 1" in row["options"]):
             row["sim_ticks"] = str(90.0 * 1.021)
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
+    assert result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]["passes"] is False
     assert result["screen_passes"] is False
 
 
@@ -823,23 +824,23 @@ def test_i8_guard_prevents_short_run_masking():
     rows = synthetic_rows(primary_ratio=0.80)
     for row in rows:
         if (
-                row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD" and
+                row["policy_label"] == "ECG_REUSEPLAN_RRIP_FLOWTHROUGH" and
                 "-i 8" in row["options"]):
             row["sim_ticks"] = str(90.0 * 0.98)
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
+    assert result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]["passes"] is False
 
 
 def test_leave_one_graph_out_guard_prevents_one_graph_masking():
     rows = synthetic_rows()
     for row in rows:
-        if row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD":
+        if row["policy_label"] == "ECG_REUSEPLAN_RRIP_FLOWTHROUGH":
             ratio = (
                 0.70 if row["final_graph"] == "web-Google-n16"
                 else 0.99)
             row["sim_ticks"] = str(90.0 * ratio)
     result = gate().evaluate(rows, config())
-    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]["passes"] is False
+    assert result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]["passes"] is False
 
 
 def test_oracle_sanity_is_checked_per_cell():
@@ -871,7 +872,7 @@ def test_invalid_baseline_is_inconclusive_not_stop():
     assert result["screen_result"] == "inconclusive_invalid_baselines"
     assert result["screen_passes"] is False
     assert result["stop_broad_campaign"] is False
-    assert result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"][
+    assert result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"][
         "performance_guards_pass"] is True
 
 
@@ -894,13 +895,13 @@ def test_transport_claim_has_leave_one_graph_out_guard():
         "cit-Patents-n18-sym": 0.90,
     }
     for row in rows:
-        if row["policy_label"] == "ECG_K2_LRU_STREAMSHIELD":
+        if row["policy_label"] == "ECG_REUSEPLAN_LRU_FLOWTHROUGH":
             row["sim_ticks"] = str(
                 candidate_ticks / ratios[row["final_graph"]])
     result = gate().evaluate(rows, config())
-    primary = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
+    primary = result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]
     assert primary["passes"] is True
-    assert primary["comparisons"]["ECG_K2_LRU_STREAMSHIELD"][
+    assert primary["comparisons"]["ECG_REUSEPLAN_LRU_FLOWTHROUGH"][
         "aggregate_time_ratio"] <= 0.98
     assert primary["replacement_policy_contribution"] is False
     assert result["replacement_policy_claim_allowed"] is False
@@ -909,10 +910,10 @@ def test_transport_claim_has_leave_one_graph_out_guard():
 def test_transport_only_win_does_not_authorize_policy_claim():
     rows = synthetic_rows()
     for row in rows:
-        if row["policy_label"] == "ECG_K2_LRU_STREAMSHIELD":
+        if row["policy_label"] == "ECG_REUSEPLAN_LRU_FLOWTHROUGH":
             row["sim_ticks"] = str(90.0 * 0.94)
     result = gate().evaluate(rows, config())
-    primary = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
+    primary = result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]
     assert result["screen_passes"] is True
     assert primary["claim_classification"] == (
         "complete_design_transport_or_layout_only")
@@ -924,12 +925,12 @@ def test_replacement_claim_requires_per_cell_instruction_parity():
     primary = next(
         row for row in rows
         if (
-            row["policy_label"] == "ECG_K2_RRIP_STREAMSHIELD" and
+            row["policy_label"] == "ECG_REUSEPLAN_RRIP_FLOWTHROUGH" and
             row["final_graph"] == "web-Google-n16" and
             "-i 1" in row["options"]))
     primary["roi_insts"] = "1001"
     result = gate().evaluate(rows, config())
-    candidate = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
+    candidate = result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]
     assert result["screen_passes"] is True
     assert candidate["replacement_instruction_parity"]["passes"] is False
     assert candidate["replacement_policy_contribution"] is False
@@ -950,7 +951,7 @@ def test_replacement_instruction_parity_rule_is_mandatory():
 def test_stop_does_not_suppress_valid_replacement_attribution():
     result = gate().evaluate(
         synthetic_rows(primary_ratio=1.01), config())
-    candidate = result["candidates"]["ECG_K2_RRIP_STREAMSHIELD"]
+    candidate = result["candidates"]["ECG_REUSEPLAN_RRIP_FLOWTHROUGH"]
     assert result["screen_valid"] is True
     assert result["screen_result"] == "stop"
     assert result["screen_passes"] is False

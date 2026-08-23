@@ -13,7 +13,7 @@ miss costs the same. That is not true for graph workloads:
     conflicts. Their latency is largely exposed.
 
 So a single miss count understates policies that trade irregular misses for
-sequential ones -- which is exactly what K2 does when it spends edge-record
+sequential ones -- which is exactly what ReusePlan does when it spends edge-record
 bandwidth to protect property lines.
 
 This tool re-scores a matrix under
@@ -36,13 +36,16 @@ import csv
 import glob
 import math
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from policy_specs import policy_output_label  # noqa: E402
 DEFAULT_POLICIES = (
     "GRASP", "HAWKEYE_PROXY", "SRRIP", "POPT",
-    "ECG_K2", "ECG_K2_ONLINE",
-    "ECG_K2_STREAMSHIELD", "ECG_K2_ONLINE_STREAMSHIELD",
+    "ECG_REUSEPLAN", "ECG_REUSEPLAN_ONLINE",
+    "ECG_REUSEPLAN_FLOWTHROUGH", "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH",
 )
 FLOOR = 1e-9
 
@@ -60,7 +63,7 @@ def load(root: Path):
             if row.get("status") != "ok":
                 continue
             cell = (graph_of(row.get("options")), row.get("benchmark"))
-            policy = row.get("policy_label")
+            policy = policy_output_label(str(row.get("policy_label", "")))
             prop[cell][policy] = float(row.get("l3_prop_misses") or 0)
             struct[cell][policy] = float(row.get("l3_struct_misses") or 0)
     return prop, struct
@@ -106,10 +109,15 @@ def main() -> int:
     parser.add_argument("--baseline", default="LRU")
     parser.add_argument("--policies", nargs="+", default=list(DEFAULT_POLICIES))
     parser.add_argument("--challengers", nargs="+",
-                        default=["ECG_K2", "ECG_K2_ONLINE_STREAMSHIELD"])
+                        default=["ECG_REUSEPLAN", "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH"])
     parser.add_argument("--weights", nargs="+", type=float,
                         default=[1, 2, 3, 5, 8, 12, 20])
     args = parser.parse_args()
+    args.baseline = policy_output_label(args.baseline)
+    args.policies = [
+        policy_output_label(policy) for policy in args.policies]
+    args.challengers = [
+        policy_output_label(policy) for policy in args.challengers]
 
     prop, struct = load(args.root)
     if not prop:

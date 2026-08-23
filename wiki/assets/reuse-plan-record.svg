@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
-  <title id="title">K2 general and compact record layouts</title>
-  <desc id="desc">A 64-bit K2 record with destination, tier, and two epochs, followed by the compact-record sizing rule and a 32-bit example.</desc>
+  <title id="title">ReusePlan general and compact record layouts</title>
+  <desc id="desc">A 64-bit ReusePlan record with destination, tier, and two epochs, followed by the compact-record sizing rule and a 32-bit example.</desc>
   <defs>
     <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%">
       <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#17324d" flood-opacity="0.12"/>
@@ -19,7 +19,7 @@
     </style>
   </defs>
   <rect width="1200" height="430" fill="#ffffff"/>
-  <text x="60" y="48" class="title">K2 record encoding</text>
+  <text x="60" y="48" class="title">ReusePlan record encoding</text>
   <text x="60" y="75" class="subtitle">The general layout is fixed; the compact layout trades identifier width for epoch resolution.</text>
 
   <text x="70" y="125" class="label">General 64-bit record</text>

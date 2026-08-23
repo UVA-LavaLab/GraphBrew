@@ -86,7 +86,7 @@ python3 -m pytest -q scripts/test
 
 ```bash
 python3 scripts/experiments/ecg/flows/experiment_run.py \
-  --profile k2_pagerank_study \
+  --profile reuseplan_pagerank_study \
   --run-dir results/ecg_experiments/runs/pagerank_dryrun \
   --list --dry-run --no-build --allow-missing-graphs
 ```
@@ -98,7 +98,7 @@ Policy sharding is disabled so each comparison retains its matching baseline.
 
 ```bash
 python3 -I scripts/experiments/ecg/flows/experiment_run.py \
-  --profile k2_pagerank_study \
+  --profile reuseplan_pagerank_study \
   --run-dir results/ecg_experiments/runs/pagerank_final \
   --no-build --no-resume
 ```
@@ -121,14 +121,14 @@ Inspect the complete campaign before launching:
 
 ```bash
 python3 -I scripts/experiments/ecg/flows/experiment_run.py \
-  --profile k2_final_campaign \
-  --run-dir results/ecg_experiments/runs/k2_final_dryrun \
+  --profile reuseplan_final_campaign \
+  --run-dir results/ecg_experiments/runs/reuseplan_final_dryrun \
   --list --dry-run --no-build --no-resume
 ```
 
 The campaign contains 76 jobs:
 
-- one synthetic K2-M mechanism preflight;
+- one synthetic ReuseBind mechanism preflight;
 - 12 gem5 O3 PageRank timing cells;
 - 12 full-graph cache_sim compact-record primary cells;
 - 15 matched wide-record cache_sim controls;
@@ -137,10 +137,10 @@ The campaign contains 76 jobs:
 - 12 full-graph Sniper compact-record corroboration cells; and
 - three wide-record Sniper SSSP cells.
 
-The full-graph compact primary and the P-OPT comparison use a 4-byte K2 record
+The full-graph compact primary and the P-OPT comparison use a 4-byte ReusePlan record
 with 16 epochs for PR, BFS, BC, and CC. Weighted SSSP uses its implemented
 8-byte replacement record and is evaluated only in the wide-record stages.
-Wide controls isolate record width and raise K2 to 256 epochs for an
+Wide controls isolate record width and raise ReusePlan to 256 epochs for an
 epoch-resolution sensitivity. Sniper runs one full serialized edge sweep per
 graph so the working set turns over an 8 MiB LLC. Sniper rows support
 cache/traffic direction only, never architectural speedup.
@@ -149,26 +149,26 @@ Launch the three roles into separate resumable directories:
 
 ```bash
 python3 -I scripts/experiments/ecg/flows/experiment_run.py \
-  --profile k2_final_campaign \
-  --run-dir results/ecg_experiments/runs/k2_final_timing \
+  --profile reuseplan_final_campaign \
+  --run-dir results/ecg_experiments/runs/reuseplan_final_timing \
   --only 60 70 71 72 73 \
   --no-build
 
 python3 -I scripts/experiments/ecg/flows/experiment_run.py \
-  --profile k2_final_campaign \
-  --run-dir results/ecg_experiments/runs/k2_final_popt \
+  --profile reuseplan_final_campaign \
+  --run-dir results/ecg_experiments/runs/reuseplan_final_popt \
   --only 84 \
   --no-build
 
 python3 -I scripts/experiments/ecg/flows/experiment_run.py \
-  --profile k2_final_campaign \
-  --run-dir results/ecg_experiments/runs/k2_final_cache \
+  --profile reuseplan_final_campaign \
+  --run-dir results/ecg_experiments/runs/reuseplan_final_cache \
   --only 80 82 83 \
   --no-build
 
 python3 -I scripts/experiments/ecg/flows/experiment_run.py \
-  --profile k2_final_campaign \
-  --run-dir results/ecg_experiments/runs/k2_final_sniper \
+  --profile reuseplan_final_campaign \
+  --run-dir results/ecg_experiments/runs/reuseplan_final_sniper \
   --only 81 85 \
   --no-build
 ```
@@ -182,13 +182,13 @@ complete policy roster:
 
 ```bash
 python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
-  --profile k2_final_campaign \
-  --run-tag k2_final \
+  --profile reuseplan_final_campaign \
+  --run-tag reuseplan_final \
   --whole-cell \
-  --out results/ecg_experiments/slurm/k2_final.tsv
+  --out results/ecg_experiments/slurm/reuseplan_final.tsv
 
 python3 scripts/experiments/ecg/flows/run_local_shards.py \
-  --shards results/ecg_experiments/slurm/k2_final.tsv \
+  --shards results/ecg_experiments/slurm/reuseplan_final.tsv \
   --run-root results/ecg_experiments/runs/local \
   --jobs 8 --cache-sim-jobs 4 --gem5-jobs 1 --sniper-jobs 2
 ```
@@ -213,9 +213,9 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
 python3 scripts/experiments/ecg/flows/aggregate_results.py \
   --skip-run \
   --input-run-dirs \
-    results/ecg_experiments/runs/k2_final_timing \
-    results/ecg_experiments/runs/k2_final_popt \
-    results/ecg_experiments/runs/k2_final_cache \
-    results/ecg_experiments/runs/k2_final_sniper \
-  --run-root results/ecg_experiments/aggregates/k2_final
+    results/ecg_experiments/runs/reuseplan_final_timing \
+    results/ecg_experiments/runs/reuseplan_final_popt \
+    results/ecg_experiments/runs/reuseplan_final_cache \
+    results/ecg_experiments/runs/reuseplan_final_sniper \
+  --run-root results/ecg_experiments/aggregates/reuseplan_final
 ```

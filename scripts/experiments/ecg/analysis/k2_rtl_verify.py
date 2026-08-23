@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Require and execute generic functional/synthesis checks for K2 RTL inputs."""
+"""Require and execute generic functional/synthesis checks for ReusePlan RTL inputs."""
 
 from __future__ import annotations
 
@@ -115,7 +115,7 @@ def verify(work_dir: Path) -> dict[str, Any]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run required generic checks for K2 physical RTL.")
+        description="Run required generic checks for ReusePlan physical RTL.")
     parser.add_argument("--work-dir", type=Path)
     return parser.parse_args()
 

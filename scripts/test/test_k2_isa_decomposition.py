@@ -52,5 +52,5 @@ def test_k2_isa_cli():
         ["python3", str(script)],
         check=True, capture_output=True, text=True)
     assert "| Baseline | 6 |" in result.stdout
-    assert "| K2-M | 6 |" in result.stdout
-    assert "| K2-I | 2 |" in result.stdout
+    assert "| ReuseBind | 6 |" in result.stdout
+    assert "| indexed ReuseBind | 2 |" in result.stdout

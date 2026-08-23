@@ -446,7 +446,7 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
     assert "SNIPER_K2_TRANSPORT_MATCHED" in runner
     assert "matched-k2m-sideband-model" in runner
     assert '"prototype_mask_only_load"' in runner
-    assert "architectural compact StreamShield record load" in runner
+    assert "architectural compact FlowThrough record load" in runner
     assert "request-bound property load with per-event tracing disabled" in (
         runner)
     assert '"architectural_compact_k2m_streamshield"' in runner
@@ -672,7 +672,7 @@ def test_proposal_compact_k2m_streamshield_is_fail_closed():
     assert roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
         no_bypass, "[ECG_K2_MLOAD_C_SS] PR ACTIVE", requested=True)
     assert no_bypass["status"] == "error"
-    assert "request-flag StreamShield" in no_bypass["error"]
+    assert "request-flag FlowThrough" in no_bypass["error"]
 
     wrong_width = {"timing_valid_for_speedup": "1"}
     assert roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
@@ -766,7 +766,7 @@ def test_proposal_compact_k2m_streamshield_cli_guards():
             "--suite", "gem5", "--benchmark", "pr",
             "--ecg-isa-variant", "mask",
             "--gem5-cpu-type", "O3",
-            "--policies", "ECG:K1_STREAMSHIELD",
+            "--policies", "ECG:REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH",
             "--gem5-compact-k2m-streamshield", "--dry-run",
         ],
         cwd=PROJECT_ROOT,
@@ -779,7 +779,7 @@ def test_proposal_compact_k2m_streamshield_cli_guards():
         },
         capture_output=True, text=True, timeout=60)
     assert wrong_policy.returncode != 0
-    assert "requires at least one Schedule-2 ECG StreamShield policy" in (
+    assert "requires at least one Schedule-2 ECG FlowThrough policy" in (
         wrong_policy.stdout + wrong_policy.stderr)
 
     timing_cpu = subprocess.run(
@@ -820,7 +820,7 @@ def test_proposal_compact_k2m_streamshield_cli_guards():
         "--suite", "gem5", "--benchmark", "pr",
         "--ecg-isa-variant", "mask",
         "--gem5-cpu-type", "O3",
-        "--policies", "LRU", "ECG:K2_STREAMSHIELD",
+        "--policies", "LRU", "ECG:REUSEPLAN_FLOWTHROUGH",
         "--gem5-compact-k2m-performance", "--dry-run",
     ])
     assert performance_args.gem5_compact_k2m_performance is True
@@ -831,7 +831,7 @@ def test_proposal_compact_k2m_streamshield_cli_guards():
             "--suite", "gem5", "--benchmark", "pr",
             "--ecg-isa-variant", "mask",
             "--gem5-cpu-type", "O3",
-            "--policies", "LRU", "ECG:K2_STREAMSHIELD",
+            "--policies", "LRU", "ECG:REUSEPLAN_FLOWTHROUGH",
             "--gem5-compact-k2m-streamshield",
             "--gem5-compact-k2m-performance", "--dry-run",
         ],
@@ -852,7 +852,7 @@ def test_trace_free_k2m_does_not_override_other_timing_caveats():
     args.has_lru_baseline = True
     row = roi_matrix.base_row(
         "gem5", args,
-        roi_matrix.parse_policy_spec("ECG:K2_STREAMSHIELD"),
+        roi_matrix.parse_policy_spec("ECG:REUSEPLAN_FLOWTHROUGH"),
         "32kB")
     assert row["timing_valid_for_speedup"] == "0"
     assert row["timing_model"] == "prototype_instruction_delivery"
@@ -988,13 +988,13 @@ def test_proposal_run_gate_requires_every_requested_row():
         benchmark="pr",
     )
     policies = [
-        roi_matrix.parse_policy_spec("ECG:K2"),
-        roi_matrix.parse_policy_spec("ECG:K2_LRU_STREAMSHIELD"),
-        roi_matrix.parse_policy_spec("ECG:K2_STREAMSHIELD"),
+        roi_matrix.parse_policy_spec("ECG:REUSEPLAN"),
+        roi_matrix.parse_policy_spec("ECG:REUSEPLAN_LRU_FLOWTHROUGH"),
+        roi_matrix.parse_policy_spec("ECG:REUSEPLAN_FLOWTHROUGH"),
     ]
     good = {
         "gem5_compact_k2m_streamshield_requested": 1,
-        "policy_label": "ECG_K2_STREAMSHIELD",
+        "policy_label": "ECG_REUSEPLAN_FLOWTHROUGH",
         "status": "ok",
         "proposal_path_active": 1,
         "gem5_k2_exact_request_bound": 1,
@@ -1011,7 +1011,7 @@ def test_proposal_run_gate_requires_every_requested_row():
     roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
         [
             {
-                **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                **good, "policy_label": "ECG_REUSEPLAN_LRU_FLOWTHROUGH",
                 "l3_size": "32kB",
             },
             {**good, "l3_size": "32kB"},
@@ -1019,11 +1019,12 @@ def test_proposal_run_gate_requires_every_requested_row():
         ],
         args, policies)
 
-    with pytest.raises(SystemExit, match="proposal compact K2-M"):
+    with pytest.raises(
+            SystemExit, match="proposal compact ReuseBind\\+FlowThrough"):
         roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
             [
                 {
-                    **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                    **good, "policy_label": "ECG_REUSEPLAN_LRU_FLOWTHROUGH",
                     "l3_size": "32kB",
                 },
                 {
@@ -1032,11 +1033,12 @@ def test_proposal_run_gate_requires_every_requested_row():
                 },
             ],
             args, policies)
-    with pytest.raises(SystemExit, match="proposal compact K2-M"):
+    with pytest.raises(
+            SystemExit, match="proposal compact ReuseBind\\+FlowThrough"):
         roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
             [
                 {
-                    **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                    **good, "policy_label": "ECG_REUSEPLAN_LRU_FLOWTHROUGH",
                     "l3_size": "32kB",
                     "gem5_k2_coalesced_line_accepts": 0,
                 },
@@ -1046,11 +1048,12 @@ def test_proposal_run_gate_requires_every_requested_row():
     with pytest.raises(SystemExit, match="observed=.*32kB"):
         roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
             [{**good, "l3_size": "32kB"}], args, policies)
-    with pytest.raises(SystemExit, match="proposal compact K2-M"):
+    with pytest.raises(
+            SystemExit, match="proposal compact ReuseBind\\+FlowThrough"):
         roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
             [
                 {
-                    **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                    **good, "policy_label": "ECG_REUSEPLAN_LRU_FLOWTHROUGH",
                     "l3_size": "32kB",
                     "gem5_stream_bypass_trace_saturated": 1,
                 },
@@ -1107,8 +1110,8 @@ def test_proposal_o3_manifest_profile_is_exact_and_mechanism_only():
     assert stage["graph_set"] == "synthetic_kron12_all"
     assert stage["benchmarks"] == ["pr"]
     assert stage["policies"] == [
-        "ECG:K2", "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_STREAMSHIELD"]
+        "ECG:REUSEPLAN", "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_FLOWTHROUGH"]
     assert stage["ecg_isa_variant"] == "mask"
     assert stage["gem5_cpu_type"] == "O3"
     assert stage["gem5_compact_k2m_streamshield"] is True

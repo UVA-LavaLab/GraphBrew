@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fast policy signal: the frozen decision rule, in minutes instead of a week.
 
-The gem5 timing matrix costs days, but the question "is K2 ahead or behind?"
+The gem5 timing matrix costs days, but the question "is ReusePlan ahead or behind?"
 is answered by cache_sim traffic in minutes. This runs the full
 graph x kernel x policy matrix directly against the cache_sim kernels and
 applies the reporting method from wiki/Evaluation-Methodology.md:
@@ -16,17 +16,17 @@ check, NOT a source of publishable numbers.
 
 Corrected accounting is the default, matching the Phase 1-2 fixes:
   * P-OPT's rereference-matrix column stream is simulated, not charged flat
-  * the structural bypass is offered to every policy, not just K2
+  * structural bypass is offered to every policy, not just ReusePlan
   * the stream prefetcher is the honest address-only detector, not the oracle
 
 Tiers:
   fast  sampled graphs (n16/n18), whole matrix in a few minutes
-  full  full graphs, ~2 hours because K2's mask preprocessing dominates
+  full  full graphs, ~2 hours because ReusePlan mask preprocessing dominates
 
 Usage:
   python3 scripts/experiments/ecg/analysis/fast_policy_signal.py --tier fast
   python3 scripts/experiments/ecg/analysis/fast_policy_signal.py --tier fast \
-      --kernels pr,bfs --policies LRU,GRASP,ECG:K2
+      --kernels pr,bfs --policies LRU,GRASP,ECG:REUSEPLAN
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ TIERS = {
 
 DEFAULT_KERNELS = ["pr", "bfs", "sssp", "bc", "cc"]
 DEFAULT_POLICIES = [
-    "LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_STREAMSHIELD",
+    "LRU", "SRRIP", "GRASP", "POPT", "ECG:REUSEPLAN", "ECG:REUSEPLAN_FLOWTHROUGH",
 ]
 
 # The frozen decision rule.
@@ -130,12 +130,12 @@ def build_env(rm, policy_text: str, kernel: str, l3: str, args) -> dict:
     env = rm.cache_sim_env(ns, spec, size_bytes(l3), "16", json_path)
     env["OMP_NUM_THREADS"] = "1"
     # Epoch resolution decides whether the per-edge record packs into 4 bytes or
-    # spills to 8, and that single bit of configuration dominates every K2
+    # spills to 8, and that single bit of configuration dominates every ReusePlan
     # result. The pinned specs hardcode 65535 epochs, which always spills.
     if args.ecg_epochs and "ECG_EDGE_MASK_EPOCHS" in env:
         env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
     # Schedule-2 historically returned 8 bytes unconditionally instead of
-    # computing its width, which doubled K2's modelled transport whenever its
+    # computing its width, which doubled ReusePlan's modelled transport whenever its
     # fields would in fact have fitted in 4.
     if args.variable_record_width:
         env["ECG_RECORD_VARIABLE_WIDTH"] = "1"
@@ -339,17 +339,22 @@ def main(argv):
               f"{worst_cell[0]}/{worst_cell[1]} {worst:.3f}")
 
     best = min(summary, key=lambda s: s[1])
-    k2 = [s for s in summary if s[0].startswith("ECG_K2")]
+    reuseplan = [
+        s for s in summary if s[0].startswith("ECG_REUSEPLAN")]
     print()
     print(f"best policy: {best[0]} at {best[1]:.3f}")
-    if k2:
-        best_k2 = min(k2, key=lambda s: s[1])
-        if best_k2[0] == best[0]:
-            print(f"K2 LEADS: {best_k2[0]} is the best policy on this matrix.")
+    if reuseplan:
+        best_reuseplan = min(reuseplan, key=lambda s: s[1])
+        if best_reuseplan[0] == best[0]:
+            print(
+                "REUSEPLAN LEADS: "
+                f"{best_reuseplan[0]} is the best policy on this matrix.")
         else:
-            gap = (best_k2[1] / best[1] - 1) * 100
-            print(f"K2 TRAILS: best K2 variant {best_k2[0]} at {best_k2[1]:.3f} "
-                  f"is {gap:+.1f}% behind {best[0]}.")
+            gap = (best_reuseplan[1] / best[1] - 1) * 100
+            print(
+                "REUSEPLAN TRAILS: best ReusePlan variant "
+                f"{best_reuseplan[0]} at {best_reuseplan[1]:.3f} "
+                f"is {gap:+.1f}% behind {best[0]}.")
 
     out = Path(args.out) if args.out else (
         ROOT / f"results/ecg_experiments/fast_signal_{args.tier}_{int(time.time())}.csv")

@@ -22,7 +22,8 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
     graph_sets = manifest.get("graph_sets", {})
     rows: list[tuple[str, ...]] = []
 
-    for profile in args.profile:
+    for requested_profile in args.profile:
+        profile = experiment_run.canonical_profile_name(requested_profile)
         for stage in manifest.get("stages", []):
             if stage.get("kind") != "roi_matrix":
                 continue
@@ -64,12 +65,17 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
                         f"unknown graph_set={graph_set_name!r} "
                         f"in stage {stage['name']}")
                 graphs = graph_sets[graph_set_name]
-            policies = (
-                ["__whole__"] if args.whole_cell else
-                experiment_run.filter_policy_specs(
+            if args.whole_cell:
+                policies = ["__whole__"]
+            else:
+                selected_policies = experiment_run.filter_policy_specs(
                     [str(policy) for policy in settings.get("policies", [])],
                     args.policy,
-                ))
+                )
+                policies = [
+                    experiment_run.policy_output_label(policy)
+                    for policy in selected_policies
+                ]
             for graph in graphs:
                 graph_name = str(graph["name"])
                 if not experiment_run.token_matches(graph_name, args.graph):

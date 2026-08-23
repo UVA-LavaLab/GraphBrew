@@ -1,4 +1,4 @@
-# GraphBrew K2 Cache Architecture
+# GraphBrew ReusePlan Cache Architecture
 
 GraphBrew explores graph-aware cache management for irregular graph analytics.
 The design carries compact reuse information with each streamed edge, attaches
@@ -7,14 +7,14 @@ last-level-cache replacement and placement.
 
 The current architecture combines three mechanisms:
 
-- **K2 records** carry a reuse tier and the next two property-reuse epochs.
-- **K2-M** binds that metadata to the exact property load.
-- **StreamShield** keeps one-touch edge records from occupying the shared LLC
+- **ReusePlan records** carry a reuse tier and the next two property-reuse epochs.
+- **ReuseBind** binds that metadata to the exact property load.
+- **FlowThrough** keeps one-touch edge records from occupying the shared LLC
   after a miss while preserving private-cache fills and LLC hits.
 
 ## Documentation
 
-- [Illustrated design guide](wiki/K2-StreamShield.md) — start here for the
+- [Illustrated design guide](wiki/ReusePlan-FlowThrough.md) — start here for the
   mechanism, worked examples, and simulator mapping.
 - [Evaluation methodology](wiki/Evaluation-Methodology.md) — workloads,
   baselines, metrics, and reporting rules.
@@ -34,7 +34,7 @@ complete.
 | `bench/src_sim/` | Functional cache-simulator graph kernels |
 | `bench/src_gem5/` | gem5 graph kernels |
 | `bench/src_sniper/` | Sniper graph workload |
-| `bench/src_rtl/` | Synthesizable K2 physical-cost models and testbenches |
+| `bench/src_rtl/` | Synthesizable ReusePlan physical-cost models and testbenches |
 | `scripts/experiments/ecg/` | Experiment runners and analysis tools |
 | `scripts/test/` | Unit, integration, and documentation checks |
 | `wiki/` | Illustrated design, methodology, and reproduction documentation |

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Multi-kernel 3-simulator K2 mechanism conformance + full debug.
+"""Multi-kernel 3-simulator ReusePlan mechanism conformance + full debug.
 
 The eviction DECISION (`ecg_victim_policy.h`) is kernel-AGNOSTIC and byte-identical across
 cache_sim / gem5 / Sniper, so the ECG policy must obey the same eviction spec for EVERY
@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ecg  # noqa: E402  (reuse verify_trace, BASE_ENV, ECG_ENV, COV_ENV, GRAPH, GEM5_OPT, ROI_MATRIX, ROOT)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from roi_matrix import cache_sim_ecg_epoch_region_indices  # noqa: E402
+from policy_specs import policy_output_label  # noqa: E402
 
 BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 # kernel -> simulators that can run it on the UNWEIGHTED eval graph (available binaries).
@@ -122,16 +123,16 @@ def detailed_row_provenance(sim, kernel):
 
 def sniper_policy():
     if SCHEDULE_K == 2 and ADAPTIVE_STREAM_BYPASS:
-        return "ECG:K2_ADAPTIVE_STREAMSHIELD"
+        return "ECG:REUSEPLAN_ADAPTIVE_FLOWTHROUGH"
     if SCHEDULE_K == 2 and STREAM_BYPASS:
-        return "ECG:K2_STREAMSHIELD"
+        return "ECG:REUSEPLAN_FLOWTHROUGH"
     if SCHEDULE_K == 2:
-        return "ECG:K2"
+        return "ECG:REUSEPLAN"
     return "ECG:ECG_GRASP_POPT"
 
 
 def sniper_policy_label():
-    return sniper_policy().replace(":", "_")
+    return policy_output_label(sniper_policy())
 
 
 def _banner(text):
@@ -203,7 +204,9 @@ def validate_roi_output(out, expected_policy):
         elif rows[0].get("status") != "ok":
             errors.append(
                 f"ROI row status is {rows[0].get('status')!r}")
-        elif rows[0].get("policy_label") != expected_policy:
+        elif policy_output_label(
+                str(rows[0].get("policy_label", ""))) != (
+                    policy_output_label(expected_policy)):
             errors.append(
                 f"policy={rows[0].get('policy_label')!r}, "
                 f"expected={expected_policy!r}")
@@ -439,7 +442,7 @@ def _roi_log(out):
     logs = sorted((out / "logs").glob("*.log")) if (out / "logs").exists() else []
     text = logs[0].read_text(errors="ignore") if logs else ""
     # gem5 redirects benchmark stdout/stderr away from the simulator log. Append
-    # them so K2 EXPECT records from the guest can be matched against RECV records
+    # them so ReusePlan EXPECT records from the guest can be matched against RECV records
     # emitted by the decoder/backend.
     for path in sorted(out.rglob("benchmark_stderr.txt")):
         text += "\n" + path.read_text(errors="ignore")
@@ -452,8 +455,8 @@ def _roi_log(out):
 
 def run_gem5(kernel):
     """gem5 <kernel> with ECG_GRASP_POPT + coverage geometry. Schedule-2 runs
-    all five kernels on RISC-V through the request-bound K2 property load. The
-    record/sidecar stream remains separate and may carry StreamShield."""
+    all five kernels on RISC-V through the request-bound ReusePlan property load. The
+    record/sidecar stream remains separate and may carry FlowThrough."""
     out = Path("/tmp") / f"equivk_gem5_{GEM5_ISA_VARIANT}_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
     guest = (
@@ -646,17 +649,17 @@ def main(argv=None):
                     help="cross-sim structure stream-prefetcher degree (0=off, the byte-identical "
                          "baseline; >0 = spec-level equivalence under the realistic prefetcher).")
     ap.add_argument("--schedule-k", type=int, choices=[0, 2], default=0,
-                    help="enable Schedule-2 delivery and require live K2 pair/distance coverage "
+                    help="enable Schedule-2 delivery and require live ReusePlan pair/distance coverage "
                          "for PR/BFS/SSSP/BC/CC.")
     ap.add_argument("--stream-bypass", action="store_true",
-                    help="enable StreamShield and require a live LLC-bypass mechanism trace.")
+                    help="enable FlowThrough and require a live LLC-bypass mechanism trace.")
     ap.add_argument("--adaptive-stream-bypass", action="store_true",
-                    help="duel LLC allocation versus StreamShield for eligible "
-                         "K2 records (requires --stream-bypass).")
+                    help="duel LLC allocation versus FlowThrough for eligible "
+                         "ReusePlan records (requires --stream-bypass).")
     ap.add_argument(
         "--gem5-isa-variant", choices=["indexed", "mask"], default="indexed",
-        help="K2 ISA/model variant for gem5 and Sniper; mask validates "
-             "computed-address K2-M.")
+        help="ReusePlan ISA/model variant for gem5 and Sniper; mask validates "
+             "computed-address ReuseBind.")
     ap.add_argument(
         "--evidence-dir", type=Path,
         help="Archive a complete manifest, raw traces, ROI rows, and "
@@ -789,7 +792,7 @@ def main(argv=None):
     RUNNERS = {"cache_sim": run_cache, "gem5": run_gem5, "sniper": run_sniper}
     sims_order = [s for s in ("cache_sim", "gem5", "sniper") if s in enabled]
 
-    print("== Multi-kernel 3-sim K2 mechanism conformance ==")
+    print("== Multi-kernel 3-sim ReusePlan mechanism conformance ==")
     variant_label = (
         "PR=epoch_first,BFS/SSSP=degree_first,BC/CC=rrip_first"
         if SCHEDULE_K else "rrip_first")
@@ -843,16 +846,16 @@ def main(argv=None):
                             "[ECG_K2_MLOAD_CW24]"
                             if kernel == "sssp"
                             else "[ECG_K2_MLOAD]")
-                        fused_label = "computed-address K2-M property load"
+                        fused_label = "computed-address ReuseBind property load"
                     elif kernel == "sssp":
                         fused_marker = "[ECG_K2_ILOAD_CW24]"
-                        fused_label = "indexed K2-I property load"
+                        fused_label = "indexed ReuseBind property load"
                     elif STREAM_BYPASS:
                         fused_marker = "[ECG_K2_ILOAD]"
-                        fused_label = "indexed K2-I property load"
+                        fused_label = "indexed ReuseBind property load"
                     else:
                         fused_marker = "[ECG_K2_ILOAD]"
-                        fused_label = "indexed K2-I property load"
+                        fused_label = "indexed ReuseBind property load"
                     fused_ok = fused_marker in text
                     fused_path_ok = ran_ok and fused_ok
                     print(f"      {fused_label}: "
@@ -873,7 +876,7 @@ def main(argv=None):
                                 rows[0].get("edge_stream_bytes_per_edge") == "8",
                                 rows[0].get("ecg_record_replaces_edge") == "1",
                             ))
-                        print("      compact K2-M provenance: "
+                        print("      compact ReuseBind provenance: "
                               f"{'[OK]' if provenance_ok else '[FAIL]'}")
                         spec_ok &= provenance_ok
                 elif sim == "sniper":
@@ -920,14 +923,14 @@ def main(argv=None):
                             provenance_ok and
                             "[K2_TRANSPORT_MATCHED]" in text and
                             "[K2_EXACT_BIND]" in text)
-                        fused_label = "computed-address K2-M load binding"
+                        fused_label = "computed-address ReuseBind load binding"
                     else:
                         valid = ecg.K2_FUSED_VALID_RE.search(text)
                         fused_ok = (
                             valid is not None and
                             int(valid.group(1)) > 0 and
                             int(valid.group(2)) == 0)
-                        fused_label = "fused K2 sideband"
+                        fused_label = "fused ReusePlan sideband"
                     fused_path_ok = ran_ok and fused_ok
                     print(f"      {fused_label}: "
                           f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
@@ -961,7 +964,7 @@ def main(argv=None):
                         reads is not None and writes is not None and
                         int(reads.group(1)) > 0 and int(writes.group(1)) > 0
                     )
-                print(f"      StreamShield LLC bypass: "
+                print(f"      FlowThrough LLC bypass: "
                       f"{'[OK]' if ran_ok and bypass_ok else '[FAIL]'}")
                 streamshield_ok = (
                     ran_ok and fused_path_ok and bypass_ok and
@@ -971,8 +974,8 @@ def main(argv=None):
             nz = cov.get("epoch_victims_nz", 0)   # stamped victims with a NON-ZERO delivered epoch
             k2_live = cov.get("k2_ways", 0) > 0
             delivery_ok = ev > 0 or (SCHEDULE_K == 2 and k2_live)
-            # >=1 stamped property victim normally proves delivery. Under K2,
-            # resident stamped K2 property ways + verified pair distances also
+            # >=1 stamped property victim normally proves delivery. Under ReusePlan,
+            # resident stamped ReusePlan property ways + verified pair distances also
             # prove delivery even if a non-inclusive backend evicts records for
             # the whole bounded trace (Sniper PR's do-no-harm geometry).
             decisive_ok = dec > 0         # epoch DISTANCE strictly decided >=1 victim
@@ -984,8 +987,8 @@ def main(argv=None):
                 label = (
                     ("adaptive allocate-vs-shield placement is live; "
                      if ADAPTIVE_STREAM_BYPASS else
-                     "StreamShield removes post-delivery LLC churn; ") +
-                    "K2 delivery is live and eviction is certified by the "
+                     "FlowThrough removes post-delivery LLC churn; ") +
+                    "ReusePlan delivery is live and eviction is certified by the "
                     "separate no-bypass fused gate")
             elif STREAM_PF_DEGREE > 0:
                 # Under the realistic stream prefetcher, the prefetched STRUCTURAL lines
@@ -1026,7 +1029,7 @@ def main(argv=None):
                 cell_ok = True            # do-no-harm: delivery + policy verified
                 if SCHEDULE_K == 2 and k2_live and ev == 0:
                     label = (
-                        f"K2 resident+distance verified ({cov.get('k2_ways', 0)} ways); "
+                        f"ReusePlan resident+distance verified ({cov.get('k2_ways', 0)} ways); "
                         "no property victim in bounded trace (record-first do-no-harm)")
                 else:
                     label = (f"delivery+policy verified; epoch decisive {dec}x, nonzero {nz}/{ev}"

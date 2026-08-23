@@ -367,7 +367,7 @@ def test_cache_sim_runtime_receipt_overrides_nominal_k2_width(tmp_path):
     args = roi_matrix.parse_args([
         "--suite", "cache-sim",
         "--benchmark", "pr",
-        "--policies", "ECG:K2_RRIP_STREAMSHIELD",
+        "--policies", "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
         "--options", "-g 10 -k 4 -o 5 -n 1 -i 1",
         "--l3-sizes", "32kB",
         "--ecg-epochs", "16",
@@ -376,7 +376,7 @@ def test_cache_sim_runtime_receipt_overrides_nominal_k2_width(tmp_path):
     args.dry_run = False
     args.has_lru_baseline = True
     spec = roi_matrix.parse_policy_spec(
-        "ECG:K2_RRIP_STREAMSHIELD")
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH")
     out = tmp_path / "matrix"
     out.mkdir()
     row = roi_matrix.base_row("cache_sim", args, spec, "32kB")

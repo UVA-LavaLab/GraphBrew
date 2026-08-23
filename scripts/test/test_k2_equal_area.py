@@ -19,7 +19,7 @@ def args(k2_ways: int) -> SimpleNamespace:
 
 def test_k2_14_way_override_preserves_16_way_baselines():
     k2 = roi_matrix.policy_cache_geometry(
-        args(14), roi_matrix.parse_policy_spec("ECG:K2"), "8MB")
+        args(14), roi_matrix.parse_policy_spec("ECG:REUSEPLAN"), "8MB")
     lru = roi_matrix.policy_cache_geometry(
         args(14), roi_matrix.parse_policy_spec("LRU"), "8MB")
 
@@ -37,9 +37,9 @@ def test_k2_14_way_override_preserves_16_way_baselines():
 
 def test_k2_15_way_and_equal_capacity_modes():
     sensitivity = roi_matrix.policy_cache_geometry(
-        args(15), roi_matrix.parse_policy_spec("ECG:K2_ONLINE"), "8MB")
+        args(15), roi_matrix.parse_policy_spec("ECG:REUSEPLAN_ONLINE"), "8MB")
     equal_capacity = roi_matrix.policy_cache_geometry(
-        args(0), roi_matrix.parse_policy_spec("ECG:K2"), "8MB")
+        args(0), roi_matrix.parse_policy_spec("ECG:REUSEPLAN"), "8MB")
 
     assert sensitivity["k2_effective_l3_ways"] == "15"
     assert sensitivity["k2_effective_l3_size"] == "7864320B"
@@ -50,7 +50,7 @@ def test_k2_15_way_and_equal_capacity_modes():
 def test_k2_override_cannot_exceed_baseline_associativity():
     with pytest.raises(ValueError, match="cannot exceed baseline"):
         roi_matrix.policy_cache_geometry(
-            args(17), roi_matrix.parse_policy_spec("ECG:K2"), "8MB")
+            args(17), roi_matrix.parse_policy_spec("ECG:REUSEPLAN"), "8MB")
 
 
 def test_experiment_runner_forwards_k2_way_override():
@@ -80,4 +80,4 @@ def test_manifest_defines_both_equal_area_sensitivities():
         assert stage["suite"] == "cache-sim"
         assert "LRU" in stage["policies"]
         assert "HAWKEYE:PROXY" in stage["policies"]
-        assert "ECG:K2_ONLINE" in stage["policies"]
+        assert "ECG:REUSEPLAN_ONLINE" in stage["policies"]

@@ -133,7 +133,7 @@ def test_semantic_work_is_certified_only_after_cross_policy_match():
     )
     policies = [
         SimpleNamespace(label="LRU"),
-        SimpleNamespace(label="ECG_K2"),
+        SimpleNamespace(label="ECG_REUSEPLAN"),
     ]
     rows = [
         {
@@ -152,7 +152,7 @@ def test_semantic_work_is_certified_only_after_cross_policy_match():
             "sniper_semantic_truncated": 1,
             "sniper_semantic_result": "same",
         }
-        for policy in ("LRU", "ECG_K2")
+        for policy in ("LRU", "ECG_REUSEPLAN")
     ]
     roi_matrix.certify_sniper_semantic_work(rows, args, policies)
     assert all(row["semantic_work_matched"] == 1 for row in rows)
@@ -189,7 +189,7 @@ def test_single_policy_shard_waits_for_aggregate_certification(monkeypatch):
         "semantic_work_matched": 0,
     }]
     monkeypatch.setenv(
-        "GRAPHBREW_EXPECTED_POLICY_LABELS", '["LRU","ECG_K2"]')
+        "GRAPHBREW_EXPECTED_POLICY_LABELS", '["LRU","ECG_REUSEPLAN"]')
     roi_matrix.certify_sniper_semantic_work(rows, args, policies)
     assert rows[0]["semantic_work_matched"] == 0
 
@@ -198,7 +198,7 @@ def test_single_policy_shard_waits_for_aggregate_certification(monkeypatch):
         {
             **rows[0],
             "policy": "ECG",
-            "policy_label": "ECG_K2",
+            "policy_label": "ECG_REUSEPLAN",
         },
     ]
     assert aggregate_results.semantic_work_group_matches(merged)

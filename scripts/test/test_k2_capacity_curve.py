@@ -8,8 +8,8 @@ from scripts.experiments.ecg.analysis.k2_capacity_curve import analyze
 
 POLICIES = (
     "LRU", "SRRIP", "GRASP", "HAWKEYE_PROXY", "POPT",
-    "ECG_K2", "ECG_K2_ONLINE",
-    "ECG_K2_STREAMSHIELD", "ECG_K2_ONLINE_STREAMSHIELD",
+    "ECG_REUSEPLAN", "ECG_REUSEPLAN_ONLINE",
+    "ECG_REUSEPLAN_FLOWTHROUGH", "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH",
 )
 
 
@@ -27,9 +27,9 @@ def write_matrix(path: Path, k2_ways: int, multiplier: float) -> None:
                     base = 1000
                     misses = (
                         round(base * multiplier)
-                        if policy.startswith("ECG_K2") else base)
+                        if policy.startswith("ECG_REUSEPLAN") else base)
                     ways = (
-                        k2_ways if policy.startswith("ECG_K2")
+                        k2_ways if policy.startswith("ECG_REUSEPLAN")
                         else 15 if policy == "POPT" else 16)
                     writer.writerow({
                         "final_graph": graph,
@@ -51,7 +51,7 @@ def test_capacity_curve_requires_matched_baselines(tmp_path: Path):
     summary, cells = analyze(p16, p15, p14)
     assert summary["status"] == "passed"
     assert len(cells) == 60
-    policy = summary["policies"]["ECG_K2"]
+    policy = summary["policies"]["ECG_REUSEPLAN"]
     assert policy["geomean_miss_ratio_vs_lru"]["16"] == pytest.approx(0.9)
     assert policy["capacity_penalty_percent_vs_16"]["14"] == pytest.approx(
         100 * (1 / 0.9 - 1))

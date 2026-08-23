@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the reviewer-facing K2/P-OPT three-cost accounting table."""
+"""Generate the reviewer-facing ReusePlan/P-OPT three-cost accounting table."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ TRANSPORTS = {
     "unweighted_k2": {
         "baseline_edge_bytes": 4,
         "k2_edge_bytes": 8,
-        "description": "PR/BFS/BC/CC 8B K2 record replaces 4B destination",
+        "description": "PR/BFS/BC/CC 8B ReusePlan record replaces 4B destination",
     },
     "weighted_compact_k2": {
         "baseline_edge_bytes": 8,
@@ -43,7 +43,7 @@ TRANSPORTS = {
     "weighted_fallback_k2": {
         "baseline_edge_bytes": 8,
         "k2_edge_bytes": 12,
-        "description": "general SSSP keeps 8B edge plus 4B K2 sidecar",
+        "description": "general SSSP keeps 8B edge plus 4B ReusePlan sidecar",
     },
 }
 
@@ -165,7 +165,7 @@ def cost_rows(
 def markdown(rows: list[dict[str, Any]]) -> str:
     lines = [
         "| Graph | LLC | Transport | Extra B/edge | Extra active-stream MiB | "
-        "K2 bits/line | Added SRAM way-eq | P-OPT matrix MiB | "
+        "ReusePlan bits/line | Added SRAM way-eq | P-OPT matrix MiB | "
         "Reserved data ways | Fits |",
         "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
@@ -192,7 +192,7 @@ def parse_graph(value: str) -> tuple[str, Path]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate K2 transport/metadata/P-OPT capacity table.")
+        description="Generate ReusePlan transport/metadata/P-OPT capacity table.")
     parser.add_argument(
         "--graph", action="append", default=[],
         help="Graph as NAME=PATH.sg; repeat for multiple graphs.")

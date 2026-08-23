@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Emit hashed K2 replacement and SECDED synthesis inputs."""
+"""Emit hashed ReusePlan replacement and SECDED synthesis inputs."""
 
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ def manifest() -> dict[str, Any]:
                 "Synthesize per-unit tops, then scale by actual MSHR slots, "
                 "harts, and request-sideband copies. The baseline MSHR supplies "
                 "address match, allocation, and slot arbitration; these tops "
-                "measure only incremental K2 state/merge logic. O3 may reuse "
+                "measure only incremental ReusePlan state/merge logic. O3 may reuse "
                 "existing dynamic-instruction sequence tags; otherwise the "
                 "8-lane 32-bit allocator is the pinned fallback. Scale "
                 "registered recency state by LLC sets only when the baseline "
@@ -148,10 +148,10 @@ def manifest() -> dict[str, Any]:
             "No technology area, power, or delay result is embedded.",
             "Per-unit request-state RTL must be scaled using the target "
             "microarchitecture's actual harts, MSHR slots, and sideband copies.",
-            "Pipeline copies include K2 payload flops only; baseline queue "
-            "head/tail/occupancy control is not charged to K2.",
+            "Pipeline copies include ReusePlan payload flops only; baseline queue "
+            "head/tail/occupancy control is not charged to ReusePlan.",
             "The 4-bit recency input is baseline-provided 16-way age rank, not "
-            "additional K2 line metadata.",
+            "additional ReusePlan line metadata.",
         ],
     }
 
@@ -165,7 +165,7 @@ def emit(out_dir: Path) -> dict[str, Any]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Emit hashed K2 synthesis input provenance.")
+        description="Emit hashed ReusePlan synthesis input provenance.")
     parser.add_argument("--out-dir", type=Path, required=True)
     return parser.parse_args()
 

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "description": "K2 and StreamShield experiment manifest.",
+  "description": "ReusePlan and FlowThrough experiment manifest.",
   "defaults": {
     "l1d_size": "32kB",
     "l2_size": "256kB",
@@ -32,32 +32,32 @@
     "ecg_3sim_realgraph_allalg": "Three-simulator x three-real-graph x five-algorithm x eight-policy no-prefetch comparison.",
     "ecg_3sim_realgraph_allalg_1b": "Full-work cache_sim plus 1-billion-instruction detailed-ROI gem5/Sniper diagnostic on three real graphs.",
     "ecg_3sim_sampled_allalg": "Full-work three-simulator comparison on deterministic topology-derived samples of the three real graphs.",
-    "ecg_sniper_sampled_pr_streamengine": "Equal-work sampled PageRank timing for GRASP, charged P-OPT, and K2-online+StreamShield with fused Sniper record delivery.",
-    "ecg_sniper_realgraph_warm_probe": "Full web-Google warm-SIFT LRU/K2 probe with a 100-thousand-instruction detailed ROI.",
-    "ecg_sniper_realgraph_semantic_probe": "Full web-Google warm-SIFT LRU/K2-M probe bounded at 100 thousand identical static edge visits.",
+    "ecg_sniper_sampled_pr_streamengine": "Equal-work sampled PageRank timing for GRASP, charged P-OPT, and ReusePlan-online+FlowThrough with fused Sniper record delivery.",
+    "ecg_sniper_realgraph_warm_probe": "Full web-Google warm-SIFT LRU/ReusePlan probe with a 100-thousand-instruction detailed ROI.",
+    "ecg_sniper_realgraph_semantic_probe": "Full web-Google warm-SIFT LRU/ReuseBind probe bounded at 100 thousand identical static edge visits.",
     "ecg_sniper_realgraph_600m": "Reference-compatible full-real-graph Sniper matrix with a detailed ROI capped at 600 million instructions.",
     "ecg_sniper_semantic_gate": "Five-kernel Sniper gate bounded by policy-independent static edge visits rather than committed instructions.",
     "ecg_preliminary_5alg_3sim": "Bounded five-algorithm, six-policy diagnostic matrix on a common synthetic graph across cache_sim, gem5, and Sniper.",
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
-    "ecg_gem5_hawkeye_gate": "Five-algorithm gem5 real-instruction-PC Hawkeye comparison against the conventional baselines and K2.",
-    "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
-    "ecg_equal_capacity_16": "Fresh full-graph 16-way K2 counterpart for direct comparison against 14/15-way sensitivities.",
-    "ecg_equal_area_15": "Full-graph 15-way K2 sensitivity against 16-way baselines; intentionally undercharges the contextual metadata bit budget.",
-    "ecg_equal_area_14": "Full-graph conservative integral equal-silicon sensitivity with 14-way K2 against 16-way baselines.",
-    "ecg_online_dueling": "Online K2 set-dueling regret study against every static K2 arm.",
-    "ecg_streamshield_generality": "Real-graph all-kernel comparison of always-allocate, static StreamShield, and adaptive placement with the full baseline set.",
-    "ecg_cache_sim_factorial": "Real-graph K1/K2 x StreamShield cache_sim factorial with the full baseline set.",
-    "gem5_streamshield_mechanism": "Synthetic gem5 mechanism cell for fused K2 versus K2+StreamShield.",
-    "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused K2 versus K2+StreamShield.",
+    "ecg_gem5_hawkeye_gate": "Five-algorithm gem5 real-instruction-PC Hawkeye comparison against the conventional baselines and ReusePlan.",
+    "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static ReusePlan arm.",
+    "ecg_equal_capacity_16": "Fresh full-graph 16-way ReusePlan counterpart for direct comparison against 14/15-way sensitivities.",
+    "ecg_equal_area_15": "Full-graph 15-way ReusePlan sensitivity against 16-way baselines; intentionally undercharges the contextual metadata bit budget.",
+    "ecg_equal_area_14": "Full-graph conservative integral equal-silicon sensitivity with 14-way ReusePlan against 16-way baselines.",
+    "ecg_online_dueling": "Online ReusePlan set-dueling regret study against every static ReusePlan arm.",
+    "ecg_streamshield_generality": "Real-graph all-kernel comparison of always-allocate, static FlowThrough, and adaptive placement with the full baseline set.",
+    "ecg_cache_sim_factorial": "Real-graph K1/ReusePlan x FlowThrough cache_sim factorial with the full baseline set.",
+    "gem5_streamshield_mechanism": "Synthetic gem5 mechanism cell for fused ReusePlan versus ReusePlan+FlowThrough.",
+    "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused ReusePlan versus ReusePlan+FlowThrough.",
     "streamshield_sniper_realgraph": "Pending-calibration full-iteration web-Google PR Sniper matrix; do not freeze results with the rejected generic STRIDE8 configuration.",
     "ecg_uniform_8mb_16": "Uniform 8 MiB/16-way full-real-graph cache_sim matrix so every graph x kernel cell is directly comparable; supersedes the mixed 2 MiB/8 MiB factorial sizing.",
     "ecg_uniform_8mb_16_stride8": "Matched STRIDE8 twin of the uniform 8 MiB matrix. Every policy gets the same structure prefetcher, so demand-miss reduction (latency hiding) can be separated from total memory traffic (bandwidth), which prefetching cannot reduce.",
     "ecg_record_width_timing": "gem5 timing and bandwidth for the two-stamp record at the width gem5 actually streams; the width contrast itself lives in cache_sim.",
     "ecg_isa_decode_matrix": "Decode-cost matrix. Separates record WIDTH from the cost of DECODING it, with a per-stage LRU denominator so no comparison crosses runs.",
-    "ecg_fused_compact_matrix": "Fused compact K2 TimingSimple matrix: hardware-decoded 4B, software-widened 4B, and wide 8B controls in one build with per-stage LRU and K2-LRU; O3 request binding is a separate mechanism gate.",
-    "ecg_proposal_k2m_o3_gate": "Exact O3 request-bound correctness gate for the proposal's compact StreamShield record load plus one-for-one computed-address K2-M property load.",
-    "k2_pagerank_study": "Deterministic sampled PageRank study with static rrip_first+StreamShield as the primary design.",
-    "k2_final_campaign": "Role-separated final evaluation: mechanism preflight, gem5 O3 PageRank timing, full-graph cache_sim traffic, and full-graph Sniper semantic-work corroboration."
+    "ecg_fused_compact_matrix": "Fused compact ReusePlan TimingSimple matrix: hardware-decoded 4B, software-widened 4B, and wide 8B controls in one build with per-stage LRU and ReusePlan-LRU; O3 request binding is a separate mechanism gate.",
+    "ecg_proposal_k2m_o3_gate": "Exact O3 request-bound correctness gate for the proposal's compact FlowThrough record load plus one-for-one computed-address ReuseBind property load.",
+    "reuseplan_pagerank_study": "Deterministic sampled PageRank study with static RRIP-first ReusePlan plus FlowThrough as the primary design.",
+    "reuseplan_final_campaign": "Role-separated final evaluation: mechanism preflight, gem5 O3 PageRank timing, full-graph cache_sim traffic, and full-graph Sniper semantic-work corroboration."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -320,9 +320,9 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -349,10 +349,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -381,10 +381,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -418,10 +418,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -461,8 +461,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -491,8 +491,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -526,7 +526,7 @@
         "GRASP",
         "HAWKEYE",
         "POPT",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -559,8 +559,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -596,7 +596,7 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -634,8 +634,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -664,8 +664,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -698,8 +698,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -737,13 +737,13 @@
         "GRASP",
         "POPT:UNCHARGED",
         "POPT",
-        "ECG:K1",
-        "ECG:K2_GRASP",
-        "ECG:K2_EPOCH",
-        "ECG:K2_RRIP",
-        "ECG:K2_DEGREE",
-        "ECG:K2_LRU",
-        "ECG:K2_ONLINE"
+        "ECG:REUSEPLAN_SINGLE_EPOCH",
+        "ECG:REUSEPLAN_GRASP",
+        "ECG:REUSEPLAN_EPOCH",
+        "ECG:REUSEPLAN_RRIP",
+        "ECG:REUSEPLAN_DEGREE",
+        "ECG:REUSEPLAN_LRU",
+        "ECG:REUSEPLAN_ONLINE"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -773,10 +773,10 @@
         "GRASP",
         "HAWKEYE:PROXY",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -806,10 +806,10 @@
         "GRASP",
         "HAWKEYE:PROXY",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -839,10 +839,10 @@
         "GRASP",
         "HAWKEYE:PROXY",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -872,10 +872,10 @@
         "GRASP",
         "HAWKEYE:PROXY",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -906,10 +906,10 @@
         "GRASP",
         "HAWKEYE:PROXY",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -936,13 +936,13 @@
         "GRASP",
         "POPT:UNCHARGED",
         "POPT",
-        "ECG:K1",
-        "ECG:K1_STREAMSHIELD",
-        "ECG:K2",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE",
-        "ECG:K2_ONLINE_STREAMSHIELD",
-        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD"
+        "ECG:REUSEPLAN_SINGLE_EPOCH",
+        "ECG:REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH",
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -972,9 +972,9 @@
         "GRASP",
         "POPT:UNCHARGED",
         "POPT",
-        "ECG:K2_ONLINE",
-        "ECG:K2_ONLINE_STREAMSHIELD",
-        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD"
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1004,10 +1004,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1036,16 +1036,16 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
       "ecg_epochs": 65535,
-      "blocked_reason": "Legacy non-O3 indexed-delivery configuration; not valid for final architectural timing. Use k2_final_campaign.",
+      "blocked_reason": "Legacy non-O3 indexed-delivery configuration; not valid for final architectural timing. Use reuseplan_final_campaign.",
       "out_subdir": "23_gem5_3sim_realgraph_allalg",
       "timeout_gem5": 172800,
       "env": {
@@ -1074,10 +1074,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1117,10 +1117,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1155,10 +1155,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1199,10 +1199,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1231,16 +1231,16 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
       "ecg_epochs": 65535,
-      "blocked_reason": "Legacy non-O3 indexed-delivery configuration; not valid for final architectural timing. Use k2_final_campaign.",
+      "blocked_reason": "Legacy non-O3 indexed-delivery configuration; not valid for final architectural timing. Use reuseplan_final_campaign.",
       "out_subdir": "28_gem5_3sim_sampled_allalg",
       "timeout_gem5": 21600,
       "env": {
@@ -1269,10 +1269,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1308,8 +1308,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -1336,8 +1336,8 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -1373,10 +1373,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1410,7 +1410,7 @@
       "policies": [
         "GRASP",
         "POPT",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1443,7 +1443,7 @@
       ],
       "policies": [
         "LRU",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1473,7 +1473,7 @@
       ],
       "policies": [
         "LRU",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1508,10 +1508,10 @@
         "SRRIP",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_ONLINE",
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -1540,7 +1540,7 @@
         "LRU",
         "GRASP",
         "POPT",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1555,7 +1555,7 @@
         "ECG_RECORD_VARIABLE_WIDTH": "1",
         "ECG_EXPECT_BYTES_PER_EDGE": "4"
       },
-      "notes": "Compact 4-byte two-stamp record: it SUBSTITUTES for the CSR edge. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic. SCOPE: gem5 PR only -- bfs/cc/bc/sssp have no compact path and declare 8 bytes. StreamShield variants are EXCLUDED because the stream-load instruction is 8-byte only, so a compact StreamShield arm would change width AND allocation together. ECG_EXPECT_BYTES_PER_EDGE makes the guest abort before the ROI if it is not streaming the width this arm claims."
+      "notes": "Compact 4-byte two-stamp record: it SUBSTITUTES for the CSR edge. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic. SCOPE: gem5 PR only -- bfs/cc/bc/sssp have no compact path and declare 8 bytes. FlowThrough variants are EXCLUDED because the stream-load instruction is 8-byte only, so a compact FlowThrough arm would change width AND allocation together. ECG_EXPECT_BYTES_PER_EDGE makes the guest abort before the ROI if it is not streaming the width this arm claims."
     },
     {
       "name": "31_gem5_record_width_8b",
@@ -1572,7 +1572,7 @@
         "LRU",
         "GRASP",
         "POPT",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1588,7 +1588,7 @@
         "ECG_EDGE_RECORD_BYTES": "8",
         "ECG_EXPECT_BYTES_PER_EDGE": "8"
       },
-      "notes": "Matched 8-byte arm: identical in every respect except the record is forced wide, so the width effect is isolated. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic. SCOPE: gem5 PR only -- bfs/cc/bc/sssp have no compact path and declare 8 bytes. StreamShield variants are EXCLUDED because the stream-load instruction is 8-byte only, so a compact StreamShield arm would change width AND allocation together. ECG_EXPECT_BYTES_PER_EDGE makes the guest abort before the ROI if it is not streaming the width this arm claims."
+      "notes": "Matched 8-byte arm: identical in every respect except the record is forced wide, so the width effect is isolated. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic. SCOPE: gem5 PR only -- bfs/cc/bc/sssp have no compact path and declare 8 bytes. FlowThrough variants are EXCLUDED because the stream-load instruction is 8-byte only, so a compact FlowThrough arm would change width AND allocation together. ECG_EXPECT_BYTES_PER_EDGE makes the guest abort before the ROI if it is not streaming the width this arm claims."
     },
     {
       "kind": "roi_matrix",
@@ -1610,8 +1610,8 @@
         "LRU",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_LRU"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_LRU"
       ],
       "out_subdir": "40_isa_fused_4b",
       "env": {
@@ -1620,7 +1620,7 @@
         "ECG_RECORD_VARIABLE_WIDTH": "1",
         "ECG_EXPECT_BYTES_PER_EDGE": "4"
       },
-      "notes": "Fused K2-I delivery, compact 4-byte record. Includes ECG:K2_LRU so the replacement rule and the transport can be separated within the run. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
+      "notes": "Fused indexed ReuseBind delivery, compact 4-byte record. Includes ECG:REUSEPLAN_LRU so the replacement rule and the transport can be separated within the run. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
     },
     {
       "kind": "roi_matrix",
@@ -1642,8 +1642,8 @@
         "LRU",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_LRU"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_LRU"
       ],
       "out_subdir": "41_isa_fused_8b",
       "env": {
@@ -1673,7 +1673,7 @@
       "name": "42_isa_plain_4b_software",
       "policies": [
         "LRU",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "out_subdir": "42_isa_plain_4b_software",
       "env": {
@@ -1703,7 +1703,7 @@
       "name": "43_isa_plain_4b_hardware",
       "policies": [
         "LRU",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "out_subdir": "43_isa_plain_4b_hardware",
       "env": {
@@ -1734,7 +1734,7 @@
       "name": "44_isa_plain_8b",
       "policies": [
         "LRU",
-        "ECG:K2"
+        "ECG:REUSEPLAN"
       ],
       "out_subdir": "44_isa_plain_8b",
       "env": {
@@ -1760,8 +1760,8 @@
       ],
       "policies": [
         "LRU",
-        "ECG:K2",
-        "ECG:K2_LRU"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_LRU"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1776,7 +1776,7 @@
         "ECG_RECORD_VARIABLE_WIDTH": "1",
         "ECG_EXPECT_BYTES_PER_EDGE": "4"
       },
-      "notes": "Serialized single-core TimingSimple compact K2-I arm; exact request binding is proven separately by the O3 mechanism probe. Runtime activation is attested by ECG_K2_ILOAD_C; the runner fails if the guest does not emit it. Every stage carries its own LRU and K2-LRU, and all stages use one build."
+      "notes": "Serialized single-core TimingSimple compact indexed ReuseBind arm; exact request binding is proven separately by the O3 mechanism probe. Runtime activation is attested by ECG_K2_ILOAD_C; the runner fails if the guest does not emit it. Every stage carries its own LRU and ReusePlan-LRU, and all stages use one build."
     },
     {
       "name": "51_fused_software_4b",
@@ -1791,8 +1791,8 @@
       ],
       "policies": [
         "LRU",
-        "ECG:K2",
-        "ECG:K2_LRU"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_LRU"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1806,7 +1806,7 @@
         "ECG_RECORD_VARIABLE_WIDTH": "1",
         "ECG_EXPECT_BYTES_PER_EDGE": "4"
       },
-      "notes": "Matched serialized TimingSimple compact arm using the existing 64-bit fused K2-I load after guest software widening. Decode control for stage 50."
+      "notes": "Matched serialized TimingSimple compact arm using the existing 64-bit fused indexed ReuseBind load after guest software widening. Decode control for stage 50."
     },
     {
       "name": "52_fused_wide_8b",
@@ -1821,8 +1821,8 @@
       ],
       "policies": [
         "LRU",
-        "ECG:K2",
-        "ECG:K2_LRU"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_LRU"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1837,14 +1837,14 @@
         "ECG_EDGE_RECORD_BYTES": "8",
         "ECG_EXPECT_BYTES_PER_EDGE": "8"
       },
-      "notes": "Matched serialized TimingSimple wide K2-I arm. Implementation-width control for stage 50; every stage carries its own LRU and K2-LRU and all stages use one build."
+      "notes": "Matched serialized TimingSimple wide indexed ReuseBind arm. Implementation-width control for stage 50; every stage carries its own LRU and ReusePlan-LRU and all stages use one build."
     },
     {
       "name": "60_gem5_proposal_k2m_o3",
       "kind": "roi_matrix",
       "profiles": [
         "ecg_proposal_k2m_o3_gate",
-        "k2_final_campaign"
+        "reuseplan_final_campaign"
       ],
       "suite": "gem5",
       "graph_set": "synthetic_kron12_all",
@@ -1852,9 +1852,9 @@
         "pr"
       ],
       "policies": [
-        "ECG:K2",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_STREAMSHIELD"
+        "ECG:REUSEPLAN",
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1870,13 +1870,13 @@
         "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
         "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
       },
-      "notes": "Mechanism-only proposal gate with a width-unmatched 8-byte non-StreamShield K2 semantic anchor plus transport-matched 4-byte StreamShield lru_only and epoch_first arms. roi_matrix forces capped 2048-event request/bypass traces; every StreamShield row must attest only 4-byte request-flag record loads, exact same-line O3 K2-M Request acceptance, and multiple nonzero record-derived epoch pairs. All three rows must match PageRank semantics. The anchor is not a StreamShield control, and this proves existence and binding rather than request-count or performance coverage."
+      "notes": "Mechanism-only proposal gate with a width-unmatched 8-byte non-FlowThrough ReusePlan semantic anchor plus transport-matched 4-byte FlowThrough lru_only and epoch_first arms. roi_matrix forces capped 2048-event request/bypass traces; every FlowThrough row must attest only 4-byte request-flag record loads, exact same-line O3 ReuseBind Request acceptance, and multiple nonzero record-derived epoch pairs. All three rows must match PageRank semantics. The anchor is not a FlowThrough control, and this proves existence and binding rather than request-count or performance coverage."
     },
     {
       "name": "70_gem5_pagerank_i1",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
+      "profiles": ["reuseplan_pagerank_study", "reuseplan_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 1,
       "out_subdir": "70_gem5_pagerank_i1",
@@ -1889,7 +1889,7 @@
       "name": "71_gem5_pagerank_i2",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
+      "profiles": ["reuseplan_pagerank_study", "reuseplan_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 2,
       "out_subdir": "71_gem5_pagerank_i2",
@@ -1902,7 +1902,7 @@
       "name": "72_gem5_pagerank_i4",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
+      "profiles": ["reuseplan_pagerank_study", "reuseplan_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 4,
       "out_subdir": "72_gem5_pagerank_i4",
@@ -1915,7 +1915,7 @@
       "name": "73_gem5_pagerank_i8",
       "kind": "roi_matrix",
       "suite": "gem5",
-      "profiles": ["k2_pagerank_study", "k2_final_campaign"],
+      "profiles": ["reuseplan_pagerank_study", "reuseplan_final_campaign"],
       "screen_config": "scripts/experiments/ecg/configs/pagerank_study.json",
       "screen_iteration": 8,
       "out_subdir": "73_gem5_pagerank_i8",
@@ -1928,7 +1928,7 @@
       "name": "80_cache_sim_final_fullgraph",
       "kind": "roi_matrix",
       "profiles": [
-        "k2_final_campaign"
+        "reuseplan_final_campaign"
       ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs_uniform_8mb",
@@ -1941,9 +1941,9 @@
       "policies": [
         "LRU",
         "GRASP",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1962,7 +1962,7 @@
       "name": "81_sniper_final_semantic",
       "kind": "roi_matrix",
       "profiles": [
-        "k2_final_campaign"
+        "reuseplan_final_campaign"
       ],
       "suite": "sniper",
       "graph_set": "factorial_graphs_uniform_8mb",
@@ -1975,9 +1975,9 @@
       "policies": [
         "LRU",
         "GRASP",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -2004,7 +2004,7 @@
       "name": "82_cache_sim_final_wide16",
       "kind": "roi_matrix",
       "profiles": [
-        "k2_final_campaign"
+        "reuseplan_final_campaign"
       ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs_uniform_8mb",
@@ -2017,8 +2017,8 @@
       ],
       "policies": [
         "LRU",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD"
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH"
       ],
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -2036,7 +2036,7 @@
       "name": "83_cache_sim_final_wide256",
       "kind": "roi_matrix",
       "profiles": [
-        "k2_final_campaign"
+        "reuseplan_final_campaign"
       ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs_uniform_8mb",
@@ -2049,8 +2049,8 @@
       ],
       "policies": [
         "LRU",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD"
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH"
       ],
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -2068,7 +2068,7 @@
       "name": "84_cache_sim_final_popt",
       "kind": "roi_matrix",
       "profiles": [
-        "k2_final_campaign"
+        "reuseplan_final_campaign"
       ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs_uniform_8mb",
@@ -2081,8 +2081,8 @@
         "GRASP",
         "POPT",
         "POPT:UNCHARGED",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD"
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH"
       ],
       "popt_reserve_model": "size_correct",
       "popt_property_bytes": 4,
@@ -2106,7 +2106,7 @@
       "name": "85_sniper_final_sssp_wide",
       "kind": "roi_matrix",
       "profiles": [
-        "k2_final_campaign"
+        "reuseplan_final_campaign"
       ],
       "suite": "sniper",
       "graph_set": "factorial_graphs_uniform_8mb",
@@ -2116,9 +2116,9 @@
       "policies": [
         "LRU",
         "GRASP",
-        "ECG:K2_LRU_STREAMSHIELD",
-        "ECG:K2_RRIP_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"
       ],
       "prefetcher": "none",
       "ecg_charged": 1,

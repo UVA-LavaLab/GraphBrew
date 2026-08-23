@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble and categorize the canonical K2-M/K2-I RV64 sequences."""
+"""Assemble and categorize the canonical ReuseBind/indexed ReuseBind RV64 sequences."""
 
 from __future__ import annotations
 
@@ -178,13 +178,13 @@ def analyze(text: str) -> dict[str, Any]:
 def markdown(result: dict[str, Any]) -> str:
     lines = [
         "| Sequence | Body inst. | Record load | Dest extract | Addr gen | "
-        "Ordinary load | K2-M | K2-I | Delta vs baseline |",
+        "Ordinary load | ReuseBind | indexed ReuseBind | Delta vs baseline |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     labels = {
         "baseline_u32_d32": "Baseline",
-        "k2_m_u32_d32": "K2-M",
-        "k2_i_u32_d32": "K2-I",
+        "k2_m_u32_d32": "ReuseBind",
+        "k2_i_u32_d32": "indexed ReuseBind",
     }
     for name in FUNCTIONS:
         row = result["rows"][name]
@@ -200,7 +200,7 @@ def markdown(result: dict[str, Any]) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Categorize canonical K2-M/K2-I instruction sequences.")
+        description="Categorize canonical ReuseBind/indexed ReuseBind instruction sequences.")
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--compiler", default="riscv64-linux-gnu-gcc")
     parser.add_argument("--objdump", default="riscv64-linux-gnu-objdump")

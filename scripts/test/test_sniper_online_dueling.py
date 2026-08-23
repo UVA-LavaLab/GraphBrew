@@ -1,7 +1,7 @@
 """Sniper analog of test_gem5_online_dueling.py.
 
 Covers roi_matrix.py's Sniper-side online-dueling evidence parsing/validation
-(ECG:K2_ONLINE_STREAMSHIELD), the Sniper [ECG-VARIANT-RECEIPT] attestation,
+(ECG:REUSEPLAN_ONLINE_FLOWTHROUGH), the Sniper [ECG-VARIANT-RECEIPT] attestation,
 and the realized-LLC-geometry receipt -- all added to reach Sniper/gem5
 parity without renaming or repurposing the frozen gem5_* fields.
 """
@@ -201,12 +201,12 @@ def test_sniper_geometry_receipt_supports_root_level_sim_cfg(tmp_path):
 
 def test_sniper_mask_mode_preserves_pinned_variant_lru_streamshield():
     """BLOCKING regression: run_sniper's mask branch must export
-    ECG:K2_LRU_STREAMSHIELD's pinned "lru_only" variant unchanged, not the
-    generic ECG:K2 adaptive-benchmark mapping. Before the fix,
+    ECG:REUSEPLAN_LRU_FLOWTHROUGH's pinned "lru_only" variant unchanged, not the
+    generic ECG:REUSEPLAN adaptive-benchmark mapping. Before the fix,
     sniper_mask_mode_ecg_variant's mask branch unconditionally recomputed
     ECG_VARIANT via effective_ecg_variant(..., spec=parse_policy_spec(
-    "ECG:K2")), silently discarding any spec-pinned variant."""
-    spec = roi_matrix.parse_policy_spec("ECG:K2_LRU_STREAMSHIELD")
+    "ECG:REUSEPLAN")), silently discarding any spec-pinned variant."""
+    spec = roi_matrix.parse_policy_spec("ECG:REUSEPLAN_LRU_FLOWTHROUGH")
     assert spec.ecg_variant == "lru_only"
     for benchmark in ("pr", "bfs", "sssp", "bc", "cc"):
         args = argparse.Namespace(benchmark=benchmark)
@@ -215,7 +215,7 @@ def test_sniper_mask_mode_preserves_pinned_variant_lru_streamshield():
 
 
 def test_sniper_mask_mode_preserves_pinned_variant_rrip_streamshield():
-    spec = roi_matrix.parse_policy_spec("ECG:K2_RRIP_STREAMSHIELD")
+    spec = roi_matrix.parse_policy_spec("ECG:REUSEPLAN_RRIP_FLOWTHROUGH")
     assert spec.ecg_variant == "rrip_first"
     for benchmark in ("pr", "bfs", "sssp", "bc", "cc"):
         args = argparse.Namespace(benchmark=benchmark)
@@ -224,7 +224,7 @@ def test_sniper_mask_mode_preserves_pinned_variant_rrip_streamshield():
 
 
 def test_sniper_mask_mode_preserves_pinned_variant_online_streamshield():
-    spec = roi_matrix.parse_policy_spec("ECG:K2_ONLINE_STREAMSHIELD")
+    spec = roi_matrix.parse_policy_spec("ECG:REUSEPLAN_ONLINE_FLOWTHROUGH")
     assert spec.ecg_variant == "rrip_first"
     for benchmark in ("pr", "bfs", "sssp", "bc", "cc"):
         args = argparse.Namespace(benchmark=benchmark)
@@ -233,12 +233,12 @@ def test_sniper_mask_mode_preserves_pinned_variant_online_streamshield():
 
 
 def test_sniper_mask_mode_preserves_pinned_degree_variant():
-    """ECG:K2_DEGREE pins "degree_first"; this must export/expect its own
-    variant, distinct from the generic ECG:K2 adaptive mapping (which would
+    """ECG:REUSEPLAN_DEGREE pins "degree_first"; this must export/expect its own
+    variant, distinct from the generic ECG:REUSEPLAN adaptive mapping (which would
     also resolve to "degree_first" for bfs/sssp, but to "epoch_first" for pr
     and "rrip_first" for bc/cc -- the pin must win regardless of benchmark,
     not because the two mappings happen to coincide on some benchmarks)."""
-    spec = roi_matrix.parse_policy_spec("ECG:K2_DEGREE")
+    spec = roi_matrix.parse_policy_spec("ECG:REUSEPLAN_DEGREE")
     assert spec.ecg_variant == "degree_first"
     for benchmark in ("pr", "bfs", "sssp", "bc", "cc"):
         args = argparse.Namespace(benchmark=benchmark)
@@ -249,7 +249,7 @@ def test_sniper_mask_mode_preserves_pinned_degree_variant():
     pr_args = argparse.Namespace(benchmark="pr")
     generic_pr = roi_matrix.effective_ecg_variant(
         pr_args, schedule_k=2,
-        spec=roi_matrix.parse_policy_spec("ECG:K2"))
+        spec=roi_matrix.parse_policy_spec("ECG:REUSEPLAN"))
     assert generic_pr == "epoch_first"
     assert roi_matrix.sniper_mask_mode_ecg_variant(
         pr_args, spec.ecg_schedule_k, spec) == "degree_first"
@@ -258,7 +258,7 @@ def test_sniper_mask_mode_preserves_pinned_degree_variant():
 
 def test_sniper_mask_mode_falls_back_to_generic_k2_when_variant_unpinned():
     """A spec with NO pinned ecg_variant (spec.ecg_variant is None) is the
-    ONLY case that should fall back to the generic ECG:K2 adaptive-benchmark
+    ONLY case that should fall back to the generic ECG:REUSEPLAN adaptive-benchmark
     mapping in mask mode."""
     spec = roi_matrix.parse_policy_spec("ECG:ECG_GRASP_POPT")
     assert spec.ecg_variant is None
@@ -297,7 +297,7 @@ def _run_sniper_end_to_end(monkeypatch, tmp_path, log_text, write_matching_geome
         "--sniper-workload", "sg_kernel",
         "--allow-sniper-sg-kernel-workload",
     ])
-    policy_spec = roi_matrix.parse_policy_spec("ECG:K2_LRU")
+    policy_spec = roi_matrix.parse_policy_spec("ECG:REUSEPLAN_LRU")
     assert policy_spec.ecg_variant == "lru_only"
 
     label = (
@@ -413,10 +413,10 @@ def test_sniper_mask_mode_variant_matches_receipt_validator_expectation():
     be exactly what apply_sniper_variant_receipt is told to expect, so a
     run cannot silently certify a variant the child process never ran."""
     for label, expected in (
-            ("ECG:K2_LRU_STREAMSHIELD", "lru_only"),
-            ("ECG:K2_RRIP_STREAMSHIELD", "rrip_first"),
-            ("ECG:K2_ONLINE_STREAMSHIELD", "rrip_first"),
-            ("ECG:K2_DEGREE", "degree_first")):
+            ("ECG:REUSEPLAN_LRU_FLOWTHROUGH", "lru_only"),
+            ("ECG:REUSEPLAN_RRIP_FLOWTHROUGH", "rrip_first"),
+            ("ECG:REUSEPLAN_ONLINE_FLOWTHROUGH", "rrip_first"),
+            ("ECG:REUSEPLAN_DEGREE", "degree_first")):
         spec = roi_matrix.parse_policy_spec(label)
         args = argparse.Namespace(benchmark="bfs")
         exported = roi_matrix.sniper_mask_mode_ecg_variant(

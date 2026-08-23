@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
-  <title id="title">Worked K2 future-reuse example</title>
+  <title id="title">Worked ReusePlan future-reuse example</title>
   <desc id="desc">At current epoch ten, three lines have two future epochs each. Their nearest distances are two, ten, and one, so line B is the farthest future use.</desc>
   <defs>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">

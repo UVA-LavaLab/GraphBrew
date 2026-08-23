@@ -21,7 +21,9 @@ from pathlib import Path
 from typing import Any, Iterable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from experiment_run import recover_roi_comparison_config_hash  # noqa: E402
+from policy_specs import policy_output_label  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
@@ -56,17 +58,21 @@ POLICY_ORDER = [
     "ECG_DBG_PRIMARY_CHARGED",
     "ECG_DBG_PRIMARY",
     "ECG_POPT_PRIMARY",
-    "ECG_K2_GRASP",
-    "ECG_K2_LRU",
-    "ECG_K2_RRIP",
-    "ECG_K2_DEGREE",
-    "ECG_K2_EPOCH",
-    "ECG_K2",
-    "ECG_K2_ONLINE",
-    "ECG_K2_STREAMSHIELD",
-    "ECG_K2_LRU_STREAMSHIELD",
-    "ECG_K2_ONLINE_STREAMSHIELD",
-    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
+    "ECG_REUSEPLAN_GRASP",
+    "ECG_REUSEPLAN_LRU",
+    "ECG_REUSEPLAN_RRIP",
+    "ECG_REUSEPLAN_DEGREE",
+    "ECG_REUSEPLAN_EPOCH",
+    "ECG_REUSEPLAN",
+    "ECG_REUSEPLAN_ONLINE",
+    "ECG_REUSEPLAN_FLOWTHROUGH",
+    "ECG_REUSEPLAN_RRIP_FLOWTHROUGH",
+    "ECG_REUSEPLAN_LRU_FLOWTHROUGH",
+    "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH",
+    "ECG_REUSEPLAN_ADAPTIVE_FLOWTHROUGH",
+    "ECG_REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH",
+    "ECG_REUSEPLAN_SINGLE_EPOCH",
+    "ECG_REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH",
 ]
 
 BENCHMARK_ORDER = ["pr", "bfs", "sssp", "cc", "bc", "tc"]
@@ -89,17 +95,24 @@ POLICY_LABELS = {
     "ECG_DBG_PRIMARY_CHARGED": "ECG-H+C",
     "ECG_DBG_PRIMARY": "ECG-H",
     "ECG_POPT_PRIMARY": "ECG-P",
-    "ECG_K2_GRASP": "K2-GRASP",
-    "ECG_K2_LRU": "K2-LRU",
-    "ECG_K2_RRIP": "K2-RRIP",
-    "ECG_K2_DEGREE": "K2-degree",
-    "ECG_K2_EPOCH": "K2-epoch",
-    "ECG_K2": "K2",
-    "ECG_K2_ONLINE": "K2-online",
-    "ECG_K2_STREAMSHIELD": "K2+SS",
-    "ECG_K2_LRU_STREAMSHIELD": "K2-LRU+SS",
-    "ECG_K2_ONLINE_STREAMSHIELD": "K2-online+SS",
-    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD": "K2-online+adaptive-SS",
+    "ECG_REUSEPLAN_GRASP": "ReusePlan-GRASP",
+    "ECG_REUSEPLAN_LRU": "ReusePlan-LRU",
+    "ECG_REUSEPLAN_RRIP": "ReusePlan-RRIP",
+    "ECG_REUSEPLAN_DEGREE": "ReusePlan-degree",
+    "ECG_REUSEPLAN_EPOCH": "ReusePlan-epoch",
+    "ECG_REUSEPLAN": "ReusePlan",
+    "ECG_REUSEPLAN_ONLINE": "ReusePlan-online",
+    "ECG_REUSEPLAN_FLOWTHROUGH": "ReusePlan+FlowThrough",
+    "ECG_REUSEPLAN_RRIP_FLOWTHROUGH": "ReusePlan-RRIP+FlowThrough",
+    "ECG_REUSEPLAN_LRU_FLOWTHROUGH": "ReusePlan-LRU+FlowThrough",
+    "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH": "ReusePlan-online+FlowThrough",
+    "ECG_REUSEPLAN_ADAPTIVE_FLOWTHROUGH":
+        "ReusePlan+adaptive-FlowThrough",
+    "ECG_REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH":
+        "ReusePlan-online+adaptive-FlowThrough",
+    "ECG_REUSEPLAN_SINGLE_EPOCH": "ReusePlan-single-epoch",
+    "ECG_REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH":
+        "ReusePlan-single-epoch+FlowThrough",
 }
 
 POLICY_DESCRIPTIONS = {
@@ -112,19 +125,34 @@ POLICY_DESCRIPTIONS = {
     "ECG_DBG_PRIMARY_CHARGED": "ECG hybrid mode with P-OPT overhead charged",
     "ECG_DBG_PRIMARY": "ECG DBG-primary hybrid mode",
     "ECG_POPT_PRIMARY": "ECG P-OPT-primary oracle-validation mode",
-    "ECG_K2_GRASP": "K2 transport with GRASP-only victim selection",
-    "ECG_K2_LRU": "K2 transport with LRU-only victim selection",
-    "ECG_K2_LRU_STREAMSHIELD":
-        "K2 transport with LRU-only victim selection and StreamShield",
-    "ECG_K2_RRIP": "K2 transport with RRIP-first victim selection",
-    "ECG_K2_DEGREE": "K2 transport with degree-first victim selection",
-    "ECG_K2_EPOCH": "K2 transport with epoch-first victim selection",
-    "ECG_K2": "Two-epoch ECG replacement",
-    "ECG_K2_ONLINE": "Online set-dueling across all K2 victim arms",
-    "ECG_K2_STREAMSHIELD": "Two-epoch ECG plus StreamShield placement",
-    "ECG_K2_ONLINE_STREAMSHIELD": "Online K2 plus StreamShield placement",
-    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD":
-        "Online K2 plus allocate-vs-StreamShield placement dueling",
+    "ECG_REUSEPLAN_GRASP":
+        "ReusePlan transport with GRASP-only victim selection",
+    "ECG_REUSEPLAN_LRU":
+        "ReusePlan transport with LRU-only victim selection",
+    "ECG_REUSEPLAN_LRU_FLOWTHROUGH":
+        "ReusePlan transport with LRU-only victims and FlowThrough",
+    "ECG_REUSEPLAN_RRIP":
+        "ReusePlan transport with RRIP-first victim selection",
+    "ECG_REUSEPLAN_DEGREE":
+        "ReusePlan transport with degree-first victim selection",
+    "ECG_REUSEPLAN_EPOCH":
+        "ReusePlan transport with epoch-first victim selection",
+    "ECG_REUSEPLAN": "Two-epoch ReusePlan replacement",
+    "ECG_REUSEPLAN_ONLINE":
+        "Online set-dueling across ReusePlan victim arms",
+    "ECG_REUSEPLAN_FLOWTHROUGH":
+        "Two-epoch ReusePlan plus FlowThrough placement",
+    "ECG_REUSEPLAN_RRIP_FLOWTHROUGH":
+        "RRIP-first ReusePlan plus FlowThrough placement",
+    "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH":
+        "Online ReusePlan plus FlowThrough placement",
+    "ECG_REUSEPLAN_ADAPTIVE_FLOWTHROUGH":
+        "ReusePlan plus allocate-vs-FlowThrough placement dueling",
+    "ECG_REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH":
+        "Online ReusePlan plus allocate-vs-FlowThrough placement dueling",
+    "ECG_REUSEPLAN_SINGLE_EPOCH": "Single-epoch ReusePlan",
+    "ECG_REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH":
+        "Single-epoch ReusePlan plus FlowThrough placement",
 }
 
 POLICY_COLORS = {
@@ -137,16 +165,21 @@ POLICY_COLORS = {
     "ECG_DBG_PRIMARY_CHARGED": "#B79A20",
     "ECG_DBG_PRIMARY": "#54A24B",
     "ECG_POPT_PRIMARY": "#B279A2",
-    "ECG_K2_GRASP": "#8CD17D",
-    "ECG_K2_LRU": "#9C9C9C",
-    "ECG_K2_RRIP": "#59A14F",
-    "ECG_K2_DEGREE": "#2F8F9D",
-    "ECG_K2_EPOCH": "#1F9D55",
-    "ECG_K2": "#2CA02C",
-    "ECG_K2_ONLINE": "#007A3D",
-    "ECG_K2_STREAMSHIELD": "#006D2C",
-    "ECG_K2_ONLINE_STREAMSHIELD": "#00441B",
-    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD": "#00331F",
+    "ECG_REUSEPLAN_GRASP": "#8CD17D",
+    "ECG_REUSEPLAN_LRU": "#9C9C9C",
+    "ECG_REUSEPLAN_RRIP": "#59A14F",
+    "ECG_REUSEPLAN_DEGREE": "#2F8F9D",
+    "ECG_REUSEPLAN_EPOCH": "#1F9D55",
+    "ECG_REUSEPLAN": "#2CA02C",
+    "ECG_REUSEPLAN_ONLINE": "#007A3D",
+    "ECG_REUSEPLAN_FLOWTHROUGH": "#006D2C",
+    "ECG_REUSEPLAN_RRIP_FLOWTHROUGH": "#146B3A",
+    "ECG_REUSEPLAN_LRU_FLOWTHROUGH": "#777777",
+    "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH": "#00441B",
+    "ECG_REUSEPLAN_ADAPTIVE_FLOWTHROUGH": "#275D38",
+    "ECG_REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH": "#00331F",
+    "ECG_REUSEPLAN_SINGLE_EPOCH": "#74C476",
+    "ECG_REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH": "#238B45",
 }
 
 POLICY_HATCHES = {
@@ -508,7 +541,7 @@ def run_profile(args: argparse.Namespace, run_root: Path, profile: str) -> Path:
 def parse_expected_policy_labels(row: dict[str, Any]) -> set[str]:
     raw = row.get("final_expected_policy_labels", "")
     if isinstance(raw, list):
-        return {str(value) for value in raw}
+        return {policy_output_label(str(value)) for value in raw}
     if not raw:
         return set()
     try:
@@ -517,7 +550,15 @@ def parse_expected_policy_labels(row: dict[str, Any]) -> set[str]:
         return set()
     if not isinstance(parsed, list):
         return set()
-    return {str(value) for value in parsed}
+    return {policy_output_label(str(value)) for value in parsed}
+
+
+def canonicalize_policy_row(row: dict[str, Any]) -> None:
+    raw_label = str(row.get("policy_label", ""))
+    canonical_label = policy_output_label(raw_label)
+    if canonical_label != raw_label:
+        row["legacy_policy_label"] = raw_label
+    row["policy_label"] = canonical_label
 
 
 def semantic_work_group_matches(group_rows: list[dict[str, Any]]) -> bool:
@@ -552,10 +593,19 @@ def semantic_work_group_matches(group_rows: list[dict[str, Any]]) -> bool:
 def complete_matrix_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
+        canonicalize_policy_row(row)
         groups[compare_key(row)].append(row)
 
     complete: list[dict[str, Any]] = []
     for group_key, group_rows in groups.items():
+        normalized_labels = [
+            str(row.get("policy_label", ""))
+            for row in group_rows if row.get("policy_label")
+        ]
+        if len(normalized_labels) != len(set(normalized_labels)):
+            raise RuntimeError(
+                "duplicate inputs after canonical policy normalization: "
+                f"group={group_key} labels={sorted(normalized_labels)}")
         config_hashes = {
             str(row.get("final_matrix_config_hash", ""))
             for row in group_rows
@@ -563,14 +613,16 @@ def complete_matrix_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         expected: set[str] = set()
         for row in group_rows:
             expected.update(parse_expected_policy_labels(row))
-        actual = {
+        actual_labels = [
             str(row.get("policy_label", "")) for row in group_rows
             if row.get("status") == "ok" and
             row.get("final_output_status", "ok") == "ok"
-        }
+        ]
+        actual = set(actual_labels)
         semantic_work_ok = semantic_work_group_matches(group_rows)
         if (config_hashes == {""} or len(config_hashes) != 1 or
-                not expected or actual != expected or not semantic_work_ok):
+                not expected or actual != expected or
+                not semantic_work_ok):
             print(
                 f"[skip] incomplete policy group={group_key} "
                 f"hashes={sorted(config_hashes)} "
@@ -711,6 +763,7 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
         ]
         source_run = run_dir or path.parent
         for row in rows:
+            canonicalize_policy_row(row)
             row["pipeline_source_csv"] = str(path)
             row["pipeline_run_dir"] = str(source_run)
             row["pipeline_run_name"] = source_run.name
@@ -729,7 +782,11 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                 row["final_shard_group"] = str(
                     marker_payload.get("shard_group", source_run.name))
                 row["final_expected_policy_labels"] = json.dumps(
-                    marker_payload.get("expected_policy_labels", []),
+                    [
+                        policy_output_label(str(value))
+                        for value in marker_payload.get(
+                            "expected_policy_labels", [])
+                    ],
                     separators=(",", ":"))
                 row["final_matrix_config_hash"] = str(
                     marker_payload.get(
@@ -967,7 +1024,8 @@ def is_preliminary_5alg_row(row: dict[str, Any]) -> bool:
 
 def preliminary_policy_ranks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     required = {
-        "LRU", "SRRIP", "GRASP", "POPT", "ECG_K2", "ECG_K2_ONLINE",
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG_REUSEPLAN", "ECG_REUSEPLAN_ONLINE",
     }
     grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in complete_matrix_rows(rows):
@@ -1044,7 +1102,8 @@ def preliminary_stride_sensitivity(
     )
     logical_keys = keys[1:]
     required = {
-        "LRU", "SRRIP", "GRASP", "POPT", "ECG_K2", "ECG_K2_ONLINE",
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG_REUSEPLAN", "ECG_REUSEPLAN_ONLINE",
     }
     grouped: dict[
         tuple[Any, ...], dict[str, list[dict[str, Any]]]
@@ -1175,11 +1234,11 @@ def preliminary_stride_sensitivity(
 
 def online_dueling_regret(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     static_policies = (
-        "ECG_K2_GRASP",
-        "ECG_K2_EPOCH",
-        "ECG_K2_RRIP",
-        "ECG_K2_DEGREE",
-        "ECG_K2_LRU",
+        "ECG_REUSEPLAN_GRASP",
+        "ECG_REUSEPLAN_EPOCH",
+        "ECG_REUSEPLAN_RRIP",
+        "ECG_REUSEPLAN_DEGREE",
+        "ECG_REUSEPLAN_LRU",
     )
     grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in complete_matrix_rows(rows):
@@ -1189,7 +1248,7 @@ def online_dueling_regret(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     out: list[dict[str, Any]] = []
     for group_key, by_policy in grouped.items():
-        online = by_policy.get("ECG_K2_ONLINE")
+        online = by_policy.get("ECG_REUSEPLAN_ONLINE")
         static = [
             by_policy[policy] for policy in static_policies
             if policy in by_policy
@@ -2354,7 +2413,7 @@ def generate_outputs(
                     "online_delta_vs_popt_uncharged_pct",
                     "online_delta_vs_popt_pct",
                 ],
-                "Online K2 set-dueling regret versus the best static arm",
+                "Online ReusePlan set-dueling regret versus the best static arm",
             )
         overhead = charged_overhead(roi_rows)
         if overhead:

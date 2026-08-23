@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Emit and optionally run reproducible CACTI inputs for K2 SRAM costs."""
+"""Emit and optionally run reproducible CACTI inputs for ReusePlan SRAM costs."""
 
 from __future__ import annotations
 
@@ -384,7 +384,7 @@ def run_packet(out_dir: Path, cacti_binary: Path) -> dict[str, Any]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Emit reproducible CACTI inputs for K2 physical costs.")
+        description="Emit reproducible CACTI inputs for ReusePlan physical costs.")
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--cacti-binary", type=Path)

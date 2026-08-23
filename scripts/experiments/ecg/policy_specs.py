@@ -7,6 +7,24 @@ from dataclasses import dataclass
 
 
 ONLINE_DUELING_WINDOW_MISSES = 1024
+REUSEPLAN_LABEL = "ECG_REUSEPLAN"
+REUSEPLAN_GRASP_LABEL = "ECG_REUSEPLAN_GRASP"
+REUSEPLAN_EPOCH_LABEL = "ECG_REUSEPLAN_EPOCH"
+REUSEPLAN_RRIP_LABEL = "ECG_REUSEPLAN_RRIP"
+REUSEPLAN_DEGREE_LABEL = "ECG_REUSEPLAN_DEGREE"
+REUSEPLAN_LRU_LABEL = "ECG_REUSEPLAN_LRU"
+REUSEPLAN_ONLINE_LABEL = "ECG_REUSEPLAN_ONLINE"
+REUSEPLAN_FLOWTHROUGH_LABEL = "ECG_REUSEPLAN_FLOWTHROUGH"
+REUSEPLAN_RRIP_FLOWTHROUGH_LABEL = "ECG_REUSEPLAN_RRIP_FLOWTHROUGH"
+REUSEPLAN_LRU_FLOWTHROUGH_LABEL = "ECG_REUSEPLAN_LRU_FLOWTHROUGH"
+REUSEPLAN_ONLINE_FLOWTHROUGH_LABEL = "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH"
+REUSEPLAN_ADAPTIVE_FLOWTHROUGH_LABEL = (
+    "ECG_REUSEPLAN_ADAPTIVE_FLOWTHROUGH")
+REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH_LABEL = (
+    "ECG_REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH")
+REUSEPLAN_SINGLE_EPOCH_LABEL = "ECG_REUSEPLAN_SINGLE_EPOCH"
+REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH_LABEL = (
+    "ECG_REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH")
 ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS = (
     "gem5_k2_dueling_request_bound_victims",
     "gem5_k2_dueling_leader_samples",
@@ -76,9 +94,12 @@ def parse_policy_spec(text: str) -> PolicySpec:
         upper = upper[: -len(":UNCHARGED")]
         explicit_charge = True
 
-    if upper in ("ECG:K2", "ECG_K2"):
+    if upper in (
+        "ECG:REUSEPLAN", "ECG_REUSEPLAN",
+        "ECG:K2", "ECG_K2",
+    ):
         return PolicySpec(
-            label="ECG_K2",
+            label=REUSEPLAN_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -86,16 +107,26 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_transport_pinned=True,
         )
     k2_variants = {
-        "ECG:K2_GRASP": ("ECG_K2_GRASP", "grasp_only"),
-        "ECG_K2_GRASP": ("ECG_K2_GRASP", "grasp_only"),
-        "ECG:K2_EPOCH": ("ECG_K2_EPOCH", "epoch_first"),
-        "ECG_K2_EPOCH": ("ECG_K2_EPOCH", "epoch_first"),
-        "ECG:K2_RRIP": ("ECG_K2_RRIP", "rrip_first"),
-        "ECG_K2_RRIP": ("ECG_K2_RRIP", "rrip_first"),
-        "ECG:K2_DEGREE": ("ECG_K2_DEGREE", "degree_first"),
-        "ECG_K2_DEGREE": ("ECG_K2_DEGREE", "degree_first"),
-        "ECG:K2_LRU": ("ECG_K2_LRU", "lru_only"),
-        "ECG_K2_LRU": ("ECG_K2_LRU", "lru_only"),
+        "ECG:REUSEPLAN_GRASP": (REUSEPLAN_GRASP_LABEL, "grasp_only"),
+        "ECG_REUSEPLAN_GRASP": (REUSEPLAN_GRASP_LABEL, "grasp_only"),
+        "ECG:K2_GRASP": (REUSEPLAN_GRASP_LABEL, "grasp_only"),
+        "ECG_K2_GRASP": (REUSEPLAN_GRASP_LABEL, "grasp_only"),
+        "ECG:REUSEPLAN_EPOCH": (REUSEPLAN_EPOCH_LABEL, "epoch_first"),
+        "ECG_REUSEPLAN_EPOCH": (REUSEPLAN_EPOCH_LABEL, "epoch_first"),
+        "ECG:K2_EPOCH": (REUSEPLAN_EPOCH_LABEL, "epoch_first"),
+        "ECG_K2_EPOCH": (REUSEPLAN_EPOCH_LABEL, "epoch_first"),
+        "ECG:REUSEPLAN_RRIP": (REUSEPLAN_RRIP_LABEL, "rrip_first"),
+        "ECG_REUSEPLAN_RRIP": (REUSEPLAN_RRIP_LABEL, "rrip_first"),
+        "ECG:K2_RRIP": (REUSEPLAN_RRIP_LABEL, "rrip_first"),
+        "ECG_K2_RRIP": (REUSEPLAN_RRIP_LABEL, "rrip_first"),
+        "ECG:REUSEPLAN_DEGREE": (REUSEPLAN_DEGREE_LABEL, "degree_first"),
+        "ECG_REUSEPLAN_DEGREE": (REUSEPLAN_DEGREE_LABEL, "degree_first"),
+        "ECG:K2_DEGREE": (REUSEPLAN_DEGREE_LABEL, "degree_first"),
+        "ECG_K2_DEGREE": (REUSEPLAN_DEGREE_LABEL, "degree_first"),
+        "ECG:REUSEPLAN_LRU": (REUSEPLAN_LRU_LABEL, "lru_only"),
+        "ECG_REUSEPLAN_LRU": (REUSEPLAN_LRU_LABEL, "lru_only"),
+        "ECG:K2_LRU": (REUSEPLAN_LRU_LABEL, "lru_only"),
+        "ECG_K2_LRU": (REUSEPLAN_LRU_LABEL, "lru_only"),
     }
     if upper in k2_variants:
         label, variant = k2_variants[upper]
@@ -108,13 +139,17 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_transport_pinned=True,
         )
     if upper in (
+        "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
+        "ECG_REUSEPLAN_RRIP_FLOWTHROUGH",
+        "ECG:REUSEPLAN_RRIP_FT",
+        "ECG_REUSEPLAN_RRIP_FT",
         "ECG:K2_RRIP_STREAMSHIELD",
         "ECG_K2_RRIP_STREAMSHIELD",
         "ECG:K2_RRIP_SS",
         "ECG_K2_RRIP_SS",
     ):
         return PolicySpec(
-            label="ECG_K2_RRIP_STREAMSHIELD",
+            label=REUSEPLAN_RRIP_FLOWTHROUGH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -123,13 +158,17 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_transport_pinned=True,
         )
     if upper in (
+        "ECG:REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG_REUSEPLAN_LRU_FLOWTHROUGH",
+        "ECG:REUSEPLAN_LRU_FT",
+        "ECG_REUSEPLAN_LRU_FT",
         "ECG:K2_LRU_STREAMSHIELD",
         "ECG_K2_LRU_STREAMSHIELD",
         "ECG:K2_LRU_SS",
         "ECG_K2_LRU_SS",
     ):
         return PolicySpec(
-            label="ECG_K2_LRU_STREAMSHIELD",
+            label=REUSEPLAN_LRU_FLOWTHROUGH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -138,13 +177,17 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_transport_pinned=True,
         )
     if upper in (
+        "ECG:REUSEPLAN_FLOWTHROUGH",
+        "ECG_REUSEPLAN_FLOWTHROUGH",
+        "ECG:REUSEPLAN_FT",
+        "ECG_REUSEPLAN_FT",
         "ECG:K2_STREAMSHIELD",
         "ECG_K2_STREAMSHIELD",
         "ECG:K2_SS",
         "ECG_K2_SS",
     ):
         return PolicySpec(
-            label="ECG_K2_STREAMSHIELD",
+            label=REUSEPLAN_FLOWTHROUGH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -152,9 +195,12 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_variant="adaptive",
             ecg_transport_pinned=True,
         )
-    if upper in ("ECG:K2_ONLINE", "ECG_K2_ONLINE"):
+    if upper in (
+        "ECG:REUSEPLAN_ONLINE", "ECG_REUSEPLAN_ONLINE",
+        "ECG:K2_ONLINE", "ECG_K2_ONLINE",
+    ):
         return PolicySpec(
-            label="ECG_K2_ONLINE",
+            label=REUSEPLAN_ONLINE_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -163,13 +209,17 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_set_dueling=True,
         )
     if upper in (
+        "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH",
+        "ECG_REUSEPLAN_ONLINE_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_FT",
+        "ECG_REUSEPLAN_ONLINE_FT",
         "ECG:K2_ONLINE_STREAMSHIELD",
         "ECG_K2_ONLINE_STREAMSHIELD",
         "ECG:K2_ONLINE_SS",
         "ECG_K2_ONLINE_SS",
     ):
         return PolicySpec(
-            label="ECG_K2_ONLINE_STREAMSHIELD",
+            label=REUSEPLAN_ONLINE_FLOWTHROUGH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -179,13 +229,17 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_set_dueling=True,
         )
     if upper in (
+        "ECG:REUSEPLAN_ADAPTIVE_FLOWTHROUGH",
+        "ECG_REUSEPLAN_ADAPTIVE_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ADAPTIVE_FT",
+        "ECG_REUSEPLAN_ADAPTIVE_FT",
         "ECG:K2_ADAPTIVE_STREAMSHIELD",
         "ECG_K2_ADAPTIVE_STREAMSHIELD",
         "ECG:K2_ADAPTIVE_SS",
         "ECG_K2_ADAPTIVE_SS",
     ):
         return PolicySpec(
-            label="ECG_K2_ADAPTIVE_STREAMSHIELD",
+            label=REUSEPLAN_ADAPTIVE_FLOWTHROUGH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -194,13 +248,17 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_transport_pinned=True,
         )
     if upper in (
+        "ECG:REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH",
+        "ECG_REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH",
+        "ECG:REUSEPLAN_ONLINE_ADAPTIVE_FT",
+        "ECG_REUSEPLAN_ONLINE_ADAPTIVE_FT",
         "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
         "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
         "ECG:K2_ONLINE_ADAPTIVE_SS",
         "ECG_K2_ONLINE_ADAPTIVE_SS",
     ):
         return PolicySpec(
-            label="ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
+            label=REUSEPLAN_ONLINE_ADAPTIVE_FLOWTHROUGH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
@@ -210,22 +268,29 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_transport_pinned=True,
             ecg_set_dueling=True,
         )
-    if upper in ("ECG:K1", "ECG_K1"):
+    if upper in (
+        "ECG:REUSEPLAN_SINGLE_EPOCH", "ECG_REUSEPLAN_SINGLE_EPOCH",
+        "ECG:K1", "ECG_K1",
+    ):
         return PolicySpec(
-            label="ECG_K1",
+            label=REUSEPLAN_SINGLE_EPOCH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_variant="epoch_first",
             ecg_transport_pinned=True,
         )
     if upper in (
+        "ECG:REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH",
+        "ECG_REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH",
+        "ECG:REUSEPLAN_SINGLE_EPOCH_FT",
+        "ECG_REUSEPLAN_SINGLE_EPOCH_FT",
         "ECG:K1_STREAMSHIELD",
         "ECG_K1_STREAMSHIELD",
         "ECG:K1_SS",
         "ECG_K1_SS",
     ):
         return PolicySpec(
-            label="ECG_K1_STREAMSHIELD",
+            label=REUSEPLAN_SINGLE_EPOCH_FLOWTHROUGH_LABEL,
             policy="ECG",
             ecg_mode="ECG_GRASP_POPT",
             ecg_stream_bypass=True,
@@ -279,3 +344,11 @@ def parse_policy_spec(text: str) -> PolicySpec:
 
 def policy_output_label(text: str) -> str:
     return parse_policy_spec(text).label
+
+
+def is_reuseplan_policy(text: str) -> bool:
+    return policy_output_label(text).startswith("ECG_REUSEPLAN")
+
+
+def is_flowthrough_policy(text: str) -> bool:
+    return policy_output_label(text).endswith("_FLOWTHROUGH")

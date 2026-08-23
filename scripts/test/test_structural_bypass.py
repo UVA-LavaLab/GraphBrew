@@ -107,21 +107,21 @@ def _policy_specs():
 
 def test_k2_variants_are_distinct_policies():
     mod = _policy_specs()
-    names = ["ECG:K2", "ECG:K2_STREAMSHIELD",
-             "ECG:K2_RRIP_STREAMSHIELD",
-             "ECG:K2_ONLINE", "ECG:K2_ONLINE_STREAMSHIELD"]
+    names = ["ECG:REUSEPLAN", "ECG:REUSEPLAN_FLOWTHROUGH",
+             "ECG:REUSEPLAN_RRIP_FLOWTHROUGH",
+             "ECG:REUSEPLAN_ONLINE", "ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"]
     specs = {n: mod.parse_policy_spec(n) for n in names}
     labels = {n: s.label for n, s in specs.items()}
     assert len(set(labels.values())) == len(names), (
         f"K2 variants collapsed to shared labels: {labels}")
     # StreamShield variants must actually carry the bypass, and plain K2 must not.
-    assert specs["ECG:K2"].ecg_stream_bypass is False
-    assert specs["ECG:K2_STREAMSHIELD"].ecg_stream_bypass is True
-    assert specs["ECG:K2_RRIP_STREAMSHIELD"].ecg_stream_bypass is True
-    assert specs["ECG:K2_RRIP_STREAMSHIELD"].ecg_variant == "rrip_first"
-    assert specs["ECG:K2_ONLINE"].ecg_stream_bypass is False
-    assert specs["ECG:K2_ONLINE_STREAMSHIELD"].ecg_stream_bypass is True
+    assert specs["ECG:REUSEPLAN"].ecg_stream_bypass is False
+    assert specs["ECG:REUSEPLAN_FLOWTHROUGH"].ecg_stream_bypass is True
+    assert specs["ECG:REUSEPLAN_RRIP_FLOWTHROUGH"].ecg_stream_bypass is True
+    assert specs["ECG:REUSEPLAN_RRIP_FLOWTHROUGH"].ecg_variant == "rrip_first"
+    assert specs["ECG:REUSEPLAN_ONLINE"].ecg_stream_bypass is False
+    assert specs["ECG:REUSEPLAN_ONLINE_FLOWTHROUGH"].ecg_stream_bypass is True
     # Online selection is the other independent axis.
-    assert specs["ECG:K2"].ecg_set_dueling is False
-    assert specs["ECG:K2_RRIP_STREAMSHIELD"].ecg_set_dueling is False
-    assert specs["ECG:K2_ONLINE"].ecg_set_dueling is True
+    assert specs["ECG:REUSEPLAN"].ecg_set_dueling is False
+    assert specs["ECG:REUSEPLAN_RRIP_FLOWTHROUGH"].ecg_set_dueling is False
+    assert specs["ECG:REUSEPLAN_ONLINE"].ecg_set_dueling is True

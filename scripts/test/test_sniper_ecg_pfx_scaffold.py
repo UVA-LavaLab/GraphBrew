@@ -330,7 +330,7 @@ def test_sniper_mask_only_uses_transport_matched_loops():
     assert "ensure_ecg_context_lifecycle_hooks" in setup
     assert runner.count('env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"') == 1
     assert '"sniper_popt_matrix_required"] = int(requires_popt_matrix)' in runner
-    assert "Matrix-free K2-M row unexpectedly loaded" in runner
+    assert "Matrix-free ReuseBind row unexpectedly loaded" in runner
 
 
 def test_sniper_ecg_host_profile_covers_cache_callbacks():

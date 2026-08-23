@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate transport-matched Sniper K2-M instruction parity."""
+"""Validate transport-matched Sniper ReuseBind instruction parity."""
 
 from __future__ import annotations
 
@@ -7,8 +7,11 @@ import argparse
 import csv
 import hashlib
 import json
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from policy_specs import policy_output_label  # noqa: E402
 
 DEFAULT_KERNELS = ("pr", "bfs", "sssp", "bc", "cc")
 
@@ -90,7 +93,7 @@ def validated_binding_proof(
     if configuration.get("schedule_k") != 2:
         errors.append("binding proof is not Schedule-2")
     if configuration.get("isa_variant") != "mask":
-        errors.append("binding proof is not computed-address K2-M")
+        errors.append("binding proof is not computed-address ReuseBind")
     required_simulators = {"cache_sim", "gem5", "sniper"}
     if not required_simulators.issubset(
             set(configuration.get("simulators", []))):
@@ -195,28 +198,31 @@ def validate(
         if len(rows) != 2:
             errors.append(f"{kernel}: expected exactly two rows, got {len(rows)}")
             continue
-        by_policy = {row.get("policy_label"): row for row in rows}
-        if set(by_policy) != {"LRU", "ECG_K2"}:
+        by_policy = {
+            policy_output_label(str(row.get("policy_label", ""))): row
+            for row in rows
+        }
+        if set(by_policy) != {"LRU", "ECG_REUSEPLAN"}:
             errors.append(
-                f"{kernel}: expected LRU/ECG_K2, got {sorted(by_policy)}")
+                f"{kernel}: expected LRU/ECG_REUSEPLAN, got {sorted(by_policy)}")
             continue
         lru = by_policy["LRU"]
-        k2 = by_policy["ECG_K2"]
+        k2 = by_policy["ECG_REUSEPLAN"]
         if lru.get("status") != "ok" or k2.get("status") != "ok":
             errors.append(f"{kernel}: non-ok row")
             continue
         if lru.get("sniper_transport_matched") != "1":
             errors.append(f"{kernel}: LRU transport not matched")
         if k2.get("sniper_transport_matched") != "1":
-            errors.append(f"{kernel}: K2 transport not matched")
+            errors.append(f"{kernel}: ReusePlan transport not matched")
         if lru.get("sniper_k2_exact_bind") != "1":
             errors.append(f"{kernel}: LRU exact binding is not enabled")
         if k2.get("sniper_k2_exact_bind") != "1":
-            errors.append(f"{kernel}: K2 exact binding is not enabled")
+            errors.append(f"{kernel}: ReusePlan exact binding is not enabled")
         if lru.get("sniper_k2_epoch_context_bound") != "1":
             errors.append(f"{kernel}: LRU epoch/context binding is not enabled")
         if k2.get("sniper_k2_epoch_context_bound") != "1":
-            errors.append(f"{kernel}: K2 epoch/context binding is not enabled")
+            errors.append(f"{kernel}: ReusePlan epoch/context binding is not enabled")
         row_binding_validated = all((
             k2.get("sniper_transport_receipts_validated") == "1",
             k2.get("sniper_k2_exact_bind_validated") == "1",
@@ -234,22 +240,22 @@ def validate(
         ))
         if not row_binding_validated and not proof_matches_row:
             errors.append(
-                f"{kernel}: K2 runtime binding is not validated and no "
+                f"{kernel}: ReusePlan runtime binding is not validated and no "
                 "passing binary-matched external conformance proof was supplied")
         if k2.get("ecg_isa_variant") != "mask":
-            errors.append(f"{kernel}: K2 ISA variant is not mask")
+            errors.append(f"{kernel}: ReusePlan ISA variant is not mask")
         if lru.get("sniper_workload") != "sg_kernel":
             errors.append(f"{kernel}: LRU workload is not sg_kernel")
         if k2.get("sniper_workload") != "sg_kernel":
-            errors.append(f"{kernel}: K2 workload is not sg_kernel")
+            errors.append(f"{kernel}: ReusePlan workload is not sg_kernel")
         if lru.get("sniper_roi_icount") not in ("", "0", None):
             errors.append(f"{kernel}: LRU row is instruction-capped")
         if k2.get("sniper_roi_icount") not in ("", "0", None):
-            errors.append(f"{kernel}: K2 row is instruction-capped")
+            errors.append(f"{kernel}: ReusePlan row is instruction-capped")
         if lru.get("timing_valid_for_speedup") != "0":
             errors.append(f"{kernel}: LRU matched row is not diagnostic-only")
         if k2.get("timing_valid_for_speedup") != "0":
-            errors.append(f"{kernel}: K2 matched row is not diagnostic-only")
+            errors.append(f"{kernel}: ReusePlan matched row is not diagnostic-only")
         if not lru.get("sniper_workload_sha256"):
             errors.append(f"{kernel}: missing workload hash")
         elif (lru.get("sniper_workload_sha256") !=
@@ -271,7 +277,7 @@ def validate(
             if lru.get("semantic_work_matched") != "1":
                 errors.append(f"{kernel}: LRU semantic work is not certified")
             if k2.get("semantic_work_matched") != "1":
-                errors.append(f"{kernel}: K2 semantic work is not certified")
+                errors.append(f"{kernel}: ReusePlan semantic work is not certified")
         if (not lru.get("sniper_semantic_result") or
                 lru.get("sniper_semantic_result") !=
                 k2.get("sniper_semantic_result")):
@@ -341,7 +347,7 @@ def main() -> int:
             print(f"[FAIL] {error}")
         return 1
     print(
-        f"[PASS] matched K2-M instruction parity: "
+        f"[PASS] matched ReuseBind instruction parity: "
         f"{len(args.kernels)} kernels within {args.tolerance:.4%}")
     return 0
 

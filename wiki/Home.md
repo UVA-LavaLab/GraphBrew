@@ -1,7 +1,7 @@
-# GraphBrew K2 Documentation
+# GraphBrew ReusePlan Documentation
 
 Start with the
-[illustrated K2 and StreamShield design guide](K2-StreamShield.md).
+[illustrated ReusePlan and FlowThrough design guide](ReusePlan-FlowThrough.md).
 
 Additional pages:
 

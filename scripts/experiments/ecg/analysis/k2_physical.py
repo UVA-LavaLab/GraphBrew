@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Combine external CACTI/synthesis measurements for K2.
+"""Combine external CACTI/synthesis measurements for ReusePlan.
 
 This module does not estimate physical values. It validates explicit tool
 outputs and derives reproducible overhead/equal-area ratios from them.
@@ -374,7 +374,7 @@ def characterize(data: dict[str, Any]) -> dict[str, Any]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Combine measured CACTI/synthesis values for K2.")
+        description="Combine measured CACTI/synthesis values for ReusePlan.")
     parser.add_argument("--input", type=Path)
     parser.add_argument("--template", action="store_true")
     return parser.parse_args()

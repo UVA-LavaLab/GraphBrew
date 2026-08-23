@@ -70,7 +70,7 @@ def write_rows(
             "log_path": str(path.parent / "lru.log"),
         })
         writer.writerow({
-            "policy_label": "ECG_K2",
+            "policy_label": "ECG_REUSEPLAN",
             "status": "ok",
             "instructions": str(round(100000 * ratio)),
             "sniper_transport_matched": "1",

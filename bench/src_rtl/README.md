@@ -1,7 +1,7 @@
-# K2 RTL Cost Models
+# ReusePlan RTL Cost Models
 
 This directory contains synthesizable SystemVerilog used to estimate the
-incremental area and delay of K2-specific logic. It is not a complete CPU,
+incremental area and delay of ReusePlan-specific logic. It is not a complete CPU,
 cache controller, or drop-in hardware implementation.
 
 ## Modules

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate the deterministic K2 PageRank study."""
+"""Evaluate the deterministic ReusePlan PageRank study."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ sys.path.insert(0, str(ECG_DIR))
 from policy_specs import (  # noqa: E402
     ONLINE_DUELING_REPORTED_FIELDS,
     ONLINE_DUELING_WINDOW_MISSES,
+    is_reuseplan_policy,
     policy_output_label,
 )
 
@@ -514,7 +515,7 @@ def validate_k2(row: dict[str, Any], config: dict[str, Any],
                 "gem5_k2_dueling_leader_samples") < (
                     ONLINE_DUELING_WINDOW_MISSES):
             raise ValueError(
-                "online K2 did not collect a full leader-sample window")
+                "online ReusePlan did not collect a full leader-sample window")
         for field in (
                 "gem5_k2_dueling_winner_changes",
                 "gem5_k2_dueling_follower_variant_overrides"):
@@ -559,7 +560,7 @@ def build_cells(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[
             raise ValueError(f"unexpected policy {policy} in {key}")
 
         validate_common_row(row, config, graphs[graph_name], iteration)
-        if not policy.startswith("ECG_K2_"):
+        if not is_reuseplan_policy(policy):
             validate_baseline(row, graphs[graph_name], policy)
         if policy == "GRASP":
             validate_grasp(row)
@@ -567,7 +568,7 @@ def build_cells(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[
             validate_popt(row, config, graphs[graph_name], iteration)
         elif policy == "POPT_UNCHARGED":
             validate_oracle(row, config, graphs[graph_name])
-        elif policy.startswith("ECG_K2_"):
+        elif is_reuseplan_policy(policy):
             validate_k2(row, config, graphs[graph_name], policy)
 
         per_policy = cells.setdefault(key, {})

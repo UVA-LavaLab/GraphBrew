@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
-  <title id="title">K2 custom RISC-V instructions in an out-of-order pipeline</title>
-  <desc id="desc">A conventional block diagram shows fetch, decode, rename and dispatch, issue, execute, the load-store unit, writeback and commit. Two straight colored lanes show K2-M reuse metadata and StreamShield placement metadata entering the load-store unit and data cache.</desc>
+  <title id="title">ReusePlan custom RISC-V instructions in an out-of-order pipeline</title>
+  <desc id="desc">A conventional block diagram shows fetch, decode, rename and dispatch, issue, execute, the load-store unit, writeback and commit. Two straight colored lanes show ReuseBind metadata and FlowThrough placement metadata entering the load-store unit and data cache.</desc>
   <defs>
     <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="7" markerHeight="6" refX="6.2" refY="3" orient="auto">
       <path d="M0,0 L7,3 L0,6 Z" fill="#344f63"/>
@@ -66,7 +66,7 @@
   <text x="95" y="264" text-anchor="middle" class="stage">Fetch</text>
   <text x="52" y="291" class="body">PC + predictor</text>
   <text x="52" y="314" class="body">instruction cache</text>
-  <text x="52" y="336" class="body">redirect on branch</text>
+  <text x="52" y="336" class="body">branch redirect</text>
 
   <text x="245" y="264" text-anchor="middle" class="stage">Decode</text>
   <text x="200" y="291" class="body">custom-0 opcode</text>
@@ -75,7 +75,7 @@
 
   <text x="402" y="264" text-anchor="middle" class="stage">Rename/Dispatch</text>
   <text x="350" y="291" class="body">rename destination</text>
-  <text x="350" y="314" class="body">allocate ROB / IQ / LQ</text>
+  <text x="350" y="314" class="body">allocate ROB/IQ/LQ</text>
   <text x="350" y="336" class="body">track rs1 and rs2</text>
 
   <text x="560" y="264" text-anchor="middle" class="stage">Issue Queue</text>
@@ -85,7 +85,7 @@
 
   <text x="710" y="264" text-anchor="middle" class="stage">Execute / AGU</text>
   <text x="665" y="291" class="body">compute EA</text>
-  <text x="665" y="314" class="body">send address to LSU</text>
+  <text x="665" y="314" class="body">send EA to LSU</text>
 
   <text x="867" y="264" text-anchor="middle" class="stage">Load / Store Unit</text>
   <text x="817" y="291" class="body">LSQ order check</text>
@@ -93,8 +93,8 @@
   <text x="817" y="336" class="body">attach extension</text>
 
   <text x="1010" y="264" text-anchor="middle" class="stage">Writeback</text>
-  <text x="979" y="294" class="body">data to integer</text>
-  <text x="979" y="316" class="body">or FP register</text>
+  <text x="979" y="294" class="body">integer data</text>
+  <text x="979" y="316" class="body">FP data</text>
 
   <text x="1125" y="264" text-anchor="middle" class="stage">Commit</text>
   <text x="1125" y="304" text-anchor="middle" class="body">retire in order</text>
@@ -120,7 +120,7 @@
   <text x="196" y="405" class="lane-title" fill="#19786d">ecg.k2.mload.*</text>
   <text x="330" y="405" class="lane-body">rs1: address; rs2: dest / tier / e1 / e2</text>
   <line x1="600" y1="400" x2="735" y2="400" stroke="#2a9d8f" stroke-width="1.8" marker-end="url(#arrow-teal)"/>
-  <text x="755" y="405" class="lane-body">CSRs: current epoch / context</text>
+  <text x="755" y="405" class="lane-body">CSRs: epoch / context</text>
 
   <rect x="180" y="430" width="760" height="36" rx="8" fill="#fff0eb" stroke="#e7a08f"/>
   <text x="196" y="453" class="lane-title" fill="#b94d34">ecg.stream.load2</text>
@@ -141,7 +141,7 @@
   <rect x="980" y="505" width="120" height="105" rx="12" fill="#fff7e8" stroke="#c38f27" stroke-width="1.3"/>
   <text x="1040" y="532" text-anchor="middle" class="stage">LLC</text>
   <circle cx="997" cy="556" r="4" fill="#2a9d8f"/>
-  <text x="1008" y="560" class="small">store K2 state</text>
+  <text x="1008" y="560" class="small">store reuse state</text>
   <circle cx="997" cy="580" r="4" fill="#e76f51"/>
   <text x="1008" y="584" class="small">no LLC insert</text>
 
@@ -165,7 +165,7 @@
 
   <rect x="180" y="640" width="990" height="34" rx="8" fill="#eef2f5"/>
   <circle cx="200" cy="657" r="5" fill="#2a9d8f"/>
-  <text x="214" y="662" class="small">K2-M metadata belongs to the property request.</text>
+  <text x="214" y="662" class="small">ReuseBind metadata belongs to the property request.</text>
   <circle cx="575" cy="657" r="5" fill="#e76f51"/>
-  <text x="589" y="662" class="small">StreamShield placement belongs to the edge-record request.</text>
+  <text x="589" y="662" class="small">FlowThrough placement belongs to the edge-record request.</text>
 </svg>

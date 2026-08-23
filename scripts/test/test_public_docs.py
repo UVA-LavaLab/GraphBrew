@@ -11,7 +11,7 @@ PUBLIC_PAGES = (
     ROOT / "README.md",
     ROOT / "CONTRIBUTING.md",
     ROOT / "wiki/Home.md",
-    ROOT / "wiki/K2-StreamShield.md",
+    ROOT / "wiki/ReusePlan-FlowThrough.md",
     ROOT / "wiki/Evaluation-Methodology.md",
     ROOT / "wiki/Reproduction.md",
     ROOT / "wiki/Repository-Hygiene.md",

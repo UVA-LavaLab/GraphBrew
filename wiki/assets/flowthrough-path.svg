@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
-  <title id="title">StreamShield cache path</title>
+  <title id="title">FlowThrough cache path</title>
   <desc id="desc">A record request travels from the CPU through private caches to the LLC. LLC hits are preserved; LLC misses fetch from memory and fill private caches without inserting into the LLC.</desc>
   <defs>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
@@ -24,7 +24,7 @@
     </style>
   </defs>
   <rect width="1200" height="520" fill="#ffffff"/>
-  <text x="60" y="48" class="title">StreamShield preserves useful paths and removes only LLC insertion</text>
+  <text x="60" y="48" class="title">FlowThrough preserves useful paths and removes only LLC insertion</text>
   <text x="60" y="75" class="subtitle">The placement bit belongs to the streamed record request, not the property request.</text>
 
   <g filter="url(#shadow)">
@@ -63,5 +63,5 @@
   <polyline points="1050,235 1050,270 925,270 925,296" fill="none" stroke="#e76f51" stroke-width="2.2" marker-end="url(#coral-arrow)"/>
 
   <rect x="315" y="457" width="570" height="38" rx="19" fill="#dfe8f0"/>
-  <text x="600" y="481" text-anchor="middle" class="small">Property loads remain ordinary cacheable requests carrying K2 metadata.</text>
+  <text x="600" y="481" text-anchor="middle" class="small">Property loads remain ordinary cacheable requests carrying ReusePlan metadata.</text>
 </svg>

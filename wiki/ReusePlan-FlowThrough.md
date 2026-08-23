@@ -1,17 +1,17 @@
-# K2 and StreamShield: Illustrated Design Guide
+# ReusePlan and FlowThrough: Illustrated Design Guide
 
 Graph programs commonly read an edge and then use its destination vertex to
 load a property such as rank, distance, or component ID. The edge stream is
-regular, but the property access is irregular. K2 uses the edge record as a
-small transport channel for information about the property line that will be
-accessed next.
+regular, but the property access is irregular. ReusePlan uses the edge record
+as a small transport channel for information about the property line that
+will be accessed next.
 
 This page explains the mechanism only. It contains no experimental results;
 final measurements will be published after the evaluation is complete.
 
 ## 1. Design in one figure
 
-![K2 mechanism overview](assets/k2-overview.svg)
+![ReusePlan mechanism overview](assets/reuse-plan-overview.svg)
 
 **Figure 1.** End-to-end flow from graph preprocessing to request-bound
 metadata and LLC replacement.
@@ -22,16 +22,16 @@ An offline graph pass computes three fields for each governed property line:
 2. the epoch of its next use; and
 3. the epoch of the following use.
 
-The fields travel with the edge. K2-M attaches them to the exact property
-request, and the LLC stores them as replacement metadata. StreamShield applies
+The fields travel with the edge. ReuseBind attaches them to the exact property
+request, and the LLC stores them as replacement metadata. FlowThrough applies
 separately to the edge-record request so a one-touch record can still fill the
 private caches without occupying the LLC after a miss.
 
-## 2. K2 record
+## 2. ReusePlan record
 
-![K2 record layouts](assets/k2-record.svg)
+![ReusePlan record layouts](assets/reuse-plan-record.svg)
 
-**Figure 2.** General and compact K2 record encodings.
+**Figure 2.** General and compact ReusePlan record encodings.
 
 The general record contains a 32-bit destination, a 2-bit tier, and two
 15-bit epochs:
@@ -58,34 +58,34 @@ let `e` be a delivered future epoch:
 
 `distance(e, c) = (e + N - (c mod N)) mod N`.
 
-K2 uses the nearer of the two future epochs:
+ReusePlan uses the nearer of the two future epochs:
 
-`K2 distance = min(distance(epoch1, c), distance(epoch2, c))`.
+`ReusePlan distance = min(distance(epoch1, c), distance(epoch2, c))`.
 
 The values in the following example are illustrative rather than measured.
 
-![Worked K2 reuse example](assets/k2-reuse-example.svg)
+![Worked ReusePlan reuse example](assets/reuse-plan-example.svg)
 
 **Figure 3.** Hand calculation of the nearest future reuse for three lines.
 
 In the illustrative example, line B is needed later than lines A and C. If all
-three lines are equally eligible under RRIP, K2 chooses B as the victim because
+three lines are equally eligible under RRIP, ReusePlan chooses B as the victim because
 its nearest future use is farthest away.
 
 ## 4. Replacement decision
 
-The default static policy is **RRIP-first K2**:
+The default static policy is **RRIP-first ReusePlan**:
 
 1. use RRIP to find lines that are already strong eviction candidates;
 2. among those candidates, evict an old edge-record line before a property
    line;
-3. if only property lines remain, evict the line whose nearest K2 reuse is
+3. if only property lines remain, evict the line whose nearest ReusePlan reuse is
    farthest away;
 4. age RRIP state and repeat when no line is yet eligible.
 
 A small hand-worked set illustrates the ordering:
 
-| Way | Type | RRPV | K2 distance | Decision |
+| Way | Type | RRPV | ReusePlan distance | Decision |
 |---|---|---:|---:|---|
 | A | property | 7 | 2 | keep |
 | B | property | 7 | 10 | evict |
@@ -93,72 +93,72 @@ A small hand-worked set illustrates the ordering:
 | D | property | 7 | 1 | keep |
 
 Although C has the most distant future use, RRIP does not yet consider it
-eligible. K2 refines RRIP; it does not discard RRIP's recency state.
+eligible. ReusePlan refines RRIP; it does not discard RRIP's recency state.
 
 The code also contains an online selector that compares RRIP-first, GRASP,
 epoch-first, degree-first, and LRU leader sets. That selector is useful for
 studying phase changes, but the static RRIP-first policy is the primary design.
 
-## 5. K2-M property load
+## 5. ReuseBind property load
 
-K2-M is a computed-address property load. Software still computes the property
-address in the normal way. K2-M replaces the ordinary load and carries the K2
+ReuseBind is a computed-address property load. Software still computes the property
+address in the normal way. ReuseBind replaces the ordinary load and carries the ReusePlan
 mask on that same memory request.
 
-![K2 custom RISC-V instructions through the O3 pipeline](assets/k2-cpu-pipeline.svg)
+![ReusePlan custom RISC-V instructions through the O3 pipeline](assets/reuse-plan-cpu-pipeline.svg)
 
 **Figure 4A.** Conventional horizontal O3 pipeline view.
 
 Two alternate layouts emphasize different levels of detail:
 
-![Grouped K2 core and memory pipeline](assets/k2-cpu-pipeline-regions.svg)
+![Grouped ReusePlan core and memory pipeline](assets/reuse-plan-cpu-pipeline-regions.svg)
 
 **Figure 4B.** Grouped frontend, out-of-order backend, and load/store regions.
 
-![K2 load-store unit request path](assets/k2-cpu-pipeline-lsu.svg)
+![ReusePlan load-store unit request path](assets/reuse-plan-cpu-pipeline-lsu.svg)
 
 **Figure 4C.** LSU-focused view of request construction, cache consumption,
 and response flow.
 
 The record load and property load have separate responsibilities:
 
-1. `ecg.stream.load2` reads the K2 record and carries the StreamShield
+1. `ecg.stream.load2` reads the ReusePlan record and carries the FlowThrough
    no-allocate bit.
 2. Software computes the property address from the destination.
-3. `ecg.k2.mload.*` waits for both the address and K2 mask, then enters the
+3. `ecg.k2.mload.*` waits for both the address and ReusePlan mask, then enters the
    load/store unit.
-4. The load/store unit creates a normal load request and attaches the K2
+4. The load/store unit creates a normal load request and attaches the ReusePlan
    extension before the request enters the data-cache hierarchy.
 5. The property data returns through normal completion and writeback.
 
 No shared mailbox or later address lookup is needed to associate the hint with
 the property line.
 
-## 6. StreamShield placement
+## 6. FlowThrough placement
 
-![StreamShield cache path](assets/streamshield-path.svg)
+![FlowThrough cache path](assets/flowthrough-path.svg)
 
-**Figure 5.** StreamShield preserves private-cache fills and LLC hits while
+**Figure 5.** FlowThrough preserves private-cache fills and LLC hits while
 suppressing LLC insertion after a record miss.
 
-StreamShield changes only what happens after an edge-record miss:
+FlowThrough changes only what happens after an edge-record miss:
 
 - private-cache hits behave normally;
 - LLC hits behave normally;
 - an LLC miss fetches the record and fills the private cache;
 - the returning record is not inserted into the LLC.
 
-The property request is never bypassed. K2 metadata still reaches the property
+The property request is never bypassed. ReusePlan metadata still reaches the property
 line and participates in replacement.
 
 ## 7. Hardware state
 
-K2 does not reserve LLC data ways. Its hardware cost is metadata and control:
+ReusePlan does not reserve LLC data ways. Its hardware cost is metadata and control:
 
 - two epoch fields and a tier for a governed property line;
 - a validity/count field;
-- request metadata for K2-M;
-- one StreamShield placement bit;
+- request metadata for ReuseBind;
+- one FlowThrough placement bit;
 - optional counters for online policy selection.
 
 The evaluation treats data-capacity and metadata-area costs separately. A design
@@ -168,7 +168,7 @@ with no reserved data ways is not a zero-cost design.
 
 | Simulator | Purpose |
 |---|---|
-| **gem5 O3** | Architectural timing and request-bound K2-M behavior |
+| **gem5 O3** | Architectural timing and request-bound ReuseBind behavior |
 | **cache_sim** | Functional replacement behavior and memory traffic |
 | **Sniper** | Larger-scale cache and traffic trends |
 
@@ -180,8 +180,8 @@ simulators. Timing claims are based only on gem5 O3.
 
 The PageRank study uses deterministic samples of web-Google, soc-pokec, and
 cit-Patents, with several iteration counts. The comparison includes LRU,
-GRASP, P-OPT controls, K2 with an LRU replacement control, static RRIP-first
-K2, and the online K2 variant.
+GRASP, P-OPT controls, ReusePlan with an LRU replacement control, static RRIP-first
+ReusePlan, and the online ReusePlan variant.
 
 The primary quantities are:
 

@@ -63,6 +63,7 @@ from policy_specs import (  # noqa: E402
     SNIPER_ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
     PolicySpec,
     parse_policy_spec,
+    policy_output_label,
 )
 
 _GEM5_OPT = Path(os.environ.get(
@@ -238,7 +239,7 @@ GEM5_STAT_KEYS = {
     "dram_write_requests": "system.mem_ctrl.dram.numWrites::total",
     "dram_prefetch_read_bytes":
         "system.mem_ctrl.dram.bytesRead::l2cache.prefetcher",
-    # Bandwidth SATURATION. K2 trades bandwidth for exposed latency: it can use
+    # Bandwidth SATURATION. ReusePlan trades bandwidth for exposed latency: it can use
     # more total traffic while exposing far fewer demand misses to full DRAM
     # latency. Which side binds depends entirely on whether the memory system is
     # saturated, so utilisation must be reported alongside execution time rather
@@ -419,8 +420,8 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
       prefetcher, explicitly treating P-OPT's matrix latency as perfectly
       hidden. This is a P-OPT-favorable sensitivity, not stream simulation.
 
-    The analytic mode is only symmetric with K2 when no prefetcher is active.
-    K2's edge records are simulated accesses a structure prefetcher covers,
+    The analytic mode is only symmetric with ReusePlan when no prefetcher is active.
+    ReusePlan's edge records are simulated accesses a structure prefetcher covers,
     while a flat charge can never be covered, so under a prefetcher the analytic
     mode penalises P-OPT with demand misses a real prefetcher removes. Measured
     on web-Google PageRank under STRIDE8, simulating the stream costs 0 extra
@@ -718,7 +719,7 @@ def policy_cache_geometry(
         return metadata
     if override_ways > baseline_ways:
         raise ValueError(
-            f"K2 L3 ways ({override_ways}) cannot exceed baseline "
+            f"ReusePlan L3 ways ({override_ways}) cannot exceed baseline "
             f"ways ({baseline_ways})")
 
     if not is_k2:
@@ -1214,13 +1215,13 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
         "CACHE_LINE_SIZE": args.line_size,
         "CACHE_OUTPUT_JSON": str(json_path),
         # Simulate P-OPT's rereference-matrix column stream as real accesses so
-        # the structure prefetcher covers it exactly as it covers K2's per-edge
+        # the structure prefetcher covers it exactly as it covers ReusePlan's per-edge
         # records. Only meaningful for policies that carry the overhead charge.
         "POPT_MATRIX_STREAM_SIM": (
             "1" if (spec.charge_popt_overhead and
                     getattr(args, "popt_matrix_stream", "analytic") == "simulated")
             else "0"),
-        # Structural-stream bypass, offered to every policy so K2's StreamShield
+        # Structural-stream bypass, offered to every policy so ReusePlan's FlowThrough
         # is not a mechanism its competitors are denied.
         "CACHE_STREAM_PREFETCH_MODEL": getattr(
             args, "stream_prefetch_model", "stride"),
@@ -1309,7 +1310,7 @@ def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
     if (explicit and spec.ecg_schedule_k == 2 and
             benchmark not in ("pr", "bfs", "sssp", "bc", "cc")):
         raise RuntimeError(
-            f"ECG K2 delivery is not implemented for benchmark {benchmark!r}.")
+            f"ECG ReusePlan delivery is not implemented for benchmark {benchmark!r}.")
     schedule_k = (
         spec.ecg_schedule_k if explicit else requested_ecg_schedule_k())
     stream_bypass = (
@@ -1436,7 +1437,7 @@ def apply_gem5_compact_fused_receipt(
         row["gem5_ecg_delivery"] = "ecg.k2.iload.compact"
     if requested and not active:
         mark_row_error(row, (
-            "fused compact K2 was requested but the guest emitted no "
+            "fused compact ReusePlan was requested but the guest emitted no "
             "ECG_K2_ILOAD_C activation receipt"))
     return active
 
@@ -1644,7 +1645,7 @@ def validate_online_dueling_activity(
     if missing:
         mark_row_error(
             row,
-            "online K2 set-dueling was not exercised in the ROI: "
+            "online ReusePlan set-dueling was not exercised in the ROI: "
             f"{missing}")
         return False
     return True
@@ -1709,7 +1710,7 @@ def apply_gem5_compact_k2m_streamshield_receipt(
         performance_requested and active and format_receipt is not None)
     if requested and not active:
         mark_row_error(row, (
-            "proposal compact K2-M+StreamShield was requested but "
+            "proposal compact ReuseBind+FlowThrough was requested but "
             "the guest emitted no ECG_K2_MLOAD_C_SS activation receipt"))
     elif performance_requested and format_receipt is None:
         mark_row_error(row, (
@@ -1720,10 +1721,10 @@ def apply_gem5_compact_k2m_streamshield_receipt(
             size4_events == 0 or bad_size_events != 0 or
             len(all_bypass_lines) != request_flag_events or range_lines):
         mark_row_error(row, (
-            "proposal compact K2-M+StreamShield was requested but "
-            + ("the LLC emitted no request-flag StreamShield receipt"
+            "proposal compact ReuseBind+FlowThrough was requested but "
+            + ("the LLC emitted no request-flag FlowThrough receipt"
                if request_flag_events == 0 else
-               "the request-flag StreamShield receipts did not attest "
+               "the request-flag FlowThrough receipts did not attest "
                "only 4-byte request-flag record requests")))
     return active
 
@@ -1858,7 +1859,7 @@ def apply_gem5_request_bound_k2_receipt(
         not require_discriminating or payload_discriminating)
     if requested and not valid:
         mark_row_error(row, (
-            "proposal K2-M exact Request binding was not attested "
+            "proposal ReuseBind exact Request binding was not attested "
             f"(requests={len(requests)} accepts={len(accepts)} "
             f"conflicts={request_conflicts} "
             f"duplicate_accepts={duplicate_accepts} "
@@ -1950,7 +1951,7 @@ def validate_gem5_compact_k2m_streamshield_rows(
             for row in failures
         ]
         raise SystemExit(
-            "proposal compact K2-M+StreamShield gate failed: "
+            "proposal compact ReuseBind+FlowThrough gate failed: "
             f"expected={sorted(expected_keys)} "
             f"observed={sorted(observed_keys)} failures={details}")
 
@@ -2095,25 +2096,25 @@ def effective_ecg_variant(
 def sniper_mask_mode_ecg_variant(
         args: argparse.Namespace, schedule_k: int | None,
         spec: PolicySpec) -> str:
-    """Compute the ECG_VARIANT Sniper's mask-mode (K2-M / ``--ecg-isa-variant
+    """Compute the ECG_VARIANT Sniper's mask-mode (ReuseBind / ``--ecg-isa-variant
     mask``) transport exports, called from run_sniper's mask branch.
 
-    Every ``ECG:K2_*`` PolicySpec pins its own ``ecg_variant`` (e.g.
-    ``ECG:K2_LRU_STREAMSHIELD`` -> "lru_only", ``ECG:K2_DEGREE`` ->
-    "degree_first", ``ECG:K2_RRIP_STREAMSHIELD`` -> "rrip_first",
-    ``ECG:K2_ONLINE_STREAMSHIELD`` -> "rrip_first" with dueling enabled) and
+    Every named ``ECG:REUSEPLAN_*`` PolicySpec pins its own ``ecg_variant`` (e.g.
+    ``ECG:REUSEPLAN_LRU_FLOWTHROUGH`` -> "lru_only", ``ECG:REUSEPLAN_DEGREE`` ->
+    "degree_first", ``ECG:REUSEPLAN_RRIP_FLOWTHROUGH`` -> "rrip_first",
+    ``ECG:REUSEPLAN_ONLINE_FLOWTHROUGH`` -> "rrip_first" with dueling enabled) and
     that pin MUST reach the child Sniper process unchanged and MUST be what
     the receipt validator (apply_sniper_variant_receipt) checks against --
     anything else would let the runner silently execute (and certify) a
     different variant than the one requested. Only a spec with genuinely no
     pinned variant (``spec.ecg_variant is None``, i.e. it reached
     ECG_GRASP_POPT mode through the generic "ECG:<mode>" parser path rather
-    than a named ``K2_*`` spec) falls back to the generic ECG:K2
+    than a named ReusePlan spec) falls back to the generic ReusePlan
     adaptive-benchmark mapping, matching gem5/cache_sim's own default.
     """
     if spec.ecg_variant is None:
         return effective_ecg_variant(
-            args, schedule_k=2, spec=parse_policy_spec("ECG:K2"))
+            args, schedule_k=2, spec=parse_policy_spec("ECG:REUSEPLAN"))
     return effective_ecg_variant(args, schedule_k, spec)
 
 
@@ -2250,7 +2251,7 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
             "[ECG-STREAM-BYPASS sim=cache_sim active=1")
         if expected not in log_text:
             row["status"] = "error"
-            row["error"] = "StreamShield requested but cache_sim bypass path was inactive"
+            row["error"] = "FlowThrough requested but cache_sim bypass path was inactive"
     apply_overhead_metrics(row)
     row.update(parse_ecg_log_stats(log_path))
     return [row]
@@ -2347,7 +2348,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         compact_k2m_performance_requested)
     if compact_fused_requested and args.benchmark != "pr":
         raise RuntimeError(
-            "fused compact K2 is implemented only for gem5 PageRank; "
+            "fused compact ReusePlan is implemented only for gem5 PageRank; "
             f"benchmark={args.benchmark!r} would run a wide load while being "
             "labelled compact")
     compact_fused_cell_requested = (
@@ -2411,7 +2412,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         )
         if is_k2_ecg and args.ecg_isa_variant == "mask" and not riscv_delivery:
             raise RuntimeError(
-                "gem5 K2-M requires the RISC-V custom load path; "
+                "gem5 ReuseBind requires the RISC-V custom load path; "
                 "X86 packed/extract fallback cannot be labeled mask-only.")
         ecg_variant = effective_ecg_variant(
             args, transport.schedule_k, spec)
@@ -2433,7 +2434,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             k2_masked_pload = (
                 riscv_delivery and
                 args.benchmark in ("pr", "bfs", "sssp", "bc", "cc"))
-            # Explicit ablation of the fused masked property load (K2-I). Every
+            # Explicit ablation of the fused masked property load (indexed ReuseBind). Every
             # fused delivery -- ecg.k2.iload, ecg.load2, ecg.stream.load2 --
             # carries the CANONICAL 64-bit record and has no 32-bit variant, so
             # a compact record must be widened in software before it can be
@@ -2628,7 +2629,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         base["timing_model"] = "mechanism_probe_exact_request"
         base["timing_valid_for_speedup"] = "0"
         base["timing_caveat"] = (
-            "Synthetic compact StreamShield plus K2-M O3 correctness gate; "
+            "Synthetic compact FlowThrough plus ReuseBind O3 correctness gate; "
             "this row is not performance evidence.")
     elif (
             compact_k2m_streamshield_cell_requested and
@@ -2644,8 +2645,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         base["timing_model"] = "mechanism_semantic_anchor"
         base["timing_valid_for_speedup"] = "0"
         base["timing_caveat"] = (
-            "Non-StreamShield wide-record K2 semantic anchor; it is "
-            "width-unmatched and is not a StreamShield control or "
+            "Non-FlowThrough wide-record ReusePlan semantic anchor; it is "
+            "width-unmatched and is not a FlowThrough control or "
             "performance evidence.")
     if str(gem5_ecg_delivery).startswith("packed8+k2+ecg.extract2"):
         # Deliberately fail-closed and deliberately NOT relaxed for the compact
@@ -2765,7 +2766,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 f"Exact binding is attested for {accepts} accepted LLC "
                 f"deliveries ({exact_accepts} exact-vertex, "
                 f"{coalesced_accepts} same-line coalesced) observed within "
-                f"the first {trace_limit} traced K2 requests; request-count "
+                f"the first {trace_limit} traced ReusePlan requests; request-count "
                 "coverage is not claimed. Accept traces are emitted only "
                 "after the simulator dest-line guard; non-accepted traced "
                 "requests are unclassified (inner-cache hit or guard "
@@ -2827,7 +2828,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             if args.gem5_cpu_type != "O3":
                 caveat = str(base.get("timing_caveat") or "").strip()
                 binding_caveat = (
-                    "TimingSimpleCPU uses serialized mailbox-equivalent K2 "
+                    "TimingSimpleCPU uses serialized mailbox-equivalent ReusePlan "
                     "delivery; exact request binding is proven separately by "
                     "the O3 mechanism probe.")
                 base["timing_caveat"] = " ".join(
@@ -2877,7 +2878,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     if (transport.stream_adaptive and
             not int(row.get("gem5_stream_adaptive_active") or 0)):
         mark_row_error(
-            row, "adaptive StreamShield was requested but not active")
+            row, "adaptive FlowThrough was requested but not active")
     return [row]
 
 
@@ -3220,7 +3221,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row["timing_model"] = "transport_matched_diagnostic"
         row["timing_valid_for_speedup"] = "0"
         row["timing_caveat"] = (
-            "Transport-matched K2-M certification row; timing remains "
+            "Transport-matched ReuseBind certification row; timing remains "
             "diagnostic because Sniper models rather than executes the "
             "architectural epoch/context CSR channel.")
     if policy_name == "popt":
@@ -3287,9 +3288,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if args.ecg_isa_variant == "mask":
         env["SNIPER_ECG_MODE"] = "ECG_GRASP_POPT"
         env["ECG_MODE"] = "ECG_GRASP_POPT"
-        # Preserve any spec-pinned variant (e.g. ECG:K2_LRU_STREAMSHIELD ->
+        # Preserve any spec-pinned variant (e.g. ECG:REUSEPLAN_LRU_FLOWTHROUGH ->
         # "lru_only") instead of unconditionally overwriting it with the
-        # generic ECG:K2 adaptive mapping; see sniper_mask_mode_ecg_variant.
+        # generic ECG:REUSEPLAN adaptive mapping; see sniper_mask_mode_ecg_variant.
         ecg_variant = sniper_mask_mode_ecg_variant(
             args, transport.schedule_k, spec)
         env["ECG_VARIANT"] = ecg_variant
@@ -3313,7 +3314,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if (env.get("ECG_STREAM_BYPASS") == "1" and
             args.sniper_workload != "sg_kernel"):
         raise RuntimeError(
-            "Sniper StreamShield requires --sniper-workload sg_kernel; "
+            "Sniper FlowThrough requires --sniper-workload sg_kernel; "
             "the smoke/full-wrapper workloads do not export packed-stream ranges.")
     force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
     fused_k2 = False
@@ -3369,12 +3370,12 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
                     "non-tracing runs execute no per-edge SimMagic or "
                     "software-only delivery call. Sniper remains "
                     "scale/direction corroboration, not an architectural "
-                    "K2-M speedup authority.")
+                    "ReuseBind speedup authority.")
         elif schedule_k == 2:
             row["timing_model"] = "prototype_explicit_magic_delivery"
             row["timing_valid_for_speedup"] = "0"
             row["timing_caveat"] = (
-                "This kernel still emits per-edge SimMagic for K2 delivery; "
+                "This kernel still emits per-edge SimMagic for ReusePlan delivery; "
                 "use cache metrics, not speedup.")
     elif args.ecg_isa_variant != "mask":
         env.pop("SNIPER_ENABLE_ECG_EXTRACT", None)
@@ -3489,7 +3490,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             row.update({
                 "status": "error",
                 "error": (
-                    "Matrix-free K2-M row unexpectedly loaded the P-OPT "
+                    "Matrix-free ReuseBind row unexpectedly loaded the P-OPT "
                     "rereference matrix"),
             })
             return [row]
@@ -3539,7 +3540,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row["status"] = "ok"
     apply_sniper_geometry_receipt(row, sniper_out, l3_kb, sniper_l3_ways)
     apply_overhead_metrics(row)
-    # In certification mode the runner asks for a fixed K2 delivery-trace
+    # In certification mode the runner asks for a fixed ReusePlan delivery-trace
     # budget; require that full budget so a single paired transaction cannot
     # stand in for the whole trace.
     try:
@@ -3566,21 +3567,21 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row["timing_valid_for_speedup"] = "0"
         row["timing_caveat"] = (
             row.get("timing_caveat", "") +
-            " Fused K2 receipt validation failed.")
+            " Fused ReusePlan receipt validation failed.")
     if (fused_validation and args.ecg_isa_variant == "mask" and
             (bind_count == 0 or bind_bad != 0)):
         row["status"] = "error"
         row["error"] = (
-            "exact K2 bind validation failed: "
+            "exact ReusePlan bind validation failed: "
             f"count={bind_count} bad={bind_bad}")
         row["timing_valid_for_speedup"] = "0"
         row["timing_caveat"] = (
             row.get("timing_caveat", "") +
-            " Exact K2 bind validation failed.")
+            " Exact ReusePlan bind validation failed.")
     if fused_validation and (fused_count == 0 or fused_bad != 0):
         row["status"] = "error"
         row["error"] = (
-            "fused K2 receipt validation failed: "
+            "fused ReusePlan receipt validation failed: "
             f"count={fused_count} bad={fused_bad}")
         row["timing_valid_for_speedup"] = "0"
     stats_path = Path(str(metrics.get("stats_path", "")))
@@ -3596,7 +3597,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             row[field] = int(match.group(1)) if match else 0
         # Sniper analog of gem5's OnlineDuelingStats (ecg_rp.hh): registered via
         # registerStatsMetric("ecg-online-dueling", 0, ...) in cache_set_ecg.cc,
-        # only when the K2 online-dueling selector was actually exercised.
+        # only when the ReusePlan online-dueling selector was actually exercised.
         # "governed_victims" (not "request_bound_victims") because Sniper has
         # no O3 Request/MSHR to bind a victim to -- see
         # sniper_k2_dueling_binding_model.
@@ -3627,13 +3628,13 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         if transport.stream_adaptive and not adaptive_active:
             row["status"] = "error"
             row["error"] = (
-                "adaptive StreamShield was requested but not active")
+                "adaptive FlowThrough was requested but not active")
             row["timing_valid_for_speedup"] = "0"
         elif (not transport.stream_adaptive and
               (bypass_reads <= 0 or bypass_writes <= 0)):
             row["status"] = "error"
             row["error"] = (
-                "StreamShield inactive: expected positive NUCA bypass "
+                "FlowThrough inactive: expected positive NUCA bypass "
                 f"reads/writes, got {bypass_reads}/{bypass_writes}")
             row["timing_valid_for_speedup"] = "0"
     for key in (
@@ -3814,7 +3815,7 @@ def certify_sniper_semantic_work(
     except json.JSONDecodeError:
         expected_from_env = []
     expected_policies = (
-        {str(label) for label in expected_from_env}
+        {policy_output_label(str(label)) for label in expected_from_env}
         if isinstance(expected_from_env, list) and expected_from_env
         else local_policies)
     if len(expected_policies) < 2 or local_policies != expected_policies:
@@ -3833,7 +3834,8 @@ def certify_sniper_semantic_work(
 
     for group_rows in groups.values():
         policy_labels = {
-            str(row.get("policy_label") or row.get("policy"))
+            policy_output_label(
+                str(row.get("policy_label") or row.get("policy")))
             for row in group_rows
         }
         statuses_ok = all(row.get("status") == "ok" for row in group_rows)
@@ -3893,7 +3895,7 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         timing_valid_for_speedup = "0"
         timing_caveat = (
             "Sniper provides scale/direction corroboration only, not an "
-            "architectural K2-M speedup result.")
+            "architectural ReuseBind speedup result.")
     elif simulator == "cache_sim":
         timing_model = "cache_mechanism_model"
         timing_valid_for_speedup = "0"
@@ -3985,8 +3987,8 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         timing_caveat = " ".join(
             part for part in (
                 timing_caveat,
-                "K2-M timing is diagnostic unless gem5 executes the "
-                "architectural compact StreamShield record load and "
+                "ReuseBind timing is diagnostic unless gem5 executes the "
+                "architectural compact FlowThrough record load and "
                 "request-bound property load with per-event tracing disabled.")
             if part)
 
@@ -4391,7 +4393,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--l3-ways", default="16")
     parser.add_argument(
         "--k2-l3-ways", type=int, default=0,
-        help="Optional Schedule-2 K2-only LLC associativity override for "
+        help="Optional Schedule-2 ReusePlan-only LLC associativity override for "
              "equal-silicon sensitivity. Baselines retain --l3-ways; "
              "0 keeps equal data capacity.")
     parser.add_argument("--line-size", default="64")
@@ -4431,13 +4433,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--structural-bypass", choices=["off", "all"],
                         default="off",
                         help="Offer the structural-stream LLC bypass to EVERY policy, not "
-                             "just to K2 via StreamShield. The CSR edge stream is "
+                             "just to ReusePlan via FlowThrough. The CSR edge stream is "
                              "sequential and read-once for every policy, so allowing only "
-                             "K2 to decline to allocate it confounds 'K2 replaces better' "
-                             "with 'K2 is the only policy allowed to bypass'. Measured on "
+                             "ReusePlan to decline to allocate it confounds 'ReusePlan replaces better' "
+                             "with 'ReusePlan is the only policy allowed to bypass'. Measured on "
                              "web-Google PageRank the bypass is worth -20.0%% to LRU, "
-                             "-5.1%% to GRASP and -2.0%% to P-OPT, against StreamShield's "
-                             "-2.4%% to K2.")
+                             "-5.1%% to GRASP and -2.0%% to P-OPT, against FlowThrough's "
+                             "-2.4%% to ReusePlan.")
     parser.add_argument(
         "--popt-matrix-stream",
         choices=[
@@ -4450,11 +4452,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "and traffic totals after the run. 'simulated': cache_sim issues "
                              "the column stream as real non-temporal accesses at each epoch "
                              "boundary, so a structure prefetcher can cover it exactly as it "
-                             "covers K2's per-edge records. The analytic mode is only "
-                             "symmetric with K2 when no prefetcher is active; with a "
+                             "covers ReusePlan's per-edge records. The analytic mode is only "
+                             "symmetric with ReusePlan when no prefetcher is active; with a "
                              "prefetcher it charges P-OPT demand misses that real hardware "
                              "removes, so 'simulated' is REQUIRED for any prefetch-enabled "
-                             "K2-versus-P-OPT comparison. "
+                             "ReusePlan-versus-P-OPT comparison. "
                              "'analytic_prefetch_upper_bound' explicitly keeps "
                              "the analytic byte charge under a common "
                              "prefetcher while assuming perfect matrix latency "
@@ -4483,21 +4485,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--ecg-isa-variant",
         choices=["indexed", "mask"],
         default="indexed",
-        help="K2 detailed-simulator ISA: indexed = fused base+record K2-I; "
-             "mask = computed-address K2-M. Sniper uses a transport-matched "
+        help="ReusePlan detailed-simulator ISA: indexed = fused base+record indexed ReuseBind; "
+             "mask = computed-address ReuseBind. Sniper uses a transport-matched "
              "diagnostic model until exact request binding lands.")
     parser.add_argument(
         "--gem5-compact-fused", action="store_true",
-        help="Use PR's fused compact K2-I load. Implemented only for gem5 "
+        help="Use PR's fused compact indexed ReuseBind load. Implemented only for gem5 "
              "PageRank; unsupported kernels fail instead of falling back.")
     parser.add_argument(
         "--gem5-compact-k2m-streamshield", action="store_true",
         help="Run PR's traced proposal correctness gate: a 4-byte "
-             "StreamShield record load followed by a one-for-one "
-             "computed-address K2-M property load.")
+             "FlowThrough record load followed by a one-for-one "
+             "computed-address ReuseBind property load.")
     parser.add_argument(
         "--gem5-compact-k2m-performance", action="store_true",
-        help="Run the same architectural compact K2-M+StreamShield path with "
+        help="Run the same architectural compact ReuseBind+FlowThrough path with "
              "per-event traces disabled so gem5 target time is admissible.")
     parser.add_argument(
         "--expected-gem5-guest-sha256", default="",
@@ -4574,7 +4576,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Fail controlled Sniper cells unless setarch -R is available and used.")
     parser.add_argument(
         "--sniper-require-fused-receipts", action="store_true",
-        help="Require live fused-K2 receipts and disable cache warming for this mechanism-proof cell.")
+        help="Require live fused-ReusePlan receipts and disable cache warming for this mechanism-proof cell.")
     parser.add_argument(
         "--require-cache-sim-aslr-disable", action="store_true",
         help="Fail controlled cache_sim cells unless setarch -R is available and used.")
@@ -4623,7 +4625,7 @@ def main(argv: list[str]) -> int:
             "--gem5-compact-fused requires --suite gem5 or both")
     if compact_k2m_requested and args.suite not in ("gem5", "both"):
         raise SystemExit(
-            "compact K2-M+StreamShield requires --suite gem5 or both")
+            "compact ReuseBind+FlowThrough requires --suite gem5 or both")
     if args.suite in ("gem5", "both"):
         gem5_isa = selected_gem5_isa()
     else:
@@ -4633,27 +4635,27 @@ def main(argv: list[str]) -> int:
             "--gem5-compact-fused is implemented only for --benchmark pr")
     if compact_k2m_requested and args.benchmark != "pr":
         raise SystemExit(
-            "compact K2-M+StreamShield is implemented only for "
+            "compact ReuseBind+FlowThrough is implemented only for "
             "--benchmark pr")
     if compact_k2m_requested and args.ecg_isa_variant != "mask":
         raise SystemExit(
-            "compact K2-M+StreamShield requires "
+            "compact ReuseBind+FlowThrough requires "
             "--ecg-isa-variant mask")
     if compact_k2m_requested and args.gem5_cpu_type != "O3":
         raise SystemExit(
-            "compact K2-M+StreamShield requires --gem5-cpu-type O3 "
+            "compact ReuseBind+FlowThrough requires --gem5-cpu-type O3 "
             "for exact Request-bound delivery")
     if (
             compact_k2m_requested and
             parse_size_bytes(str(args.line_size)) != 64):
         raise SystemExit(
-            "compact K2-M+StreamShield requires --line-size 64 "
+            "compact ReuseBind+FlowThrough requires --line-size 64 "
             "because the gem5 ECG request/fill guard is cache-line based")
     if args.gem5_compact_fused and gem5_isa != "riscv":
         raise SystemExit("--gem5-compact-fused requires RISC-V gem5")
     if compact_k2m_requested and gem5_isa != "riscv":
         raise SystemExit(
-            "compact K2-M+StreamShield requires RISC-V gem5")
+            "compact ReuseBind+FlowThrough requires RISC-V gem5")
     if (getattr(args, "structural_bypass", "off") != "off" and
             args.suite not in ("cache-sim", "both")):
         raise SystemExit(
@@ -4672,7 +4674,7 @@ def main(argv: list[str]) -> int:
             "--popt-matrix-stream analytic_prefetch_upper_bound is a "
             "gem5-only sensitivity; cache_sim must use simulated streaming")
     # A flat analytic matrix charge cannot be covered by a prefetcher, while
-    # K2's per-edge records are simulated accesses that can. Combining the
+    # ReusePlan's per-edge records are simulated accesses that can. Combining the
     # analytic charge with an active prefetcher therefore prices the two
     # metadata streams differently and produces an invalid comparison; the
     # The reporting rules in wiki/Evaluation-Methodology.md forbid it.
@@ -4691,7 +4693,7 @@ def main(argv: list[str]) -> int:
             "charged P-OPT with an active prefetcher requires "
             "--popt-matrix-stream simulated, or the explicit "
             "analytic_prefetch_upper_bound sensitivity: a flat analytic "
-            "matrix charge cannot be prefetch-covered while K2's records can")
+            "matrix charge cannot be prefetch-covered while ReusePlan's records can")
     if args.all_policies:
         policy_texts = ALL_POLICIES
     elif args.policies is not None:
@@ -4708,8 +4710,8 @@ def main(argv: list[str]) -> int:
                 spec.ecg_schedule_k == 2
                 for spec in policies)):
         raise SystemExit(
-            "compact K2-M+StreamShield requires at least one "
-            "Schedule-2 ECG StreamShield policy")
+            "compact ReuseBind+FlowThrough requires at least one "
+            "Schedule-2 ECG FlowThrough policy")
     args.has_lru_baseline = any(spec.label == "LRU" for spec in policies)
     out_dir = Path(args.out_dir) if args.out_dir else RESULTS_ROOT / now_tag()
     if not out_dir.is_absolute():

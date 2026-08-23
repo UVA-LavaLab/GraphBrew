@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Analytical K2 metadata and equal-area accounting."""
+"""Analytical ReusePlan metadata and equal-area accounting."""
 
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ def model(config: K2AreaConfig) -> dict[str, int | float]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compute K2 metadata and equal-area sensitivity.")
+        description="Compute ReusePlan metadata and equal-area sensitivity.")
     parser.add_argument("--cache-bytes", type=int, default=8 * 1024 * 1024)
     parser.add_argument("--line-bytes", type=int, default=64)
     parser.add_argument("--ways", type=int, default=16)

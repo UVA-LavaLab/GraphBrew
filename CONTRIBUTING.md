@@ -1,6 +1,6 @@
-# Contributing to GraphBrew K2
+# Contributing to GraphBrew ReusePlan
 
-Changes should directly support K2, StreamShield, their baselines, or
+Changes should directly support ReusePlan, FlowThrough, their baselines, or
 reproducibility.
 
 ## Rules
