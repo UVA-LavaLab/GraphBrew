@@ -86,6 +86,7 @@ from scripts.experiments.vldb.config import (
     COMPOSE_VARIANTS,
     DIAGNOSTIC_CONFIGS,
     DUAL_ARM_S0_CONFIGS,
+    DUAL_ARM_S2_CONFIGS,
     PREVIEW_GRAPHS,
     PR_CONVERGENCE_MAX_ITERATIONS,
     PR_FIXED_ITERATIONS,
@@ -305,6 +306,7 @@ def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
     known.update(config["algo"] for config in ABLATION_CONFIGS)
     known.update(config["algo"] for config in DIAGNOSTIC_CONFIGS)
     known.update(config["algo"] for config in DUAL_ARM_S0_CONFIGS)
+    known.update(config["algo"] for config in DUAL_ARM_S2_CONFIGS)
     known.update(config["algo"] for config in COMPOSITION_P0_CONFIGS)
     known.update(f"chain:{name}" for name, _flags in CHAINED_ORDERINGS)
     unknown = sorted(set(algorithms) - known)
@@ -1908,6 +1910,9 @@ def _algorithm_spec_for_key(key: str) -> tuple[str, str, list[str]]:
     for config in DUAL_ARM_S0_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
+    for config in DUAL_ARM_S2_CONFIGS:
+        if config["algo"] == key:
+            return key, config["name"], get_converter_flags(key)
     for config in COMPOSITION_P0_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
@@ -1944,6 +1949,11 @@ def _overhead_algorithm_specs() -> list[tuple[str, str, list[str]]]:
         keys.extend(
             config["algo"]
             for config in DUAL_ARM_S0_CONFIGS
+            if config["algo"] in _ALGORITHM_FILTER
+        )
+        keys.extend(
+            config["algo"]
+            for config in DUAL_ARM_S2_CONFIGS
             if config["algo"] in _ALGORITHM_FILTER
         )
         keys.extend(
@@ -2020,6 +2030,7 @@ def _pregenerate_mappings(
         for cfg in (
             *DIAGNOSTIC_CONFIGS,
             *DUAL_ARM_S0_CONFIGS,
+            *DUAL_ARM_S2_CONFIGS,
             *COMPOSITION_P0_CONFIGS,
         ):
             key = cfg["algo"]

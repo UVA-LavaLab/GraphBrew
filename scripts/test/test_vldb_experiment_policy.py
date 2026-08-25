@@ -36,6 +36,7 @@ from scripts.experiments.vldb.config import (
     COMPOSITION_P0_CONFIGS,
     DIAGNOSTIC_CONFIGS,
     DUAL_ARM_S0_CONFIGS,
+    DUAL_ARM_S2_CONFIGS,
     E2E_PAPER_ALGORITHM_KEYS,
     EVALUATION_BASELINES,
     GRAPHBREW_VARIANTS,
@@ -341,6 +342,63 @@ def test_dual_arm_s0_budget_ladder_is_explicit_only():
     assert all(
         runner._mapping_draw_count(["-o", spec]) > 1
         for spec in specs
+    )
+
+
+def test_dual_arm_s2_mapping_screen_is_two_axis_only():
+    specs = [config["algo"] for config in DUAL_ARM_S2_CONFIGS]
+    assert len(specs) == 4
+    configs = [
+        runner._expected_graphbrew_config(spec)
+        for spec in specs
+    ]
+    for config in configs:
+        assert config["algorithm"] == "leiden"
+        assert config["ordering"] == "compose"
+        assert config["intra_community_order"] == "bfs"
+        assert config["deterministic_community_detection"] is False
+        assert config["max_iterations"] == 1
+        assert config["max_passes"] == 1
+        assert config["use_refinement"] is False
+    assert {
+        (
+            config["community_order"],
+            config["supergraph_move_batch"],
+        )
+        for config in configs
+    } == {
+        ("identity", 4096),
+        ("size-asc", 4096),
+        ("size-desc", 8192),
+        ("size-desc", 16384),
+    }
+    baseline = runner._expected_graphbrew_config(
+        "12:leiden:compose:sg_none:comm_size_desc:"
+        "intra_bfs:cd_parallel:sgmb4096:norefine:1:1"
+    )
+    for config in configs:
+        changed = {
+            key for key in baseline
+            if baseline[key] != config[key]
+        }
+        assert changed in (
+            {"community_order"},
+            {"supergraph_move_batch"},
+        )
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        } == set(specs)
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert not (
+        set(specs)
+        & {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
     )
 
 

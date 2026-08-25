@@ -750,6 +750,41 @@ DUAL_ARM_S0_CONFIGS = [
     },
 ]
 
+DUAL_ARM_S2_CONFIGS = [
+    {
+        "name": "S2-FastLeiden-Identity-BFS-1x1-B4096",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs:cd_parallel:sgmb4096:norefine:1:1"
+        ),
+        "desc": "Development-only sparse-graph mapping-cost screen",
+    },
+    {
+        "name": "S2-FastLeiden-SizeAsc-BFS-1x1-B4096",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_size_asc:"
+            "intra_bfs:cd_parallel:sgmb4096:norefine:1:1"
+        ),
+        "desc": "Development-only sparse-graph mapping-cost screen",
+    },
+    {
+        "name": "S2-FastLeiden-SizeDesc-BFS-1x1-B8192",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_size_desc:"
+            "intra_bfs:cd_parallel:sgmb8192:norefine:1:1"
+        ),
+        "desc": "Development-only sparse-graph mapping-cost screen",
+    },
+    {
+        "name": "S2-FastLeiden-SizeDesc-BFS-1x1-B16384",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_size_desc:"
+            "intra_bfs:cd_parallel:sgmb16384:norefine:1:1"
+        ),
+        "desc": "Development-only sparse-graph mapping-cost screen",
+    },
+]
+
 COMPOSITION_P0_CONFIGS = [
     {
         "name": name,
