@@ -35,6 +35,7 @@ from scripts.experiments.vldb.config import (
     COMPOSITION_P0_ALGORITHM_KEYS,
     COMPOSITION_P0_CONFIGS,
     DIAGNOSTIC_CONFIGS,
+    DUAL_ARM_S0_CONFIGS,
     E2E_PAPER_ALGORITHM_KEYS,
     EVALUATION_BASELINES,
     GRAPHBREW_VARIANTS,
@@ -294,6 +295,52 @@ def test_parallel_leiden_budget_frontier_is_diagnostic_only():
             key for key, _name, _flags
             in runner._paper_algorithm_specs(include_compose=True)
         }
+    )
+
+
+def test_dual_arm_s0_budget_ladder_is_explicit_only():
+    specs = [config["algo"] for config in DUAL_ARM_S0_CONFIGS]
+    assert len(specs) == 3
+    configs = {
+        spec: runner._expected_graphbrew_config(spec)
+        for spec in specs
+    }
+    for config in configs.values():
+        assert config["algorithm"] == "leiden"
+        assert config["ordering"] == "compose"
+        assert config["community_order"] == "size-desc"
+        assert config["deterministic_community_detection"] is False
+        assert config["max_iterations"] == 1
+        assert config["max_passes"] == 1
+        assert config["supergraph_move_batch"] == 4096
+        assert config["use_refinement"] is False
+    assert {
+        config["intra_community_order"]
+        for config in configs.values()
+    } == {"gorder", "bfs"}
+    assert sorted(
+        config["gorder_fallback"]
+        for config in configs.values()
+        if config["intra_community_order"] == "gorder"
+    ) == [500, 5000]
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        } == set(specs)
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert not (
+        set(specs)
+        & {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
+    )
+    assert all(
+        runner._mapping_draw_count(["-o", spec]) > 1
+        for spec in specs
     )
 
 

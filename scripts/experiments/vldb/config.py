@@ -721,6 +721,35 @@ DIAGNOSTIC_CONFIGS = [
     )
 ]
 
+DUAL_ARM_S0_CONFIGS = [
+    {
+        "name": "S0-FastLeiden-SizeDesc-Overlap5000-1x1",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_size_desc:"
+            "intra_gorder:gw8:cd_parallel:sgmb4096:"
+            "gordf5000:norefine:1:1"
+        ),
+        "desc": "Development-only dual-arm budget ladder",
+    },
+    {
+        "name": "S0-FastLeiden-SizeDesc-Overlap500-1x1",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_size_desc:"
+            "intra_gorder:gw8:cd_parallel:sgmb4096:"
+            "gordf500:norefine:1:1"
+        ),
+        "desc": "Development-only dual-arm budget ladder",
+    },
+    {
+        "name": "S0-FastLeiden-SizeDesc-BFS-1x1",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_size_desc:"
+            "intra_bfs:cd_parallel:sgmb4096:norefine:1:1"
+        ),
+        "desc": "Development-only dual-arm budget ladder",
+    },
+]
+
 COMPOSITION_P0_CONFIGS = [
     {
         "name": name,
