@@ -69,6 +69,9 @@ Reorder Validation Time: 0.01000
 Reorder Apply Time: 0.03000
 Reorder End-to-End Time: 0.24000
 Total Preprocessing Time: 1.30000
+Membership Compaction: slots=100, active=25, empty_fraction=0.750000000, time=0.06000
+Compose Community Slots:100
+  compose phases: grouping=0.1100s, community-order=0.0200s, vertex-map=0.0300s, intra-order=0.0400s, final-assign=0.0500s
 Average Time: 0.50000
 """
     average, reorder, timing = parse_benchmark_output(output)
@@ -83,6 +86,33 @@ Average Time: 0.50000
     assert timing["reorder_apply_time"] == pytest.approx(0.03)
     assert timing["complete_reorder_time"] == pytest.approx(0.24)
     assert timing["total_preprocessing_time"] == pytest.approx(1.3)
+    assert timing["compose_grouping_time"] == pytest.approx(0.11)
+    assert timing["compose_grouping_time_passes"] == [0.11]
+    assert timing["compose_community_order_time"] == pytest.approx(0.02)
+    assert timing["compose_vertex_map_time"] == pytest.approx(0.03)
+    assert timing["compose_intra_order_time"] == pytest.approx(0.04)
+    assert timing["compose_final_assign_time"] == pytest.approx(0.05)
+    assert timing["compose_final_assign_time_passes"] == [0.05]
+    assert timing["membership_compaction_time"] == pytest.approx(0.06)
+    assert timing["membership_compaction_time_passes"] == [0.06]
+    assert timing["membership_id_slots"] == 100
+    assert timing["membership_active_communities"] == 25
+    assert timing["membership_empty_fraction"] == pytest.approx(0.75)
+    assert timing["compose_community_slots"] == pytest.approx(100)
+
+
+def test_parser_accumulates_compose_phase_passes_and_ignores_malformed():
+    _average, _reorder, timing = parse_benchmark_output(
+        "compose phases: grouping=0.1s, community-order=0.2s, "
+        "vertex-map=0.3s, intra-order=0.4s, final-assign=0.5s\n"
+        "compose phases: malformed future format\n"
+        "compose phases: grouping=1.0s, community-order=2.0s, "
+        "vertex-map=3.0s, intra-order=4.0s, final-assign=5.0s\n"
+    )
+    assert timing["compose_grouping_time_passes"] == [0.1, 1.0]
+    assert timing["compose_grouping_time"] == pytest.approx(1.1)
+    assert timing["compose_final_assign_time_passes"] == [0.5, 5.0]
+    assert timing["compose_final_assign_time"] == pytest.approx(5.5)
 
 
 def test_parser_preserves_legacy_reorder_time_fallback():

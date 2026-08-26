@@ -12,7 +12,8 @@
  */
 inline GraphBrewConfig parseGraphBrewConfig(
     const std::vector<std::string>& options,
-    bool strict = false) {
+    bool strict = false,
+    bool validateComplete = true) {
     GraphBrewConfig config;
     auto reject = [&](const std::string& opt) {
         if (strict) {
@@ -161,6 +162,31 @@ inline GraphBrewConfig parseGraphBrewConfig(
         } else if (opt == "s3_bfs" || opt == "s3:bfs" || opt == "s3bfs" ||
                    opt == "intra_bfs" || opt == "intra:bfs" || opt == "intrabfs") {
             config.intraCommunityOrder = IntraCommunityOrder::BFSFromHub;
+        } else if (
+            opt == "s3_bfs_direct"
+            || opt == "s3:bfs_direct"
+            || opt == "s3bfsdirect"
+            || opt == "intra_bfs_direct"
+            || opt == "intra:bfs_direct"
+            || opt == "intrabfsdirect"
+            || opt == "bfs_direct"
+        ) {
+            config.intraCommunityOrder = IntraCommunityOrder::BFSDirect;
+        } else if (
+            opt == "intra_bfs_compact"
+            || opt == "intra:bfs_compact"
+            || opt == "intrabfscompact"
+            || opt == "bfs_compact"
+        ) {
+            config.intraCommunityOrder = IntraCommunityOrder::BFSCompact;
+        } else if (
+            opt == "intra_bfs_compact_direct"
+            || opt == "intra:bfs_compact_direct"
+            || opt == "intrabfscompactdirect"
+            || opt == "bfs_compact_direct"
+        ) {
+            config.intraCommunityOrder =
+                IntraCommunityOrder::BFSCompactDirect;
         } else if (opt == "s3_rcm" || opt == "s3:rcm" || opt == "s3rcm" ||
                    opt == "intra_rcm" || opt == "intra:rcm" || opt == "intrarcm") {
             config.intraCommunityOrder = IntraCommunityOrder::RCM;
@@ -571,6 +597,49 @@ inline GraphBrewConfig parseGraphBrewConfig(
                 "community-order token");
         }
     }
+    const bool directEmission =
+        config.intraCommunityOrder == IntraCommunityOrder::BFSDirect
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompact
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompactDirect;
+    if (
+        directEmission
+        && config.ordering != OrderingStrategy::COMPOSE
+    ) {
+        throw std::invalid_argument(
+            "direct/compact BFS requires compose ordering");
+    }
+    if (
+        directEmission
+        && config.refinementPass != RefinementPass::None
+    ) {
+        throw std::invalid_argument(
+            "direct/compact BFS requires refine_none");
+    }
+    const bool compactEmission =
+        config.intraCommunityOrder == IntraCommunityOrder::BFSCompact
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompactDirect;
+    if (
+        compactEmission
+        && (
+            config.superGraphOrder != SuperGraphOrder::None
+            || config.communityOrder == CommunityOrder::CutMin
+        )
+    ) {
+        throw std::invalid_argument(
+            "compact BFS emission requires sg_none and non-cut-min "
+            "community order");
+    }
+    if (
+        validateComplete
+        && compactEmission
+        && config.maxPasses != 1
+    ) {
+        throw std::invalid_argument(
+            "compact BFS emission requires maxPasses=1");
+    }
     return config;
 }
 
@@ -681,7 +750,7 @@ inline GraphBrewConfig parseGraphBrewCliConfig(
                 tokens.push_back(token);
             }
         }
-        config = parseGraphBrewConfig(tokens, true);
+        config = parseGraphBrewConfig(tokens, true, false);
 
         if (
             config.algorithm != GraphBrewAlgorithm::RABBIT_ORDER
@@ -775,6 +844,45 @@ inline GraphBrewConfig parseGraphBrewCliConfig(
         if (config.resolution == reorder::DEFAULT_RESOLUTION) {
             config.resolution = auto_resolution;
         }
+    }
+    const bool directOrCompact =
+        config.intraCommunityOrder == IntraCommunityOrder::BFSDirect
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompact
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompactDirect;
+    const bool compact =
+        config.intraCommunityOrder == IntraCommunityOrder::BFSCompact
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompactDirect;
+    if (
+        directOrCompact
+        && config.ordering != OrderingStrategy::COMPOSE
+    ) {
+        throw std::invalid_argument(
+            "direct/compact BFS requires compose ordering");
+    }
+    if (
+        directOrCompact
+        && config.refinementPass != RefinementPass::None
+    ) {
+        throw std::invalid_argument(
+            "direct/compact BFS requires refine_none");
+    }
+    if (compact && config.maxPasses != 1) {
+        throw std::invalid_argument(
+            "compact BFS emission requires maxPasses=1");
+    }
+    if (
+        compact
+        && (
+            config.superGraphOrder != SuperGraphOrder::None
+            || config.communityOrder == CommunityOrder::CutMin
+        )
+    ) {
+        throw std::invalid_argument(
+            "compact BFS emission requires sg_none and non-cut-min "
+            "community order");
     }
     return config;
 }

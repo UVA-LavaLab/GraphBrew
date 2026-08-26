@@ -438,6 +438,17 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         "s3bfs": "bfs",
         "intra_bfs": "bfs",
         "intrabfs": "bfs",
+        "s3_bfs_direct": "bfs-direct",
+        "s3bfsdirect": "bfs-direct",
+        "intra_bfs_direct": "bfs-direct",
+        "intrabfsdirect": "bfs-direct",
+        "bfs_direct": "bfs-direct",
+        "intra_bfs_compact": "bfs-compact",
+        "intrabfscompact": "bfs-compact",
+        "bfs_compact": "bfs-compact",
+        "intra_bfs_compact_direct": "bfs-compact-direct",
+        "intrabfscompactdirect": "bfs-compact-direct",
+        "bfs_compact_direct": "bfs-compact-direct",
         "s3_rcm": "rcm",
         "s3rcm": "rcm",
         "intra_rcm": "rcm",
@@ -517,7 +528,13 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
             expected["community_order"] = community_tokens[token]
         elif token in intra_tokens:
             expected["intra_community_order"] = intra_tokens[token]
-        elif token == "refine_2swap":
+        elif token in {
+            "refine_2swap",
+            "refine2swap",
+            "r2swap",
+            "twoswap",
+            "2swap",
+        }:
             expected["refinement_pass"] = "two-swap"
 
     if expected["ordering"] == "compose":
@@ -526,7 +543,6 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
                 "COMPOSE super-graph order requires an explicit "
                 f"community-order token: {spec}"
             )
-
     if 1 in positional:
         final_algo = int(positional[1])
         if not 0 <= final_algo <= 11:
@@ -551,6 +567,45 @@ def expected_graphbrew_config(spec: str) -> dict[str, object]:
         expected["sub_algo_id"] = (
             -1 if sub_algo in {"auto", "adaptive"}
             else int(sub_algo)
+        )
+
+    direct_or_compact = expected["intra_community_order"] in {
+        "bfs-direct",
+        "bfs-compact",
+        "bfs-compact-direct",
+    }
+    if direct_or_compact:
+        if expected["ordering"] != "compose":
+            raise RuntimeError(
+                f"direct/compact BFS requires compose ordering: {spec}"
+            )
+        if expected["refinement_pass"] != "none":
+            raise RuntimeError(
+                f"direct/compact BFS requires refine_none: {spec}"
+            )
+    if (
+        expected["intra_community_order"] in {
+            "bfs-compact",
+            "bfs-compact-direct",
+        }
+        and expected["max_passes"] != 1
+    ):
+        raise RuntimeError(
+            f"compact BFS requires maxPasses=1: {spec}"
+        )
+    if (
+        expected["intra_community_order"] in {
+            "bfs-compact",
+            "bfs-compact-direct",
+        }
+        and (
+            expected["super_graph"] != "none"
+            or expected["community_order"] == "cut-min"
+        )
+    ):
+        raise RuntimeError(
+            "compact BFS requires sg_none and non-cut-min "
+            f"community order: {spec}"
         )
 
     return expected

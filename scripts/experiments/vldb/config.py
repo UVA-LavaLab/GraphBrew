@@ -785,6 +785,74 @@ DUAL_ARM_S2_CONFIGS = [
     },
 ]
 
+DUAL_ARM_V3_CONFIGS = [
+    {
+        "name": "V3-Serial-Identity-BFS-Control",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs:cd_serial:norefine:1:1"
+        ),
+        "desc": "Deterministic direct-emission equivalence control",
+    },
+    {
+        "name": "V3-Serial-Identity-BFSDirect-Control",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_direct:cd_serial:norefine:1:1"
+        ),
+        "desc": "Deterministic direct-emission equivalence control",
+    },
+    {
+        "name": "V3-Serial-Identity-BFSCompact-Control",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_compact:cd_serial:norefine:1:1"
+        ),
+        "desc": "Deterministic compact-emission equivalence control",
+    },
+    {
+        "name": "V3-Serial-Identity-BFSCompactDirect-Control",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_compact_direct:cd_serial:norefine:1:1"
+        ),
+        "desc": "Deterministic compact-and-emit equivalence control",
+    },
+    {
+        "name": "V3-FastLeiden-Identity-BFS-1x1-B4096",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs:cd_parallel:sgmb4096:norefine:1:1"
+        ),
+        "desc": "Parallel sparse-ID scheduling baseline",
+    },
+    {
+        "name": "V3-FastLeiden-Identity-BFSDirect-1x1-B4096",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_direct:cd_parallel:sgmb4096:norefine:1:1"
+        ),
+        "desc": "Native fused BFS and final-ID emission",
+    },
+    {
+        "name": "V3-FastLeiden-Identity-BFSCompact-1x1-B4096",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_compact:cd_parallel:sgmb4096:norefine:1:1"
+        ),
+        "desc": "Native compact active-community emission",
+    },
+    {
+        "name": "V3-FastLeiden-Identity-BFSCompactDirect-1x1-B4096",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_compact_direct:cd_parallel:sgmb4096:"
+            "norefine:1:1"
+        ),
+        "desc": "Native compact-and-emit composition",
+    },
+]
+
 COMPOSITION_P0_CONFIGS = [
     {
         "name": name,

@@ -37,6 +37,7 @@ from scripts.experiments.vldb.config import (
     DIAGNOSTIC_CONFIGS,
     DUAL_ARM_S0_CONFIGS,
     DUAL_ARM_S2_CONFIGS,
+    DUAL_ARM_V3_CONFIGS,
     E2E_PAPER_ALGORITHM_KEYS,
     EVALUATION_BASELINES,
     GRAPHBREW_VARIANTS,
@@ -400,6 +401,138 @@ def test_dual_arm_s2_mapping_screen_is_two_axis_only():
             in runner._paper_algorithm_specs(include_compose=True)
         }
     )
+
+
+def test_dual_arm_v3_direct_emission_is_explicit_only():
+    specs = [config["algo"] for config in DUAL_ARM_V3_CONFIGS]
+    assert len(specs) == 8
+    configs = {
+        spec: runner._expected_graphbrew_config(spec)
+        for spec in specs
+    }
+    for config in configs.values():
+        assert config["algorithm"] == "leiden"
+        assert config["ordering"] == "compose"
+        assert config["community_order"] == "identity"
+        assert config["max_iterations"] == 1
+        assert config["max_passes"] == 1
+        assert config["supergraph_move_batch"] in {1, 4096}
+        assert config["use_refinement"] is False
+    serial = [
+        config for config in configs.values()
+        if config["deterministic_community_detection"]
+    ]
+    parallel = [
+        config for config in configs.values()
+        if not config["deterministic_community_detection"]
+    ]
+    assert {
+        config["intra_community_order"] for config in serial
+    } == {
+        "bfs",
+        "bfs-direct",
+        "bfs-compact",
+        "bfs-compact-direct",
+    }
+    assert {
+        config["intra_community_order"] for config in parallel
+    } == {
+        "bfs",
+        "bfs-direct",
+        "bfs-compact",
+        "bfs-compact-direct",
+    }
+    assert all(
+        config["supergraph_move_batch"] == 4096
+        for config in parallel
+    )
+    baseline = runner._expected_graphbrew_config(
+        "12:leiden:compose:sg_none:comm_identity:"
+        "intra_bfs:cd_parallel:sgmb4096:norefine:1:1"
+    )
+    assert {
+        frozenset(
+            key for key in baseline
+            if baseline[key] != config[key]
+        )
+        for config in parallel
+    } == {
+        frozenset(),
+        frozenset({"intra_community_order"}),
+    }
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        } == set(specs)
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert not (
+        set(specs)
+        & {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
+    )
+    assert {
+        runner._mapping_draw_count(["-o", spec])
+        for spec in specs
+    } == {3}
+    with pytest.raises(
+        RuntimeError,
+        match="requires compose ordering",
+    ):
+        runner._expected_graphbrew_config(
+            "12:leiden:intra_bfs_direct"
+        )
+    with pytest.raises(
+        RuntimeError,
+        match="requires refine_none",
+    ):
+        runner._expected_graphbrew_config(
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_direct:refine_2swap"
+        )
+    for alias in ("refine2swap", "r2swap", "twoswap", "2swap"):
+        with pytest.raises(RuntimeError, match="requires refine_none"):
+            runner._expected_graphbrew_config(
+                "12:leiden:compose:sg_none:comm_identity:"
+                f"intra_bfs_direct:{alias}"
+            )
+    with pytest.raises(RuntimeError, match="maxPasses=1"):
+        runner._expected_graphbrew_config(
+            "12:leiden:compose:sg_none:comm_identity:"
+            "intra_bfs_compact:cd_serial:norefine:1:2"
+        )
+    with pytest.raises(RuntimeError, match="requires sg_none"):
+        runner._expected_graphbrew_config(
+            "12:leiden:compose:sg_super_rcm:comm_identity:"
+            "intra_bfs_compact:cd_serial:norefine:1:1"
+        )
+    with pytest.raises(RuntimeError, match="non-cut-min"):
+        runner._expected_graphbrew_config(
+            "12:leiden:compose:sg_none:comm_cut_min:"
+            "intra_bfs_compact:cd_serial:norefine:1:1"
+        )
+
+
+def test_v3_equivalence_guard_ignores_shared_s2_baseline():
+    s2_specs = [config["algo"] for config in DUAL_ARM_S2_CONFIGS]
+    runner._require_v3_equivalence_controls(set(s2_specs))
+
+    direct_parallel = next(
+        config["algo"] for config in DUAL_ARM_V3_CONFIGS
+        if (
+            "cd_parallel" in config["algo"]
+            and "intra_bfs_direct" in config["algo"]
+        )
+    )
+    with pytest.raises(
+        RuntimeError,
+        match="requires all deterministic equivalence controls",
+    ):
+        runner._require_v3_equivalence_controls({direct_parallel})
 
 
 def test_composition_p0_treatments_are_explicit_only():

@@ -431,6 +431,12 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     validation_passes: List[float] = []
     apply_passes: List[float] = []
     end_to_end_passes: List[float] = []
+    compose_grouping_passes: List[float] = []
+    compose_community_order_passes: List[float] = []
+    compose_vertex_map_passes: List[float] = []
+    compose_intra_order_passes: List[float] = []
+    compose_final_assign_passes: List[float] = []
+    membership_compaction_passes: List[float] = []
     iteration_counts: List[int] = []
     final_errors: List[float] = []
 
@@ -498,6 +504,7 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             "Adaptive Confidence",
             "Property Working Set Bytes", "LLC Capacity Bytes",
             "Property WSR LLC",
+            "Compose Community Slots",
         ):
             if line.startswith(key):
                 v = _num(line)
@@ -541,6 +548,43 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
             if m:
                 extra["mteps"] = float(m.group())
 
+        if line.strip().startswith("compose phases:"):
+            match = re.search(
+                r"grouping=([\d.]+)s,\s*"
+                r"community-order=([\d.]+)s,\s*"
+                r"vertex-map=([\d.]+)s,\s*"
+                r"intra-order=([\d.]+)s,\s*"
+                r"final-assign=([\d.]+)s",
+                line,
+            )
+            if match:
+                values = [
+                    float(value) for value in match.groups()
+                ]
+                compose_grouping_passes.append(values[0])
+                compose_community_order_passes.append(values[1])
+                compose_vertex_map_passes.append(values[2])
+                compose_intra_order_passes.append(values[3])
+                compose_final_assign_passes.append(values[4])
+
+        if line.startswith("Membership Compaction:"):
+            match = re.search(
+                r"slots=(\d+),\s*active=(\d+),\s*"
+                r"empty_fraction=([\d.]+),\s*time=([\d.]+)",
+                line,
+            )
+            if match:
+                extra["membership_id_slots"] = int(match.group(1))
+                extra["membership_active_communities"] = int(
+                    match.group(2)
+                )
+                extra["membership_empty_fraction"] = float(
+                    match.group(3)
+                )
+                membership_compaction_passes.append(
+                    float(match.group(4))
+                )
+
         # ---- PageRank / SSSP iteration count
         if line.startswith("Iterations"):
             v = _num(line)
@@ -565,6 +609,26 @@ def parse_benchmark_output(output: str) -> Tuple[float, float, Dict]:
     if final_errors:
         extra["final_errors"] = final_errors
         extra["final_error"] = final_errors[-1]
+    for key, values in (
+        ("compose_grouping_time", compose_grouping_passes),
+        (
+            "compose_community_order_time",
+            compose_community_order_passes,
+        ),
+        ("compose_vertex_map_time", compose_vertex_map_passes),
+        ("compose_intra_order_time", compose_intra_order_passes),
+        ("compose_final_assign_time", compose_final_assign_passes),
+    ):
+        if values:
+            extra[f"{key}_passes"] = values
+            extra[key] = sum(values)
+    if membership_compaction_passes:
+        extra["membership_compaction_time_passes"] = (
+            membership_compaction_passes
+        )
+        extra["membership_compaction_time"] = sum(
+            membership_compaction_passes
+        )
     if core_passes and legacy_core_passes and core_passes != legacy_core_passes:
         raise ValueError(
             "Reorder Core Time and legacy Reorder Time disagree"

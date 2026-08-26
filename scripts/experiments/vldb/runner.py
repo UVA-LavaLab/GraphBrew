@@ -87,6 +87,7 @@ from scripts.experiments.vldb.config import (
     DIAGNOSTIC_CONFIGS,
     DUAL_ARM_S0_CONFIGS,
     DUAL_ARM_S2_CONFIGS,
+    DUAL_ARM_V3_CONFIGS,
     PREVIEW_GRAPHS,
     PR_CONVERGENCE_MAX_ITERATIONS,
     PR_FIXED_ITERATIONS,
@@ -307,6 +308,7 @@ def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
     known.update(config["algo"] for config in DIAGNOSTIC_CONFIGS)
     known.update(config["algo"] for config in DUAL_ARM_S0_CONFIGS)
     known.update(config["algo"] for config in DUAL_ARM_S2_CONFIGS)
+    known.update(config["algo"] for config in DUAL_ARM_V3_CONFIGS)
     known.update(config["algo"] for config in COMPOSITION_P0_CONFIGS)
     known.update(f"chain:{name}" for name, _flags in CHAINED_ORDERINGS)
     unknown = sorted(set(algorithms) - known)
@@ -1677,6 +1679,10 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
             return RABBIT_MAPPING_DRAWS
         if algorithm_id != "12":
             continue
+        if spec in {
+            config["algo"] for config in DUAL_ARM_V3_CONFIGS
+        }:
+            return RABBIT_MAPPING_DRAWS
         expected = _expected_graphbrew_config(spec)
         if (
             spec in COMPOSITION_P0_ALGORITHM_KEYS
@@ -1684,6 +1690,36 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
         ):
             return RABBIT_MAPPING_DRAWS
     return 1
+
+
+def _require_v3_equivalence_controls(
+    selected_keys: set[str],
+) -> None:
+    v3_keys = {
+        config["algo"] for config in DUAL_ARM_V3_CONFIGS
+    }
+    non_v3_keys = (
+        set(ALL_ALGORITHMS)
+        | {config["algo"] for config in ABLATION_CONFIGS}
+        | {config["algo"] for config in DIAGNOSTIC_CONFIGS}
+        | {config["algo"] for config in DUAL_ARM_S0_CONFIGS}
+        | {config["algo"] for config in DUAL_ARM_S2_CONFIGS}
+        | {config["algo"] for config in COMPOSITION_P0_CONFIGS}
+    )
+    v3_activation_keys = v3_keys - non_v3_keys
+    v3_serial_keys = {
+        config["algo"]
+        for config in DUAL_ARM_V3_CONFIGS
+        if "cd_serial" in config["algo"]
+    }
+    if (
+        selected_keys & v3_activation_keys
+        and not v3_serial_keys.issubset(selected_keys)
+    ):
+        raise RuntimeError(
+            "V3 mapping generation requires all deterministic "
+            "equivalence controls in one invocation"
+        )
 
 
 def _validate_mapping_draw_cohort(
@@ -1833,6 +1869,60 @@ def _mapping_is_valid(
                 float(meta["total_preprocessing_time"]) + 1e-4
                 >= float(meta["representation_build_time"]) + complete
             )
+        v3_telemetry_valid = True
+        if algo_key in {
+            config["algo"] for config in DUAL_ARM_V3_CONFIGS
+        }:
+            compact_requested = (
+                bool(top_effective)
+                and top_effective[0].get("intra_community_order")
+                in {"bfs-compact", "bfs-compact-direct"}
+            )
+            for record in draw_records:
+                core_values = record.get(
+                    "reorder_core_time_passes", [],
+                )
+                phase_keys = (
+                    "compose_grouping_time_passes",
+                    "compose_community_order_time_passes",
+                    "compose_vertex_map_time_passes",
+                    "compose_intra_order_time_passes",
+                    "compose_final_assign_time_passes",
+                )
+                if (
+                    not core_values
+                    or any(
+                        len(record.get(key, []))
+                        != len(core_values)
+                        for key in phase_keys
+                    )
+                    or not isinstance(
+                        record.get("compose_community_slots"),
+                        (int, float),
+                    )
+                ):
+                    v3_telemetry_valid = False
+                    break
+                if compact_requested and (
+                    len(record.get(
+                        "membership_compaction_time_passes", [],
+                    )) != len(core_values)
+                    or not isinstance(
+                        record.get("membership_id_slots"),
+                        (int, float),
+                    )
+                    or not isinstance(
+                        record.get(
+                            "membership_active_communities"),
+                        (int, float),
+                    )
+                    or not isinstance(
+                        record.get("membership_empty_fraction"),
+                        (int, float),
+                    )
+                ):
+                    v3_telemetry_valid = False
+                    break
         mapping_fingerprint = mapping_permutation_fingerprint(lo)
         return (
             meta.get("graph") == graph_name
@@ -1847,6 +1937,7 @@ def _mapping_is_valid(
             and draws_valid
             and command_valid
             and timing_valid
+            and v3_telemetry_valid
         )
     except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
         return False
@@ -1913,6 +2004,9 @@ def _algorithm_spec_for_key(key: str) -> tuple[str, str, list[str]]:
     for config in DUAL_ARM_S2_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
+    for config in DUAL_ARM_V3_CONFIGS:
+        if config["algo"] == key:
+            return key, config["name"], get_converter_flags(key)
     for config in COMPOSITION_P0_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
@@ -1954,6 +2048,11 @@ def _overhead_algorithm_specs() -> list[tuple[str, str, list[str]]]:
         keys.extend(
             config["algo"]
             for config in DUAL_ARM_S2_CONFIGS
+            if config["algo"] in _ALGORITHM_FILTER
+        )
+        keys.extend(
+            config["algo"]
+            for config in DUAL_ARM_V3_CONFIGS
             if config["algo"] in _ALGORITHM_FILTER
         )
         keys.extend(
@@ -2031,6 +2130,7 @@ def _pregenerate_mappings(
             *DIAGNOSTIC_CONFIGS,
             *DUAL_ARM_S0_CONFIGS,
             *DUAL_ARM_S2_CONFIGS,
+            *DUAL_ARM_V3_CONFIGS,
             *COMPOSITION_P0_CONFIGS,
         ):
             key = cfg["algo"]
@@ -2044,6 +2144,8 @@ def _pregenerate_mappings(
             (key, flags) for key, flags in algo_list
             if key in _ALGORITHM_FILTER
         ]
+    selected_keys = {key for key, _flags in algo_list}
+    _require_v3_equivalence_controls(selected_keys)
 
     generated = 0
     skipped = 0
@@ -2185,6 +2287,53 @@ def _pregenerate_mappings(
                         f"Incomplete end-to-end reorder timing for "
                         f"{gname}/{algo_key}/draw{draw}"
                     )
+                v3_keys = {
+                    config["algo"]
+                    for config in DUAL_ARM_V3_CONFIGS
+                }
+                if algo_key in v3_keys:
+                    compose_phase_lists = [
+                        timing.get(
+                            "compose_grouping_time_passes", [],
+                        ),
+                        timing.get(
+                            "compose_community_order_time_passes", [],
+                        ),
+                        timing.get(
+                            "compose_vertex_map_time_passes", [],
+                        ),
+                        timing.get(
+                            "compose_intra_order_time_passes", [],
+                        ),
+                        timing.get(
+                            "compose_final_assign_time_passes", [],
+                        ),
+                    ]
+                    if any(
+                        len(values) != len(core_times)
+                        for values in compose_phase_lists
+                    ):
+                        raise RuntimeError(
+                            f"Incomplete V3 compose telemetry for "
+                            f"{gname}/{algo_key}/draw{draw}"
+                        )
+                    compact_requested = any(
+                        config.get("intra_community_order") in {
+                            "bfs-compact",
+                            "bfs-compact-direct",
+                        }
+                        for config in effective_configs
+                    )
+                    compaction_passes = timing.get(
+                        "membership_compaction_time_passes", [],
+                    )
+                    if compact_requested and (
+                        len(compaction_passes) != len(core_times)
+                    ):
+                        raise RuntimeError(
+                            f"Incomplete V3 compaction telemetry for "
+                            f"{gname}/{algo_key}/draw{draw}"
+                        )
                 edge_spans = [
                     float(value)
                     for value in re.findall(
@@ -2217,6 +2366,48 @@ def _pregenerate_mappings(
                     "reorder_apply_time_passes": apply_times,
                     "total_preprocessing_time":
                         timing.get("total_preprocessing_time", 0.0),
+                    "compose_grouping_time":
+                        timing.get("compose_grouping_time"),
+                    "compose_grouping_time_passes":
+                        timing.get("compose_grouping_time_passes", []),
+                    "compose_community_order_time":
+                        timing.get("compose_community_order_time"),
+                    "compose_community_order_time_passes":
+                        timing.get(
+                            "compose_community_order_time_passes", [],
+                        ),
+                    "compose_vertex_map_time":
+                        timing.get("compose_vertex_map_time"),
+                    "compose_vertex_map_time_passes":
+                        timing.get(
+                            "compose_vertex_map_time_passes", [],
+                        ),
+                    "compose_intra_order_time":
+                        timing.get("compose_intra_order_time"),
+                    "compose_intra_order_time_passes":
+                        timing.get(
+                            "compose_intra_order_time_passes", [],
+                        ),
+                    "compose_final_assign_time":
+                        timing.get("compose_final_assign_time"),
+                    "compose_final_assign_time_passes":
+                        timing.get(
+                            "compose_final_assign_time_passes", [],
+                        ),
+                    "compose_community_slots":
+                        timing.get("compose_community_slots"),
+                    "membership_compaction_time":
+                        timing.get("membership_compaction_time"),
+                    "membership_compaction_time_passes":
+                        timing.get(
+                            "membership_compaction_time_passes", [],
+                        ),
+                    "membership_id_slots":
+                        timing.get("membership_id_slots"),
+                    "membership_active_communities":
+                        timing.get("membership_active_communities"),
+                    "membership_empty_fraction":
+                        timing.get("membership_empty_fraction"),
                     "mapping_sampled_edge_span": (
                         edge_spans[-1] if edge_spans else None
                     ),
@@ -2303,6 +2494,46 @@ def _pregenerate_mappings(
                     draw_records[0]["reorder_apply_time_passes"],
                 "total_preprocessing_time":
                     draw_records[0]["total_preprocessing_time"],
+                "compose_grouping_time":
+                    draw_records[0]["compose_grouping_time"],
+                "compose_grouping_time_passes":
+                    draw_records[0]["compose_grouping_time_passes"],
+                "compose_community_order_time":
+                    draw_records[0]["compose_community_order_time"],
+                "compose_community_order_time_passes":
+                    draw_records[0][
+                        "compose_community_order_time_passes"
+                    ],
+                "compose_vertex_map_time":
+                    draw_records[0]["compose_vertex_map_time"],
+                "compose_vertex_map_time_passes":
+                    draw_records[0]["compose_vertex_map_time_passes"],
+                "compose_intra_order_time":
+                    draw_records[0]["compose_intra_order_time"],
+                "compose_intra_order_time_passes":
+                    draw_records[0]["compose_intra_order_time_passes"],
+                "compose_final_assign_time":
+                    draw_records[0]["compose_final_assign_time"],
+                "compose_final_assign_time_passes":
+                    draw_records[0][
+                        "compose_final_assign_time_passes"
+                    ],
+                "compose_community_slots":
+                    draw_records[0]["compose_community_slots"],
+                "membership_compaction_time":
+                    draw_records[0]["membership_compaction_time"],
+                "membership_compaction_time_passes":
+                    draw_records[0][
+                        "membership_compaction_time_passes"
+                    ],
+                "membership_id_slots":
+                    draw_records[0]["membership_id_slots"],
+                "membership_active_communities":
+                    draw_records[0][
+                        "membership_active_communities"
+                    ],
+                "membership_empty_fraction":
+                    draw_records[0]["membership_empty_fraction"],
                 "lo_path": lo.name,
                 "lo_bytes": lo.stat().st_size,
                 "mapping_fingerprint":
@@ -2318,6 +2549,33 @@ def _pregenerate_mappings(
             _meta_path(gname, algo_key).write_text(json.dumps(meta, indent=2))
 
             generated += 1
+
+        if not dry_run:
+            v3_serial_keys = {
+                config["algo"]
+                for config in DUAL_ARM_V3_CONFIGS
+                if "cd_serial" in config["algo"]
+            }
+            graph_keys = {key for key, _flags in algo_list}
+            if v3_serial_keys and v3_serial_keys.issubset(graph_keys):
+                fingerprints = set()
+                for key in sorted(v3_serial_keys):
+                    meta = _load_reorder_meta(gname, key)
+                    draw_fingerprints = {
+                        draw.get("mapping_fingerprint")
+                        for draw in meta.get("mapping_draws", [])
+                    }
+                    if len(draw_fingerprints) != 1:
+                        raise RuntimeError(
+                            f"V3 serial mapping drift for {gname}/{key}: "
+                            f"{sorted(draw_fingerprints)}"
+                        )
+                    fingerprints.update(draw_fingerprints)
+                if len(fingerprints) != 1:
+                    raise RuntimeError(
+                        f"V3 serial controls diverged for {gname}: "
+                        f"{sorted(fingerprints)}"
+                    )
 
         if dry_run:
             log.info(

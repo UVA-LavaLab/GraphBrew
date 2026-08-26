@@ -322,13 +322,118 @@ void TestEffectiveConfigIdentity()
         {"leiden", "compose", "commdegreeasc"}, 0.5);
     const auto hubSortAlias = graphbrew::parseGraphBrewCliConfig(
         {"leiden", "compose", "intrahubsort"}, 0.5);
+    const auto bfsDirectAlias = graphbrew::parseGraphBrewCliConfig(
+        {"leiden", "compose", "intra_bfs_direct"}, 0.5);
+    const auto bfsCompactAlias = graphbrew::parseGraphBrewConfig(
+        {
+            "compose",
+            "intra_bfs_compact",
+            "norefine",
+            "1",
+            "1",
+        },
+        true);
+    const auto bfsCompactDirectAlias =
+        graphbrew::parseGraphBrewConfig(
+            {
+                "compose",
+                "intra_bfs_compact_direct",
+                "norefine",
+                "1",
+                "1",
+            },
+            true);
     Require(
         cutMinAlias.communityOrder == graphbrew::CommunityOrder::CutMin
             && degreeAscAlias.communityOrder
                 == graphbrew::CommunityOrder::DegreeAsc
             && hubSortAlias.intraCommunityOrder
-                == graphbrew::IntraCommunityOrder::HubSort,
+                == graphbrew::IntraCommunityOrder::HubSort
+            && bfsDirectAlias.intraCommunityOrder
+                == graphbrew::IntraCommunityOrder::BFSDirect
+            && bfsCompactAlias.intraCommunityOrder
+                == graphbrew::IntraCommunityOrder::BFSCompact
+            && bfsCompactDirectAlias.intraCommunityOrder
+                == graphbrew::IntraCommunityOrder::BFSCompactDirect,
         "stable COMPOSE aliases changed");
+
+    bool rejectedDirectRefinement = false;
+    try {
+        (void)graphbrew::parseGraphBrewCliConfig(
+            {
+                "leiden",
+                "compose",
+                "intra_bfs_direct",
+                "refine_2swap",
+            },
+            0.5);
+    } catch (const std::invalid_argument&) {
+        rejectedDirectRefinement = true;
+    }
+    Require(
+        rejectedDirectRefinement,
+        "direct emission accepted post-pass refinement");
+
+    bool rejectedDirectOutsideCompose = false;
+    try {
+        (void)graphbrew::parseGraphBrewCliConfig(
+            {"leiden", "intra_bfs_direct"},
+            0.5);
+    } catch (const std::invalid_argument&) {
+        rejectedDirectOutsideCompose = true;
+    }
+    Require(
+        rejectedDirectOutsideCompose,
+        "direct emission was accepted outside COMPOSE");
+
+    bool rejectedCompactPasses = false;
+    try {
+        (void)graphbrew::parseGraphBrewCliConfig(
+            {
+                "leiden",
+                "8",
+                "1.0",
+                "2",
+                "0",
+                "auto",
+                "compose",
+                "sg_none",
+                "comm_identity",
+                "intra_bfs_compact",
+                "norefine",
+            },
+            0.5);
+    } catch (const std::invalid_argument&) {
+        rejectedCompactPasses = true;
+    }
+    Require(
+        rejectedCompactPasses,
+        "compact emission accepted more than one pass");
+
+    for (const std::string& invalidAxis : {
+             "sg_super_rcm",
+             "comm_cut_min",
+         }) {
+        bool rejected = false;
+        try {
+            (void)graphbrew::parseGraphBrewConfig(
+                {
+                    "compose",
+                    "comm_identity",
+                    invalidAxis,
+                    "intra_bfs_compact",
+                    "norefine",
+                    "1",
+                    "1",
+                },
+                true);
+        } catch (const std::invalid_argument&) {
+            rejected = true;
+        }
+        Require(
+            rejected,
+            "compact emission accepted an order-changing axis");
+    }
     for (const std::vector<std::string>& retired : {
              std::vector<std::string>{
                  "compose", "comm_capacity_runs",

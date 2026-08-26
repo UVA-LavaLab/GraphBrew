@@ -297,6 +297,12 @@ enum class CommunityOrder {
  */
 enum class IntraCommunityOrder {
     BFSFromHub,  ///< intraBFSFromHub<>() primitive (SECTION 16-PRIMITIVES)
+    BFSDirect,   ///< Fused BFS + final-ID emission.  Identical vertex order
+                 ///< to BFSFromHub with refinement disabled, but avoids the
+                 ///< global localIds array and final sparse-ID sweep.
+    BFSCompact,  ///< Compact active one-pass community IDs before standard
+                 ///< BFS emission, eliminating empty-community scheduling.
+    BFSCompactDirect, ///< Compact active IDs and fuse BFS with final emission.
     RCM,         ///< intraRCM<>() primitive (SECTION 16-PRIMITIVES)
     RCMpp,       ///< intraRCMpp<>() — Hou/Liu/Zhu (arXiv 2409.04171, 2024)
                  ///< bi-criteria pseudo-peripheral start: argmin (0.5·deg_rank
@@ -666,6 +672,10 @@ inline const char* graphBrewCommunityOrderName(CommunityOrder value) {
 inline const char* graphBrewIntraOrderName(IntraCommunityOrder value) {
     switch (value) {
         case IntraCommunityOrder::BFSFromHub: return "bfs";
+        case IntraCommunityOrder::BFSDirect: return "bfs-direct";
+        case IntraCommunityOrder::BFSCompact: return "bfs-compact";
+        case IntraCommunityOrder::BFSCompactDirect:
+            return "bfs-compact-direct";
         case IntraCommunityOrder::RCM: return "rcm";
         case IntraCommunityOrder::RCMpp: return "rcmpp";
         case IntraCommunityOrder::Dendrogram: return "dendrogram";
@@ -1027,6 +1037,9 @@ struct GraphBrewResult {
     double localMoveTime = 0.0;
     double refinementTime = 0.0;
     double aggregationTime = 0.0;
+    double compactionTime = 0.0;
+    size_t communityIdSlotsBeforeCompaction = 0;
+    double emptyCommunityFraction = 0.0;
     double dendrogramTime = 0.0;
     double orderingTime = 0.0;
     double totalTime = 0.0;
@@ -1863,11 +1876,15 @@ template <typename K>
 size_t renumberCommunities(
     std::vector<K>& vcom,
     std::vector<K>& cmap,
-    size_t N) {
+    size_t N,
+    size_t* originalSlots = nullptr) {
 
     K next = 0;
     for (size_t i = 0; i < cmap.size(); ++i) {
         if (cmap[i]) {
+            if (originalSlots) {
+                *originalSlots = i + 1;
+            }
             cmap[i] = next++;
         }
     }
@@ -3976,6 +3993,79 @@ inline void intraBFSFromHub(
 }
 
 /**
+ * Fused BFSFromHub variant that writes final IDs directly.
+ *
+ * The traversal and tie semantics are byte-identical to intraBFSFromHub.
+ * It is valid only when no post-pass refinement needs local IDs.
+ */
+template <typename K, typename NodeID_T, typename DestID_T>
+inline void intraBFSFromHubDirect(
+    const std::vector<K>& verts,
+    K c,
+    const std::vector<K>& membership,
+    const std::vector<K>& degrees,
+    const CSRGraph<NodeID_T, DestID_T, true>& g,
+    const std::vector<size_t>& vertToLocal,
+    std::vector<bool>& visited,
+    std::queue<K>& bfsQueue,
+    size_t base,
+    pvector<NodeID_T>& newIds)
+{
+    const size_t sz = verts.size();
+    if (sz == 0) return;
+    if (sz == 1) {
+        newIds[verts[0]] = static_cast<NodeID_T>(base);
+        return;
+    }
+
+    visited.assign(sz, false);
+    K startV = verts[0];
+    K maxDeg = degrees[verts[0]];
+    for (K v : verts) {
+        if (degrees[v] > maxDeg) {
+            maxDeg = degrees[v];
+            startV = v;
+        }
+    }
+
+    size_t localId = 0;
+    while (!bfsQueue.empty()) bfsQueue.pop();
+    bfsQueue.push(startV);
+    visited[vertToLocal[startV]] = true;
+
+    while (!bfsQueue.empty()) {
+        K u = bfsQueue.front();
+        bfsQueue.pop();
+        newIds[u] = static_cast<NodeID_T>(base + localId++);
+
+        for (auto neighbor : g.out_neigh(u)) {
+            NodeID_T v;
+            if constexpr (std::is_same_v<DestID_T, NodeID_T>) {
+                v = neighbor;
+            } else {
+                v = neighbor.v;
+            }
+            if (membership[v] != c) continue;
+            size_t localIdx = vertToLocal[static_cast<K>(v)];
+            if (
+                localIdx != static_cast<size_t>(-1)
+                && !visited[localIdx]
+            ) {
+                visited[localIdx] = true;
+                bfsQueue.push(static_cast<K>(v));
+            }
+        }
+    }
+
+    for (size_t i = 0; i < sz; ++i) {
+        if (!visited[i]) {
+            newIds[verts[i]] =
+                static_cast<NodeID_T>(base + localId++);
+        }
+    }
+}
+
+/**
  * Reverse Cuthill-McKee within a single community.
  *
  * Tiered pseudoperipheral-start (BNF) cost based on sz:
@@ -5690,6 +5780,9 @@ void orderCompose(
     for (int64_t v = 0; v < (int64_t)N; ++v) {
         if (membership[v] >= 0 && membership[v] + 1 > numComm) numComm = membership[v] + 1;
     }
+    printf(
+        "Compose Community Slots:%u\n",
+        static_cast<unsigned>(numComm));
 
     // Pre-size each commVertices[c] via parallel histogram so push_back never
     // reallocates during the serial scatter below.
@@ -5916,7 +6009,21 @@ void orderCompose(
     composeSectionTimer.Start();
 
     // -------- Intra-community order (per-community ordering via shared primitives) --------
-    std::vector<K> localIds(N, 0);
+    const bool directBFS =
+        config.intraCommunityOrder == IntraCommunityOrder::BFSDirect
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompactDirect;
+    if (
+        directBFS
+        && config.refinementPass != RefinementPass::None
+    ) {
+        throw std::invalid_argument(
+            "intra_bfs_direct requires refine_none");
+    }
+    std::vector<K> localIds;
+    if (!directBFS) {
+        localIds.assign(N, 0);
+    }
 
     // Decide whether intra_dendrogram can actually run.  It needs Rabbit's
     // per-vertex child/sibling chains AND the community-id -> dendrogram-root
@@ -6002,7 +6109,11 @@ void orderCompose(
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < (size_t)numComm; ++i) {
             K c = commOrder[i];
-            if (useDendrogram) {
+            if (directBFS) {
+                intraBFSFromHubDirect<K, NodeID_T, DestID_T>(
+                    commVertices[c], c, membership, degrees, g,
+                    vertToLocal, visited, bfsQueue, offsets[i], newIds);
+            } else if (useDendrogram) {
                 K root = result.rabbitToplevel[c];
                 intraDendrogramDFS<K>(
                     root, result.rabbitChild, result.rabbitSibling,
@@ -6279,11 +6390,14 @@ void orderCompose(
 
     // Compose final newIds = community-offset + local id within community
     composeSectionTimer.Start();
-    #pragma omp parallel for schedule(dynamic, 1)
-    for (size_t i = 0; i < (size_t)numComm; ++i) {
-        size_t base = offsets[i];
-        for (K v : commVertices[commOrder[i]]) {
-            newIds[v] = static_cast<NodeID_T>(base + localIds[v]);
+    if (!directBFS) {
+        #pragma omp parallel for schedule(dynamic, 1)
+        for (size_t i = 0; i < (size_t)numComm; ++i) {
+            size_t base = offsets[i];
+            for (K v : commVertices[commOrder[i]]) {
+                newIds[v] = static_cast<NodeID_T>(
+                    base + localIds[v]);
+            }
         }
     }
 
@@ -6322,6 +6436,9 @@ void orderCompose(
         config.intraCommunityOrder == IntraCommunityOrder::Random    ? "random"     :
         config.intraCommunityOrder == IntraCommunityOrder::BoundaryLast ? "bndlast" :
         config.intraCommunityOrder == IntraCommunityOrder::CoreOrder ? "core" :
+                                                                      config.intraCommunityOrder == IntraCommunityOrder::BFSDirect ? "bfs-direct" :
+                                                                      config.intraCommunityOrder == IntraCommunityOrder::BFSCompact ? "bfs-compact" :
+                                                                      config.intraCommunityOrder == IntraCommunityOrder::BFSCompactDirect ? "bfs-compact-direct" :
                                                                       "bfs_from_hub";
     const char* refineName =
         config.refinementPass == RefinementPass::TwoSwap ? "2swap" : "none";
@@ -6555,6 +6672,7 @@ GraphBrewResult<K> runGraphBrew(
     GraphBrewConfig passConfig = config;
     int totalIterations = 0;
     int pass = 0;
+    bool finalCommunityMapValid = false;
 
     // Main loop
     // GVE_CSR mode: always operate on original graph (flat loop, like GVE)
@@ -6658,6 +6776,7 @@ GraphBrewResult<K> runGraphBrew(
         size_t NS = useOriginalGraph ? static_cast<size_t>(N) : sgY.numNodes;
         cmap.resize(NS);
         size_t numCommunities = countCommunities(cmap, useOriginalGraph ? ucom : vcom, NS);
+        finalCommunityMapValid = useOriginalGraph;
 
         GRAPHBREW_TRACE("  communities: %zu (from %zu)", numCommunities, prevCommunities);
 
@@ -6809,6 +6928,53 @@ GraphBrewResult<K> runGraphBrew(
         lookupCommunities(ucom, vcom);
     }
 
+    const bool compactOutputMembership =
+        config.intraCommunityOrder == IntraCommunityOrder::BFSCompact
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompactDirect;
+    size_t compactCommunityCount = 0;
+    if (compactOutputMembership) {
+        if (config.maxPasses != 1) {
+            throw std::invalid_argument(
+                "compact BFS emission requires maxPasses=1");
+        }
+        if (!finalCommunityMapValid) {
+            cmap.resize(static_cast<size_t>(N));
+            countCommunities(
+                cmap, ucom, static_cast<size_t>(N));
+        }
+        Timer compactionTimer;
+        compactionTimer.Start();
+        result.communityIdSlotsBeforeCompaction = 0;
+        compactCommunityCount =
+            renumberCommunities(
+                ucom,
+                cmap,
+                static_cast<size_t>(N),
+                &result.communityIdSlotsBeforeCompaction);
+        compactionTimer.Stop();
+        result.compactionTime = compactionTimer.Seconds();
+        result.emptyCommunityFraction =
+            result.communityIdSlotsBeforeCompaction == 0
+                ? 0.0
+                : 1.0
+                    - static_cast<double>(compactCommunityCount)
+                    / result.communityIdSlotsBeforeCompaction;
+        printf(
+            "Membership Compaction: slots=%zu, active=%zu, "
+            "empty_fraction=%.9f, time=%.5f\n",
+            result.communityIdSlotsBeforeCompaction,
+            compactCommunityCount,
+            result.emptyCommunityFraction,
+            result.compactionTime);
+        // membershipPerPass intentionally retains detector-level IDs.
+        // Compact modes are restricted to flat COMPOSE ordering, whose
+        // consumer is result.membership.
+        GRAPHBREW_TRACE(
+            "  compact-output-membership: %zu active IDs",
+            compactCommunityCount);
+    }
+
     totalTimer.Stop();
 
     // Store results
@@ -6819,8 +6985,13 @@ GraphBrewResult<K> runGraphBrew(
     result.totalTime = totalTimer.Seconds();
 
     // Count final communities
-    std::unordered_set<K> uniqueComms(result.membership.begin(), result.membership.end());
-    result.numCommunities = uniqueComms.size();
+    if (compactOutputMembership) {
+        result.numCommunities = compactCommunityCount;
+    } else {
+        std::unordered_set<K> uniqueComms(
+            result.membership.begin(), result.membership.end());
+        result.numCommunities = uniqueComms.size();
+    }
 
     GRAPHBREW_TRACE("=== GRAPHBREW END ===");
     GRAPHBREW_TRACE("passes=%d, iters=%d, communities=%zu, time=%.4fs",
@@ -7103,6 +7274,53 @@ void generateGraphBrewMapping(
     const GraphBrewConfig& config) {
 
     const int64_t N = g.num_nodes();
+    const bool directOrCompactBFS =
+        config.intraCommunityOrder == IntraCommunityOrder::BFSDirect
+        || config.intraCommunityOrder == IntraCommunityOrder::BFSCompact
+        || config.intraCommunityOrder
+            == IntraCommunityOrder::BFSCompactDirect;
+    if (
+        directOrCompactBFS
+        && config.ordering != OrderingStrategy::COMPOSE
+    ) {
+        throw std::invalid_argument(
+            "direct/compact BFS requires compose ordering");
+    }
+    if (
+        directOrCompactBFS
+        && config.refinementPass != RefinementPass::None
+    ) {
+        throw std::invalid_argument(
+            "direct/compact BFS requires refine_none");
+    }
+    if (
+        (
+            config.intraCommunityOrder
+                == IntraCommunityOrder::BFSCompact
+            || config.intraCommunityOrder
+                == IntraCommunityOrder::BFSCompactDirect
+        )
+        && config.maxPasses != 1
+    ) {
+        throw std::invalid_argument(
+            "compact BFS emission requires maxPasses=1");
+    }
+    if (
+        (
+            config.intraCommunityOrder
+                == IntraCommunityOrder::BFSCompact
+            || config.intraCommunityOrder
+                == IntraCommunityOrder::BFSCompactDirect
+        )
+        && (
+            config.superGraphOrder != SuperGraphOrder::None
+            || config.communityOrder == CommunityOrder::CutMin
+        )
+    ) {
+        throw std::invalid_argument(
+            "compact BFS emission requires sg_none and non-cut-min "
+            "community order");
+    }
     auto realized = makeGraphBrewRealizedConfig(config);
 
     // Branch based on main algorithm choice

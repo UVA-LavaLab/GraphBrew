@@ -126,10 +126,12 @@ SUITE = $(KERNELS_BIN) $(DENSE_EDGE_KERNELS_BIN) $(FRONTIER_EDGE_KERNELS_BIN) $(
 UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
 	test_shard_stream test_ownership_analysis test_edge_primitives \
 	test_gas_executor test_relabel_weights test_graphbrew_config \
-	test_graphbrew_experimental test_large_edge_indices test_refine_two_swap
+	test_graphbrew_experimental test_large_edge_indices test_refine_two_swap \
+	test_graphbrew_direct_emit
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 CORE_UNIT_TESTS = test_relabel_weights test_graphbrew_config \
-	test_graphbrew_experimental test_large_edge_indices test_refine_two_swap
+	test_graphbrew_experimental test_large_edge_indices test_refine_two_swap \
+	test_graphbrew_direct_emit
 CORE_UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(CORE_UNIT_TESTS))
 # =========================================================
 
