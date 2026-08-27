@@ -88,6 +88,7 @@ from scripts.experiments.vldb.config import (
     DUAL_ARM_S0_CONFIGS,
     DUAL_ARM_S2_CONFIGS,
     DUAL_ARM_V3_CONFIGS,
+    DUAL_ARM_V5_CONFIGS,
     PREVIEW_GRAPHS,
     PR_CONVERGENCE_MAX_ITERATIONS,
     PR_FIXED_ITERATIONS,
@@ -309,6 +310,7 @@ def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
     known.update(config["algo"] for config in DUAL_ARM_S0_CONFIGS)
     known.update(config["algo"] for config in DUAL_ARM_S2_CONFIGS)
     known.update(config["algo"] for config in DUAL_ARM_V3_CONFIGS)
+    known.update(config["algo"] for config in DUAL_ARM_V5_CONFIGS)
     known.update(config["algo"] for config in COMPOSITION_P0_CONFIGS)
     known.update(f"chain:{name}" for name, _flags in CHAINED_ORDERINGS)
     unknown = sorted(set(algorithms) - known)
@@ -1680,7 +1682,8 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
         if algorithm_id != "12":
             continue
         if spec in {
-            config["algo"] for config in DUAL_ARM_V3_CONFIGS
+            config["algo"]
+            for config in (*DUAL_ARM_V3_CONFIGS, *DUAL_ARM_V5_CONFIGS)
         }:
             return RABBIT_MAPPING_DRAWS
         expected = _expected_graphbrew_config(spec)
@@ -1704,6 +1707,7 @@ def _require_v3_equivalence_controls(
         | {config["algo"] for config in DIAGNOSTIC_CONFIGS}
         | {config["algo"] for config in DUAL_ARM_S0_CONFIGS}
         | {config["algo"] for config in DUAL_ARM_S2_CONFIGS}
+        | {config["algo"] for config in DUAL_ARM_V5_CONFIGS}
         | {config["algo"] for config in COMPOSITION_P0_CONFIGS}
     )
     v3_activation_keys = v3_keys - non_v3_keys
@@ -1871,7 +1875,8 @@ def _mapping_is_valid(
             )
         v3_telemetry_valid = True
         if algo_key in {
-            config["algo"] for config in DUAL_ARM_V3_CONFIGS
+            config["algo"]
+            for config in (*DUAL_ARM_V3_CONFIGS, *DUAL_ARM_V5_CONFIGS)
         }:
             compact_requested = (
                 bool(top_effective)
@@ -2007,6 +2012,9 @@ def _algorithm_spec_for_key(key: str) -> tuple[str, str, list[str]]:
     for config in DUAL_ARM_V3_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
+    for config in DUAL_ARM_V5_CONFIGS:
+        if config["algo"] == key:
+            return key, config["name"], get_converter_flags(key)
     for config in COMPOSITION_P0_CONFIGS:
         if config["algo"] == key:
             return key, config["name"], get_converter_flags(key)
@@ -2053,6 +2061,11 @@ def _overhead_algorithm_specs() -> list[tuple[str, str, list[str]]]:
         keys.extend(
             config["algo"]
             for config in DUAL_ARM_V3_CONFIGS
+            if config["algo"] in _ALGORITHM_FILTER
+        )
+        keys.extend(
+            config["algo"]
+            for config in DUAL_ARM_V5_CONFIGS
             if config["algo"] in _ALGORITHM_FILTER
         )
         keys.extend(
@@ -2131,6 +2144,7 @@ def _pregenerate_mappings(
             *DUAL_ARM_S0_CONFIGS,
             *DUAL_ARM_S2_CONFIGS,
             *DUAL_ARM_V3_CONFIGS,
+            *DUAL_ARM_V5_CONFIGS,
             *COMPOSITION_P0_CONFIGS,
         ):
             key = cfg["algo"]
@@ -2289,7 +2303,10 @@ def _pregenerate_mappings(
                     )
                 v3_keys = {
                     config["algo"]
-                    for config in DUAL_ARM_V3_CONFIGS
+                    for config in (
+                        *DUAL_ARM_V3_CONFIGS,
+                        *DUAL_ARM_V5_CONFIGS,
+                    )
                 }
                 if algo_key in v3_keys:
                     compose_phase_lists = [

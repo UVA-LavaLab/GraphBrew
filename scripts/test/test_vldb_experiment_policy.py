@@ -38,6 +38,7 @@ from scripts.experiments.vldb.config import (
     DUAL_ARM_S0_CONFIGS,
     DUAL_ARM_S2_CONFIGS,
     DUAL_ARM_V3_CONFIGS,
+    DUAL_ARM_V5_CONFIGS,
     E2E_PAPER_ALGORITHM_KEYS,
     EVALUATION_BASELINES,
     GRAPHBREW_VARIANTS,
@@ -533,6 +534,52 @@ def test_v3_equivalence_guard_ignores_shared_s2_baseline():
         match="requires all deterministic equivalence controls",
     ):
         runner._require_v3_equivalence_controls({direct_parallel})
+
+
+def test_dual_arm_v5_community_order_screen_is_explicit_only():
+    specs = [config["algo"] for config in DUAL_ARM_V5_CONFIGS]
+    assert len(specs) == 4
+    configs = [
+        runner._expected_graphbrew_config(spec)
+        for spec in specs
+    ]
+    assert {
+        config["community_order"] for config in configs
+    } == {
+        "size-desc",
+        "size-asc",
+        "degree-desc",
+        "degree-asc",
+    }
+    for config in configs:
+        assert config["algorithm"] == "leiden"
+        assert config["ordering"] == "compose"
+        assert config["super_graph"] == "none"
+        assert config["intra_community_order"] == "bfs-compact-direct"
+        assert config["deterministic_community_detection"] is False
+        assert config["supergraph_move_batch"] == 4096
+        assert config["max_iterations"] == 1
+        assert config["max_passes"] == 1
+        assert config["use_refinement"] is False
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        } == set(specs)
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert not (
+        set(specs)
+        & {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
+    )
+    assert {
+        runner._mapping_draw_count(["-o", spec])
+        for spec in specs
+    } == {3}
 
 
 def test_composition_p0_treatments_are_explicit_only():

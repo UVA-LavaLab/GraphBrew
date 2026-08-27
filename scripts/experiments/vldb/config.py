@@ -853,6 +853,24 @@ DUAL_ARM_V3_CONFIGS = [
     },
 ]
 
+DUAL_ARM_V5_CONFIGS = [
+    {
+        "name": f"V5-FastLeiden-{label}-BFSCompactDirect-1x1-B4096",
+        "algo": (
+            f"12:leiden:compose:sg_none:{token}:"
+            "intra_bfs_compact_direct:cd_parallel:sgmb4096:"
+            "norefine:1:1"
+        ),
+        "desc": "Development-only compact-and-emit community-order screen",
+    }
+    for label, token in (
+        ("SizeDesc", "comm_size_desc"),
+        ("SizeAsc", "comm_size_asc"),
+        ("DegreeDesc", "comm_degree_desc"),
+        ("DegreeAsc", "comm_degree_asc"),
+    )
+]
+
 COMPOSITION_P0_CONFIGS = [
     {
         "name": name,
