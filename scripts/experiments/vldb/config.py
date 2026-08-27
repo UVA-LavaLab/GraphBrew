@@ -871,6 +871,25 @@ DUAL_ARM_V5_CONFIGS = [
     )
 ]
 
+DUAL_ARM_V6_CONFIGS = [
+    {
+        "name": f"V6-FastLeiden-{community}-{intra}-1x1-B4096",
+        "algo": (
+            f"12:leiden:compose:sg_none:{community_token}:"
+            f"{intra_token}:cd_parallel:sgmb4096:norefine:1:1"
+        ),
+        "desc": "Development-only fast intra-order quality-potential screen",
+    }
+    for community, community_token in (
+        ("SizeDesc", "comm_size_desc"),
+        ("DegreeDesc", "comm_degree_desc"),
+    )
+    for intra, intra_token in (
+        ("HubSort", "intra_hubsort"),
+        ("DegreeAsc", "intra_deg_asc"),
+    )
+]
+
 COMPOSITION_P0_CONFIGS = [
     {
         "name": name,
