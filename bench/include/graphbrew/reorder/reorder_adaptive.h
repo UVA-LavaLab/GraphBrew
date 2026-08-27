@@ -605,10 +605,14 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     } else {
         global_feat = ::ComputeTier0SampledGraphFeatures(g);
     }
-    const uint64_t property_bytes = ModeledPropertyBytes(
-        benchmark,
-        static_cast<uint64_t>(num_nodes),
-        static_cast<uint64_t>(num_edges));
+    const uint64_t property_bytes = (
+        selection_policy.model
+            == SELECTION_MODEL_NATIVE_MIDREUSE_RULE
+        ? 0
+        : ModeledPropertyBytes(
+            benchmark,
+            static_cast<uint64_t>(num_nodes),
+            static_cast<uint64_t>(num_edges)));
     const size_t llc_bytes = GetLLCSizeBytes();
     Tier0FeatureContext tier0_context;
     tier0_context.property_wsr_llc = (
