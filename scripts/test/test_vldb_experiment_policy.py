@@ -22,6 +22,7 @@ import pytest
 
 from scripts.experiments.vldb import figures, runner
 from scripts.experiments.vldb.config import (
+    ADAPTIVE_RULE_CONFIGS,
     ABLATION_CONTRASTS,
     ABLATION_CONFIGS,
     ALL_ALGORITHMS,
@@ -630,6 +631,32 @@ def test_dual_arm_v6_intra_order_screen_is_explicit_only():
         runner._mapping_draw_count(["-o", spec])
         for spec in specs
     } == {3}
+
+
+def test_native_midreuse_rule_is_explicit_only():
+    assert ADAPTIVE_RULE_CONFIGS == [{
+        "name": "Adaptive-NativeMidReuse40",
+        "algo": (
+            "14:_:_:_:native-midreuse-rule:"
+            "best-endtoend:40"
+        ),
+        "desc": (
+            "Native HubClusterDBG with ORIGINAL small-graph fallback"
+        ),
+    }]
+    spec = ADAPTIVE_RULE_CONFIGS[0]["algo"]
+    runner.configure_algorithm_filter([spec])
+    try:
+        assert runner._paper_algorithm_specs(
+            include_compose=True
+        ) == [(
+            spec,
+            "Adaptive-NativeMidReuse40",
+            ["-o", spec],
+        )]
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert runner._mapping_draw_count(["-o", spec]) == 3
 
 
 def test_composition_p0_treatments_are_explicit_only():

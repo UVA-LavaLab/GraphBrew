@@ -890,6 +890,17 @@ DUAL_ARM_V6_CONFIGS = [
     )
 ]
 
+ADAPTIVE_RULE_CONFIGS = [
+    {
+        "name": "Adaptive-NativeMidReuse40",
+        "algo": (
+            "14:_:_:_:native-midreuse-rule:"
+            "best-endtoend:40"
+        ),
+        "desc": "Native HubClusterDBG with ORIGINAL small-graph fallback",
+    },
+]
+
 COMPOSITION_P0_CONFIGS = [
     {
         "name": name,

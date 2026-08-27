@@ -308,6 +308,13 @@ void TestNativeMidReuseRule()
             && traversal.canonical_spec == "7",
         "native mid-reuse rule diverged across supported kernels");
 
+    auto converter = adaptive::SelectNativeMidReuseRule(
+        features, BENCH_GENERIC, 40.0);
+    Require(
+        converter.algo == HubClusterDBG
+            && converter.canonical_spec == "7",
+        "native mid-reuse rule cannot pre-generate its mapping");
+
     features.num_nodes = (1ULL << 17) - 1;
     auto small = adaptive::SelectNativeMidReuseRule(
         features, BENCH_PR, 40.0);

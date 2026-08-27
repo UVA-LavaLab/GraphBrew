@@ -390,7 +390,8 @@ inline PerceptronSelection SelectAllKernelLowReuseRule(
 
 inline bool IsNativeMidReuseSupportedKernel(BenchmarkType benchmark) {
     return (
-        benchmark == BENCH_PR
+        benchmark == BENCH_GENERIC
+        || benchmark == BENCH_PR
         || benchmark == BENCH_PR_SPMV
         || benchmark == BENCH_BFS
         || benchmark == BENCH_BC

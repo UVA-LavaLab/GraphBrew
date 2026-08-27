@@ -54,6 +54,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.experiments.vldb.config import (
     ADAPTIVE_CPU_EXPANSION_GRAPHS,
+    ADAPTIVE_RULE_CONFIGS,
     ABLATION_CONFIGS,
     ALGORITHM_GRAPH_EXCLUSION_EVIDENCE,
     ALGORITHM_GRAPH_EXCLUSIONS,
@@ -153,6 +154,7 @@ _EXPLICIT_NON_V3_CONFIGS = (
     *DUAL_ARM_S2_CONFIGS,
     *DUAL_ARM_V5_CONFIGS,
     *DUAL_ARM_V6_CONFIGS,
+    *ADAPTIVE_RULE_CONFIGS,
     *COMPOSITION_P0_CONFIGS,
 )
 _EXPLICIT_EXPERIMENT_CONFIGS = (
@@ -1689,6 +1691,13 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
         spec = algo_flags[index + 1]
         algorithm_id = spec.split(":", 1)[0]
         if algorithm_id == "8":
+            return RABBIT_MAPPING_DRAWS
+        if (
+            algorithm_id == "14"
+            and spec in {
+                config["algo"] for config in ADAPTIVE_RULE_CONFIGS
+            }
+        ):
             return RABBIT_MAPPING_DRAWS
         if algorithm_id != "12":
             continue
