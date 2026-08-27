@@ -2,19 +2,18 @@
  * @file reorder_adaptive.h
  * @brief AdaptiveOrder runtime selection and retained offline-model support.
  *
- * The validated deployment path is the frozen deterministic
- * allkernel-lowreuse-rule. It extracts lightweight whole-graph features and
- * chooses either one exact GraphBrew composition or Boost Rabbit. It does not
- * train at runtime, use graph identity, query benchmark rows, or trial
- * candidate reorderers.
+ * Deployable deterministic rules extract lightweight graph context and choose
+ * one ordering without runtime training, graph identity, benchmark-row
+ * lookups, or candidate trials.
  *
  * Validated CLI:
  *
  *   -o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>
+ *   -o 14:_:_:_:native-midreuse-rule:best-endtoend:40
  *
- * Reuse must be explicit and is validated for values 1 and 2. The decision is
- * deterministic; the selected GraphBrew mapping can still be
- * schedule-sensitive because its composition uses cd_parallel.
+ * Reuse must be explicit. The low-reuse rule accepts 1 or 2, while the native
+ * mid-reuse rule accepts exactly 40. Decisions are deterministic; a selected
+ * GraphBrew composition can still be schedule-sensitive.
  *
  * Perceptron, decision-tree, hybrid, kNN, and oracle code remains for offline
  * experiments and compatibility. A legacy recursive per-community helper is
@@ -42,6 +41,8 @@ constexpr int DEFAULT_MODE = 1;           // Per-community
 constexpr int DEFAULT_RECURSION_DEPTH = 0;
 constexpr double DEFAULT_RESOLUTION = reorder::DEFAULT_RESOLUTION;
 constexpr size_t DEFAULT_MIN_RECURSE_SIZE = 50000;
+constexpr size_t NATIVE_MIDREUSE_MIN_NODES = 1ULL << 17;
+constexpr double NATIVE_MIDREUSE_COUNT = 40.0;
 
 // Thresholds for recursion decisions
 constexpr double RECURSION_MODULARITY_THRESHOLD = 0.3;
@@ -159,6 +160,7 @@ inline bool IsDeployableSelectionModel(SelectionModel model) {
         model == SELECTION_MODEL_PERCEPTRON
         || model == SELECTION_MODEL_BUDGETED_RULE
         || model == SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE
+        || model == SELECTION_MODEL_NATIVE_MIDREUSE_RULE
     );
 }
 
@@ -227,6 +229,8 @@ inline DeployableSelectionPolicy ParseDeployableSelectionPolicy(
             policy.model == SELECTION_MODEL_BUDGETED_RULE
             || policy.model
                 == SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE
+            || policy.model
+                == SELECTION_MODEL_NATIVE_MIDREUSE_RULE
         )
         && !policy.reuse_count_explicit
     ) {
@@ -382,6 +386,48 @@ inline PerceptronSelection SelectAllKernelLowReuseRule(
         "allkernel-lowreuse-fallback";
     fallback.confidence = 1.0;
     return fallback;
+}
+
+inline bool IsNativeMidReuseSupportedKernel(BenchmarkType benchmark) {
+    return (
+        benchmark == BENCH_PR
+        || benchmark == BENCH_PR_SPMV
+        || benchmark == BENCH_BFS
+        || benchmark == BENCH_BC
+    );
+}
+
+inline PerceptronSelection SelectNativeMidReuseRule(
+    const CommunityFeatures& features,
+    BenchmarkType benchmark,
+    double reuse_count
+) {
+    if (std::abs(reuse_count - NATIVE_MIDREUSE_COUNT) > 1e-9) {
+        throw std::invalid_argument(
+            "native-midreuse-rule requires reuse count 40");
+    }
+
+    if (
+        features.num_nodes < NATIVE_MIDREUSE_MIN_NODES
+        || !IsNativeMidReuseSupportedKernel(benchmark)
+    ) {
+        auto fallback = ResolveDeployableAdaptiveArm("0");
+        fallback.override_reason = (
+            features.num_nodes < NATIVE_MIDREUSE_MIN_NODES
+            ? "native-midreuse-small-graph"
+            : "native-midreuse-unsupported-kernel");
+        fallback.confidence = 1.0;
+        return fallback;
+    }
+
+    PerceptronSelection selected;
+    selected.algo = HubClusterDBG;
+    selected.variant_name = "7";
+    selected.canonical_spec = selected.variant_name;
+    selected.predicted_spec = selected.variant_name;
+    selected.override_reason = "native-midreuse-match";
+    selected.confidence = 1.0;
+    return selected;
 }
 
 // ============================================================================
@@ -541,9 +587,23 @@ void GenerateAdaptiveMappingFullGraphStandalone(
     
     Timer feature_timer;
     feature_timer.Start();
-    CommunityFeatures global_feat =
-        ::ComputeTier0SampledGraphFeatures(g);
     const BenchmarkType benchmark = GetBenchmarkTypeHint();
+    CommunityFeatures global_feat;
+    if (
+        selection_policy.model
+        == SELECTION_MODEL_NATIVE_MIDREUSE_RULE
+    ) {
+        global_feat.num_nodes =
+            static_cast<size_t>(std::max<int64_t>(0, num_nodes));
+        global_feat.num_edges =
+            static_cast<size_t>(std::max<int64_t>(0, num_edges));
+        global_feat.avg_degree = (
+            num_nodes > 0
+            ? static_cast<double>(num_edges) / num_nodes
+            : 0.0);
+    } else {
+        global_feat = ::ComputeTier0SampledGraphFeatures(g);
+    }
     const uint64_t property_bytes = ModeledPropertyBytes(
         benchmark,
         static_cast<uint64_t>(num_nodes),
@@ -645,6 +705,22 @@ void GenerateAdaptiveMappingFullGraphStandalone(
             global_feat,
             benchmark,
             selection_policy.reuse_count);
+    } else if (
+        selection_policy.model
+        == SELECTION_MODEL_NATIVE_MIDREUSE_RULE
+    ) {
+        if (
+            selection_policy.criterion
+            != CRITERION_BEST_ENDTOEND
+        ) {
+            throw std::invalid_argument(
+                "native-midreuse-rule requires "
+                "best-endtoend criterion");
+        }
+        best = adaptive::SelectNativeMidReuseRule(
+            global_feat,
+            benchmark,
+            selection_policy.reuse_count);
     } else {
         best = SelectBestReorderingForCommunityWithModelCriterion(
             global_feat, global_modularity,
@@ -671,6 +747,8 @@ void GenerateAdaptiveMappingFullGraphStandalone(
         != SELECTION_MODEL_BUDGETED_RULE
         && selection_policy.model
             != SELECTION_MODEL_ALLKERNEL_LOWREUSE_RULE
+        && selection_policy.model
+            != SELECTION_MODEL_NATIVE_MIDREUSE_RULE
     ) {
         best = EnforceDeployableAdaptivePortfolio(best);
     }
