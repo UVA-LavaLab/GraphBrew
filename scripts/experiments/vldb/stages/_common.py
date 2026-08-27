@@ -63,6 +63,16 @@ def add_common_args(p: argparse.ArgumentParser) -> None:
         "--measurement-generation",
         help="Explicit shared generation ID for distributed/fan-out runs.",
     )
+    p.add_argument(
+        "--mapping-draw-count",
+        type=int,
+        help="Override repeated mapping draws for every reordered arm.",
+    )
+    p.add_argument(
+        "--mapping-draw-index",
+        type=int,
+        help="Select a specific pre-generated mapping draw for this run.",
+    )
     p.add_argument("--threads", type=int,
                    help="Base OpenMP threads (default: 4 preview, 16 otherwise).")
     p.add_argument("--cpu-list", type=str,
@@ -166,6 +176,10 @@ def resolve_config(args: argparse.Namespace) -> dict:
     cache_mode = args.cache_mode or "ultrafast"
     V.configure_artifact_root(args.artifact_root)
     V.configure_measurement_generation(args.measurement_generation)
+    V.configure_mapping_draw_policy(
+        draw_count=args.mapping_draw_count,
+        selected_draw=args.mapping_draw_index,
+    )
     V.configure_runtime_policy(threads, args.cpu_list)
     V.configure_cache_policy(
         preview=args.preview,
@@ -187,6 +201,8 @@ def resolve_config(args: argparse.Namespace) -> dict:
         "graph_dir": args.graph_dir,
         "artifact_root": args.artifact_root,
         "measurement_generation": args.measurement_generation,
+        "mapping_draw_count": args.mapping_draw_count,
+        "mapping_draw_index": args.mapping_draw_index,
         "threads": threads,
         "cpu_list": args.cpu_list,
         "cache_mode": cache_mode,
@@ -206,5 +222,10 @@ def banner(stage: str, cfg: dict) -> None:
     print(f"  threads   = {cfg['threads']}  cpu_list = {cfg['cpu_list'] or 'scheduler-managed'}")
     print(f"  cache_mode = {cfg['cache_mode']}")
     print(f"  algorithms = {cfg['algorithms'] or 'full matrix'}")
+    print(
+        "  mapping draws = "
+        f"{cfg['mapping_draw_count'] or 'default'}"
+        f"  selected = {cfg['mapping_draw_index']}"
+    )
     print(f"  graphs    = {[g['name'] for g in cfg['graphs']]}")
     print("=" * 60)

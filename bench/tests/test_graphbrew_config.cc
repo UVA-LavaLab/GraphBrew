@@ -346,6 +346,26 @@ void TestNativeMidReuseRule()
         "native mid-reuse rule accepted a non-frozen reuse count");
 }
 
+void TestMappingFilenameAlgorithmCodes()
+{
+    Require(
+        MappingFilenameAlgorithmCodes(
+            "/tmp/14_______native-midreuse-rule_"
+            "best-endtoend_40.draw2.lo"
+        ) == std::vector<int>({14}),
+        "adaptive mapping filename leaked reuse into algorithm codes");
+    Require(
+        MappingFilenameAlgorithmCodes(
+            "/tmp/2_8_csr.draw3.lo"
+        ) == std::vector<int>({2, 8}),
+        "chained mapping filename codes changed");
+    Require(
+        MappingFilenameAlgorithmCodes(
+            "/tmp/12_leiden_compose_norefine_2_2.lo"
+        ) == std::vector<int>({12}),
+        "GraphBrew parameters leaked into algorithm codes");
+}
+
 void TestSuperGraphMoveBatchParsing()
 {
     auto config = graphbrew::parseGraphBrewConfig(
@@ -1387,6 +1407,7 @@ int main()
         TestBudgetedAdaptiveRule();
         TestAllKernelLowReuseRule();
         TestNativeMidReuseRule();
+        TestMappingFilenameAlgorithmCodes();
         TestSuperGraphMoveBatchParsing();
         TestEffectiveConfigIdentity();
         TestRabbitComposeParsing();

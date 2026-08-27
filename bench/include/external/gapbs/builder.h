@@ -2099,37 +2099,14 @@ public:
 
     void printReorderingMethods(const std::string &filename, Timer t)
     {
-        std::size_t last_slash = filename.rfind('/');
-        std::string basename = filename.substr(last_slash + 1);
-        std::size_t last_dot = basename.rfind('.');
-        std::string stem = basename.substr(0, last_dot);
-
-        std::vector<int> codes;
-        std::istringstream iss(stem);
-        std::string part;
-        while (getline(iss, part, '_'))
-        {
-            int num;
-            if (std::istringstream(part) >> num)
-            {
-                codes.push_back(num);
-            }
-        }
-
         // std::cout << "Reordering methods for file '" << filename
         //           << "':" << std::endl;
-        for (int code : codes)
+        for (int code : MappingFilenameAlgorithmCodes(filename))
         {
-            try
-            {
-                std::string algoStr =
-                    ReorderingAlgoStr(static_cast<ReorderingAlgo>(code)) + " Map Time";
-                PrintTime(algoStr, t.Seconds());
-            }
-            catch (...)
-            {
-                std::cerr << "Invalid code: " << code << std::endl;
-            }
+            std::string algoStr =
+                ReorderingAlgoStr(static_cast<ReorderingAlgo>(code))
+                + " Map Time";
+            PrintTime(algoStr, t.Seconds());
         }
     }
 

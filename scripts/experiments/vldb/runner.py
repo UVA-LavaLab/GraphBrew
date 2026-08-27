@@ -183,7 +183,10 @@ _ACTIVE_VERIFICATION_GATE_ID: Optional[str] = None
 _FILE_FINGERPRINT_CACHE: dict[tuple[str, int, int], dict[str, int | str]] = {}
 _FILE_CRC32_CACHE: dict[tuple[str, int, int], str] = {}
 _ALGORITHM_FILTER: Optional[set[str]] = None
+_ALGORITHM_ORDER: Optional[list[str]] = None
 _MEASUREMENT_GENERATION_OVERRIDE: Optional[str] = None
+_MAPPING_DRAW_COUNT_OVERRIDE: Optional[int] = None
+_MAPPING_DRAW_INDEX: Optional[int] = None
 _ALGORITHM_ENV_KEYS = (
     "GORDER_FAST_BATCH",
     "GORDER_WINDOW",
@@ -316,10 +319,13 @@ def configure_cache_policy(
 
 def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
     """Restrict rapid runs to exact canonical algorithm keys."""
-    global _ALGORITHM_FILTER
+    global _ALGORITHM_FILTER, _ALGORITHM_ORDER
     if not algorithms:
         _ALGORITHM_FILTER = None
+        _ALGORITHM_ORDER = None
         return
+    if len(algorithms) != len(set(algorithms)):
+        raise ValueError("Algorithm filter contains duplicates")
     known = set(ALL_ALGORITHMS)
     known.update(config["algo"] for config in ABLATION_CONFIGS)
     known.update(
@@ -333,6 +339,30 @@ def configure_algorithm_filter(algorithms: Optional[list[str]]) -> None:
             f"Valid keys include: {', '.join(list(ALL_ALGORITHMS)[:12])}"
         )
     _ALGORITHM_FILTER = set(algorithms)
+    _ALGORITHM_ORDER = list(algorithms)
+
+
+def configure_mapping_draw_policy(
+    *,
+    draw_count: Optional[int],
+    selected_draw: Optional[int],
+) -> None:
+    """Configure repeated mapping generation and draw selection."""
+    global _MAPPING_DRAW_COUNT_OVERRIDE, _MAPPING_DRAW_INDEX
+    if draw_count is not None and draw_count < 1:
+        raise ValueError("mapping draw count must be positive")
+    if selected_draw is not None and selected_draw < 0:
+        raise ValueError("mapping draw index must be non-negative")
+    if (
+        draw_count is not None
+        and selected_draw is not None
+        and selected_draw >= draw_count
+    ):
+        raise ValueError(
+            "mapping draw index must be smaller than mapping draw count"
+        )
+    _MAPPING_DRAW_COUNT_OVERRIDE = draw_count
+    _MAPPING_DRAW_INDEX = selected_draw
 
 
 def resolve_benchmark_policy(
@@ -1330,7 +1360,9 @@ def configure_campaign(
         "cache_sample_rate": _CACHE_SAMPLE_RATE,
         "algorithm_env": _algorithm_environment(),
         "cache_sizes": _CACHE_SIZE_OVERRIDE,
-        "algorithm_filter": sorted(_ALGORITHM_FILTER or []),
+        "algorithm_filter": list(_ALGORITHM_ORDER or []),
+        "mapping_draw_count_override": _MAPPING_DRAW_COUNT_OVERRIDE,
+        "mapping_draw_index": _MAPPING_DRAW_INDEX,
         "measurement_cohort_id":
             measurement_cohort_id("kernel", trials=trials),
         "experiment_ids": experiment_ids,
@@ -1690,6 +1722,11 @@ def _mapping_draw_count(algo_flags: list[str]) -> int:
             continue
         spec = algo_flags[index + 1]
         algorithm_id = spec.split(":", 1)[0]
+        if (
+            _MAPPING_DRAW_COUNT_OVERRIDE is not None
+            and algorithm_id != "0"
+        ):
+            return _MAPPING_DRAW_COUNT_OVERRIDE
         if algorithm_id == "8":
             return RABBIT_MAPPING_DRAWS
         if (
@@ -2002,7 +2039,7 @@ def _paper_algorithm_specs(
     if _ALGORITHM_FILTER is not None:
         by_key = {spec[0]: spec for spec in specs}
         specs = []
-        for key in sorted(_ALGORITHM_FILTER):
+        for key in _ALGORITHM_ORDER or []:
             if key.startswith("chain:"):
                 continue
             specs.append(
@@ -2032,7 +2069,7 @@ def _cache_algorithm_specs() -> list[tuple[str, str, list[str]]]:
     if _CACHE_ALL_ALGORITHMS:
         return _paper_algorithm_specs(include_compose=True)
     if _ALGORITHM_FILTER is not None:
-        keys = sorted(_ALGORITHM_FILTER)
+        keys = list(_ALGORITHM_ORDER or [])
     else:
         keys = CACHE_ALGORITHM_KEYS_PREVIEW if _PREVIEW_MODE else CACHE_ALGORITHM_KEYS
     specs: list[tuple[str, str, list[str]]] = []
@@ -2613,7 +2650,6 @@ def algo_flags_or_map(
                 f"Mapping for {graph_name}/{algo_key} does not match the "
                 "current graph dimensions or algorithm specification"
             )
-        rt = _load_reorder_time(graph_name, algo_key)
         meta = _load_reorder_meta(graph_name, algo_key)
         draw_files = []
         for record in meta.get("mapping_draws", []):
@@ -2625,13 +2661,38 @@ def algo_flags_or_map(
                     "mapping_fingerprint":
                         record.get("mapping_fingerprint"),
                 })
-        return ["-o", f"13:{lo}"], rt, {
+        selected_path = lo
+        selected_draw = meta.get("selected_draw")
+        selected_fingerprint = meta.get("mapping_fingerprint")
+        rt = _load_reorder_time(graph_name, algo_key)
+        if _MAPPING_DRAW_INDEX is not None:
+            selected_record = next(
+                (
+                    record
+                    for record in meta.get("mapping_draws", [])
+                    if int(record.get("draw", -1))
+                    == _MAPPING_DRAW_INDEX
+                ),
+                None,
+            )
+            if selected_record is None:
+                raise RuntimeError(
+                    f"Mapping draw {_MAPPING_DRAW_INDEX} is unavailable "
+                    f"for {graph_name}/{algo_key}"
+                )
+            selected_path = lo.parent / selected_record["path"]
+            selected_draw = _MAPPING_DRAW_INDEX
+            selected_fingerprint = selected_record[
+                "mapping_fingerprint"
+            ]
+            rt = float(selected_record["reorder_time"])
+        return ["-o", f"13:{selected_path}"], rt, {
             "source": "map",
-            "path": lo.name,
-            "bytes": lo.stat().st_size,
-            "mapping_fingerprint": meta.get("mapping_fingerprint"),
+            "path": selected_path.name,
+            "bytes": selected_path.stat().st_size,
+            "mapping_fingerprint": selected_fingerprint,
             "generation_policy_id": meta.get("generation_policy_id"),
-            "selected_draw": meta.get("selected_draw"),
+            "selected_draw": selected_draw,
             "mapping_draws": draw_files,
         }
     if algo_key != "0" and not _DRY_RUN_MODE:
@@ -7219,6 +7280,16 @@ def main() -> None:
         "--measurement-generation",
         help="Explicit shared generation ID for distributed/fan-out runs",
     )
+    parser.add_argument(
+        "--mapping-draw-count",
+        type=int,
+        help="Override repeated mapping draws for every reordered arm",
+    )
+    parser.add_argument(
+        "--mapping-draw-index",
+        type=int,
+        help="Select a specific pre-generated mapping draw",
+    )
     parser.add_argument("--threads", type=int,
                         help="Base OpenMP thread count (default: 4 preview, 16 full)")
     parser.add_argument("--cpu-list", type=str,
@@ -7290,6 +7361,10 @@ def main() -> None:
 
     configure_artifact_root(args.artifact_root)
     configure_measurement_generation(args.measurement_generation)
+    configure_mapping_draw_policy(
+        draw_count=args.mapping_draw_count,
+        selected_draw=args.mapping_draw_index,
+    )
     configure_runtime_policy(
         args.threads or (4 if args.preview else 16),
         args.cpu_list,

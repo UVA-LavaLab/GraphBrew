@@ -1490,6 +1490,39 @@ inline std::pair<bool, ReorderingAlgo> lookupAlgorithm(const std::string& name) 
     return {false, ORIGINAL};
 }
 
+inline std::vector<int> MappingFilenameAlgorithmCodes(
+    const std::string& filename) {
+    const size_t last_slash = filename.find_last_of("/\\");
+    const std::string basename = (
+        last_slash == std::string::npos
+        ? filename : filename.substr(last_slash + 1));
+    const size_t last_dot = basename.rfind(".lo");
+    const std::string stem = basename.substr(0, last_dot);
+
+    std::vector<int> codes;
+    std::istringstream stream(stem);
+    std::string part;
+    bool started = false;
+    while (std::getline(stream, part, '_')) {
+        if (part.empty() && started) continue;
+        std::istringstream token(part);
+        int code = -1;
+        char trailing = '\0';
+        if (
+            !(token >> code)
+            || (token >> trailing)
+            || code < static_cast<int>(ORIGINAL)
+            || code > static_cast<int>(GoGraphOrder)
+        ) {
+            if (started) break;
+            continue;
+        }
+        codes.push_back(code);
+        started = true;
+    }
+    return codes;
+}
+
 // ============================================================================
 // RETAINED OFFLINE-MODEL SELECTION RESULT
 // ============================================================================

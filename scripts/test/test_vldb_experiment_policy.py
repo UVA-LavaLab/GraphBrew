@@ -659,6 +659,88 @@ def test_native_midreuse_rule_is_explicit_only():
     assert runner._mapping_draw_count(["-o", spec]) == 3
 
 
+def test_algorithm_filter_preserves_requested_order():
+    specs = [
+        ADAPTIVE_RULE_CONFIGS[0]["algo"],
+        "8:boost",
+        "0",
+        "8:csr",
+    ]
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert [
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        ] == specs
+    finally:
+        runner.configure_algorithm_filter(None)
+
+
+def test_mapping_draw_override_and_selection(tmp_path, monkeypatch):
+    try:
+        runner.configure_mapping_draw_policy(
+            draw_count=4,
+            selected_draw=2,
+        )
+        assert runner._mapping_draw_count(["-o", "8:csr"]) == 4
+        assert runner._mapping_draw_count(["-o", "5"]) == 4
+
+        graph = "g"
+        algorithm = "8:csr"
+        mapping_dir = tmp_path / "vldb_mappings" / graph
+        mapping_dir.mkdir(parents=True)
+        alias = mapping_dir / "8_csr.lo"
+        draw = mapping_dir / "8_csr.draw2.lo"
+        alias.write_bytes(b"alias")
+        draw.write_bytes(b"draw2")
+        meta = {
+            "selected_draw": 0,
+            "mapping_fingerprint": "alias-fingerprint",
+            "generation_policy_id": "policy",
+            "mapping_draws": [
+                {
+                    "draw": index,
+                    "path": f"8_csr.draw{index}.lo",
+                    "mapping_fingerprint": f"fingerprint-{index}",
+                    "reorder_time": float(index + 1),
+                }
+                for index in range(4)
+            ],
+            "reorder_time": 1.0,
+        }
+        for index in range(4):
+            (mapping_dir / f"8_csr.draw{index}.lo").write_bytes(
+                f"draw{index}".encode()
+            )
+        (mapping_dir / "8_csr.json").write_text(json.dumps(meta))
+        monkeypatch.setattr(
+            runner,
+            "MAPPINGS_DIR",
+            tmp_path / "vldb_mappings",
+        )
+        monkeypatch.setattr(
+            runner,
+            "_mapping_is_valid",
+            lambda *args: True,
+        )
+        flags, reorder_time, identity = runner.algo_flags_or_map(
+            algorithm,
+            ["-o", algorithm],
+            graph,
+            str(tmp_path / "g.sg"),
+        )
+        assert flags == ["-o", f"13:{draw}"]
+        assert reorder_time == 3.0
+        assert identity["path"] == draw.name
+        assert identity["selected_draw"] == 2
+        assert identity["mapping_fingerprint"] == "fingerprint-2"
+    finally:
+        runner.configure_mapping_draw_policy(
+            draw_count=None,
+            selected_draw=None,
+        )
+
+
 def test_composition_p0_treatments_are_explicit_only():
     specs = [config["algo"] for config in COMPOSITION_P0_CONFIGS]
     assert tuple(specs) == COMPOSITION_P0_ALGORITHM_KEYS
