@@ -731,6 +731,11 @@ DIAGNOSTIC_CONFIGS.extend([
         "algo": "11:bnf",
         "desc": "Explicit-only CSR-native BNF RCM upper bound",
     },
+    {
+        "name": "Corridor-Wavefront-Diagnostic",
+        "algo": "11:wavefront",
+        "desc": "Explicit-only linear residual-degree road wavefront",
+    },
 ])
 
 DUAL_ARM_S0_CONFIGS = [

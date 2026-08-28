@@ -410,7 +410,7 @@ def test_rcm_diagnostic_variants_are_explicit_only():
         config["algo"] for config in DIAGNOSTIC_CONFIGS
         if config["algo"].startswith("11:")
     ]
-    assert specs == ["11:mind", "11:bnf"]
+    assert specs == ["11:mind", "11:bnf", "11:wavefront"]
     runner.configure_algorithm_filter(specs)
     try:
         assert [

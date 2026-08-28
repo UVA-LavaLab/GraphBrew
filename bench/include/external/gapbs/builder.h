@@ -1540,11 +1540,13 @@ public:
                 GenerateRCMBNFOrderMapping(g, new_ids);
             } else if (rcm_variant == "mind") {
                 GenerateRCMMindOrderMapping(g, new_ids);
+            } else if (rcm_variant == "wavefront") {
+                GenerateCorridorWavefrontMapping(g, new_ids);
             } else {
                 warnUnknownVariant(
                     rcm_variant,
                     "RCMOrder",
-                    {"default", "mind", "bnf"});
+                    {"default", "mind", "bnf", "wavefront"});
                 GenerateRCMOrderMapping(g, new_ids);
             }
         }
@@ -1982,11 +1984,13 @@ public:
                 GenerateRCMBNFOrderMapping(g, new_ids);
             } else if (rcm_variant == "mind") {
                 GenerateRCMMindOrderMapping(g, new_ids);
+            } else if (rcm_variant == "wavefront") {
+                GenerateCorridorWavefrontMapping(g, new_ids);
             } else {
                 warnUnknownVariant(
                     rcm_variant,
                     "RCMOrder",
-                    {"default", "mind", "bnf"});
+                    {"default", "mind", "bnf", "wavefront"});
                 GenerateRCMOrderMapping(g, new_ids);
             }
         }
@@ -2474,6 +2478,14 @@ public:
     void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert> &g,
                                     pvector<NodeID_> &new_ids) {
         ::GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, cli_.filename());
+    }
+
+    void GenerateCorridorWavefrontMapping(
+            const CSRGraph<NodeID_, DestID_, invert> &g,
+            pvector<NodeID_> &new_ids) {
+        ::GenerateCorridorWavefrontMapping<
+            NodeID_, DestID_, WeightT_, invert>(
+                g, new_ids, cli_.filename());
     }
 
     // HELPERS

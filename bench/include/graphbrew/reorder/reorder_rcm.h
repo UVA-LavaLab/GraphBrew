@@ -74,7 +74,11 @@ inline void for_each_sym_neigh(const CSRGraph<NodeID_, DestID_, invert>& g,
                                NodeID_ u, Func f) {
     for (DestID_ dest : g.out_neigh(u)) f(nbr_id<NodeID_>(dest));
     if constexpr (invert) {
-        for (DestID_ dest : g.in_neigh(u)) f(nbr_id<NodeID_>(dest));
+        if (g.directed()) {
+            for (DestID_ dest : g.in_neigh(u)) {
+                f(nbr_id<NodeID_>(dest));
+            }
+        }
     }
 }
 
@@ -82,7 +86,9 @@ inline void for_each_sym_neigh(const CSRGraph<NodeID_, DestID_, invert>& g,
 template <typename NodeID_, typename DestID_, bool invert>
 inline int64_t sym_degree(const CSRGraph<NodeID_, DestID_, invert>& g, NodeID_ u) {
     int64_t d = g.out_degree(u);
-    if constexpr (invert) d += g.in_degree(u);
+    if constexpr (invert) {
+        if (g.directed()) d += g.in_degree(u);
+    }
     return d;
 }
 
@@ -765,6 +771,190 @@ void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
 
     tm.Stop();
     PrintTime("RCM_BNF reversal", tm.Seconds());
+}
+
+/**
+ * Linear corridor-aware reversed wavefront ordering.
+ *
+ * This keeps the bandwidth-reducing shape of a reversed degree-guided
+ * wavefront without GoGraph conversion or pseudo-peripheral searches.
+ * Within each frontier parent, newly discovered vertices are ordered by
+ * residual unvisited degree, then static degree, then vertex ID. The dynamic
+ * first key keeps low-degree road corridors contiguous before branch points.
+ */
+template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
+void GenerateCorridorWavefrontMapping(
+        const CSRGraph<NodeID_, DestID_, invert>& g,
+        pvector<NodeID_>& new_ids,
+        const std::string& /*filename*/) {
+    using namespace rcm_bnf_detail;
+    const int64_t n = g.num_nodes();
+    if (n == 0) return;
+    if (static_cast<int64_t>(new_ids.size()) < n) {
+        new_ids.resize(n);
+    }
+
+    Timer timer;
+    timer.Start();
+    std::vector<uint32_t> degree(static_cast<size_t>(n), 0);
+    #pragma omp parallel for schedule(static)
+    for (int64_t vertex = 0; vertex < n; ++vertex) {
+        const uint64_t value = static_cast<uint64_t>(
+            sym_degree(g, static_cast<NodeID_>(vertex)));
+        degree[static_cast<size_t>(vertex)] = static_cast<uint32_t>(
+            std::min<uint64_t>(
+                value,
+                std::numeric_limits<uint32_t>::max()));
+    }
+
+    constexpr size_t MAX_SEED_BUCKET = 256;
+    std::vector<std::vector<NodeID_>> seed_buckets(
+        MAX_SEED_BUCKET + 1);
+    std::vector<NodeID_> isolated;
+    isolated.reserve(static_cast<size_t>(n) / 32);
+    for (int64_t vertex = 0; vertex < n; ++vertex) {
+        const uint32_t d = degree[static_cast<size_t>(vertex)];
+        if (d == 0) {
+            isolated.push_back(static_cast<NodeID_>(vertex));
+        } else {
+            seed_buckets[std::min<size_t>(
+                d, MAX_SEED_BUCKET)].push_back(
+                    static_cast<NodeID_>(vertex));
+        }
+    }
+    timer.Stop();
+    PrintTime("Corridor Wavefront Degree Time", timer.Seconds());
+
+    timer.Start();
+    std::vector<size_t> seed_cursor(
+        MAX_SEED_BUCKET + 1, 0);
+    std::vector<uint8_t> visited(static_cast<size_t>(n), 0);
+    std::vector<NodeID_> order;
+    order.reserve(static_cast<size_t>(n) - isolated.size());
+    std::vector<NodeID_> queue;
+    queue.reserve(std::min<size_t>(
+        static_cast<size_t>(n), 1ULL << 20));
+
+    struct Candidate {
+        uint32_t residual_degree;
+        uint32_t static_degree;
+        NodeID_ vertex;
+    };
+    std::vector<Candidate> candidates;
+    candidates.reserve(64);
+
+    auto next_seed = [&]() -> NodeID_ {
+        for (size_t bucket = 1; bucket <= MAX_SEED_BUCKET; ++bucket) {
+            auto& vertices = seed_buckets[bucket];
+            auto& cursor = seed_cursor[bucket];
+            while (
+                cursor < vertices.size()
+                && visited[static_cast<size_t>(vertices[cursor])]
+            ) {
+                ++cursor;
+            }
+            if (cursor < vertices.size()) {
+                return vertices[cursor++];
+            }
+        }
+        return static_cast<NodeID_>(-1);
+    };
+
+    size_t component_count = 0;
+    for (
+        NodeID_ seed = next_seed();
+        seed != static_cast<NodeID_>(-1);
+        seed = next_seed()
+    ) {
+        if (visited[static_cast<size_t>(seed)]) continue;
+        ++component_count;
+        const size_t component_begin = order.size();
+        queue.clear();
+        size_t head = 0;
+        visited[static_cast<size_t>(seed)] = 1;
+        queue.push_back(seed);
+        order.push_back(seed);
+
+        while (head < queue.size()) {
+            const NodeID_ parent = queue[head++];
+            candidates.clear();
+            for_each_sym_neigh(g, parent, [&](NodeID_ vertex) {
+                const size_t index = static_cast<size_t>(vertex);
+                if (!visited[index]) {
+                    visited[index] = 1;
+                    candidates.push_back({
+                        0,
+                        degree[index],
+                        vertex,
+                    });
+                }
+            });
+
+            for (Candidate& candidate : candidates) {
+                uint32_t residual = 0;
+                for_each_sym_neigh(
+                    g,
+                    candidate.vertex,
+                    [&](NodeID_ neighbor) {
+                        if (!visited[static_cast<size_t>(neighbor)]) {
+                            ++residual;
+                        }
+                    });
+                candidate.residual_degree = residual;
+            }
+            std::sort(
+                candidates.begin(),
+                candidates.end(),
+                [](const Candidate& left, const Candidate& right) {
+                    if (
+                        left.residual_degree
+                        != right.residual_degree
+                    ) {
+                        return (
+                            left.residual_degree
+                            < right.residual_degree);
+                    }
+                    if (left.static_degree != right.static_degree) {
+                        return left.static_degree < right.static_degree;
+                    }
+                    return left.vertex < right.vertex;
+                });
+            for (const Candidate& candidate : candidates) {
+                queue.push_back(candidate.vertex);
+                order.push_back(candidate.vertex);
+            }
+        }
+        std::reverse(
+            order.begin() + static_cast<std::ptrdiff_t>(component_begin),
+            order.end());
+    }
+    timer.Stop();
+    PrintTime("Corridor Wavefront Traversal Time", timer.Seconds());
+
+    timer.Start();
+    #pragma omp parallel for schedule(static)
+    for (int64_t position = 0;
+         position < static_cast<int64_t>(order.size());
+         ++position) {
+        new_ids[static_cast<size_t>(order[position])] =
+            static_cast<NodeID_>(position);
+    }
+    const size_t tail = order.size();
+    #pragma omp parallel for schedule(static)
+    for (int64_t index = 0;
+         index < static_cast<int64_t>(isolated.size());
+         ++index) {
+        new_ids[static_cast<size_t>(isolated[index])] =
+            static_cast<NodeID_>(tail + static_cast<size_t>(index));
+    }
+    timer.Stop();
+    PrintTime("Corridor Wavefront Assign Time", timer.Seconds());
+    PrintLabel(
+        "Corridor Wavefront Components",
+        std::to_string(component_count));
+    PrintLabel(
+        "Corridor Wavefront Isolated",
+        std::to_string(isolated.size()));
 }
 
 #endif  // REORDER_RCM_BNF_H_
