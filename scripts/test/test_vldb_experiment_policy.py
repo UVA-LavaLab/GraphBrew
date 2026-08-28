@@ -1617,6 +1617,9 @@ def test_measurement_policy_tracks_timing_machine(monkeypatch):
         lambda: {
             "cpu_governors": ["powersave"],
             "intel_pstate_no_turbo": "0",
+            "process_scheduler": "SCHED_OTHER",
+            "process_nice": 0,
+            "process_affinity": list(range(32)),
         },
     )
     first = runner.measurement_policy_id("kernel", trials=1)
@@ -1626,6 +1629,9 @@ def test_measurement_policy_tracks_timing_machine(monkeypatch):
         lambda: {
             "cpu_governors": ["performance"],
             "intel_pstate_no_turbo": "1",
+            "process_scheduler": "SCHED_OTHER",
+            "process_nice": 0,
+            "process_affinity": list(range(32)),
         },
     )
     second = runner.measurement_policy_id("kernel", trials=1)
@@ -1642,11 +1648,17 @@ def test_verification_machine_identity_ignores_timing_controls():
         "rabbit_enable_env": "1",
         "cpu_governors": ["powersave"],
         "intel_pstate_no_turbo": "0",
+        "process_scheduler": "SCHED_IDLE",
+        "process_nice": 19,
+        "process_affinity": [15],
     }
     performance = {
         **powersave,
         "cpu_governors": ["performance"],
         "intel_pstate_no_turbo": "1",
+        "process_scheduler": "SCHED_OTHER",
+        "process_nice": 0,
+        "process_affinity": list(range(32)),
     }
     assert (
         runner.verification_machine_identity(powersave)
@@ -1663,6 +1675,9 @@ def test_timing_policy_fails_fast_and_preview_can_bypass(monkeypatch):
         lambda: {
             "cpu_governors": ["powersave"],
             "intel_pstate_no_turbo": "0",
+            "process_scheduler": "SCHED_OTHER",
+            "process_nice": 0,
+            "process_affinity": list(range(32)),
         },
     )
     with pytest.raises(RuntimeError, match="Final timing requires"):
@@ -1674,9 +1689,25 @@ def test_timing_policy_fails_fast_and_preview_can_bypass(monkeypatch):
         lambda: {
             "cpu_governors": ["performance"],
             "intel_pstate_no_turbo": "1",
+            "process_scheduler": "SCHED_OTHER",
+            "process_nice": 0,
+            "process_affinity": list(range(32)),
         },
     )
     runner.require_timing_machine_policy()
+    monkeypatch.setattr(
+        runner,
+        "timing_machine_metadata",
+        lambda: {
+            "cpu_governors": ["performance"],
+            "intel_pstate_no_turbo": "1",
+            "process_scheduler": "SCHED_IDLE",
+            "process_nice": 19,
+            "process_affinity": [15],
+        },
+    )
+    with pytest.raises(RuntimeError, match="SCHED_OTHER"):
+        runner.require_timing_machine_policy()
 
 
 def test_measurement_policy_tracks_executable_file_identity(

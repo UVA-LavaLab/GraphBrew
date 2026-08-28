@@ -1224,7 +1224,18 @@ def machine_metadata() -> dict:
     }
 
 
-def timing_machine_metadata() -> dict[str, Optional[str]]:
+def _scheduler_name(policy: int) -> str:
+    names = {
+        os.SCHED_OTHER: "SCHED_OTHER",
+        os.SCHED_BATCH: "SCHED_BATCH",
+        os.SCHED_IDLE: "SCHED_IDLE",
+        os.SCHED_FIFO: "SCHED_FIFO",
+        os.SCHED_RR: "SCHED_RR",
+    }
+    return names.get(policy, f"UNKNOWN({policy})")
+
+
+def timing_machine_metadata() -> dict[str, Any]:
     cpus = _expand_cpu_list(_RUNTIME_CPU_LIST) or [0]
     governors = sorted({
         value
@@ -1241,6 +1252,11 @@ def timing_machine_metadata() -> dict[str, Optional[str]]:
         "intel_pstate_no_turbo": _read_text(
             "/sys/devices/system/cpu/intel_pstate/no_turbo"
         ),
+        "process_scheduler": _scheduler_name(
+            os.sched_getscheduler(0)
+        ),
+        "process_nice": os.getpriority(os.PRIO_PROCESS, 0),
+        "process_affinity": sorted(os.sched_getaffinity(0)),
     }
 
 
@@ -1274,6 +1290,8 @@ def require_timing_machine_policy(*, preview: bool = False) -> None:
         or _RUNTIME_CPU_LIST != expected_cpu_list
         or actual["cpu_governors"] != [expected_governor]
         or actual["intel_pstate_no_turbo"] != expected_no_turbo
+        or actual["process_scheduler"] != "SCHED_OTHER"
+        or actual["process_nice"] != 0
     ):
         raise RuntimeError(
             "Final timing requires host/threads/CPUs "
@@ -1283,7 +1301,8 @@ def require_timing_machine_policy(*, preview: bool = False) -> None:
             f"{expected_no_turbo}; found host="
             f"{platform.node().split('.', 1)[0]}, threads="
             f"{_RUNTIME_THREADS}, cpu_list={_RUNTIME_CPU_LIST}, "
-            f"timing={actual}. Run: "
+            f"timing={actual}. Launch the runner from a normal-priority "
+            "process (SCHED_OTHER, nice 0), then run: "
             "sudo cpupower frequency-set -g performance && "
             "echo 1 | sudo tee "
             "/sys/devices/system/cpu/intel_pstate/no_turbo"
@@ -1298,6 +1317,9 @@ def verification_machine_identity(metadata: dict) -> dict:
             "cpu_governor",
             "cpu_governors",
             "intel_pstate_no_turbo",
+            "process_scheduler",
+            "process_nice",
+            "process_affinity",
         }
     }
 
