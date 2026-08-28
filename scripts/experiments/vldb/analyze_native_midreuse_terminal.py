@@ -678,8 +678,6 @@ def detect_escalation(
             EXPECTED_CONTROL_AMENDMENT_SHA256,
         "resource_amendment_sha256":
             EXPECTED_RESOURCE_AMENDMENT_SHA256,
-        "escalation_plan_sha256":
-            EXPECTED_ESCALATION_PLAN_SHA256,
         "timing_inputs": base["timing_inputs"],
         "policy": protocol["escalation"],
         "thresholds": {
@@ -1324,6 +1322,8 @@ def final_analysis(
                 EXPECTED_CONTROL_AMENDMENT_SHA256,
             "resource_amendment_sha256":
                 EXPECTED_RESOURCE_AMENDMENT_SHA256,
+            "escalation_plan_sha256":
+                EXPECTED_ESCALATION_PLAN_SHA256,
             "escalation_decision_sha256": sha256(
                 root / "escalation_decision.json"
             ),
