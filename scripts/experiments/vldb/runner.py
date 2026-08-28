@@ -1208,6 +1208,7 @@ def machine_metadata() -> dict:
                 break
     except OSError:
         pass
+    timing = timing_machine_metadata()
     return {
         "cpu_model": cpu_model,
         "logical_cpus": os.cpu_count(),
@@ -1220,6 +1221,9 @@ def machine_metadata() -> dict:
         "intel_pstate_no_turbo": _read_text(
             "/sys/devices/system/cpu/intel_pstate/no_turbo"
         ),
+        "process_scheduler": timing["process_scheduler"],
+        "process_nice": timing["process_nice"],
+        "process_affinity": timing["process_affinity"],
         "rabbit_enable_env": os.environ.get("RABBIT_ENABLE", "1 (Makefile default)"),
     }
 

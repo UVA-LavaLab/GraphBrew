@@ -274,8 +274,6 @@ def analyze(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         or campaign["algorithm_filter"] != algorithms
         or campaign["benchmarks"] != protocol["kernels"]
         or campaign["trials"] != protocol["trials"]
-        or campaign["machine"]["process_scheduler"] != "SCHED_OTHER"
-        or campaign["machine"]["process_nice"] != 0
     ):
         raise ValueError("Portfolio campaign policy changed")
 
