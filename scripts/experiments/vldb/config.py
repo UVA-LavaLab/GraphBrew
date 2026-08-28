@@ -720,6 +720,18 @@ DIAGNOSTIC_CONFIGS = [
         (6, 3),
     )
 ]
+DIAGNOSTIC_CONFIGS.extend([
+    {
+        "name": "RCM-MIND-Diagnostic",
+        "algo": "11:mind",
+        "desc": "Explicit-only single-pass MIND-start RCM upper bound",
+    },
+    {
+        "name": "RCM-BNF-Diagnostic",
+        "algo": "11:bnf",
+        "desc": "Explicit-only CSR-native BNF RCM upper bound",
+    },
+])
 
 DUAL_ARM_S0_CONFIGS = [
     {

@@ -405,6 +405,29 @@ def test_dual_arm_s2_mapping_screen_is_two_axis_only():
     )
 
 
+def test_rcm_diagnostic_variants_are_explicit_only():
+    specs = [
+        config["algo"] for config in DIAGNOSTIC_CONFIGS
+        if config["algo"].startswith("11:")
+    ]
+    assert specs == ["11:mind", "11:bnf"]
+    runner.configure_algorithm_filter(specs)
+    try:
+        assert [
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        ] == specs
+    finally:
+        runner.configure_algorithm_filter(None)
+    assert not (
+        set(specs)
+        & {
+            key for key, _name, _flags
+            in runner._paper_algorithm_specs(include_compose=True)
+        }
+    )
+
+
 def test_dual_arm_v3_direct_emission_is_explicit_only():
     specs = [config["algo"] for config in DUAL_ARM_V3_CONFIGS]
     assert len(specs) == 8
