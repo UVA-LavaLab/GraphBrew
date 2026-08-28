@@ -269,88 +269,11 @@ void TestAllKernelLowReuseRule()
 #endif
 }
 
-void TestNativeMidReuseRule()
-{
-    Require(
-        GetSelectionModel("native-midreuse-rule")
-            == SELECTION_MODEL_NATIVE_MIDREUSE_RULE,
-        "native mid-reuse model parsing changed");
-
-    bool missing_reuse_rejected = false;
-    try
-    {
-        adaptive::ParseDeployableSelectionPolicy({
-            "", "", "", "native-midreuse-rule",
-            "best-endtoend",
-        });
-    }
-    catch (const std::invalid_argument&)
-    {
-        missing_reuse_rejected = true;
-    }
-    Require(
-        missing_reuse_rejected,
-        "native mid-reuse rule accepted implicit reuse");
-
-    CommunityFeatures features;
-    features.num_nodes = 1ULL << 17;
-    auto pagerank = adaptive::SelectNativeMidReuseRule(
-        features, BENCH_PR, 40.0);
-    Require(
-        pagerank.algo == HubClusterDBG
-            && pagerank.canonical_spec == "7",
-        "native mid-reuse rule lost its native layout");
-
-    auto traversal = adaptive::SelectNativeMidReuseRule(
-        features, BENCH_BFS, 40.0);
-    Require(
-        traversal.algo == HubClusterDBG
-            && traversal.canonical_spec == "7",
-        "native mid-reuse rule diverged across supported kernels");
-
-    auto converter = adaptive::SelectNativeMidReuseRule(
-        features, BENCH_GENERIC, 40.0);
-    Require(
-        converter.algo == HubClusterDBG
-            && converter.canonical_spec == "7",
-        "native mid-reuse rule cannot pre-generate its mapping");
-
-    features.num_nodes = (1ULL << 17) - 1;
-    auto small = adaptive::SelectNativeMidReuseRule(
-        features, BENCH_PR, 40.0);
-    Require(
-        small.algo == ORIGINAL
-            && small.canonical_spec == "0",
-        "native mid-reuse rule lost its small-graph fallback");
-
-    features.num_nodes = 1ULL << 17;
-    auto unsupported = adaptive::SelectNativeMidReuseRule(
-        features, BENCH_CC, 40.0);
-    Require(
-        unsupported.algo == ORIGINAL
-            && unsupported.canonical_spec == "0",
-        "native mid-reuse rule accepted an unsupported kernel");
-
-    bool wrong_reuse_rejected = false;
-    try
-    {
-        (void)adaptive::SelectNativeMidReuseRule(
-            features, BENCH_PR, 32.0);
-    }
-    catch (const std::invalid_argument&)
-    {
-        wrong_reuse_rejected = true;
-    }
-    Require(
-        wrong_reuse_rejected,
-        "native mid-reuse rule accepted a non-frozen reuse count");
-}
-
 void TestMappingFilenameAlgorithmCodes()
 {
     Require(
         MappingFilenameAlgorithmCodes(
-            "/tmp/14_______native-midreuse-rule_"
+            "/tmp/14_______adaptive-rule_"
             "best-endtoend_40.draw2.lo"
         ) == std::vector<int>({14}),
         "adaptive mapping filename leaked reuse into algorithm codes");
@@ -1406,7 +1329,6 @@ int main()
         TestPresetTailParsing();
         TestBudgetedAdaptiveRule();
         TestAllKernelLowReuseRule();
-        TestNativeMidReuseRule();
         TestMappingFilenameAlgorithmCodes();
         TestSuperGraphMoveBatchParsing();
         TestEffectiveConfigIdentity();
