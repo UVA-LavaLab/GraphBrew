@@ -808,188 +808,252 @@ void GenerateCorridorWavefrontMapping(
                 std::numeric_limits<uint32_t>::max()));
     }
 
-    constexpr size_t MAX_SEED_BUCKET = 256;
-    std::vector<std::vector<NodeID_>> seed_buckets(
-        MAX_SEED_BUCKET + 1);
     std::vector<NodeID_> isolated;
     isolated.reserve(static_cast<size_t>(n) / 32);
+    std::vector<NodeID_> skeleton;
+    skeleton.reserve(static_cast<size_t>(n) / 4);
+    std::vector<int64_t> skeleton_index(
+        static_cast<size_t>(n), -1);
     for (int64_t vertex = 0; vertex < n; ++vertex) {
         const uint32_t d = degree[static_cast<size_t>(vertex)];
         if (d == 0) {
             isolated.push_back(static_cast<NodeID_>(vertex));
-        } else {
-            seed_buckets[std::min<size_t>(
-                d, MAX_SEED_BUCKET)].push_back(
-                    static_cast<NodeID_>(vertex));
+        } else if (d != 2) {
+            skeleton_index[static_cast<size_t>(vertex)] =
+                static_cast<int64_t>(skeleton.size());
+            skeleton.push_back(static_cast<NodeID_>(vertex));
         }
     }
     timer.Stop();
     PrintTime("Corridor Wavefront Degree Time", timer.Seconds());
 
     timer.Start();
-    std::vector<size_t> seed_cursor(
-        MAX_SEED_BUCKET + 1, 0);
-    std::vector<uint8_t> visited(static_cast<size_t>(n), 0);
+    const NodeID_ INVALID = static_cast<NodeID_>(-1);
+    struct Corridor {
+        NodeID_ first;
+        NodeID_ second;
+        size_t offset;
+        size_t length;
+    };
+    struct Cycle {
+        size_t offset;
+        size_t length;
+    };
+    struct Trace {
+        NodeID_ endpoint;
+        NodeID_ last;
+        size_t length;
+    };
+    auto next_after = [&](NodeID_ current, NodeID_ previous) -> NodeID_ {
+        NodeID_ next = INVALID;
+        for_each_sym_neigh(g, current, [&](NodeID_ neighbor) {
+            if (neighbor != previous && next == INVALID) {
+                next = neighbor;
+            }
+        });
+        return next;
+    };
+    auto trace = [&](NodeID_ endpoint, NodeID_ first, auto visitor) {
+        NodeID_ previous = endpoint;
+        NodeID_ current = first;
+        NodeID_ last = endpoint;
+        size_t length = 0;
+        while (
+            current != INVALID
+            && degree[static_cast<size_t>(current)] == 2
+        ) {
+            visitor(current, length);
+            ++length;
+            last = current;
+            const NodeID_ next = next_after(current, previous);
+            previous = current;
+            current = next;
+            if (length > static_cast<size_t>(n)) {
+                return Trace{INVALID, last, length};
+            }
+        }
+        return Trace{current, last, length};
+    };
+    auto owns = [](NodeID_ endpoint, NodeID_ first, const Trace& path) {
+        if (path.endpoint == static_cast<NodeID_>(-1)) return false;
+        if (endpoint != path.endpoint) {
+            return endpoint < path.endpoint;
+        }
+        return first < path.last;
+    };
+
+    const size_t skeleton_count = skeleton.size();
+    std::vector<size_t> corridor_count(skeleton_count, 0);
+    std::vector<size_t> corridor_vertex_count(skeleton_count, 0);
+    std::atomic<bool> invalid_trace{false};
+    #pragma omp parallel for schedule(dynamic, 1024)
+    for (int64_t skeleton_id = 0;
+         skeleton_id < static_cast<int64_t>(skeleton_count);
+         ++skeleton_id) {
+        const NodeID_ endpoint =
+            skeleton[static_cast<size_t>(skeleton_id)];
+        size_t local_corridors = 0;
+        size_t local_vertices = 0;
+        for_each_sym_neigh(g, endpoint, [&](NodeID_ neighbor) {
+            if (degree[static_cast<size_t>(neighbor)] == 2) {
+                const Trace path = trace(
+                    endpoint, neighbor, [](NodeID_, size_t) {});
+                if (
+                    path.endpoint == INVALID
+                    || skeleton_index[
+                        static_cast<size_t>(path.endpoint)] < 0
+                ) {
+                    invalid_trace.store(true, std::memory_order_relaxed);
+                    return;
+                }
+                if (owns(endpoint, neighbor, path)) {
+                    ++local_corridors;
+                    local_vertices += path.length;
+                }
+            } else if (neighbor != endpoint && endpoint < neighbor) {
+                ++local_corridors;
+            }
+        });
+        corridor_count[static_cast<size_t>(skeleton_id)] =
+            local_corridors;
+        corridor_vertex_count[static_cast<size_t>(skeleton_id)] =
+            local_vertices;
+    }
+    if (invalid_trace.load(std::memory_order_relaxed)) {
+        throw std::runtime_error(
+            "Corridor wavefront found an invalid degree-2 chain");
+    }
+
+    std::vector<size_t> corridor_offsets(skeleton_count + 1, 0);
+    std::vector<size_t> corridor_vertex_offsets(
+        skeleton_count + 1, 0);
+    for (size_t index = 0; index < skeleton_count; ++index) {
+        corridor_offsets[index + 1] =
+            corridor_offsets[index] + corridor_count[index];
+        corridor_vertex_offsets[index + 1] =
+            corridor_vertex_offsets[index]
+            + corridor_vertex_count[index];
+    }
+    std::vector<Corridor> corridors(
+        corridor_offsets[skeleton_count]);
+    std::vector<NodeID_> corridor_vertices(
+        corridor_vertex_offsets[skeleton_count]);
+    std::vector<uint8_t> covered(static_cast<size_t>(n), 0);
+
+    #pragma omp parallel for schedule(dynamic, 1024)
+    for (int64_t skeleton_id = 0;
+         skeleton_id < static_cast<int64_t>(skeleton_count);
+         ++skeleton_id) {
+        const size_t index = static_cast<size_t>(skeleton_id);
+        const NodeID_ endpoint = skeleton[index];
+        size_t corridor_position = corridor_offsets[index];
+        size_t vertex_position = corridor_vertex_offsets[index];
+        for_each_sym_neigh(g, endpoint, [&](NodeID_ neighbor) {
+            if (degree[static_cast<size_t>(neighbor)] == 2) {
+                const Trace path = trace(
+                    endpoint, neighbor, [](NodeID_, size_t) {});
+                if (!owns(endpoint, neighbor, path)) return;
+                const size_t start = vertex_position;
+                const Trace filled = trace(
+                    endpoint,
+                    neighbor,
+                    [&](NodeID_ vertex, size_t offset) {
+                        corridor_vertices[start + offset] = vertex;
+                        covered[static_cast<size_t>(vertex)] = 1;
+                    });
+                corridors[corridor_position++] = {
+                    endpoint,
+                    filled.endpoint,
+                    start,
+                    filled.length,
+                };
+                vertex_position += filled.length;
+            } else if (neighbor != endpoint && endpoint < neighbor) {
+                corridors[corridor_position++] = {
+                    endpoint,
+                    neighbor,
+                    vertex_position,
+                    0,
+                };
+            }
+        });
+    }
+
+    std::vector<Cycle> cycles;
+    for (int64_t vertex = 0; vertex < n; ++vertex) {
+        if (
+            degree[static_cast<size_t>(vertex)] != 2
+            || covered[static_cast<size_t>(vertex)]
+        ) {
+            continue;
+        }
+        const size_t offset = corridor_vertices.size();
+        NodeID_ previous = INVALID;
+        NodeID_ current = static_cast<NodeID_>(vertex);
+        while (!covered[static_cast<size_t>(current)]) {
+            covered[static_cast<size_t>(current)] = 1;
+            corridor_vertices.push_back(current);
+            const NodeID_ next = next_after(current, previous);
+            if (next == INVALID) {
+                throw std::runtime_error(
+                    "Corridor wavefront found an invalid degree-2 cycle");
+            }
+            previous = current;
+            current = next;
+        }
+        cycles.push_back({
+            offset,
+            corridor_vertices.size() - offset,
+        });
+    }
+    timer.Stop();
+    PrintTime("Corridor Wavefront Contraction Time", timer.Seconds());
+
+    timer.Start();
+    std::vector<uint8_t> skeleton_emitted(skeleton_count, 0);
     std::vector<NodeID_> order;
     order.reserve(static_cast<size_t>(n) - isolated.size());
 
-    struct Candidate {
-        uint32_t residual_degree;
-        uint32_t static_degree;
-        NodeID_ vertex;
-    };
-    const int thread_count = omp_get_max_threads();
-    std::vector<std::vector<NodeID_>> discovered(
-        static_cast<size_t>(thread_count));
-    for (auto& buffer : discovered) buffer.reserve(1024);
-    std::vector<NodeID_> frontier;
-    frontier.reserve(4096);
-    std::vector<Candidate> candidates;
-    candidates.reserve(4096);
-
-    auto next_seed = [&]() -> NodeID_ {
-        for (size_t bucket = 1; bucket <= MAX_SEED_BUCKET; ++bucket) {
-            auto& vertices = seed_buckets[bucket];
-            auto& cursor = seed_cursor[bucket];
-            while (
-                cursor < vertices.size()
-                && visited[static_cast<size_t>(vertices[cursor])]
-            ) {
-                ++cursor;
-            }
-            if (cursor < vertices.size()) {
-                return vertices[cursor++];
-            }
+    for (const Corridor& corridor : corridors) {
+        const size_t first = static_cast<size_t>(
+            skeleton_index[static_cast<size_t>(corridor.first)]);
+        const size_t second = static_cast<size_t>(
+            skeleton_index[static_cast<size_t>(corridor.second)]);
+        if (!skeleton_emitted[first]) {
+            skeleton_emitted[first] = 1;
+            order.push_back(corridor.first);
         }
-        return static_cast<NodeID_>(-1);
-    };
-
-    size_t component_count = 0;
-    for (
-        NodeID_ seed = next_seed();
-        seed != static_cast<NodeID_>(-1);
-        seed = next_seed()
-    ) {
-        if (visited[static_cast<size_t>(seed)]) continue;
-        ++component_count;
-        const size_t component_begin = order.size();
-        frontier.clear();
-        visited[static_cast<size_t>(seed)] = 1;
-        frontier.push_back(seed);
-
-        while (!frontier.empty()) {
-            order.insert(
-                order.end(), frontier.begin(), frontier.end());
-            for (auto& buffer : discovered) buffer.clear();
-
-            auto discover = [&](NodeID_ parent, auto& local) {
-                for_each_sym_neigh(g, parent, [&](NodeID_ vertex) {
-                    const size_t vertex_index =
-                        static_cast<size_t>(vertex);
-                    uint8_t expected = 0;
-                    if (__atomic_compare_exchange_n(
-                            &visited[vertex_index],
-                            &expected,
-                            static_cast<uint8_t>(1),
-                            false,
-                            __ATOMIC_RELAXED,
-                            __ATOMIC_RELAXED)) {
-                        local.push_back(vertex);
-                    }
-                });
-            };
-            if (frontier.size() < 256) {
-                auto& local = discovered[0];
-                for (NodeID_ parent : frontier) {
-                    discover(parent, local);
-                }
-            } else {
-                #pragma omp parallel
-                {
-                    const int thread = omp_get_thread_num();
-                    auto& local =
-                        discovered[static_cast<size_t>(thread)];
-                    #pragma omp for schedule(dynamic, 64)
-                    for (int64_t index = 0;
-                         index < static_cast<int64_t>(frontier.size());
-                         ++index) {
-                        discover(
-                            frontier[static_cast<size_t>(index)],
-                            local);
-                    }
-                }
-            }
-
-            candidates.clear();
-            size_t candidate_count = 0;
-            for (const auto& buffer : discovered) {
-                candidate_count += buffer.size();
-            }
-            candidates.reserve(std::max(
-                candidates.capacity(), candidate_count));
-            for (const auto& buffer : discovered) {
-                for (NodeID_ vertex : buffer) {
-                    const size_t vertex_index =
-                        static_cast<size_t>(vertex);
-                    candidates.push_back({
-                        0,
-                        degree[vertex_index],
-                        vertex,
-                    });
-                }
-            }
-
-            #pragma omp parallel for schedule(dynamic, 256) \
-                if(candidates.size() >= 256)
-            for (int64_t index = 0;
-                 index < static_cast<int64_t>(candidates.size());
-                 ++index) {
-                Candidate& candidate =
-                    candidates[static_cast<size_t>(index)];
-                uint32_t residual = 0;
-                for_each_sym_neigh(
-                    g,
-                    candidate.vertex,
-                    [&](NodeID_ neighbor) {
-                        if (!visited[static_cast<size_t>(neighbor)]) {
-                            ++residual;
-                        }
-                    });
-                candidate.residual_degree = residual;
-            }
-            std::sort(
-                candidates.begin(),
-                candidates.end(),
-                [](const Candidate& left, const Candidate& right) {
-                    if (
-                        left.residual_degree
-                        != right.residual_degree
-                    ) {
-                        return (
-                            left.residual_degree
-                            < right.residual_degree);
-                    }
-                    if (left.static_degree != right.static_degree) {
-                        return left.static_degree < right.static_degree;
-                    }
-                    return left.vertex < right.vertex;
-                });
-            frontier.resize(candidates.size());
-            #pragma omp parallel for schedule(static) \
-                if(candidates.size() >= 256)
-            for (int64_t index = 0;
-                 index < static_cast<int64_t>(candidates.size());
-                 ++index) {
-                frontier[static_cast<size_t>(index)] =
-                    candidates[static_cast<size_t>(index)].vertex;
-            }
+        for (size_t index = 0; index < corridor.length; ++index) {
+            order.push_back(
+                corridor_vertices[corridor.offset + index]);
         }
-        std::reverse(
-            order.begin() + static_cast<std::ptrdiff_t>(component_begin),
-            order.end());
+        if (!skeleton_emitted[second]) {
+            skeleton_emitted[second] = 1;
+            order.push_back(corridor.second);
+        }
     }
+    for (size_t index = 0; index < skeleton_count; ++index) {
+        if (!skeleton_emitted[index]) {
+            order.push_back(skeleton[index]);
+        }
+    }
+    for (const Cycle& cycle : cycles) {
+        for (size_t index = 0; index < cycle.length; ++index) {
+            order.push_back(
+                corridor_vertices[cycle.offset + index]);
+        }
+    }
+    std::reverse(order.begin(), order.end());
     timer.Stop();
-    PrintTime("Corridor Wavefront Traversal Time", timer.Seconds());
+    PrintTime("Corridor Wavefront Emit Time", timer.Seconds());
+
+    if (
+        order.size() + isolated.size()
+        != static_cast<size_t>(n)
+    ) {
+        throw std::runtime_error(
+            "Corridor wavefront did not emit every vertex");
+    }
 
     timer.Start();
     #pragma omp parallel for schedule(static)
@@ -1010,8 +1074,14 @@ void GenerateCorridorWavefrontMapping(
     timer.Stop();
     PrintTime("Corridor Wavefront Assign Time", timer.Seconds());
     PrintLabel(
-        "Corridor Wavefront Components",
-        std::to_string(component_count));
+        "Corridor Wavefront Junctions",
+        std::to_string(skeleton.size()));
+    PrintLabel(
+        "Corridor Wavefront Corridors",
+        std::to_string(corridors.size()));
+    PrintLabel(
+        "Corridor Wavefront Cycles",
+        std::to_string(cycles.size()));
     PrintLabel(
         "Corridor Wavefront Isolated",
         std::to_string(isolated.size()));
