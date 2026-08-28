@@ -778,9 +778,10 @@ void GenerateRCMBNFOrderMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
  *
  * This keeps the bandwidth-reducing shape of a reversed degree-guided
  * wavefront without GoGraph conversion or pseudo-peripheral searches.
- * Within each frontier parent, newly discovered vertices are ordered by
- * residual unvisited degree, then static degree, then vertex ID. The dynamic
- * first key keeps low-degree road corridors contiguous before branch points.
+ * Each next level is discovered in parallel, then globally ordered by
+ * residual unvisited degree, static degree, and vertex ID. The dynamic first
+ * key keeps low-degree road corridors contiguous before branch points, while
+ * the global level sort makes the mapping thread-deterministic.
  */
 template <typename NodeID_, typename DestID_, typename WeightT_, bool invert>
 void GenerateCorridorWavefrontMapping(
@@ -831,17 +832,20 @@ void GenerateCorridorWavefrontMapping(
     std::vector<uint8_t> visited(static_cast<size_t>(n), 0);
     std::vector<NodeID_> order;
     order.reserve(static_cast<size_t>(n) - isolated.size());
-    std::vector<NodeID_> queue;
-    queue.reserve(std::min<size_t>(
-        static_cast<size_t>(n), 1ULL << 20));
 
     struct Candidate {
         uint32_t residual_degree;
         uint32_t static_degree;
         NodeID_ vertex;
     };
+    const int thread_count = omp_get_max_threads();
+    std::vector<std::vector<NodeID_>> discovered(
+        static_cast<size_t>(thread_count));
+    for (auto& buffer : discovered) buffer.reserve(1024);
+    std::vector<NodeID_> frontier;
+    frontier.reserve(4096);
     std::vector<Candidate> candidates;
-    candidates.reserve(64);
+    candidates.reserve(4096);
 
     auto next_seed = [&]() -> NodeID_ {
         for (size_t bucket = 1; bucket <= MAX_SEED_BUCKET; ++bucket) {
@@ -869,28 +873,79 @@ void GenerateCorridorWavefrontMapping(
         if (visited[static_cast<size_t>(seed)]) continue;
         ++component_count;
         const size_t component_begin = order.size();
-        queue.clear();
-        size_t head = 0;
+        frontier.clear();
         visited[static_cast<size_t>(seed)] = 1;
-        queue.push_back(seed);
-        order.push_back(seed);
+        frontier.push_back(seed);
 
-        while (head < queue.size()) {
-            const NodeID_ parent = queue[head++];
+        while (!frontier.empty()) {
+            order.insert(
+                order.end(), frontier.begin(), frontier.end());
+            for (auto& buffer : discovered) buffer.clear();
+
+            auto discover = [&](NodeID_ parent, auto& local) {
+                for_each_sym_neigh(g, parent, [&](NodeID_ vertex) {
+                    const size_t vertex_index =
+                        static_cast<size_t>(vertex);
+                    uint8_t expected = 0;
+                    if (__atomic_compare_exchange_n(
+                            &visited[vertex_index],
+                            &expected,
+                            static_cast<uint8_t>(1),
+                            false,
+                            __ATOMIC_RELAXED,
+                            __ATOMIC_RELAXED)) {
+                        local.push_back(vertex);
+                    }
+                });
+            };
+            if (frontier.size() < 256) {
+                auto& local = discovered[0];
+                for (NodeID_ parent : frontier) {
+                    discover(parent, local);
+                }
+            } else {
+                #pragma omp parallel
+                {
+                    const int thread = omp_get_thread_num();
+                    auto& local =
+                        discovered[static_cast<size_t>(thread)];
+                    #pragma omp for schedule(dynamic, 64)
+                    for (int64_t index = 0;
+                         index < static_cast<int64_t>(frontier.size());
+                         ++index) {
+                        discover(
+                            frontier[static_cast<size_t>(index)],
+                            local);
+                    }
+                }
+            }
+
             candidates.clear();
-            for_each_sym_neigh(g, parent, [&](NodeID_ vertex) {
-                const size_t index = static_cast<size_t>(vertex);
-                if (!visited[index]) {
-                    visited[index] = 1;
+            size_t candidate_count = 0;
+            for (const auto& buffer : discovered) {
+                candidate_count += buffer.size();
+            }
+            candidates.reserve(std::max(
+                candidates.capacity(), candidate_count));
+            for (const auto& buffer : discovered) {
+                for (NodeID_ vertex : buffer) {
+                    const size_t vertex_index =
+                        static_cast<size_t>(vertex);
                     candidates.push_back({
                         0,
-                        degree[index],
+                        degree[vertex_index],
                         vertex,
                     });
                 }
-            });
+            }
 
-            for (Candidate& candidate : candidates) {
+            #pragma omp parallel for schedule(dynamic, 256) \
+                if(candidates.size() >= 256)
+            for (int64_t index = 0;
+                 index < static_cast<int64_t>(candidates.size());
+                 ++index) {
+                Candidate& candidate =
+                    candidates[static_cast<size_t>(index)];
                 uint32_t residual = 0;
                 for_each_sym_neigh(
                     g,
@@ -919,9 +974,14 @@ void GenerateCorridorWavefrontMapping(
                     }
                     return left.vertex < right.vertex;
                 });
-            for (const Candidate& candidate : candidates) {
-                queue.push_back(candidate.vertex);
-                order.push_back(candidate.vertex);
+            frontier.resize(candidates.size());
+            #pragma omp parallel for schedule(static) \
+                if(candidates.size() >= 256)
+            for (int64_t index = 0;
+                 index < static_cast<int64_t>(candidates.size());
+                 ++index) {
+                frontier[static_cast<size_t>(index)] =
+                    candidates[static_cast<size_t>(index)].vertex;
             }
         }
         std::reverse(
