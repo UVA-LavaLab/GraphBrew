@@ -238,13 +238,8 @@ inline void ApplyBasicReorderingStandalone(
             std::string variant = resolveVariant(options);
             if (variant == "bnf") {
                 ::GenerateRCMBNFOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
-            } else if (variant == "wavefront") {
-                ::GenerateCorridorWavefrontMapping<
-                    NodeID_, DestID_, WeightT_, invert>(
-                        g, new_ids, filename);
             } else {
-                warnUnknownVariant(
-                    variant, "RCMOrder", {"bnf", "wavefront"});
+                warnUnknownVariant(variant, "RCMOrder", {"bnf"});
                 ::GenerateRCMOrderMapping<NodeID_, DestID_, WeightT_, invert>(g, new_ids, filename);
             }
             break;

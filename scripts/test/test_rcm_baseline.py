@@ -82,22 +82,13 @@ def _bandwidth(new_to_source: tuple[int, ...]) -> int:
 
 
 def test_rcm_variant_naming_contract():
-    assert RCM_VARIANTS == (
-        "default", "mind", "bnf", "wavefront",
-    )
+    assert RCM_VARIANTS == ("default", "mind", "bnf")
     assert canonical_name_from_converter_opt("11") == "RCM_default"
     assert canonical_name_from_converter_opt("11:mind") == "RCM_mind"
     assert canonical_name_from_converter_opt("11:bnf") == "RCM_bnf"
-    assert (
-        canonical_name_from_converter_opt("11:wavefront")
-        == "RCM_wavefront"
-    )
 
 
-@pytest.mark.parametrize(
-    "option",
-    ["11", "11:mind", "11:bnf", "11:wavefront"],
-)
+@pytest.mark.parametrize("option", ["11", "11:mind", "11:bnf"])
 def test_rcm_variants_are_thread_deterministic(tmp_path, option):
     _require(CONVERTER)
     one = _mapping(tmp_path, option, 1, f"{option}-one")
@@ -107,10 +98,7 @@ def test_rcm_variants_are_thread_deterministic(tmp_path, option):
     assert one == four == repeat
 
 
-@pytest.mark.parametrize(
-    "option",
-    ["11:mind", "11:bnf", "11:wavefront"],
-)
+@pytest.mark.parametrize("option", ["11:mind", "11:bnf"])
 def test_explicit_single_pass_rcm_variants_reduce_path_bandwidth(
     tmp_path,
     option,
@@ -133,7 +121,6 @@ def test_historical_default_is_distinct_from_single_pass_mind(tmp_path):
     ("11", "RCM_default"),
     ("11:mind", "RCM_mind"),
     ("11:bnf", "RCM_bnf"),
-    ("11:wavefront", "RCM_wavefront"),
 ])
 def test_cpp_self_recording_preserves_rcm_variant(
     tmp_path,
