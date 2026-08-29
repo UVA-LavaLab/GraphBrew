@@ -67,9 +67,10 @@ intervals are recorded in
 
 | Objective | First measured configuration | What is proved |
 |---|---|---|
-| Fixed Rabbit-free quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Fresh kernel GMs are 1.042x, 1.044x, and 1.052x versus Rabbit CSR, Rabbit Boost, and GORDER_csr. GraphBrew maps at 0.752x GORDER_csr cost but 17–19x Rabbit cost. |
+| GORDER-quality replacement | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | GraphBrew is 1.052x faster in kernel GM, maps at 0.752x GORDER_csr cost, and wins end to end from reuse one. Rabbit remains 17–19x cheaper to map and faster in summed kernel seconds. |
+| Workload-specific composition | Nine-arm Rabbit-free atlas | Eight compositions win cells; the cell oracle is 1.122x faster than the best fixed GraphBrew arm. This proves design-space diversity, not automatic selection. |
 | Mapping construction | `12:leiden:compose:sg_none:comm_identity:intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1` | Compact-and-Emit preserves the BFS permutation and reaches 0.479x min-Rabbit mapping GM on five development graphs. ORIGINAL closes the low-reuse ordering claim. |
-| Automated selection | none promoted | The in-sample oracle reaches 1.062x, but the best fixed and graph-held-out policies reach 0.946x and 0.907x. |
+| Automated selection | none promoted | The in-sample oracle reaches 1.062x, but graph-held-out kernel and family+kernel policies reach 0.907x and 0.911x. |
 | Road/mesh diagnosis | Compare `12:hrab`, `12:hrab:bfs_intra`, `11:bnf`, and both Rabbits | HRAB-RCM has the best point estimate on the single road and mesh graphs, but each type has one graph, so this is descriptive rather than a general recommendation. |
 | Unknown workload | `0`, `8:csr`, `8:boost`, plus one objective-matched COMPOSE row | Measure kernel-only quality and end-to-end time separately. Graph type alone does not identify the winner. |
 

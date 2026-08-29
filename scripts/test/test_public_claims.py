@@ -51,6 +51,21 @@ def test_public_evidence_has_only_current_claims():
     assert atlas["in_sample_oracle_over_fastest_comparator_gm"] > 1.0
     assert atlas["best_fixed_over_fastest_comparator_gm"] < 1.0
     assert atlas["graph_held_out_over_fastest_comparator_gm"] < 1.0
+    dependence = atlas["workload_dependence"]
+    assert dependence["distinct_winning_compositions"] == 8
+    assert dependence["cell_oracle_over_best_fixed_graphbrew_gm"] > 1.1
+    assert (
+        dependence[
+            "postselected_graph_type_kernel_over_fastest_comparator_gm"
+        ]
+        > 1.0
+    )
+    assert (
+        dependence[
+            "held_out_graph_type_kernel_over_fastest_comparator_gm"
+        ]
+        < 1.0
+    )
     assert not (PROJECT_ROOT / "docs/allkernel-lowreuse-evidence.json").exists()
 
 
@@ -77,6 +92,8 @@ def test_public_story_matches_claim_boundary():
         "1.044x",
         "1.052x",
         "0.752x",
+        "1.122x",
+        "0.911x",
         "0.907x",
     ):
         assert required in story

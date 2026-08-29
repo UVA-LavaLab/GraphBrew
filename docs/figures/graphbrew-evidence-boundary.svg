@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v4">
   <title id="title">GraphBrew evidence boundary</title>
-  <desc id="desc">Confirmed quality and construction claims are separated from post-selected or graph-held-out failures.</desc>
+  <desc id="desc">The confirmed Gorder replacement and construction optimization are separated from the Rabbit limit and post-selected composition headroom.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
@@ -30,36 +30,48 @@
   <text x="42" y="47" class="sans title">GraphBrew evidence boundary</text>
   <text x="42" y="75" class="sans subtitle">Values are frozen geometric means; arrows above one favor GraphBrew unless labeled as mapping cost.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
-  <rect x="25" y="120" width="350" height="390" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <text x="50" y="158" class="sans domain">CONFIRMED: FIXED QUALITY</text>
-  <text x="50" y="198" class="sans heading">LeidenGVE-SizeDesc-LocalGorder8</text>
-  <text x="50" y="238" class="mono small">Rabbit CSR / GraphBrew = 1.042x</text>
-  <text x="50" y="270" class="mono small">Rabbit Boost / GraphBrew = 1.044x</text>
-  <text x="50" y="302" class="mono small">GORDER_csr / GraphBrew = 1.052x</text>
-  <text x="50" y="350" class="mono small">GraphBrew / GORDER_csr map = 0.752x</text>
-  <text x="50" y="400" class="sans body">Quality point, not per-cell dominance.</text>
-  <text x="50" y="434" class="sans body">Rabbit break-even: 37k-40k reuses.</text>
-  <text x="50" y="468" class="sans body">Summed Rabbit seconds never cross.</text>
-  <rect x="425" y="120" width="350" height="390" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
-  <text x="450" y="158" class="sans domain">CONFIRMED: CONSTRUCTION</text>
-  <text x="450" y="198" class="sans heading">Compact-and-Emit</text>
-  <text x="450" y="238" class="sans body">Compact active community IDs.</text>
-  <text x="450" y="270" class="sans body">Emit final IDs during BFS.</text>
-  <text x="450" y="318" class="mono small">candidate / min-Rabbit map = 0.479x</text>
-  <text x="450" y="350" class="mono small">Wiki-Talk complete map = 0.310s</text>
-  <text x="450" y="400" class="sans body">Final BFS permutation is preserved.</text>
-  <text x="450" y="434" class="sans body">ORIGINAL audit closes low-reuse claim.</text>
-  <text x="450" y="468" class="sans body">This is a systems optimization.</text>
-  <rect x="825" y="120" width="350" height="390" rx="10" fill="#F7DEDC" stroke="#27313A" stroke-width="3"/>
-  <text x="850" y="158" class="sans domain">REJECTED: ADAPTIVE HEADLINE</text>
-  <text x="850" y="198" class="sans heading">Corrected composition atlas</text>
-  <text x="850" y="242" class="mono small">in-sample oracle = 1.062x</text>
-  <text x="850" y="274" class="mono small">best fixed arm = 0.946x</text>
-  <text x="850" y="306" class="mono small">graph-held-out = 0.907x</text>
-  <text x="850" y="360" class="sans body">Oracle headroom is post-selected.</text>
-  <text x="850" y="394" class="sans body">Held-out selection loses overall.</text>
-  <text x="850" y="428" class="sans body">No generator or selector claim.</text>
-  <text x="850" y="462" class="sans body">Failed portal hooks were removed.</text>
+  <rect x="20" y="120" width="275" height="390" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <text x="40" y="158" class="sans domain">CONFIRMED: PRIMARY</text>
+  <text x="40" y="198" class="sans heading">GORDER replacement</text>
+  <text x="40" y="224" class="sans small">LeidenGVE-SizeDesc-</text>
+  <text x="40" y="246" class="sans small">LocalGorder8</text>
+  <text x="40" y="280" class="mono small">GORDER / GB kernel = 1.052x</text>
+  <text x="40" y="310" class="mono small">GB / GORDER map = 0.752x</text>
+  <text x="40" y="340" class="mono small">GORDER/GB E2E@1 = 1.332x</text>
+  <text x="40" y="370" class="mono micro">GB/GORDER sum kernel = 0.874x</text>
+  <text x="40" y="416" class="sans body">Faster kernels and cheaper map.</text>
+  <text x="40" y="450" class="sans body">End-to-end win from reuse one.</text>
+  <rect x="315" y="120" width="275" height="390" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
+  <text x="335" y="158" class="sans domain">CONFIRMED: SYSTEMS</text>
+  <text x="335" y="198" class="sans heading">Compact-and-Emit</text>
+  <text x="335" y="238" class="sans body">Compact active IDs.</text>
+  <text x="335" y="270" class="sans body">Emit final IDs during BFS.</text>
+  <text x="335" y="318" class="mono small">candidate/min-Rabbit</text>
+  <text x="335" y="340" class="mono small">map GM = 0.479x</text>
+  <text x="335" y="372" class="mono small">Wiki-Talk map = 0.310s</text>
+  <text x="335" y="412" class="sans body">BFS permutation is preserved.</text>
+  <text x="335" y="442" class="sans body">ORIGINAL closes low-reuse claim.</text>
+  <text x="335" y="472" class="sans body">Construction optimization only.</text>
+  <rect x="610" y="120" width="275" height="390" rx="10" fill="#F7DEDC" stroke="#27313A" stroke-width="3"/>
+  <text x="630" y="158" class="sans domain">LIMITATION: RABBIT</text>
+  <text x="630" y="198" class="sans heading">Not a practical win</text>
+  <text x="630" y="246" class="mono small">Rabbit/GB cell GM = 1.042x</text>
+  <text x="630" y="278" class="mono small">GB/Rabbit map = 18.5x</text>
+  <text x="630" y="310" class="mono micro">GB/Rabbit sum kernel = 1.243x</text>
+  <text x="630" y="342" class="mono small">without CC = 0.982x</text>
+  <text x="630" y="392" class="sans body">17-19x mapping overhead.</text>
+  <text x="630" y="426" class="sans body">No summed-time crossover.</text>
+  <text x="630" y="460" class="sans body">Rabbit remains Pareto anchor.</text>
+  <rect x="905" y="120" width="275" height="390" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
+  <text x="925" y="158" class="sans domain">SUPPORTED: DESIGN SPACE</text>
+  <text x="925" y="198" class="sans heading">Composition matters</text>
+  <text x="925" y="246" class="mono small">winning arms = 8/9</text>
+  <text x="925" y="278" class="mono small">oracle / fixed GB = 1.122x</text>
+  <text x="925" y="310" class="mono small">type+kernel = 1.033x</text>
+  <text x="925" y="342" class="mono micro">held-out type+kernel = 0.911x</text>
+  <text x="925" y="392" class="sans body">2-5 winners within each graph.</text>
+  <text x="925" y="426" class="sans body">Expressiveness is established.</text>
+  <text x="925" y="460" class="sans body">Automatic selection is not.</text>
   <rect x="144" y="545" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="572" class="sans small" text-anchor="middle">Public claim: explicit composition framework + fixed quality arm + Compact-and-Emit. Nothing else is promoted.</text>
+  <text x="600" y="572" class="sans small" text-anchor="middle">Public claim: GORDER replacement + workload-dependent composition + Compact-and-Emit; Rabbit is the Pareto boundary.</text>
 </svg>

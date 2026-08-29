@@ -11,7 +11,7 @@ It changes vertex IDs and CSR placement, not graph topology.
 
 [![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)
 
-## Confirmed quality composition
+## Confirmed GORDER-quality composition
 
 ```text
 12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8
@@ -26,9 +26,10 @@ It changes vertex IDs and CSR placement, not graph topology.
 | Block layout | community size descending |
 | Vertex layout | relaxed local Gorder, window 8 |
 
-This fixed composition is the paper’s quality point. It beats each Rabbit
-implementation and GORDER_csr in kernel geometric mean, maps faster than
-GORDER_csr, and remains far more expensive to construct than Rabbit.
+This fixed composition is the paper’s practical performance point relative to
+GORDER_csr: 1.052x kernel GM, 0.752x mapping cost, and an end-to-end win from
+reuse one. Rabbit remains faster in summed kernel seconds and 17–19x cheaper
+to map, so Rabbit is a Pareto limitation rather than a headline victory.
 `LocalGorder8` distinguishes this relaxed per-community heuristic from the
 faithful standalone `GORDER_csr` comparator.
 
@@ -68,6 +69,19 @@ Common explicit tokens:
 
 Every published configuration pins all changed axes. Changing any token
 creates a different treatment.
+
+## Why composition matters
+
+The historical nine-arm atlas does not produce one universal winner. Eight
+compositions win at least one graph-kernel cell; each graph uses two to five
+different winners across kernels, and each kernel uses three to eight winners
+across graphs. The per-cell oracle is 1.122x faster than the best fixed
+GraphBrew composition.
+
+This is evidence that the three stages expose useful workload-dependent
+choices. It is not evidence that graph type alone predicts those choices:
+the graph-held-out family+kernel rule reaches only 0.911x against the fastest
+comparator.
 
 ## Running example
 

@@ -19,26 +19,28 @@ GraphBrew makes each composition explicit, records the realized mapping, and
 measures mapping cost, kernel behavior, executed work, and amortized
 end-to-end time separately.
 
-The current paper supports two contributions:
+The current paper supports two measured contributions and one bounded
+composability result:
 
-1. **Fixed quality composition.**
+1. **Faster, lower-cost GORDER-quality composition.**
    `LeidenGVE-SizeDesc-LocalGorder8`
 
    ```text
    12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8
    ```
 
-   On the fresh 11-graph, seven-kernel confirmation, comparator/GraphBrew
-   kernel-time geometric means are:
+   On the fresh 11-graph, seven-kernel confirmation:
 
-   | Comparator | Kernel GM | GraphBrew/comparator mapping GM |
-   |---|---:|---:|
-   | Rabbit CSR | 1.042x | 18.52x |
-   | Rabbit Boost | 1.044x | 17.35x |
-   | GORDER_csr | 1.052x | 0.752x |
+   | Primary comparison | Result |
+   |---|---:|
+   | GORDER_csr / GraphBrew kernel GM | 1.052x |
+   | GraphBrew / GORDER_csr mapping GM | 0.752x |
+   | GORDER_csr / GraphBrew end-to-end GM at reuse 1 | 1.332x |
 
-   This is a **quality point**, not universal dominance. Rabbit break-even is
-   roughly 37,000–40,000 reuses, and summed Rabbit seconds never cross.
+   Rabbit is the practical Pareto limitation, not the headline win.
+   GraphBrew’s per-cell kernel GM is only 1.042x/1.044x versus Rabbit
+   CSR/Boost, while mapping costs 18.52x/17.35x as much. Without Afforest CC,
+   GraphBrew loses the Rabbit GM, and summed kernel seconds are about 24% worse.
 
 2. **Compact-and-Emit.**
    A one-pass construction optimization that compacts active community IDs
@@ -54,12 +56,23 @@ The current paper supports two contributions:
    no low-reuse region that beats both doing nothing and Rabbit, so this is a
    **mapping-construction contribution**, not a balanced ordering claim.
 
+3. **Workload-dependent composition space.**
+   In the historical nine-arm atlas, eight distinct compositions win at least
+   one graph-kernel cell. Every graph selects between two and five different
+   compositions across kernels, and every kernel selects between three and
+   eight compositions across graphs. The per-cell oracle is **1.122x faster
+   than the best fixed GraphBrew arm** and **1.062x faster than the fastest
+   Rabbit/GORDER comparator**.
+
+   This proves useful compositional diversity, not automatic selection. The
+   post-selected graph-type-plus-kernel table reaches 1.033x, but its
+   graph-held-out counterpart reaches only 0.911x.
+
 ![GraphBrew evidence boundary](./docs/figures/graphbrew-evidence-boundary.svg)
 
-The corrected composition atlas reinforces the boundary: the in-sample oracle
-reaches 1.062x over the fastest comparator, but the best fixed arm reaches
-0.946x and graph-held-out selection reaches 0.907x. GraphBrew therefore makes
-no automated-generator or universal-selector claim.
+The corrected composition atlas therefore supports a workload-specific
+**design-space** claim while rejecting a deployable automatic-generator or
+universal-selector claim.
 
 Machine-readable claim values and source hashes are in
 [`docs/recommendation-evidence.json`](docs/recommendation-evidence.json).

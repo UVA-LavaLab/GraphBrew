@@ -43,6 +43,7 @@ def test_public_claims_match_frozen_evidence():
     )
     _load_source(sources["compact_and_emit_original_audit"])
     atlas = _load_source(sources["composition_atlas"])
+    composability = _load_source(sources["composability_certificate"])
     invalidation = _load_source(sources["invalidated_terminal_timing"])
 
     claims = evidence["confirmed_claims"]
@@ -75,6 +76,53 @@ def test_public_claims_match_frozen_evidence():
             "cell_gm_crossover"
         ]["reuse"],
     }
+    gorder_claim = quality_claim["primary_gorder_claim"]
+    gorder_e2e = quality["end_to_end"]["gorder_csr"]
+    assert gorder_claim[
+        "gorder_csr_over_graphbrew_reuse1_end_to_end_cell_gm"
+    ] == pytest.approx(
+        gorder_e2e["cell_gm_baseline_over_graphbrew"]["1"]
+    )
+    assert gorder_claim[
+        "gorder_csr_over_graphbrew_reuse1_summed_seconds"
+    ] == pytest.approx(
+        gorder_e2e["summed_seconds_shared_mapping_once_per_graph"][
+            "crossover"
+        ]["ratio_at_reuse"]
+    )
+    assert gorder_claim[
+        "graphbrew_over_gorder_csr_summed_kernel_seconds"
+    ] == pytest.approx(
+        quality["comparisons"]["gorder_csr"]["summed_kernel_seconds"][
+            "graphbrew_over_baseline"
+        ]
+    )
+
+    rabbit_limit = quality_claim["rabbit_pareto_limit"]
+    assert rabbit_limit[
+        "rabbit_csr_over_graphbrew_without_cc_gm"
+    ] == pytest.approx(
+        quality["verdict"]["leave_cc_out_gm"]["rabbit_csr"]
+    )
+    assert rabbit_limit[
+        "rabbit_boost_over_graphbrew_without_cc_gm"
+    ] == pytest.approx(
+        quality["verdict"]["leave_cc_out_gm"]["rabbit_boost"]
+    )
+    assert rabbit_limit[
+        "graphbrew_over_rabbit_csr_summed_kernel_seconds"
+    ] == pytest.approx(
+        quality["comparisons"]["rabbit_csr"]["summed_kernel_seconds"][
+            "graphbrew_over_baseline"
+        ]
+    )
+    assert rabbit_limit[
+        "graphbrew_over_rabbit_boost_summed_kernel_seconds"
+    ] == pytest.approx(
+        quality["comparisons"]["rabbit_boost"]["summed_kernel_seconds"][
+            "graphbrew_over_baseline"
+        ]
+    )
 
     compact_claim = claims["compact_and_emit"]["mapping_only"]
     assert compact_claim["wiki_talk_complete_seconds"] == pytest.approx(
@@ -114,6 +162,46 @@ def test_public_claims_match_frozen_evidence():
     ] == pytest.approx(
         atlas["leave_one_graph_out_kernel_policy"][
             "competitor_over_policy_gm"
+        ]
+    )
+    dependence = atlas_claim["workload_dependence"]
+    diversity = composability["winner_diversity"]
+    policies = composability["policy_results"]
+    assert dependence["distinct_winning_compositions"] == (
+        diversity["distinct_winning_compositions"]
+    )
+    assert dependence["candidate_compositions"] == (
+        composability["scope"]["candidate_compositions"]
+    )
+    assert dependence["minimum_distinct_winners_per_graph"] == (
+        diversity["minimum_distinct_winners_per_graph"]
+    )
+    assert dependence["maximum_distinct_winners_per_graph"] == (
+        diversity["maximum_distinct_winners_per_graph"]
+    )
+    assert dependence["minimum_distinct_winners_per_kernel"] == (
+        diversity["minimum_distinct_winners_per_kernel"]
+    )
+    assert dependence["maximum_distinct_winners_per_kernel"] == (
+        diversity["maximum_distinct_winners_per_kernel"]
+    )
+    assert dependence[
+        "cell_oracle_over_best_fixed_graphbrew_gm"
+    ] == pytest.approx(
+        policies["cell_oracle"]["best_fixed_graphbrew_over_policy_gm"]
+    )
+    assert dependence[
+        "postselected_graph_type_kernel_over_fastest_comparator_gm"
+    ] == pytest.approx(
+        policies["graph_type_kernel_conditioned"][
+            "fastest_comparator_over_policy_gm"
+        ]
+    )
+    assert dependence[
+        "held_out_graph_type_kernel_over_fastest_comparator_gm"
+    ] == pytest.approx(
+        policies["leave_one_graph_out_family_kernel"][
+            "fastest_comparator_over_policy_gm"
         ]
     )
     assert invalidation["schema"].startswith(

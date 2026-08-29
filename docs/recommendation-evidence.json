@@ -1,7 +1,7 @@
 {
   "schema": "graphbrew-public-evidence/v2",
   "generated_at_utc": "2026-08-29T17:00:00Z",
-  "story": "GraphBrew is an explicit composition framework with one confirmed quality configuration and one mapping-construction optimization. It does not claim a universal selector or a Rabbit-cost-balanced ordering.",
+  "story": "GraphBrew is an explicit composition framework with a faster, lower-cost GORDER-quality configuration and a separate mapping-construction optimization. Rabbit remains the practical low-overhead Pareto point, not a GraphBrew end-to-end victory.",
   "methodology": {
     "kernel_ratio": "Comparator median kernel time divided by GraphBrew median kernel time; values above one favor GraphBrew.",
     "mapping_ratio": "GraphBrew complete mapping time divided by comparator complete mapping time; values below one favor GraphBrew.",
@@ -35,6 +35,11 @@
       "sha256": "d3348b6be13db55f3835cfb05f6cf9e542564ed5d31706744061b83f61368292",
       "final_receipt_sha256": "3d701a9b71993c2d83d351186ba2c9f1b7fb0ae13995590872939092e2e73911"
     },
+    "composability_certificate": {
+      "path": "composition_oracle_atlas_v1/composability_certificate_v1.json",
+      "sha256": "f4d7a1784289db0832be1a5f2309ce6c768272e8070cef3650e8eeaad35f50a7",
+      "final_receipt_sha256": "9bd055b6332ee9b2c8ff95f67b1fdfcde53ece1f05025e9ed39e76031caa1d2a"
+    },
     "invalidated_terminal_timing": {
       "path": "dual_arm_native_v1/native_midreuse_terminal_v1/invalidation.json",
       "sha256": "082f0a2bf2dbbbae2420aeface0ec533247c108c6efc0bf752cb93a7905d79f4"
@@ -59,7 +64,20 @@
         "csr": 39874,
         "boost": 37455
       },
-      "caveat": "This is a fixed quality point. The Rabbit margin is driven by order-dependent Afforest CC work, the fastest per-cell comparator remains faster overall, and summed Rabbit seconds never cross."
+      "primary_gorder_claim": {
+        "gorder_csr_over_graphbrew_reuse1_end_to_end_cell_gm": 1.3319462740559416,
+        "gorder_csr_over_graphbrew_reuse1_summed_seconds": 4.613347134954324,
+        "graphbrew_over_gorder_csr_summed_kernel_seconds": 0.873677880016478,
+        "summed_end_to_end_break_even_reuse": 1
+      },
+      "rabbit_pareto_limit": {
+        "rabbit_csr_over_graphbrew_without_cc_gm": 0.9815464679872462,
+        "rabbit_boost_over_graphbrew_without_cc_gm": 0.9833876270532612,
+        "graphbrew_over_rabbit_csr_summed_kernel_seconds": 1.2434685951701558,
+        "graphbrew_over_rabbit_boost_summed_kernel_seconds": 1.2417526168197566,
+        "summed_end_to_end_crossover": null
+      },
+      "caveat": "The defensible performance claim is versus GORDER_csr: GraphBrew is faster in kernel GM, maps 24.8% cheaper, and wins end to end from reuse one. The 4% Rabbit per-cell GM is driven by Afforest CC, disappears without CC, requires 17-19x mapping cost, and never becomes a summed-seconds win."
     },
     "compact_and_emit": {
       "name": "Compact-and-Emit",
@@ -80,7 +98,18 @@
       "best_fixed_over_fastest_comparator_gm": 0.9461789628968205,
       "graph_held_out_over_fastest_comparator_gm": 0.9066338550547385,
       "graph_held_out_wins": 30,
-      "caveat": "The oracle is post-selected headroom. Fixed and graph-held-out results reject an automated composition-generator claim from the current library."
+      "workload_dependence": {
+        "distinct_winning_compositions": 8,
+        "candidate_compositions": 9,
+        "minimum_distinct_winners_per_graph": 2,
+        "maximum_distinct_winners_per_graph": 5,
+        "minimum_distinct_winners_per_kernel": 3,
+        "maximum_distinct_winners_per_kernel": 8,
+        "cell_oracle_over_best_fixed_graphbrew_gm": 1.1221541921299434,
+        "postselected_graph_type_kernel_over_fastest_comparator_gm": 1.033273994060651,
+        "held_out_graph_type_kernel_over_fastest_comparator_gm": 0.9107323703635113
+      },
+      "caveat": "The atlas establishes compositional expressiveness: eight arms win cells and the cell oracle is 1.122x faster than the best fixed GraphBrew arm. It does not establish graph-type generalization: six of seven types are singletons and the held-out family/kernel policy reaches only 0.911x."
     }
   },
   "rejected_claims": [

@@ -827,7 +827,7 @@ def generate_architecture(payload: dict) -> str:
     svg.text(50, 142, "FRAMEWORK", "domain")
     svg.text(50, 172, "Explicit partition / block / vertex choices", "small")
     svg.rect(425, 112, 350, 82, GREEN, stroke_width=3)
-    svg.text(450, 142, "CONFIRMED QUALITY ARM", "domain")
+    svg.text(450, 142, "GORDER REPLACEMENT POINT", "domain")
     svg.text(450, 172, "LeidenGVE - SizeDesc - LocalGorder8", "small")
     svg.rect(825, 112, 350, 82, AMBER, stroke_width=3)
     svg.text(850, 142, "SYSTEMS OPTIMIZATION", "domain")
@@ -1651,88 +1651,142 @@ def generate_evidence_boundary(payload: dict) -> str:
         620,
         "GraphBrew evidence boundary",
         (
-            "Confirmed quality and construction claims are separated from "
-            "post-selected or graph-held-out failures."
+            "The confirmed Gorder replacement and construction optimization "
+            "are separated from the Rabbit limit and post-selected "
+            "composition headroom."
         ),
         "Values are frozen geometric means; arrows above one favor GraphBrew unless labeled as mapping cost.",
     )
-    svg.rect(25, 120, 350, 390, GREEN, stroke_width=3)
-    svg.text(50, 158, "CONFIRMED: FIXED QUALITY", "domain")
-    svg.text(50, 198, quality["name"], "heading")
+    svg.rect(20, 120, 275, 390, GREEN, stroke_width=3)
+    svg.text(40, 158, "CONFIRMED: PRIMARY", "domain")
+    svg.text(40, 198, "GORDER replacement", "heading")
+    svg.text(40, 224, "LeidenGVE-SizeDesc-", "small")
+    svg.text(40, 246, "LocalGorder8", "small")
     svg.mono(
-        50, 238,
-        f"Rabbit CSR / GraphBrew = {quality['kernel_gm']['rabbit_csr_over_graphbrew']:.3f}x",
+        40, 280,
+        f"GORDER / GB kernel = {quality['kernel_gm']['gorder_csr_over_graphbrew']:.3f}x",
         "small",
     )
     svg.mono(
-        50, 270,
-        f"Rabbit Boost / GraphBrew = {quality['kernel_gm']['rabbit_boost_over_graphbrew']:.3f}x",
+        40, 310,
+        f"GB / GORDER map = {quality['mapping_gm']['graphbrew_over_gorder_csr']:.3f}x",
         "small",
     )
     svg.mono(
-        50, 302,
-        f"GORDER_csr / GraphBrew = {quality['kernel_gm']['gorder_csr_over_graphbrew']:.3f}x",
+        40, 340,
+        "GORDER/GB E2E@1 = "
+        f"{quality['primary_gorder_claim']['gorder_csr_over_graphbrew_reuse1_end_to_end_cell_gm']:.3f}x",
         "small",
     )
     svg.mono(
-        50, 350,
-        f"GraphBrew / GORDER_csr map = {quality['mapping_gm']['graphbrew_over_gorder_csr']:.3f}x",
-        "small",
+        40, 370,
+        "GB/GORDER sum kernel = "
+        f"{quality['primary_gorder_claim']['graphbrew_over_gorder_csr_summed_kernel_seconds']:.3f}x",
+        "micro",
     )
-    svg.text(50, 400, "Quality point, not per-cell dominance.", "body")
-    svg.text(50, 434, "Rabbit break-even: 37k-40k reuses.", "body")
-    svg.text(50, 468, "Summed Rabbit seconds never cross.", "body")
+    svg.text(40, 416, "Faster kernels and cheaper map.", "body")
+    svg.text(40, 450, "End-to-end win from reuse one.", "body")
 
-    svg.rect(425, 120, 350, 390, AMBER, stroke_width=3)
-    svg.text(450, 158, "CONFIRMED: CONSTRUCTION", "domain")
-    svg.text(450, 198, compact["name"], "heading")
-    svg.text(450, 238, "Compact active community IDs.", "body")
-    svg.text(450, 270, "Emit final IDs during BFS.", "body")
+    svg.rect(315, 120, 275, 390, AMBER, stroke_width=3)
+    svg.text(335, 158, "CONFIRMED: SYSTEMS", "domain")
+    svg.text(335, 198, compact["name"], "heading")
+    svg.text(335, 238, "Compact active IDs.", "body")
+    svg.text(335, 270, "Emit final IDs during BFS.", "body")
     svg.mono(
-        450, 318,
-        (
-            "candidate / min-Rabbit map = "
-            f"{compact['mapping_only']['five_graph_candidate_over_min_rabbit_mapping_gm']:.3f}x"
-        ),
+        335, 318,
+        "candidate/min-Rabbit",
         "small",
     )
     svg.mono(
-        450, 350,
+        335, 340,
+        "map GM = "
+        f"{compact['mapping_only']['five_graph_candidate_over_min_rabbit_mapping_gm']:.3f}x",
+        "small",
+    )
+    svg.mono(
+        335, 372,
         (
-            "Wiki-Talk complete map = "
+            "Wiki-Talk map = "
             f"{compact['mapping_only']['wiki_talk_complete_seconds']:.3f}s"
         ),
         "small",
     )
-    svg.text(450, 400, "Final BFS permutation is preserved.", "body")
-    svg.text(450, 434, "ORIGINAL audit closes low-reuse claim.", "body")
-    svg.text(450, 468, "This is a systems optimization.", "body")
+    svg.text(335, 412, "BFS permutation is preserved.", "body")
+    svg.text(335, 442, "ORIGINAL closes low-reuse claim.", "body")
+    svg.text(335, 472, "Construction optimization only.", "body")
 
-    svg.rect(825, 120, 350, 390, ROSE, stroke_width=3)
-    svg.text(850, 158, "REJECTED: ADAPTIVE HEADLINE", "domain")
-    svg.text(850, 198, "Corrected composition atlas", "heading")
+    rabbit = quality["rabbit_pareto_limit"]
+    svg.rect(610, 120, 275, 390, ROSE, stroke_width=3)
+    svg.text(630, 158, "LIMITATION: RABBIT", "domain")
+    svg.text(630, 198, "Not a practical win", "heading")
     svg.mono(
-        850, 242,
-        f"in-sample oracle = {atlas['in_sample_oracle_over_fastest_comparator_gm']:.3f}x",
+        630, 246,
+        f"Rabbit/GB cell GM = {quality['kernel_gm']['rabbit_csr_over_graphbrew']:.3f}x",
         "small",
     )
     svg.mono(
-        850, 274,
-        f"best fixed arm = {atlas['best_fixed_over_fastest_comparator_gm']:.3f}x",
+        630, 278,
+        f"GB/Rabbit map = {quality['mapping_gm']['graphbrew_over_rabbit_csr']:.1f}x",
         "small",
     )
     svg.mono(
-        850, 306,
-        f"graph-held-out = {atlas['graph_held_out_over_fastest_comparator_gm']:.3f}x",
+        630, 310,
+        "GB/Rabbit sum kernel = "
+        f"{rabbit['graphbrew_over_rabbit_csr_summed_kernel_seconds']:.3f}x",
+        "micro",
+    )
+    svg.mono(
+        630, 342,
+        f"without CC = {rabbit['rabbit_csr_over_graphbrew_without_cc_gm']:.3f}x",
         "small",
     )
-    svg.text(850, 360, "Oracle headroom is post-selected.", "body")
-    svg.text(850, 394, "Held-out selection loses overall.", "body")
-    svg.text(850, 428, "No generator or selector claim.", "body")
-    svg.text(850, 462, "Failed portal hooks were removed.", "body")
+    svg.text(630, 392, "17-19x mapping overhead.", "body")
+    svg.text(630, 426, "No summed-time crossover.", "body")
+    svg.text(630, 460, "Rabbit remains Pareto anchor.", "body")
+
+    dependence = atlas["workload_dependence"]
+    svg.rect(905, 120, 275, 390, VIOLET, stroke_width=3)
+    svg.text(925, 158, "SUPPORTED: DESIGN SPACE", "domain")
+    svg.text(925, 198, "Composition matters", "heading")
+    svg.mono(
+        925, 246,
+        (
+            "winning arms = "
+            f"{dependence['distinct_winning_compositions']}/"
+            f"{dependence['candidate_compositions']}"
+        ),
+        "small",
+    )
+    svg.mono(
+        925, 278,
+        (
+            "oracle / fixed GB = "
+            f"{dependence['cell_oracle_over_best_fixed_graphbrew_gm']:.3f}x"
+        ),
+        "small",
+    )
+    svg.mono(
+        925, 310,
+        (
+            "type+kernel = "
+            f"{dependence['postselected_graph_type_kernel_over_fastest_comparator_gm']:.3f}x"
+        ),
+        "small",
+    )
+    svg.mono(
+        925, 342,
+        (
+            "held-out type+kernel = "
+            f"{dependence['held_out_graph_type_kernel_over_fastest_comparator_gm']:.3f}x"
+        ),
+        "micro",
+    )
+    svg.text(925, 392, "2-5 winners within each graph.", "body")
+    svg.text(925, 426, "Expressiveness is established.", "body")
+    svg.text(925, 460, "Automatic selection is not.", "body")
     svg.footer(
         545,
-        "Public claim: explicit composition framework + fixed quality arm + Compact-and-Emit. Nothing else is promoted.",
+        "Public claim: GORDER replacement + workload-dependent composition + Compact-and-Emit; Rabbit is the Pareto boundary.",
     )
     return svg.finish()
 

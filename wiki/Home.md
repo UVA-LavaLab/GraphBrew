@@ -9,8 +9,9 @@ decisions: **partitioner**, **block layout**, and **vertex layout**.
 
 | Contribution | Result |
 |---|---|
-| Fixed quality composition | LeidenGVE–SizeDesc–LocalGorder8 beats Rabbit CSR, Rabbit Boost, and GORDER_csr by 1.042x, 1.044x, and 1.052x kernel GM |
-| Lower Gorder construction cost | The quality composition maps at 0.752x GORDER_csr’s geometric-mean cost |
+| GORDER-quality replacement point | LeidenGVE–SizeDesc–LocalGorder8 is 1.052x faster in kernel GM, maps at 0.752x GORDER_csr cost, and wins end to end from reuse one |
+| Rabbit Pareto boundary | The 4% per-cell GM requires 17–19x mapping cost; without Afforest CC the margin disappears, and summed seconds never win |
+| Compositional diversity | Eight of nine arms win cells; the cell oracle is 1.122x faster than the best fixed GraphBrew arm, but graph-held-out family/kernel selection reaches only 0.911x |
 | Compact-and-Emit | Preserves the BFS permutation while removing sparse community scheduling and final-emission work |
 
 These are bounded claims. GraphBrew does **not** claim a universal ordering,
