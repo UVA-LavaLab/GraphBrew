@@ -59,9 +59,9 @@ set and verify answer fingerprints.
 ./bench/bin/cc_sv -f graph.sg -s -o 12:leiden -n 5
 ```
 
-Afforest and CC-SV exercise different memory patterns. CC-SV is a known weak
-point for the promoted low-reuse composition and must remain visible in
-aggregate reporting.
+Afforest and CC-SV exercise different memory and work-propagation patterns.
+CC-SV is a weak point for several community layouts and must remain visible in
+aggregate reporting rather than being folded into Afforest CC.
 
 ## SSSP
 

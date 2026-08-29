@@ -34,7 +34,7 @@ Pass `--graphs-dir /media/NVMeData/00_GraphDatasets/GraphBrew` on the evaluation
 host so downloaded or converted graphs do not fill the repository filesystem.
 
 ```bash
-# One-command: download graphs and run full collection + offline fitting
+# One-command: download graphs and run the generic collection pipeline
 python3 scripts/graphbrew_experiment.py --target-graphs 150
 
 # Preview what would run (no execution)
@@ -58,8 +58,6 @@ python3 scripts/graphbrew_experiment.py --size small --quick
 # Use pre-generated label maps for consistent reordering
 python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 
-# Train: complete pipeline (reorder → benchmark → cache sim → weights)
-python3 scripts/graphbrew_experiment.py --train --auto --size all
 ```
 
 See [[Command-Line-Reference]] for phases, download size options, and
@@ -109,7 +107,7 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --size small
 | **Reorder** | Runs 17 algorithms × 14 variants on each graph → `.lo` label maps | `results/mappings/<name>/<algo>.lo` |
 | **Benchmark** | Runs 7 kernels (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC) × all orderings × 2 trials | `results/data/benchmarks.json` |
 | **Cache Sim** | Simulates L1/L2/L3 cache hit rates for PR and BFS | `results/data/benchmarks.json` (cache fields) |
-| **Offline fit** | Fits and exports load-only model artifacts; no held-out claim | `results/data/adaptive_models.json` |
+| **Compatibility export** | Optionally writes offline model artifacts; not a paper claim | `results/data/adaptive_models.json` |
 
 Timelines are workload- and machine-dependent; use `--dry-run` and the
 orchestrator's budget/planning modes before broad collection.
@@ -211,12 +209,13 @@ See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm t
 | no-reorder baseline | ORIGINAL | 0 |
 | cheap degree/bucket control | HUBCLUSTERDBG | 7 |
 | exact hand-configured composition | GraphBrewOrder | 12 |
-| frozen reuse-1/2 portfolio within its validated scope | AdaptiveOrder | 14 |
+| historical reuse-1/2 portfolio reproduction | AdaptiveOrder | 14 |
 | bandwidth-oriented control | RCM-BNF | `11:bnf` |
 
 Do not choose from graph-domain labels such as “social” or “road.” Start with
-the [GraphBrew Running Example](GraphBrew-Running-Example), then select an
-explicit mechanism or an evidence-bound policy.
+[Evidence and Claims](Evidence-and-Claims) and the
+[GraphBrew Running Example](GraphBrew-Running-Example), then select an explicit
+mechanism.
 
 ---
 
@@ -290,7 +289,7 @@ See [[Troubleshooting]] for solutions to common issues (file not found, invalid 
 
 - [[Graph-Benchmarks]] - Deep dive into each algorithm
 - [[Reordering-Algorithms]] - All reordering techniques
-- [AdaptiveOrder](AdaptiveOrder) - deterministic runtime policy
+- [AdaptiveOrder](AdaptiveOrder) - historical selector compatibility
 - [[Supported-Graph-Formats]] - Input format details
 
 ---

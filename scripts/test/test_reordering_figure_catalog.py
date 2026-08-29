@@ -35,9 +35,10 @@ TOP_LEVEL_FIGURES = {
     "graphbrew-relabel-emit.svg",
     "graphbrew-locality-outcome.svg",
     "graphbrew-cd-parallel.svg",
+    "graphbrew-compact-emit.svg",
+    "graphbrew-evidence-boundary.svg",
     "graphbrew-sgmb4096.svg",
     "graphbrew-norefine.svg",
-    "graphbrew-lowreuse-policy.svg",
 }
 
 
@@ -70,7 +71,7 @@ def test_catalog_uses_one_measured_input_and_output_strips():
         root = ET.parse(svg).getroot()
         assert root.get("width") == "1200"
         assert root.get("height") == "430"
-        assert root.get("data-figure-schema") == "graphbrew-public/v3"
+        assert root.get("data-figure-schema") == "graphbrew-public/v4"
         source = svg.read_text()
         assert 'role="img"' in source
         assert "prefers-color-scheme:dark" in source
@@ -187,7 +188,7 @@ def test_running_example_drives_every_stage():
     ):
         assert filename in source
     assert "`v2`" in source
-    assert "manually frozen after Stage 2" in source
+    assert "fixed pedagogically" in source
     assert "`[v2,v1,v4,v6,v7,v8,v5,v0,v3]`" in source
 
 
@@ -198,7 +199,7 @@ def test_top_level_figures_share_the_visual_contract():
         root = ET.parse(path).getroot()
         source = path.read_text()
         assert root.get("width") == "1200"
-        assert root.get("data-figure-schema") == "graphbrew-public/v3"
+        assert root.get("data-figure-schema") == "graphbrew-public/v4"
         assert float(root.get("width", "0")) / float(root.get("height", "1")) >= 1.4
         assert 'role="img"' in source
         assert "<title" in source and "<desc" in source
@@ -238,8 +239,8 @@ def test_top_level_figures_share_the_visual_contract():
 def test_public_manifest_binds_generated_outputs():
     payload = json.loads(PUBLIC_MANIFEST.read_text())
     assert payload["schema"] == "graphbrew-public-figures/v1"
-    assert payload["figure_schema"] == "graphbrew-public/v3"
-    assert payload["cache_key"] == "graphbrew-public-v3"
+    assert payload["figure_schema"] == "graphbrew-public/v4"
+    assert payload["cache_key"] == "graphbrew-public-v4"
     paths = {record["path"] for record in payload["records"]}
     assert "wiki/Reordering-Figure-Catalog.md" in paths
     assert "docs/figures/reordering/manifest.json" in paths
@@ -251,6 +252,7 @@ def test_public_manifest_binds_generated_outputs():
         "docs/figures/catalog-capture.json",
         "docs/figures/data/graphbrew-running-example.el",
         "docs/figures/data/graphbrew-running-example.lo",
+        "docs/recommendation-evidence.json",
         "scripts/generate_public_figures.py",
     }
 

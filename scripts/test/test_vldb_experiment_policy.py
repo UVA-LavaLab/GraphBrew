@@ -108,36 +108,17 @@ def test_published_compose_specs_pin_both_block_axes():
         assert any(token.startswith("comm_") for token in tokens)
 
 
-def test_experimental_reorder_headers_are_test_only():
+def test_retired_experimental_reorder_prototypes_are_absent():
     root = Path(__file__).resolve().parents[2]
-    production_roots = [
-        root / "bench" / "include",
-        root / "bench" / "src",
-        root / "bench" / "src_edge",
-        root / "bench" / "src_gas",
-        root / "bench" / "src_sim",
-    ]
-    violations = []
-    experimental_include = re.compile(
-        r"(?m)^\s*#\s*include[^\r\n]*"
-        r"experimental/[^\r\n>\"]+[>\"]"
-    )
-    for production_root in production_roots:
-        for path in production_root.rglob("*"):
-            if path.suffix not in {
-                ".h", ".hpp", ".hxx", ".cc", ".cpp", ".cu", ".def",
-            }:
-                continue
-            if path == (
-                root / "bench" / "include" / "external"
-                / "nlohmann_json.hpp"
-            ):
-                continue
-            if "reorder/experimental" in path.as_posix():
-                continue
-            if experimental_include.search(path.read_text(errors="ignore")):
-                violations.append(str(path.relative_to(root)))
-    assert violations == []
+    assert not (
+        root / "bench/include/graphbrew/reorder/experimental"
+    ).exists()
+    assert not (
+        root / "bench/tests/test_graphbrew_experimental.cc"
+    ).exists()
+    makefile = (root / "Makefile").read_text()
+    assert "test_graphbrew_experimental" not in makefile
+    assert "DEP_GRAPHBREW_EXPERIMENTAL" not in makefile
     for _label, spec in COMPOSE_VARIANTS:
         config = runner._expected_graphbrew_config(spec)
         assert config["community_order"] != "capacity-runs"
@@ -279,8 +260,17 @@ def test_one_pass_composition_controls_are_exact():
 
 
 def test_parallel_leiden_budget_frontier_is_diagnostic_only():
-    specs = [config["algo"] for config in DIAGNOSTIC_CONFIGS]
+    specs = [
+        config["algo"]
+        for config in DIAGNOSTIC_CONFIGS
+        if config["algo"].startswith("12:")
+    ]
     assert len(specs) == 5
+    assert {
+        config["algo"]
+        for config in DIAGNOSTIC_CONFIGS
+        if not config["algo"].startswith("12:")
+    } == {"11:mind", "11:bnf"}
     for spec in specs:
         config = runner._expected_graphbrew_config(spec)
         assert config["deterministic_community_detection"] is False

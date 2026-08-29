@@ -6,7 +6,7 @@ hit rates under nine eviction policies. Use it to compare reorderings
 on a fixed cache geometry without machine noise — the metric is
 deterministic per process.
 
-[![Tracked locality mechanism](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)
+[![Tracked locality mechanism](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v4)
 
 **Figure 1.** The running example isolates the address-level mechanism:
 tracked `v2` reads the same four properties before and after relabeling, but
@@ -112,8 +112,8 @@ The default configuration models a typical modern CPU:
 | **PLRU** | Tree-based pseudo-LRU | Hardware-efficient LRU approximation |
 | **SRRIP** | Re-reference interval prediction | Scan-resistant, good for streaming |
 | **GRASP** | Graph-aware 3-tier RRIP: HOT=1/MODERATE=6/COLD=7 (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
-| **P-OPT** | Graph-transpose Belady 3-phase: non-property first → oracle distance → RRIP tiebreak (Balaji et al., HPCA'21) | Best miss reduction; requires rereference matrix |
-| **ECG** | Layered: GRASP insertion + P-OPT/DBG eviction tiebreak, 4 modes (Mughrabi et al., GrAPL) | Combines structural + oracle; zero-overhead embedded mode |
+| **P-OPT** | Graph-transpose Belady 3-phase: non-property first → future-reference distance → RRIP tiebreak (Balaji et al., HPCA'21) | Reference-oriented policy; requires rereference matrix |
+| **ECG** | Layered: GRASP insertion + P-OPT/DBG eviction tiebreak, 4 modes (Mughrabi et al., GrAPL) | Combines structural and future-reference policies |
 
 #### ECG Modes
 
@@ -139,7 +139,7 @@ ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (
 - **POPT_PRIMARY**: Universal RRPV=0 (same as SRRIP/P-OPT)
 
 **P-OPT rereference matrix:**
-All sim kernels build the P-OPT rereference matrix via `makeOffsetMatrix()` when `CACHE_POLICY=POPT` or `CACHE_POLICY=ECG`. The matrix is a 256-epoch × num_cache_lines compressed oracle.
+All sim kernels build the P-OPT rereference matrix via `makeOffsetMatrix()` when `CACHE_POLICY=POPT` or `CACHE_POLICY=ECG`. The matrix stores 256 epochs across the modeled cache lines.
 
 **CSR edge tracking:**
 The PR, BFS, and PR_SPMV kernels track CSR edge list reads via `SIM_CACHE_READ_EDGE()`, providing realistic cache pressure from structure data alongside property data.
@@ -263,9 +263,7 @@ python3 scripts/graphbrew_experiment.py --phase cache
 ```
 
 These files support diagnostics and historical model experiments. They are
-not inputs to the validated `allkernel-lowreuse-rule`; that runtime rule uses
-lightweight graph statistics and machine LLC capacity without running the
-cache simulator.
+not inputs to the confirmed fixed quality or Compact-and-Emit claims.
 
 ### 4. Automated Cache Benchmark Suite
 
@@ -304,8 +302,8 @@ Results are saved to `results/cache_*.json`:
 ### 5. Interpreting Cache Patterns
 
 Cache characteristics motivate hypotheses; they do not select an ordering by
-themselves. The frozen selector study found that lightweight topology/cache
-features did not reliably recover the ordering oracle.
+themselves. The corrected graph-held-out study found that lightweight
+topology/cache features did not reliably recover the composition oracle.
 
 | Cache pattern | Hypothesis to test |
 |---------------|-------------------|
@@ -348,7 +346,8 @@ The cache policies have been validated against the original reference implementa
 
 ## Related Pages
 
-- [AdaptiveOrder](AdaptiveOrder) - validated deterministic runtime policy
+- [Evidence and Claims](Evidence-and-Claims) - current paper boundary
+- [AdaptiveOrder](AdaptiveOrder) - historical compatibility interface
 - [Benchmark Suite](Benchmark-Suite) - correlating cache stats with performance
 
 ---

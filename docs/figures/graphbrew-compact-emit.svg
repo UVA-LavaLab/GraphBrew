@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v4">
+  <title id="title">Compact-and-Emit removes sparse community scheduling</title>
+  <desc id="desc">A one-pass detector can leave sparse representative labels. Compaction schedules active communities only, and direct BFS emission removes the final local-ID sweep.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
+    </marker>
+    <style>
+      :root{color-scheme:light dark}
+      @media(prefers-color-scheme:dark){
+        [fill="#27313A"]{fill:#ECE7DD}[stroke="#27313A"]{stroke:#ECE7DD}
+        [fill="#FFFFFF"]{fill:#1E2327}[fill="#F8F6EC"]{fill:#252A2E}
+        [fill="#EDF5FF"]{fill:#273846}[fill="#E7F7EA"]{fill:#24382A}
+        [fill="#FFF0D8"]{fill:#3B3122}[fill="#F7DEDC"]{fill:#3D292A}
+        [fill="#EEE9FF"]{fill:#302C3C}[stroke="#9AA3AD"]{stroke:#747D86}
+        [stroke="#1769C2"]{stroke:#63A8FF}[fill="#1769C2"]{fill:#63A8FF}
+        [stroke="#B45309"]{stroke:#F0B35A}[stroke="#15803D"]{stroke:#63D68B}
+        .arrow{stroke:#63A8FF!important}.edge{stroke:#ECE7DD!important}
+      }
+      .sans{font-family:Arial,Helvetica,sans-serif}
+      .mono{font-family:"SFMono-Regular",Consolas,monospace}
+      .title{font-size:32px;font-weight:700}.subtitle{font-size:18px}
+      .domain{font-size:16px;font-weight:700;letter-spacing:1.2px}.heading{font-size:22px;font-weight:700}
+      .label{font-size:18px;font-weight:700}.body{font-size:17px}.small{font-size:16px}.micro{font-size:14px;font-weight:700}
+      .arrow{fill:none;stroke:#1769C2;stroke-width:3;marker-end:url(#arrow)}
+      .edge{stroke:#27313A;stroke-width:2.2}
+    </style>
+  </defs>
+  <rect width="1200" height="560" fill="#FFFFFF"/>
+  <text x="42" y="47" class="sans title">Compact-and-Emit removes sparse community scheduling</text>
+  <text x="42" y="75" class="sans subtitle">The final BFS permutation is unchanged; only construction work is removed.</text>
+  <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
+  <rect x="30" y="125" width="330" height="300" rx="10" fill="#F7DEDC" stroke="#27313A" stroke-width="3"/>
+  <text x="55" y="162" class="sans domain">CONVENTIONAL ONE-PASS PATH</text>
+  <text x="55" y="205" class="sans heading">Sparse representative labels</text>
+  <rect x="55" y="245" width="32" height="42" rx="5" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="71" y="272" class="mono micro" text-anchor="middle">C0</text>
+  <rect x="95" y="245" width="32" height="42" rx="5" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="111" y="272" class="mono micro" text-anchor="middle">-</text>
+  <rect x="135" y="245" width="32" height="42" rx="5" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="151" y="272" class="mono micro" text-anchor="middle">-</text>
+  <rect x="175" y="245" width="32" height="42" rx="5" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="191" y="272" class="mono micro" text-anchor="middle">C17</text>
+  <rect x="215" y="245" width="32" height="42" rx="5" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="231" y="272" class="mono micro" text-anchor="middle">-</text>
+  <rect x="255" y="245" width="32" height="42" rx="5" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="271" y="272" class="mono micro" text-anchor="middle">-</text>
+  <rect x="295" y="245" width="32" height="42" rx="5" fill="#FFF0D8" stroke="#27313A" stroke-width="2"/>
+  <text x="311" y="272" class="mono micro" text-anchor="middle">C201</text>
+  <text x="55" y="325" class="sans body">Schedule every label slot.</text>
+  <text x="55" y="357" class="sans body">Store localIds for all vertices.</text>
+  <text x="55" y="389" class="sans body">Run a final assignment sweep.</text>
+  <rect x="435" y="125" width="330" height="300" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <text x="460" y="162" class="sans domain">COMPACT ACTIVE IDS</text>
+  <text x="460" y="205" class="sans heading">Monotone active-label remap</text>
+  <rect x="485" y="245" width="56" height="42" rx="5" fill="#EEE9FF" stroke="#27313A" stroke-width="2"/>
+  <text x="513" y="272" class="mono small" text-anchor="middle">C0</text>
+  <rect x="557" y="245" width="56" height="42" rx="5" fill="#EEE9FF" stroke="#27313A" stroke-width="2"/>
+  <text x="585" y="272" class="mono small" text-anchor="middle">C1</text>
+  <rect x="629" y="245" width="56" height="42" rx="5" fill="#EEE9FF" stroke="#27313A" stroke-width="2"/>
+  <text x="657" y="272" class="mono small" text-anchor="middle">C2</text>
+  <text x="460" y="325" class="sans body">Skip empty community slots.</text>
+  <text x="460" y="357" class="sans body">Preserve stable block semantics.</text>
+  <text x="460" y="389" class="sans body">Work scales with active groups.</text>
+  <rect x="840" y="125" width="330" height="300" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <text x="865" y="162" class="sans domain">DIRECT BFS EMISSION</text>
+  <text x="865" y="205" class="sans heading">Write IDs during BFS</text>
+  <text x="865" y="252" class="mono small">pop(v) -&gt; new_id[v] = base+k</text>
+  <text x="865" y="305" class="sans body">No global localIds array.</text>
+  <text x="865" y="337" class="sans body">No final sparse-ID sweep.</text>
+  <text x="865" y="385" class="mono small">five-graph map ratio = 0.479x</text>
+  <path d="M360 275 H431" class="arrow"/>
+  <path d="M765 275 H836" class="arrow"/>
+  <rect x="144" y="475" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
+  <text x="600" y="502" class="sans small" text-anchor="middle">Claim boundary: faster mapping construction; mandatory ORIGINAL results reject a low-reuse ordering win.</text>
+</svg>

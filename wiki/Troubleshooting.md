@@ -400,7 +400,7 @@ make all
 --bin-dir /full/path/to/GraphBrew/bench/bin
 ```
 
-### Unexpected low-reuse policy decision
+### Reproducing the historical low-reuse policy
 
 Use the complete algorithm-14 string and provide reuse 1 or 2:
 
@@ -409,9 +409,10 @@ Use the complete algorithm-14 string and provide reuse 1 or 2:
   -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' -n 3
 ```
 
-The policy falls back when the graph is too small, the kernel is outside the
-validated set, reuse exceeds 2, or the frozen structural predicate is false.
-This is expected behavior. See [AdaptiveOrder](AdaptiveOrder).
+The policy can fall back when its historical predicate is false. It is a
+compatibility experiment, not the current paper recommendation. For new
+scientific runs, use an explicit Algorithm-12 composition and include
+ORIGINAL. See [AdaptiveOrder](AdaptiveOrder).
 
 ### Historical offline-model artifact errors
 
@@ -422,7 +423,7 @@ experiments. Validate it with:
 python3 -m json.tool results/data/adaptive_models.json
 ```
 
-The validated `allkernel-lowreuse-rule` does not require this file.
+The deterministic historical rule does not require this file.
 
 ---
 

@@ -15,7 +15,7 @@ REORDER_ADAPTIVE = (
     PROJECT_ROOT / "bench/include/graphbrew/reorder/reorder_adaptive.h"
 )
 VLDB_CONFIG = PROJECT_ROOT / "scripts/experiments/vldb/config.py"
-EVIDENCE = PROJECT_ROOT / "docs/allkernel-lowreuse-evidence.json"
+EVIDENCE = PROJECT_ROOT / "docs/recommendation-evidence.json"
 REORDER_HEADER = PROJECT_ROOT / "bench/include/graphbrew/reorder/reorder.h"
 ADAPTIVE_EMULATOR = PROJECT_ROOT / "scripts/lib/ml/adaptive_emulator.py"
 
@@ -56,25 +56,13 @@ def test_algorithm_ids_match_cpp_name_registry():
         assert cpp_names[name.upper()] == cpp_ids[algorithm_id]
 
 
-def test_promoted_composition_matches_runtime_and_campaign():
-    candidate = json.loads(EVIDENCE.read_text())["candidate"]
-
-    adaptive_source = REORDER_ADAPTIVE.read_text()
-    rule_block = adaptive_source.split(
-        "inline PerceptronSelection SelectAllKernelLowReuseRule", 1
-    )[1]
-    runtime_block = rule_block.split(
-        "selected.variant_name = (", 1
-    )[1].split(");", 1)[0]
-    assert _joined_string_literals(runtime_block) == candidate
-
+def test_confirmed_compositions_match_campaign_registry():
+    claims = json.loads(EVIDENCE.read_text())["confirmed_claims"]
+    quality = claims["quality_arm"]["spec"]
+    compact = claims["compact_and_emit"]["spec"]
     config_source = VLDB_CONFIG.read_text()
-    campaign_match = re.search(
-        r'\("FastLeiden-Gorder8",\s*((?:"[^"]*"\s*)+)\)',
-        config_source,
-    )
-    assert campaign_match is not None
-    assert _joined_string_literals(campaign_match.group(1)) == candidate
+    assert quality in _joined_string_literals(config_source)
+    assert compact in _joined_string_literals(config_source)
 
 
 def test_retired_recursive_adaptive_path_has_no_don_lite_surface():

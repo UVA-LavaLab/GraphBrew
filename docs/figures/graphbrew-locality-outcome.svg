@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="535" viewBox="0 0 1200 535" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v3">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="535" viewBox="0 0 1200 535" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v4">
   <title id="title">Stage 6: the same v2 neighbors touch fewer property cache lines</title>
   <desc id="desc">With four vertex properties per cache line, relabeling changes three touched lines into two.</desc>
   <defs>

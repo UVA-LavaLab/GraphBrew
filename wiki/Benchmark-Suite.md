@@ -65,8 +65,8 @@ replace the raw timing records.
 - mappings: `results/mappings/`
 - frozen campaigns: configured `--paper-artifact-root`
 
-Historical offline-model files may exist under `results/data/`, but the
-validated low-reuse rule does not require them.
+Historical offline-model files may exist under `results/data/`; they are not
+inputs to the confirmed fixed-composition results.
 
 ## Related pages
 

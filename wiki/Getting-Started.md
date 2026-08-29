@@ -77,16 +77,15 @@ GRAPH=scripts/test/graphs/tiny/tiny.el
 
 # Explicit Rabbit-free GraphBrew composition
 ./bench/bin/pr -f $GRAPH -s \
-  -o 12:leiden:compose:sg_none:comm_size_desc:intra_hubsort:cd_serial:refine_none \
+  -o 12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8 \
   -n 3
 ```
 
 `-o N` selects the reordering algorithm (see [Reordering-Algorithms](Reordering-Algorithms)). `-s` symmetrises a directed input. `-n N` runs N trials.
 
-The HubSort recipe above is a simple starter composition. The
-[running example](GraphBrew-Running-Example) uses the Gorder/BFS dispatch to
-explain both local-layout branches, while the validated low-reuse arm uses
-`gordf5000`.
+The explicit recipe above is the confirmed fixed quality composition. The
+[running example](GraphBrew-Running-Example) also shows BFS to illustrate that
+local layouts are independently configurable.
 
 ## Run a real graph
 
@@ -97,13 +96,13 @@ gunzip ego-Facebook.txt.gz
 mv ego-Facebook.txt facebook.el
 
 ./bench/bin/pr -f facebook.el -s \
-  -o 12:leiden:compose:sg_none:comm_size_desc:intra_hubsort:cd_serial:refine_none \
+  -o 12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8 \
   -n 5
 ```
 
 GraphBrew recipes explicitly select the partitioner, block layout, and local
-vertex layout. Rabbit-dependent presets remain available as baselines, but
-they are not part of the Rabbit-free research direction. Start with the
+vertex layout. Rabbit-dependent presets remain available as baselines. Start
+with [Evidence and Claims](Evidence-and-Claims) and the
 [GraphBrew Running Example](GraphBrew-Running-Example), then use
 [GraphBrewOrder](GraphBrewOrder) as the token reference.
 

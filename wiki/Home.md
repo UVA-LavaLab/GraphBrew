@@ -1,62 +1,37 @@
 # GraphBrew
 
-GraphBrew is a framework for **composable vertex reordering**. It separates
-the partitioner, community-block layout, and within-block vertex layout so
-their cost and locality effects can be measured independently.
+GraphBrew is a framework for composing vertex reorderings from three explicit
+decisions: **partitioner**, **block layout**, and **vertex layout**.
 
-[![GraphBrew infrastructure and paper direction](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v3)
+[![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)
 
-## Infrastructure, validated policy, and paper direction
+## What the paper establishes
 
-| Layer | Role |
+| Contribution | Result |
 |---|---|
-| **GraphBrew infrastructure** | explicit composition grammar, mapping generation, provenance, kernel evaluation, and reusable experiment orchestration |
-| **Validated policy today** | the frozen reuse-1/2 selector; its fallback branch runs Boost Rabbit |
-| **Paper research direction** | a deterministic Rabbit-free composition generator selected from graph, kernel, reuse, and cost semantics |
+| Fixed quality composition | LeidenGVE–SizeDesc–LocalGorder8 beats Rabbit CSR, Rabbit Boost, and GORDER_csr by 1.042x, 1.044x, and 1.052x kernel GM |
+| Lower Gorder construction cost | The quality composition maps at 0.752x GORDER_csr’s geometric-mean cost |
+| Compact-and-Emit | Preserves the BFS permutation while removing sparse community scheduling and final-emission work |
 
-The infrastructure is the reusable system. Rabbit-free automatic composition
-is the paper direction being evaluated on top of it.
+These are bounded claims. GraphBrew does **not** claim a universal ordering,
+a Rabbit-cost-balanced arm, or a graph-held-out automatic generator.
 
-## Read the project in this order
+See [Evidence and Claims](Evidence-and-Claims) for the exact scope.
 
-| Step | Page | Question answered |
-|---:|---|---|
-| 1 | [GraphBrew Running Example](GraphBrew-Running-Example) | How does one graph move from CSR through partition, layout, relabeling, and locality? |
-| 2 | [GraphBrewOrder](GraphBrewOrder) | What does each production token do? |
-| 3 | [All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector) | How is a new graph classified without a previous kernel run? |
-| 4 | [Reordering Figure Catalog](Reordering-Figure-Catalog) | How do all 17 measured output orders compare on one input? |
-| 5 | [Reproducible Experiments](Reproducible-Experiments) | How are mappings, kernels, reuse, and evidence measured? |
+## Read in this order
 
-## Two interfaces
+1. [Evidence and Claims](Evidence-and-Claims)
+2. [GraphBrew Running Example](GraphBrew-Running-Example)
+3. [GraphBrewOrder](GraphBrewOrder)
+4. [Reordering Algorithms](Reordering-Algorithms)
+5. [Reproducible Experiments](Reproducible-Experiments)
 
-| Interface | Use |
+## Interfaces
+
+| Interface | Role |
 |---|---|
-| `-o 12:<configuration>` | Run one exact, hand-configured composition. No runtime search occurs. |
-| `-o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Apply the frozen reuse-1/2 rule and choose GraphBrew or Boost Rabbit. |
-
-## Claim boundary
-
-- The promoted GraphBrew arm is non-Rabbit and beat Boost Rabbit on all seven
-  final holdouts where the frozen rule selected it.
-- The fallback branch runs Boost Rabbit and therefore ties, rather than beats,
-  the always-Boost baseline on those graphs.
-- The complete policy is a winning portfolio, but it is not Rabbit-free.
-- Fully deployed timing must include algorithm-14 feature extraction in
-  addition to chosen mapping and kernel time.
-
-## Quick links
-
-- [AdaptiveOrder](AdaptiveOrder)
-- [Getting Started](Getting-Started)
-- [Running Benchmarks](Running-Benchmarks)
-- [Command-Line Reference](Command-Line-Reference)
-- [Supported Graph Formats](Supported-Graph-Formats)
-- [Graph Benchmarks](Graph-Benchmarks)
-- [Reordering Figure Catalog](Reordering-Figure-Catalog)
-- [Cache Simulation](Cache-Simulation)
-- [Code Architecture](Code-Architecture)
-- [Troubleshooting](Troubleshooting)
-- [FAQ](FAQ)
-- [Contributing](Contributing)
+| `-o 12:<configuration>` | run one explicit composition |
+| `-o 13:<mapping>` | apply a pre-generated permutation |
+| `-o 14` | experimental compatibility selector; not a headline result |
 
 Repository: https://github.com/UVA-LavaLab/GraphBrew

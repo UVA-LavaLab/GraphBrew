@@ -1,16 +1,16 @@
 {
   "schema": "graphbrew-public-figures/v1",
-  "figure_schema": "graphbrew-public/v3",
-  "cache_key": "graphbrew-public-v3",
+  "figure_schema": "graphbrew-public/v4",
+  "cache_key": "graphbrew-public-v4",
   "running_example_schema": "graphbrew-running-example/v1",
   "sources": [
     {
       "path": "docs/figures/graphbrew-running-example.json",
-      "sha256": "4d2c564a2e506d5b9d6bf8d033f24d58141f8e238a28e58c1bfa3b569816be0d"
+      "sha256": "6cb86b2c18ca4b4403cba573acb320998efb93512eb9e9aff2387656338c85ff"
     },
     {
       "path": "docs/figures/catalog-capture.json",
-      "sha256": "de5385fbd1dcb9dcc51e85086dbcec8401a0fa40d4f695e53a654cf21b5670aa"
+      "sha256": "59f62c87f35b19a8e14cfec50224e1c46c7d1e2dfbe5ac9fcc8a94fbda8a7879"
     },
     {
       "path": "docs/figures/data/graphbrew-running-example.el",
@@ -21,8 +21,12 @@
       "sha256": "0c81299d49c53c1847f4ed31318dc317568630cff22e910e3cdbc01ad37cc4ff"
     },
     {
+      "path": "docs/recommendation-evidence.json",
+      "sha256": "7c39751885ea2a7ebda2436f387d02a8701ee231acfd5f30d193b524963a387c"
+    },
+    {
       "path": "scripts/generate_public_figures.py",
-      "sha256": "bda25ab710d4f85ad4f59a29f266920a927048a4173bdcbe7ae89b55ebf87b06"
+      "sha256": "c78f8e42f0890f7e05ec7014a1f0c504a6c63aa66eb9ddf129b60f74359ac2e1"
     }
   ],
   "records": [
@@ -127,7 +131,7 @@
     {
       "path": "docs/figures/editable/14-adaptiveorder.drawio",
       "kind": "drawio",
-      "sha256": "ed70857d609a55fbdec01dcfd520982f1886bc098e7be6535232553471fad120",
+      "sha256": "294a4d216328219f9cf77324eedcde3566e936700fd9859149f829b4a01e8227",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -148,7 +152,7 @@
     {
       "path": "docs/figures/editable/GraphBrew-reordering-figures.drawio",
       "kind": "drawio",
-      "sha256": "367188f58900169089649c6db02e3ee209bf0a77079cada5bd69b73f2db675a4",
+      "sha256": "91fdf4f9f9413121f4fb007f67daf92fb272ec65ac9f9b0658b7e01968c66047",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -162,231 +166,238 @@
     {
       "path": "docs/figures/graphbrew-architecture.svg",
       "kind": "svg",
-      "sha256": "aa0b29b7f4b2b36e61ec95af954543fcbff915401716af33f8c44f4d24094da3",
+      "sha256": "074494f8e5e6b38d7cc9b802f6b123deb3788dcd332ecfc88088f9c20566ff0a",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-bfs-transform.svg",
       "kind": "svg",
-      "sha256": "14b07f94f3bf1020cabf3a3bb9f7a846f14dd912e9f9ad8c4ac2a24d6ddd5284",
+      "sha256": "ed0f9b778fdbd52272b1cecb5bee1311152e419a8a9b77f8c1dd52431b64bbe8",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-cd-parallel.svg",
       "kind": "svg",
-      "sha256": "e35d6664b61e3becaa3518fff4ba512aa59b030f6cc66b912e73fc747d37268b",
+      "sha256": "acffd9f3c33567b9d191161b3f27ad9029c4fd10a959add9231762f04d3c1867",
+      "generator": "scripts/generate_public_figures.py",
+      "fixture": "docs/figures/graphbrew-running-example.json"
+    },
+    {
+      "path": "docs/figures/graphbrew-compact-emit.svg",
+      "kind": "svg",
+      "sha256": "9ef6fef3822226ae652aea20b64537b1ef277a9cdd9bb923d9fd4b5649f1fdca",
+      "generator": "scripts/generate_public_figures.py",
+      "fixture": "docs/figures/graphbrew-running-example.json"
+    },
+    {
+      "path": "docs/figures/graphbrew-evidence-boundary.svg",
+      "kind": "svg",
+      "sha256": "235d3478b9e56cac46eb64225d07101094b8414bb04eceb733ee591369b290db",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-gorder-transform.svg",
       "kind": "svg",
-      "sha256": "7417e468ad34a9903de047866b2dee96991e5b75e1251ecb05a0b990aa07a62c",
+      "sha256": "5e6451a6c1be28cc164d496a0e1cbedb2a9b9491fffb385bf73ffce26365fe3e",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-gordf5000.svg",
       "kind": "svg",
-      "sha256": "0f5ad03f186eea3aa9d89fdbe763e82f8c4259ebc2c69c7a0d2368120a8821c3",
+      "sha256": "349303f6ede6ebd64d7fdb76c3ea68a18e65b60b52a241717cc3abc92db392d1",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-graph-to-csr.svg",
       "kind": "svg",
-      "sha256": "35383c28deddf87f94c89762dce2131881fe2a01bd892727ca25bf413e1cb9dc",
+      "sha256": "f07444ca9647eb6d0a48656a620d173ce156182ce2255b9e4263f129c88bd3b8",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-leiden-transform.svg",
       "kind": "svg",
-      "sha256": "6eba378800f2627e12db252c5624483a3e202321e80c7a13b043715721de9460",
+      "sha256": "7bdcfc52ec7710eba21a55b57461544b6592254a57472e726d1081a1c59be1ab",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-locality-outcome.svg",
       "kind": "svg",
-      "sha256": "ab37ee2802e4f0e9a0bd5e4c9dcf52e3eb200ba7eb111cb6f48eb6581a08321e",
-      "generator": "scripts/generate_public_figures.py",
-      "fixture": "docs/figures/graphbrew-running-example.json"
-    },
-    {
-      "path": "docs/figures/graphbrew-lowreuse-policy.svg",
-      "kind": "svg",
-      "sha256": "64f95896c4e189d26e72967e4e6c1fbdb72dbc594608c91ea8c502f96a98a13b",
+      "sha256": "a380927ed16919d7ce976a200a3fb75d29e0ed95bb9dc8bc0fc8795fc690821c",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-norefine.svg",
       "kind": "svg",
-      "sha256": "6164955e688947c50cf0bacafae96698b40f5fc6f6f84c66158c75cc12d88cf3",
+      "sha256": "88cbd44063fd3914110da106cb66e26e0e3f9cfe24c04f97d950be1c32fbc094",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-relabel-emit.svg",
       "kind": "svg",
-      "sha256": "cf8717fe8e47dc3a9a4169c3696be7069e8be08c950638a8709e8424310d0b2b",
+      "sha256": "a581918c9a365643abfe6a7b80699cdbc7a29f4de140bada768c449bfff6f8c1",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-sgmb4096.svg",
       "kind": "svg",
-      "sha256": "765988e4d00f6eda64f78e21a5bd01f67b3ad9ac27ee0ea5f158a00e7a65531f",
+      "sha256": "bc1029f7958e41d8f9b85366f2d87ad8b1aa6ec7816bfe10c4f827e27d6becd1",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/graphbrew-sizedesc-transform.svg",
       "kind": "svg",
-      "sha256": "facb2622cbfcc1c8d6022c4ddc39110c66bae11111aa2615fc77a0bed7610e26",
+      "sha256": "a937c9b8c3e52d97f391e9bde6113c47e3660abedfe46868f9564702c3b0b6e4",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/00-original.svg",
       "kind": "svg",
-      "sha256": "5e614ae42e55d981c8bff0fd9c1a7b39b4c721b3d24d099010a533bf99c6be35",
+      "sha256": "3dae4b181ad8a32258fe93376aca7eb8db4491b6b140262640c0702a3a5a7427",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/01-random.svg",
       "kind": "svg",
-      "sha256": "39d23004b0eed519c667e6b726971c45b223b4bcba3370a26e92d2f1954bbb3e",
+      "sha256": "6a22621c80bd070f3c5e0a6a20427282828234d7c443af3dde7940b841fa2cde",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/02-sort.svg",
       "kind": "svg",
-      "sha256": "106b4e4134e18665803be176f171dd0cc91d957eb582af66f810b19272bf3625",
+      "sha256": "5562a8d624bdf298a47bea8ca416d9b53cfc301e27b1cec1319c343bce6e1e0c",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/03-hubsort.svg",
       "kind": "svg",
-      "sha256": "e32b0dabffae0b9b9e999eea41a43741919264b627b65f4275f46e8c7223e790",
+      "sha256": "08f545c3878c8bfa44f882f1c10497d79670903d01bef01275afc878660feeb4",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/04-hubcluster.svg",
       "kind": "svg",
-      "sha256": "4fc9723163916e0c6a2c814c247d3d383551c0b4fe8a3a05431905458fab563c",
+      "sha256": "7e6c22e470a08d78964da573ec5427474aed645bb0f1d27803bd649b5edd8376",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/05-dbg.svg",
       "kind": "svg",
-      "sha256": "c7fbedaf1e4c17c1452c2370ef8cddb05b38e4ae06cbba4c8f272826f07fd02e",
+      "sha256": "02a88765792d5691ee587261ba16bffc7632e09f61ce27555f03bd6a2a7485c5",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/06-hubsortdbg.svg",
       "kind": "svg",
-      "sha256": "49b54366bd7afa86a1dbecf746e23d380bc86722a4b1c52e41cd6c5e79332efa",
+      "sha256": "9621b222ad8c308fa30a897764170a011581673243dac1ee65ac5c7cb85cadcd",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/07-hubclusterdbg.svg",
       "kind": "svg",
-      "sha256": "738acfae2da65ce591aa66213d96b74966840acd05214db15197110ba1704f20",
+      "sha256": "55d84651604cbe37d42eebbcacf19eef9e4642d5c0d961fe8193053e72399fd7",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/08-rabbitorder.svg",
       "kind": "svg",
-      "sha256": "9234312427b87c86365d92b5c84e2648877d09bb343fefe471a448b9a5e0d3f9",
+      "sha256": "d987bd8922bc83dc414eda15b4bf7ba80785992e088fe2c0dd6343e6aed9c089",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/09-gorder.svg",
       "kind": "svg",
-      "sha256": "b1b8c615a6e356646c0f9c2a2ed81c5f930030c0266daee7d5b663e09fb14aa5",
+      "sha256": "64b8ccae86c7d804d27cd7034bec76188ab2d45bf0b28ae61151c1174597d2da",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/10-corder.svg",
       "kind": "svg",
-      "sha256": "b89c650bd98fb7f0363f541c0b44e3937317b6c746bf684ee64852324302f968",
+      "sha256": "888e83fc9ce8045770270691d5c20cfeef26c1660fb78b31f84ee2c45352e97f",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/11-rcm.svg",
       "kind": "svg",
-      "sha256": "681a36657f78787f5ecd6d24301eed8e40393a43eeb5891b4beff6c97e751c6f",
+      "sha256": "45dfd5cfccc15b93cbb9dee27a684f074c595a2f03c6f031f3281bc3a5364e1c",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/12-graphbreworder.svg",
       "kind": "svg",
-      "sha256": "ac75ad05b8008071090ee05ddb9e2c5b20aedf1bda954d597af66d2cf4f14668",
+      "sha256": "e5d885f36c80e1f4f7d39c98b1bd555326c465650c7fc7d54f587d94d8b6eb77",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/13-map.svg",
       "kind": "svg",
-      "sha256": "4c3bc8b37b2572e1910c3c66347cda972897e51d7872507870d3721cf560ebab",
+      "sha256": "388861fa2da8fb42593a435e329cb12d9ea24aaab30142a4613a439085a71e18",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/14-adaptiveorder.svg",
       "kind": "svg",
-      "sha256": "8b81bb02a570c39b559134b6261d6802427c30d33edeada67316444810b74be6",
+      "sha256": "f864149c3f16255b4870335d7afd5b1820ff374c3d72dd9e6ff38e4f548d0e01",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/15-leidenorder.svg",
       "kind": "svg",
-      "sha256": "6472db302611f20d3dc9e281b0a28b48d3351af9ebde9c3cc916f17d45ef877f",
+      "sha256": "db3301724f70e07947534f4de3501c8fb151f4a816098830762fec31c1602c27",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/16-gographorder.svg",
       "kind": "svg",
-      "sha256": "658dfeae3665e6b4c24810e5819c889c6f07d75c19f3f725c85dea9a50e3f81c",
+      "sha256": "29ff3c6b17fff72bd56e243c5872a8a78c4d560a0ccfc4077967a57dc82225ba",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/example-input.svg",
       "kind": "svg",
-      "sha256": "fe21534738804e80f44802fb8f8ebafb5a10f68b19052f87b8d0ee350558ac25",
+      "sha256": "e8c68b91e289865d021f5744199fbcb72dda427f1fbbbbfe273e10fbabd45fab",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "docs/figures/reordering/manifest.json",
       "kind": "json",
-      "sha256": "132bd53b908fed0cf77974170b6c8f8a4d0724faa7345c1b6355e7c96529f289",
+      "sha256": "fec986e8e084fe0d61c2e0f8f09e7c20c17739c22bbccd0208d968a893e250d8",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
     {
       "path": "wiki/Reordering-Figure-Catalog.md",
       "kind": "md",
-      "sha256": "0f93706723e55be0fcfe5b8980913afc922711341aa2eb580ed9c02c8395a64d",
+      "sha256": "3b6f9c8f8d650f575a44ad5955028c3c00a280ba4447e106714fa19ff97f3f6a",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     }

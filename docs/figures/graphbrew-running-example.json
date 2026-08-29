@@ -277,7 +277,7 @@
     "capture_receipt": "docs/figures/catalog-capture.json",
     "input_edge_list": "docs/figures/data/graphbrew-running-example.el",
     "map_input": "docs/figures/data/graphbrew-running-example.lo",
-    "converter_sha256": "70580d71854e222d299c488274feced6cdd8005667bc87b07fc326c3d6fc5d41",
+    "converter_sha256": "be25d6c260a41fcde3a2ed1585b3ac84faff64c882031c409bc9cf2598e65bff",
     "omp_threads": 1,
     "algorithms": {
       "0": {
@@ -519,29 +519,6 @@
           8
         ]
       }
-    }
-  },
-  "policy_examples": {
-    "selected": {
-      "graph": "amazon0601",
-      "avg_degree": 11.46875,
-      "degree_cv": 0.7261585890937633,
-      "property_wsr_llc": 0.13989327170632102,
-      "reuse": 2,
-      "selected_strategy": "FastLeiden-Gorder8",
-      "candidate_over_boost_mapping": 0.5496539503604578,
-      "boost_over_candidate_kernel": 1.2793425045240978,
-      "boost_over_selected_end_to_end": 1.7454436069296995
-    },
-    "fallback": {
-      "graph": "soc-Slashdot0811",
-      "avg_degree": 12.9521484375,
-      "degree_cv": 3.023433184657935,
-      "property_wsr_llc": 0.026827725497159092,
-      "reuse": 2,
-      "selected_strategy": "Rabbit Boost",
-      "boost_over_candidate_kernel": 0.8619396490065483,
-      "boost_over_selected_end_to_end": 1.0
     }
   }
 }

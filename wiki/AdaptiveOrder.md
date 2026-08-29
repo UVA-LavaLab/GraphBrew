@@ -1,46 +1,27 @@
 # AdaptiveOrder
 
-AdaptiveOrder (`-o 14`) is GraphBrew's runtime selection boundary. The
-validated path is a frozen deterministic rule, not a machine-learning model.
+AdaptiveOrder (`-o 14`) is an experimental runtime-selection compatibility
+interface. It has no intrinsic permutation; it dispatches to another ordering.
+
+The repository retains a frozen reuse-1/2 rule for reproducing an earlier
+GraphBrew-or-Rabbit portfolio:
 
 ```bash
 ./bench/bin/pr -f graph.sg -s \
-  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>' \
+  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' \
   -n 3
 ```
 
-`<reuse>` must be `1` or `2`.
+That rule is **not a paper contribution**:
 
-[![AdaptiveOrder selected-arm output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v3)
+- its fallback is Boost Rabbit;
+- public portfolio accounting did not include `Adaptive Feature Time`;
+- it does not establish a Rabbit-free GraphBrew system; and
+- later graph-held-out studies failed to recover enough oracle headroom.
 
-**Figure 1.** AdaptiveOrder has no intrinsic permutation. The strip shows the
-output of one selected GraphBrew arm on the shared catalog input; a different
-feature decision can select a different arm.
+Use Algorithm 14 only for compatibility and historical reproduction. New
+paper experiments use explicit Algorithm-12 compositions and always include
+ORIGINAL.
 
-## Runtime contract
-
-The rule:
-
-- samples structure from the new graph;
-- models the selected kernel's property footprint relative to LLC;
-- uses kernel identity and declared reuse;
-- evaluates one frozen predicate; and
-- chooses the promoted GraphBrew composition or Boost Rabbit.
-
-It does not run candidate orderings first, train at runtime, use graph names,
-or query prior benchmark rows. The branch decision is deterministic; a
-selected `cd_parallel` GraphBrew mapping can still be schedule-sensitive.
-
-Unsupported kernels, small graphs, and reuse above two use the fallback.
-
-## Timing
-
-Public portfolio evidence accounts for chosen mapping cost plus reused kernel
-time. The binary reports `Adaptive Feature Time` separately; fully deployed
-timing must include it.
-
-For the predicate, supported kernels, exact arms, graph examples, confidence
-intervals, and limitations, use
-[All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector).
-
-Legacy model modes remain only for offline compatibility.
+See [Historical Low-Reuse Policy](Historical-Low-Reuse-Policy) and
+[Evidence and Claims](Evidence-and-Claims).

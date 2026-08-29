@@ -25,9 +25,9 @@ FIXTURE = FIGURES / "graphbrew-running-example.json"
 CAPTURE = FIGURES / "catalog-capture.json"
 EXAMPLE_EDGE_LIST = FIGURES / "data/graphbrew-running-example.el"
 EXAMPLE_MAP = FIGURES / "data/graphbrew-running-example.lo"
-LOW_REUSE_EVIDENCE = ROOT / "docs/allkernel-lowreuse-evidence.json"
-FIGURE_SCHEMA = "graphbrew-public/v3"
-FIGURE_CACHE_KEY = "graphbrew-public-v3"
+RECOMMENDATION_EVIDENCE = ROOT / "docs/recommendation-evidence.json"
+FIGURE_SCHEMA = "graphbrew-public/v4"
+FIGURE_CACHE_KEY = "graphbrew-public-v4"
 
 INK = "#27313A"
 PAGE = "#FFFFFF"
@@ -189,9 +189,9 @@ CATALOG_COPY = {
         "MAP materializes a supplied order; it does not discover one.",
     ),
     14: (
-        "Policy-selected arm",
-        ["Features choose an existing arm", "No fixed AdaptiveOrder permutation"],
-        "The output shown is the selected GraphBrew arm for this illustration.",
+        "Runtime policy dispatcher",
+        ["May select an existing arm", "No intrinsic permutation"],
+        "Compatibility interface; not a headline result of the paper.",
     ),
     15: (
         "Leiden + post-layout",
@@ -429,35 +429,9 @@ def validate_fixture(payload: dict) -> None:
     if payload["catalog"]["algorithms"]["13"]["order"] != final_order:
         raise ValueError("catalog MAP order must equal the tracked final order")
 
-    evidence = json.loads(LOW_REUSE_EVIDENCE.read_text())
-    rows = {row["graph"]: row for row in evidence["records"]}
-    for key, graph_name in (
-        ("selected", "amazon0601"),
-        ("fallback", "soc-Slashdot0811"),
-    ):
-        stored = payload["policy_examples"][key]
-        row = rows[graph_name]
-        if stored["graph"] != graph_name:
-            raise ValueError(f"policy example {key} graph mismatch")
-        comparisons = {
-            "avg_degree": row["features"]["avg_degree"],
-            "degree_cv": row["features"]["degree_cv"],
-            "property_wsr_llc": row["features"]["property_wsr_llc"],
-            "selected_strategy": row["selected_strategy"],
-            "boost_over_candidate_kernel":
-                row["boost_over_candidate_kernel"],
-            "boost_over_selected_end_to_end":
-                row["selected_strategy_speedup_reuse2"],
-        }
-        if key == "selected":
-            comparisons["candidate_over_boost_mapping"] = (
-                row["candidate_over_boost_mapping"]
-            )
-        for field, expected_value in comparisons.items():
-            if stored[field] != expected_value:
-                raise ValueError(
-                    f"policy example {key} field {field} drifted"
-                )
+    evidence = json.loads(RECOMMENDATION_EVIDENCE.read_text())
+    if evidence.get("schema") != "graphbrew-public-evidence/v2":
+        raise ValueError("public evidence schema is not current")
 
     if CAPTURE.is_file():
         receipt = json.loads(CAPTURE.read_text())
@@ -841,19 +815,23 @@ def generate_architecture(payload: dict) -> str:
     svg = SVG(
         1200,
         840,
-        "GraphBrew infrastructure and paper research direction",
+        "GraphBrew: explicit composition with bounded claims",
         (
-            "The reusable composition/evaluation infrastructure supports the "
-            "validated system and the paper's Rabbit-free generator study."
+            "The framework separates partition, block layout, and vertex "
+            "layout; the paper confirms one quality arm and one construction "
+            "optimization."
         ),
-        "One six-stage infrastructure; the paper direction studies automated Rabbit-free composition.",
+        "One six-stage pipeline; quality, construction cost, and rejected extensions remain separate.",
     )
-    svg.rect(35, 118, 545, 76, BLUE, stroke_width=3)
-    svg.text(60, 147, "GRAPHBREW INFRASTRUCTURE", "domain")
-    svg.text(60, 174, "Explicit recipes + reproducible mapping/evaluation", "body")
-    svg.rect(620, 118, 545, 76, VIOLET, stroke_width=3)
-    svg.text(645, 147, "PAPER RESEARCH DIRECTION", "domain")
-    svg.text(645, 174, "Rabbit-free generator under held-out evaluation", "body")
+    svg.rect(25, 112, 350, 82, BLUE, stroke_width=3)
+    svg.text(50, 142, "FRAMEWORK", "domain")
+    svg.text(50, 172, "Explicit partition / block / vertex choices", "small")
+    svg.rect(425, 112, 350, 82, GREEN, stroke_width=3)
+    svg.text(450, 142, "CONFIRMED QUALITY ARM", "domain")
+    svg.text(450, 172, "LeidenGVE - SizeDesc - LocalGorder8", "small")
+    svg.rect(825, 112, 350, 82, AMBER, stroke_width=3)
+    svg.text(850, 142, "SYSTEMS OPTIMIZATION", "domain")
+    svg.text(850, 172, "Compact active IDs + direct emission", "small")
     svg.rect(
         25,
         205,
@@ -889,7 +867,10 @@ def generate_architecture(payload: dict) -> str:
     svg.arrow("M995 470 V480 H205 V496")
     svg.arrow("M375 615 H426")
     svg.arrow("M770 615 H821")
-    svg.footer(785, "Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.")
+    svg.footer(
+        785,
+        "Invariant: topology and kernel semantics do not change; every performance claim names its mapping cost and baseline.",
+    )
     return svg.finish()
 
 
@@ -1659,60 +1640,164 @@ def generate_norefine(payload: dict) -> str:
     return svg.finish()
 
 
-def generate_policy(payload: dict) -> str:
-    selected = payload["policy_examples"]["selected"]
-    fallback = payload["policy_examples"]["fallback"]
+def generate_evidence_boundary(payload: dict) -> str:
+    del payload
+    evidence = json.loads(RECOMMENDATION_EVIDENCE.read_text())
+    quality = evidence["confirmed_claims"]["quality_arm"]
+    compact = evidence["confirmed_claims"]["compact_and_emit"]
+    atlas = evidence["confirmed_claims"]["composition_atlas"]
     svg = SVG(
         1200,
-        680,
-        "Validated low-reuse selector: one rule, two real holdout outcomes",
-        "This is the current evidence-bound policy, separate from the proposed Rabbit-free generator.",
-        "Reuse = 2 examples from the frozen rule2 holdout: amazon0601 and soc-Slashdot0811.",
-    )
-    svg.rect(35, 120, 300, 210, BLUE, stroke_width=3)
-    svg.text(60, 155, "Runtime inputs", "heading")
-    svg.text(60, 195, "Graph + supported kernel", "body")
-    svg.text(60, 225, "Machine LLC", "body")
-    svg.text(60, 255, "Declared reuse = 2", "body")
-    svg.text(60, 285, "Tier-0 sampled features", "body")
-    svg.rect(450, 120, 300, 210, VIOLET, stroke_width=3)
-    svg.text(475, 155, "Frozen predicate", "heading")
-    svg.mono(475, 194, "kernel supported; reuse <= 2", "small")
-    svg.mono(475, 220, "N >= 1,000; WSR/LLC <= 3.2", "small")
-    svg.mono(475, 246, "CV <= 2.68 and (deg <= 60", "small")
-    svg.mono(475, 270, "or WSR/LLC <= 0.82), or CV > 8", "small")
-    svg.text(475, 302, "No benchmarking before choice.", "small")
-    svg.rect(865, 120, 300, 210, AMBER, stroke_width=3)
-    svg.text(890, 155, "Selected arm", "heading")
-    svg.text(890, 198, "FastLeiden-Gorder8", "body")
-    svg.text(890, 228, "or Rabbit Boost fallback", "body")
-    svg.text(890, 270, "This is a validated portfolio,", "small")
-    svg.text(890, 296, "not the final Rabbit-free claim.", "small")
-    svg.arrow("M335 225 H446")
-    svg.arrow("M750 225 H861")
-    svg.rect(35, 375, 545, 220, GREEN, stroke_width=3)
-    svg.text(60, 410, f"SELECTED: {selected['graph']}", "heading")
-    svg.mono(60, 448, f"degree CV = {selected['degree_cv']:.3f}", "body")
-    svg.mono(60, 478, f"WSR/LLC = {selected['property_wsr_llc']:.3f}", "body")
-    svg.mono(60, 508, f"candidate/Boost map = {selected['candidate_over_boost_mapping']:.3f}", "body")
-    svg.mono(60, 538, f"Boost/candidate kernel = {selected['boost_over_candidate_kernel']:.3f}", "body")
-    svg.mono(60, 568, f"Boost/selected E2E = {selected['boost_over_selected_end_to_end']:.3f}x", "label")
-    svg.rect(620, 375, 545, 220, ROSE, stroke_width=3)
-    svg.text(645, 410, f"FALLBACK: {fallback['graph']}", "heading")
-    svg.mono(645, 448, f"degree CV = {fallback['degree_cv']:.3f}", "body")
-    svg.mono(645, 478, f"WSR/LLC = {fallback['property_wsr_llc']:.3f}", "body")
-    svg.mono(645, 508, f"Boost/candidate kernel = {fallback['boost_over_candidate_kernel']:.3f}", "body")
-    svg.text(645, 542, "Outside the frozen GraphBrew region.", "body")
-    svg.mono(
-        645,
-        572,
+        620,
+        "GraphBrew evidence boundary",
         (
-            "Boost/selected E2E = "
-            f"{fallback['boost_over_selected_end_to_end']:.3f}x"
+            "Confirmed quality and construction claims are separated from "
+            "post-selected or graph-held-out failures."
         ),
-        "label",
+        "Values are frozen geometric means; arrows above one favor GraphBrew unless labeled as mapping cost.",
     )
-    svg.footer(620, "Evidence scope: seven kernels, reuse 1-2, fixed platform; the selector is not a universal GraphBrew result.")
+    svg.rect(25, 120, 350, 390, GREEN, stroke_width=3)
+    svg.text(50, 158, "CONFIRMED: FIXED QUALITY", "domain")
+    svg.text(50, 198, quality["name"], "heading")
+    svg.mono(
+        50, 238,
+        f"Rabbit CSR / GraphBrew = {quality['kernel_gm']['rabbit_csr_over_graphbrew']:.3f}x",
+        "small",
+    )
+    svg.mono(
+        50, 270,
+        f"Rabbit Boost / GraphBrew = {quality['kernel_gm']['rabbit_boost_over_graphbrew']:.3f}x",
+        "small",
+    )
+    svg.mono(
+        50, 302,
+        f"GORDER_csr / GraphBrew = {quality['kernel_gm']['gorder_csr_over_graphbrew']:.3f}x",
+        "small",
+    )
+    svg.mono(
+        50, 350,
+        f"GraphBrew / GORDER_csr map = {quality['mapping_gm']['graphbrew_over_gorder_csr']:.3f}x",
+        "small",
+    )
+    svg.text(50, 400, "Quality point, not per-cell dominance.", "body")
+    svg.text(50, 434, "Rabbit break-even: 37k-40k reuses.", "body")
+    svg.text(50, 468, "Summed Rabbit seconds never cross.", "body")
+
+    svg.rect(425, 120, 350, 390, AMBER, stroke_width=3)
+    svg.text(450, 158, "CONFIRMED: CONSTRUCTION", "domain")
+    svg.text(450, 198, compact["name"], "heading")
+    svg.text(450, 238, "Compact active community IDs.", "body")
+    svg.text(450, 270, "Emit final IDs during BFS.", "body")
+    svg.mono(
+        450, 318,
+        (
+            "candidate / min-Rabbit map = "
+            f"{compact['mapping_only']['five_graph_candidate_over_min_rabbit_mapping_gm']:.3f}x"
+        ),
+        "small",
+    )
+    svg.mono(
+        450, 350,
+        (
+            "Wiki-Talk complete map = "
+            f"{compact['mapping_only']['wiki_talk_complete_seconds']:.3f}s"
+        ),
+        "small",
+    )
+    svg.text(450, 400, "Final BFS permutation is preserved.", "body")
+    svg.text(450, 434, "ORIGINAL audit closes low-reuse claim.", "body")
+    svg.text(450, 468, "This is a systems optimization.", "body")
+
+    svg.rect(825, 120, 350, 390, ROSE, stroke_width=3)
+    svg.text(850, 158, "REJECTED: ADAPTIVE HEADLINE", "domain")
+    svg.text(850, 198, "Corrected composition atlas", "heading")
+    svg.mono(
+        850, 242,
+        f"in-sample oracle = {atlas['in_sample_oracle_over_fastest_comparator_gm']:.3f}x",
+        "small",
+    )
+    svg.mono(
+        850, 274,
+        f"best fixed arm = {atlas['best_fixed_over_fastest_comparator_gm']:.3f}x",
+        "small",
+    )
+    svg.mono(
+        850, 306,
+        f"graph-held-out = {atlas['graph_held_out_over_fastest_comparator_gm']:.3f}x",
+        "small",
+    )
+    svg.text(850, 360, "Oracle headroom is post-selected.", "body")
+    svg.text(850, 394, "Held-out selection loses overall.", "body")
+    svg.text(850, 428, "No generator or selector claim.", "body")
+    svg.text(850, 462, "Failed portal hooks were removed.", "body")
+    svg.footer(
+        545,
+        "Public claim: explicit composition framework + fixed quality arm + Compact-and-Emit. Nothing else is promoted.",
+    )
+    return svg.finish()
+
+
+def generate_compact_emit(payload: dict) -> str:
+    del payload
+    evidence = json.loads(RECOMMENDATION_EVIDENCE.read_text())
+    compact = evidence["confirmed_claims"]["compact_and_emit"]
+    svg = SVG(
+        1200,
+        560,
+        "Compact-and-Emit removes sparse community scheduling",
+        (
+            "A one-pass detector can leave sparse representative labels. "
+            "Compaction schedules active communities only, and direct BFS "
+            "emission removes the final local-ID sweep."
+        ),
+        "The final BFS permutation is unchanged; only construction work is removed.",
+    )
+    svg.rect(30, 125, 330, 300, ROSE, stroke_width=3)
+    svg.text(55, 162, "CONVENTIONAL ONE-PASS PATH", "domain")
+    svg.text(55, 205, "Sparse representative labels", "heading")
+    for index, label in enumerate(("C0", "-", "-", "C17", "-", "-", "C201")):
+        x = 55 + index * 40
+        svg.rect(
+            x, 245, 32, 42,
+            AMBER if label != "-" else NEUTRAL,
+            radius=5,
+        )
+        svg.mono(x + 16, 272, label, "micro", anchor="middle")
+    svg.text(55, 325, "Schedule every label slot.", "body")
+    svg.text(55, 357, "Store localIds for all vertices.", "body")
+    svg.text(55, 389, "Run a final assignment sweep.", "body")
+
+    svg.rect(435, 125, 330, 300, BLUE, stroke_width=3)
+    svg.text(460, 162, "COMPACT ACTIVE IDS", "domain")
+    svg.text(460, 205, "Monotone active-label remap", "heading")
+    for index, label in enumerate(("C0", "C1", "C2")):
+        x = 485 + index * 72
+        svg.rect(x, 245, 56, 42, VIOLET, radius=5)
+        svg.mono(x + 28, 272, label, "small", anchor="middle")
+    svg.text(460, 325, "Skip empty community slots.", "body")
+    svg.text(460, 357, "Preserve stable block semantics.", "body")
+    svg.text(460, 389, "Work scales with active groups.", "body")
+
+    svg.rect(840, 125, 330, 300, GREEN, stroke_width=3)
+    svg.text(865, 162, "DIRECT BFS EMISSION", "domain")
+    svg.text(865, 205, "Write IDs during BFS", "heading")
+    svg.mono(865, 252, "pop(v) -> new_id[v] = base+k", "small")
+    svg.text(865, 305, "No global localIds array.", "body")
+    svg.text(865, 337, "No final sparse-ID sweep.", "body")
+    svg.mono(
+        865, 385,
+        (
+            "five-graph map ratio = "
+            f"{compact['mapping_only']['five_graph_candidate_over_min_rabbit_mapping_gm']:.3f}x"
+        ),
+        "small",
+    )
+    svg.arrow("M360 275 H431")
+    svg.arrow("M765 275 H836")
+    svg.footer(
+        475,
+        "Claim boundary: faster mapping construction; mandatory ORIGINAL results reject a low-reuse ordering win.",
+    )
     return svg.finish()
 
 
@@ -2196,8 +2281,8 @@ def generate_catalog_markdown(payload: dict) -> str:
         "",
         (
             "[Capture receipt](https://github.com/UVA-LavaLab/GraphBrew/blob/"
-            "main/docs/figures/catalog-capture.json) with commands, mapping "
-            "fingerprints, and raw stdout tails."
+            "main/docs/figures/catalog-capture.json) with stable command "
+            "templates, mapping fingerprints, and measured orders."
         ),
         "",
         "Re-capture and regenerate:",
@@ -2229,7 +2314,7 @@ def generate_catalog_markdown(payload: dict) -> str:
                         "- **Evidence:** output order captured from the shared "
                         "example"
                         if algorithm_id != 14
-                        else "- **Evidence:** selected-arm illustration; AdaptiveOrder has no fixed permutation"
+                        else "- **Evidence:** compatibility illustration; AdaptiveOrder has no fixed permutation"
                     ),
                     "",
                     (
@@ -2302,7 +2387,8 @@ def write_outputs(payload: dict, target_root: Path) -> dict[Path, str]:
         target_root / "docs/figures/graphbrew-cd-parallel.svg": generate_cd_parallel(payload),
         target_root / "docs/figures/graphbrew-sgmb4096.svg": generate_sgmb(payload),
         target_root / "docs/figures/graphbrew-norefine.svg": generate_norefine(payload),
-        target_root / "docs/figures/graphbrew-lowreuse-policy.svg": generate_policy(payload),
+        target_root / "docs/figures/graphbrew-compact-emit.svg": generate_compact_emit(payload),
+        target_root / "docs/figures/graphbrew-evidence-boundary.svg": generate_evidence_boundary(payload),
         target_root / "docs/figures/reordering/example-input.svg": generate_catalog_input(payload),
     }
     for algorithm_id in range(17):
@@ -2378,6 +2464,7 @@ def public_manifest(payload: dict, outputs: dict[Path, str]) -> dict:
                 CAPTURE,
                 EXAMPLE_EDGE_LIST,
                 EXAMPLE_MAP,
+                RECOMMENDATION_EVIDENCE,
                 ROOT / "scripts/generate_public_figures.py",
             )
         ],
@@ -2468,10 +2555,8 @@ def capture_catalog(payload: dict) -> dict:
             ] = order
             records[str(algorithm_id)] = {
                 "spec": stored_spec,
-                "runtime_spec": runtime_spec,
                 "order": order,
                 "mapping_fingerprint": fingerprint_match[-1],
-                "command": command,
                 "command_template": [
                     "bench/bin/converter",
                     "-f",
@@ -2486,7 +2571,6 @@ def capture_catalog(payload: dict) -> dict:
                     "-q",
                     f"<output>/{algorithm_id}.lo",
                 ],
-                "stdout_tail": completed.stdout.splitlines()[-20:],
             }
     payload["catalog"]["algorithms"]["14"]["order"] = list(
         payload["catalog"]["algorithms"]["12"]["order"]
@@ -2528,7 +2612,7 @@ def capture_catalog(payload: dict) -> dict:
         },
         "records": records,
         "adaptive_order": {
-            "status": "selected-arm illustration",
+            "status": "compatibility selected-arm illustration",
             "order_source_algorithm": 12,
             "order": payload["catalog"]["algorithms"]["14"]["order"],
         },

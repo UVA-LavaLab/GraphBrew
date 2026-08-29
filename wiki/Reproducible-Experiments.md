@@ -14,7 +14,7 @@ partition, not in the repository.
 | Path | Purpose | Claim eligible |
 |---|---|---|
 | Rapid | dependency checks, parser failures, mapping bugs, candidate narrowing | no |
-| Final | frozen graph/algorithm policy, repeated mappings and trials, verification, fixed affinity | yes |
+| Final | frozen graph/algorithm policy, repeated mappings and trials, verification, fixed affinity, scheduler gate | yes |
 
 Rapid example:
 
@@ -88,6 +88,7 @@ kernel time
 executed work
 verification state
 mapping fingerprint
+scheduler class, nice value, and affinity
 ```
 
 Report kernel-only quality and:
@@ -141,7 +142,11 @@ Before accepting results:
 4. bind source/work parameters;
 5. verify answers or fingerprints;
 6. confirm trials, threads, affinity, and build identity;
-7. recompute public claims from frozen evidence.
+7. require `SCHED_OTHER` at nice 0 for final timing;
+8. recompute public claims from frozen evidence.
+
+A terminal selector campaign that inherited `SCHED_IDLE`/nice 19 is retained
+only as invalidated provenance. None of its performance rows may be cited.
 
 Public recommendation claims are checked by
 `scripts/test/test_documented_recommendations.py`.

@@ -26,7 +26,7 @@ the other IDs are individual primitives or baselines.
 
 ## One shared comparison input
 
-[![Shared reordering input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v3)
+[![Shared reordering input](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/example-input.svg?v=graphbrew-public-v4)
 
 Every catalog strip uses this exact nine-vertex graph and records the converter
 output order under one pinned binary. That makes equal outputs visible and
@@ -54,7 +54,7 @@ draw.io source for every algorithm ID.
 | 11 | `-o 11` | RCM | O(n log n + m) | historical double-pass; variants `mind`, `bnf` expose explicit single-pass methods |
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
-| 14 | `-o 14` | AdaptiveOrder | varies | validated deterministic rule plus legacy offline-model modes; see [AdaptiveOrder](AdaptiveOrder) |
+| 14 | `-o 14` | AdaptiveOrder | varies | experimental compatibility selector; not a headline result |
 | 15 | `-o 15` | LeidenOrder | O(n log n + m) | GVE-Leiden communities plus an explicit post-layout policy |
 | 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; published Rabbit clustering omitted |
 
@@ -67,10 +67,9 @@ intervals are recorded in
 
 | Objective | First measured configuration | What is proved |
 |---|---|---|
-| Non-Rabbit all-kernel ordering quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Kernel-only GM is 1.049x over Rabbit CSR and 1.059x over Boost across 11 graphs and 7 kernels; both lower 95% bounds exceed one. Full Leiden mapping costs about 17–18x Rabbit, and a one-pass replacement failed to retain the quality win. |
-| Non-Rabbit controlled-work quality | `12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp` | About 1.025x over both Rabbit implementations for fixed-work PR/PR-SpMV, fixed-source SSSP, and BC. It is not the all-kernel winner because CC/CC-SV regress. |
-| Low-reuse end-to-end | `12:leiden:compose:sg_none:comm_identity:intra_gorder:gw32:gordf500:cd_parallel:1:1` | Wins reuse-1 on a bounded rapid cohort through lower mapping cost; Rabbit kernels are faster on average, and Boost wins the Friendster holdout. |
-| Automatic all-kernel reuse 1–2 | `14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` | Frozen deterministic rule selects the cost-matched FastLeiden-Gorder8 composition or Boost Rabbit. Seven selected untouched graphs pass at 1.696x/1.642x over Boost; including five Rabbit fallbacks, the frozen portfolio reaches 1.361x/1.336x over always-Boost. Public portfolio accounting does not store algorithm-14 feature time. |
+| Fixed Rabbit-free quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | Fresh kernel GMs are 1.042x, 1.044x, and 1.052x versus Rabbit CSR, Rabbit Boost, and GORDER_csr. GraphBrew maps at 0.752x GORDER_csr cost but 17–19x Rabbit cost. |
+| Mapping construction | `12:leiden:compose:sg_none:comm_identity:intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1` | Compact-and-Emit preserves the BFS permutation and reaches 0.479x min-Rabbit mapping GM on five development graphs. ORIGINAL closes the low-reuse ordering claim. |
+| Automated selection | none promoted | The in-sample oracle reaches 1.062x, but the best fixed and graph-held-out policies reach 0.946x and 0.907x. |
 | Road/mesh diagnosis | Compare `12:hrab`, `12:hrab:bfs_intra`, `11:bnf`, and both Rabbits | HRAB-RCM has the best point estimate on the single road and mesh graphs, but each type has one graph, so this is descriptive rather than a general recommendation. |
 | Unknown workload | `0`, `8:csr`, `8:boost`, plus one objective-matched COMPOSE row | Measure kernel-only quality and end-to-end time separately. Graph type alone does not identify the winner. |
 
@@ -163,19 +162,13 @@ Two evidence-bound examples are:
 | Objective | Exact configuration |
 |---|---|
 | Kernel-only all-kernel quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` |
-| Cost-matched low-reuse candidate | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:cd_parallel:sgmb4096:gordf5000:norefine:2:2` |
+| Faster one-pass construction | `12:leiden:compose:sg_none:comm_identity:intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1` |
 
 Named historical presets such as `hrab`, `tqr`, and `hcache` remain callable
-for reproduction. They are not aliases for the promoted composition and
-should not be treated as automatic recommendations. See
+for reproduction. They are not aliases for the confirmed quality composition
+and should not be treated as automatic recommendations. See
 [GraphBrewOrder](GraphBrewOrder) for stage tokens and the measurement
 contract.
-
-The six rejected novelty directions remain only as removable correctness
-prototypes under `reorder/experimental/`; none is a public algorithm or CLI
-variant. The evidence-bound `intra_gorder` token remains the historical
-relaxed direct-neighbor heuristic. See
-[GraphBrewOrder](GraphBrewOrder#contained-validity-only-prototypes).
 
 ### Meta (13, 14)
 
@@ -183,9 +176,9 @@ relaxed direct-neighbor heuristic. See
 (`.lo` or `.so` file). Used by the benchmark pipeline to apply a
 pregenerated reordering without redoing the work.
 
-**AdaptiveOrder** (`-o 14`) — runtime selection boundary. The validated path
-is the frozen deterministic `allkernel-lowreuse-rule`, not ML. Historical
-offline-model modes remain for compatibility; see
+**AdaptiveOrder** (`-o 14`) — experimental runtime-selection compatibility
+surface. The earlier deterministic Rabbit-fallback rule remains callable for
+reproduction, but no selector is a headline paper contribution. See
 [AdaptiveOrder](AdaptiveOrder).
 
 ### Reference Leiden (15)
@@ -243,7 +236,8 @@ sequence and measure its combined mapping cost.
 ## Selection checklist
 
 1. Run `-o 0` to establish the current-layout baseline.
-2. Decide whether the objective is kernel quality or low-reuse time-to-solution.
+2. Decide whether the objective is kernel quality, construction cost, or
+   amortized time-to-solution.
 3. Include both `8:csr` and `8:boost`; they can reverse order by graph.
 4. Add the exact COMPOSE row from the evidence-scoped table that matches the
    objective.

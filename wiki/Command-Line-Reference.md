@@ -47,8 +47,7 @@ python3 scripts/graphbrew_experiment.py --target-graphs 200 --size small
 ### Historical offline-model modes
 
 These commands are retained for research compatibility. They are not required
-by the validated deterministic runtime rule documented in
-[AdaptiveOrder](AdaptiveOrder).
+by the confirmed fixed-composition paper results.
 
 | Mode | Command | Description |
 |------|---------|-------------|
@@ -105,8 +104,8 @@ python3 scripts/graphbrew_experiment.py --phase cache --size small
 **Note:** Results are saved to `results/` after each phase. Later benchmark
 and cache phases load pregenerated `.lo` mappings from the reorder phase.
 Historical model commands may also read
-`results/data/adaptive_models.json`; the validated
-`allkernel-lowreuse-rule` does not.
+`results/data/adaptive_models.json`; the confirmed quality and
+Compact-and-Emit results do not.
 
 ---
 
@@ -216,7 +215,7 @@ Use with `-o <id>`:
 | 11 | RCMOrder | Classic (has variants, see below) |
 | 12 | GraphBrewOrder | Community (has variants, see below) |
 | 13 | MAP | External mapping |
-| 14 | AdaptiveOrder | deterministic validated rule plus legacy offline-model modes |
+| 14 | AdaptiveOrder | experimental selector compatibility interface |
 | 15 | LeidenOrder | Leiden (GVE-Leiden baseline) |
 | 16 | GoGraphOrder | Flow-edge (has variants, see below) |
 
@@ -557,17 +556,18 @@ export OMP_NUM_THREADS=8
 
 ### AdaptiveOrder
 
-Validated frozen all-kernel low-reuse selection:
+Historical deterministic low-reuse policy:
 
 ```bash
 ./bench/bin/bfs -f graph.sg -s \
   -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' -n 3
 ```
 
-The final field is the declared mapping reuse count and is mandatory for this
-rule. Supported values are 1 and 2; other contexts use the fallback. The rule
-does not load an offline model or perform runtime training. See
-[AdaptiveOrder](AdaptiveOrder).
+The final field is the declared mapping reuse count. This interface remains
+available for compatibility, but its fallback is Boost Rabbit and it is not a
+headline paper contribution. New scientific runs should prefer explicit
+Algorithm-12 compositions and include ORIGINAL. See
+[AdaptiveOrder](AdaptiveOrder) and [Evidence and Claims](Evidence-and-Claims).
 
 Historical model-emulation modes can use:
 
@@ -575,8 +575,7 @@ Historical model-emulation modes can use:
 export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ```
 
-Those modes are research compatibility surfaces, not the validated deployed
-result.
+Those modes are research compatibility surfaces, not validated paper results.
 
 ### NUMA Binding
 

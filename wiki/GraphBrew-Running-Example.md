@@ -1,95 +1,89 @@
 # GraphBrew Running Example
 
-These figures share one stage map: **1** load and profile, **2** partition,
-**3** block layout, **4** vertex layout, **5** relabeled-CSR emission, and
-**6** kernel access pattern. Serialization, validation, and timing are shown
-without new stage numbers.
+One nine-vertex graph is carried through the complete composition pipeline:
 
-On a narrow screen, select a figure to open its full-resolution SVG.
+1. load graph and CSR;
+2. attach community membership;
+3. place contiguous community blocks;
+4. order vertices inside each block;
+5. validate and emit the relabeled CSR; and
+6. inspect the resulting property-access locality.
 
-Every stage uses the same nine vertices, twelve undirected edges, communities
-`C0`/`C1`, and tracked vertex `v2`. The example uses `gordf4` only so both
-local-layout branches fit in one small figure. The evaluated composition uses
-`gordf5000`.
+The `C0`/`C1` partition is fixed pedagogically so every mapping and CSR value
+is checkable. The example illustrates composition; it is not a performance
+result or the detector’s measured output on this tiny graph.
 
-The `C0`/`C1` membership is manually frozen after Stage 2 so every subsequent
-mapping and CSR value is arithmetically checkable. It is not the community
-detector's measured output for this tiny graph. The Algorithm-12 catalog strip
-separately reports the actual end-to-end converter output for the same CLI.
+## 1. Input graph and CSR
 
-## 1. Load the graph and expose one CSR row
+[![Input graph and CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v4)
 
-[![Stage 1 graph to CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-graph-to-csr.svg?v=graphbrew-public-v3)
+Tracked vertex `v2` reads neighbors `[1,4,6,8]`. No labels have moved.
 
-**Figure 1.** The topology, CSR row, and lightweight profile all refer to
-`v2`. No labels move and no graph kernel runs.
+## 2. Community membership
 
-The next stage adds community membership to this exact graph.
+[![Community membership](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v4)
 
-## 2. Partition without relabeling
+The example fixes:
 
-[![Stage 2 partition](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-leiden-transform.svg?v=graphbrew-public-v3)
+```text
+C0 = {1,2,4,6,7}
+C1 = {0,3,5,8}
+```
 
-**Figure 2.** The pedagogical partition fixes
-`C0={1,2,4,6,7}` and `C1={0,3,5,8}`. Vertex IDs and all twelve edges remain
-unchanged.
+Topology and vertex IDs remain unchanged.
 
-The next stage converts those two sets into contiguous ID ranges.
+## 3. Block layout
 
-## 3. Place community blocks
+[![SizeDesc blocks](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg?v=graphbrew-public-v4)
 
-[![Stage 3 SizeDesc](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-sizedesc-transform.svg?v=graphbrew-public-v3)
+`comm_size_desc` assigns `C0` to IDs `0..4` and `C1` to IDs `5..8`.
 
-**Figure 3.** `comm_size_desc` places five-vertex `C0` in IDs `0..4` and
-four-vertex `C1` in IDs `5..8`. Tracked `v2` enters the first block.
+## 4. Vertex layout inside each block
 
-The block ranges are now fixed. Stage 4 chooses an order independently inside
-each block.
+The small fixture uses `gordf4` only to place its two communities on opposite
+sides of one local-layout decision:
 
-## 4. Dispatch and order each block
+[![Per-community dispatch](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v4)
 
-[![Stage 4 dispatch](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gordf5000.svg?v=graphbrew-public-v3)
+### Relaxed local Gorder
 
-**Figure 4.** The threshold is per community. In this mechanism-scale example,
-`C1` takes relaxed local Gorder while `C0` takes hub-rooted BFS.
+[![Relaxed local Gorder](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg?v=graphbrew-public-v4)
 
-### 4A. Small block: relaxed local Gorder
+`intra_gorder` is GraphBrew’s historical direct-neighbor local heuristic. It
+is distinct from faithful standalone `GORDER_csr`.
 
-[![Stage 4A relaxed local Gorder](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-gorder-transform.svg?v=graphbrew-public-v3)
+### Hub-rooted BFS
 
-**Figure 4A.** The active `intra_gorder` implementation is the historical
-direct-neighbor UnitHeap heuristic. It is not faithful standalone
-`GORDER_csr`.
+[![Hub-rooted BFS](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg?v=graphbrew-public-v4)
 
-### 4B. Large block: hub-rooted BFS
+For `C0`, `v2` is the highest-degree root and receives local ID zero.
 
-[![Stage 4B BFS](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-bfs-transform.svg?v=graphbrew-public-v3)
+## 5. Relabel and validate CSR
 
-**Figure 4B.** `v2` is the highest-degree root. BFS emits
-`[v2,v1,v4,v6,v7]`, so `v2` receives local and global ID `0`.
+[![Relabeled CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg?v=graphbrew-public-v4)
 
-The two local orders now compose with the block order into one permutation.
+The final order is:
 
-## 5. Emit and validate relabeled CSR
+```text
+[v2,v1,v4,v6,v7 | v8,v5,v0,v3]
+```
 
-[![Stage 5 relabeled CSR](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-relabel-emit.svg?v=graphbrew-public-v3)
+The permutation is bijective and preserves all 24 directed arcs.
 
-**Figure 5.** The final memory order is
-`[v2,v1,v4,v6,v7 | v8,v5,v0,v3]`. The permutation is bijective and the
-relabeled CSR preserves all 24 directed arcs.
+### Compact-and-Emit
 
-The last stage follows the same `v2` property reads after relabeling.
+[![Compact-and-Emit](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-compact-emit.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-compact-emit.svg?v=graphbrew-public-v4)
 
-## 6. Show the locality consequence
+For one-pass BFS compositions, Compact-and-Emit can build the same selected
+permutation while scheduling active community IDs only and writing final IDs
+during traversal.
 
-[![Stage 6 locality](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v3)
+## 6. Locality consequence
 
-**Figure 6.** `v2` still reads four neighbor properties. Their IDs change from
-`[1,4,6,8]` to `[1,2,3,5]`, reducing four-property cache-line touches from
-three lines to two.
+[![Locality consequence](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-locality-outcome.svg?v=graphbrew-public-v4)
 
-This is an illustrative locality mechanism, not a performance result. Measured
-kernel and end-to-end claims remain in the evidence pages.
+The tracked neighbor IDs become `[1,2,3,5]`, reducing the illustrative
+four-property access from three cache lines to two.
 
 ## Exact fixture
 
@@ -97,29 +91,15 @@ kernel and end-to-end claims remain in the evidence pages.
 |---|---|
 | input order | `[v0,v1,v2,v3,v4,v5,v6,v7,v8]` |
 | block-only SizeDesc order | `[v1,v2,v4,v6,v7,v0,v3,v5,v8]` |
-| C0 local BFS order | `[v2,v1,v4,v6,v7]` |
-| C1 relaxed-Gorder order | `[v8,v5,v0,v3]` |
+| `C0` local BFS order | `[v2,v1,v4,v6,v7]` |
+| `C1` relaxed-Gorder order | `[v8,v5,v0,v3]` |
 | final order | `[v2,v1,v4,v6,v7,v8,v5,v0,v3]` |
 | old-to-new map | `[7,1,0,8,2,6,3,4,5]` |
-| relabeled offsets | `[0,4,7,9,12,14,18,20,22,24]` |
 | relabeled row 0 | `[1,2,3,5]` |
 
-The machine-readable source is
-[`docs/figures/graphbrew-running-example.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/graphbrew-running-example.json).
-Regenerate every public explanatory figure with:
+Regenerate every public figure with:
 
 ```bash
 python3 scripts/generate_public_figures.py
 python3 scripts/generate_public_figures.py --check
 ```
-
-## Source map
-
-| Figure content | Implementation source |
-|---|---|
-| composition grammar | `bench/include/graphbrew/reorder/reorder_graphbrew_parser.h` |
-| community detection and composition | `bench/include/graphbrew/reorder/reorder_graphbrew.h` |
-| relaxed local Gorder | `intraGorderGreedy` in `reorder_graphbrew.h` |
-| hub-rooted BFS | `intraBFSFromHub` in `reorder_graphbrew.h` |
-| mapping load/apply and CSR relocation | `bench/include/external/gapbs/builder.h` |
-| work and timing validation | `scripts/experiments/vldb/runner.py` |

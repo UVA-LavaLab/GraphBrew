@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v3">
-  <title id="title">GraphBrew infrastructure and paper research direction</title>
-  <desc id="desc">The reusable composition/evaluation infrastructure supports the validated system and the paper&#x27;s Rabbit-free generator study.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v4">
+  <title id="title">GraphBrew: explicit composition with bounded claims</title>
+  <desc id="desc">The framework separates partition, block layout, and vertex layout; the paper confirms one quality arm and one construction optimization.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
@@ -27,15 +27,18 @@
     </style>
   </defs>
   <rect width="1200" height="840" fill="#FFFFFF"/>
-  <text x="42" y="47" class="sans title">GraphBrew infrastructure and paper research direction</text>
-  <text x="42" y="75" class="sans subtitle">One six-stage infrastructure; the paper direction studies automated Rabbit-free composition.</text>
+  <text x="42" y="47" class="sans title">GraphBrew: explicit composition with bounded claims</text>
+  <text x="42" y="75" class="sans subtitle">One six-stage pipeline; quality, construction cost, and rejected extensions remain separate.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
-  <rect x="35" y="118" width="545" height="76" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
-  <text x="60" y="147" class="sans domain">GRAPHBREW INFRASTRUCTURE</text>
-  <text x="60" y="174" class="sans body">Explicit recipes + reproducible mapping/evaluation</text>
-  <rect x="620" y="118" width="545" height="76" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
-  <text x="645" y="147" class="sans domain">PAPER RESEARCH DIRECTION</text>
-  <text x="645" y="174" class="sans body">Rabbit-free generator under held-out evaluation</text>
+  <rect x="25" y="112" width="350" height="82" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
+  <text x="50" y="142" class="sans domain">FRAMEWORK</text>
+  <text x="50" y="172" class="sans small">Explicit partition / block / vertex choices</text>
+  <rect x="425" y="112" width="350" height="82" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
+  <text x="450" y="142" class="sans domain">CONFIRMED QUALITY ARM</text>
+  <text x="450" y="172" class="sans small">LeidenGVE - SizeDesc - LocalGorder8</text>
+  <rect x="825" y="112" width="350" height="82" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
+  <text x="850" y="142" class="sans domain">SYSTEMS OPTIMIZATION</text>
+  <text x="850" y="172" class="sans small">Compact active IDs + direct emission</text>
   <rect x="25" y="205" width="1150" height="555" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="45" y="229" class="sans domain">SHARED SIX-STAGE PIPELINE</text>
   <rect x="35" y="240" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#1769C2" stroke-width="2"/>
@@ -260,5 +263,5 @@
   <path d="M375 615 H426" class="arrow"/>
   <path d="M770 615 H821" class="arrow"/>
   <rect x="144" y="785" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="812" class="sans small" text-anchor="middle">Invariant: graph topology and kernel semantics do not change; only vertex IDs and CSR order change.</text>
+  <text x="600" y="812" class="sans small" text-anchor="middle">Invariant: topology and kernel semantics do not change; every performance claim names its mapping cost and baseline.</text>
 </svg>

@@ -2,13 +2,12 @@
 
 - [Home](Home)
 - [Getting Started](Getting-Started)
+- [Evidence and Claims](Evidence-and-Claims)
 
 ## Core idea
 
 - [Running Example](GraphBrew-Running-Example)
 - [GraphBrewOrder](GraphBrewOrder)
-- [Low-Reuse Selector](All-Kernel-Low-Reuse-Selector)
-- [AdaptiveOrder](AdaptiveOrder)
 - [Reordering Algorithms](Reordering-Algorithms)
 - [Reordering Figure Catalog](Reordering-Figure-Catalog)
 
@@ -26,6 +25,7 @@
 - [Graph Benchmarks](Graph-Benchmarks)
 - [Code Architecture](Code-Architecture)
 - [Python Scripts](Python-Scripts)
+- [AdaptiveOrder](AdaptiveOrder)
 - [Troubleshooting](Troubleshooting)
 - [FAQ](FAQ)
 

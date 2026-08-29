@@ -12,6 +12,7 @@ and [Troubleshooting](Troubleshooting).
 | Very low reorder cost | `-o 5` (DBG) |
 | Strong general baseline | `-o 8:csr` (RabbitOrder CSR) |
 | Expensive locality reference | `-o 9:csr` (exact Gorder) |
+| Confirmed GraphBrew quality point | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` |
 | Road / mesh diagnostic | `-o 11:bnf` |
 | Reproducing the frozen study | [Reproducible-Experiments](Reproducible-Experiments) covers the full matrix |
 
@@ -52,26 +53,24 @@ Three common reasons:
 | Frozen-study runs | the configured `--paper-artifact-root` |
 | Historical offline models | `results/data/adaptive_models.json` |
 
-## Does AdaptiveOrder require a trained model?
+## What does the paper claim?
 
-No. The validated `allkernel-lowreuse-rule` is a frozen deterministic
-predicate and does not load `adaptive_models.json`. Historical model
-experiments can still read that file. See [AdaptiveOrder](AdaptiveOrder).
+The paper claims:
 
-## Does the low-reuse rule need an earlier kernel run?
+- one fixed GraphBrew quality composition that beats Rabbit CSR, Rabbit Boost,
+  and GORDER_csr in kernel geometric mean;
+- lower mapping cost than GORDER_csr for that quality composition; and
+- Compact-and-Emit as a permutation-preserving construction optimization.
 
-No. It samples the new graph directly and uses kernel identity, LLC capacity,
-and declared reuse. It does not execute candidate orderings or consult prior
-benchmark rows. See
-[All-Kernel Low-Reuse Selector](All-Kernel-Low-Reuse-Selector).
+It does not claim a universal winner, a Rabbit-cost-balanced arm, or an
+automatic generator. See [Evidence and Claims](Evidence-and-Claims).
 
-## Why does the policy fall back to Rabbit?
+## What is AdaptiveOrder's status?
 
-The promoted non-Rabbit composition is not a universal winner. On fallback
-graphs the policy ties the always-Rabbit baseline rather than claiming a
-GraphBrew win. Selected GraphBrew graphs contribute the portfolio gains. The
-current policy therefore beats always-Rabbit in aggregate but is not
-Rabbit-free.
+Algorithm 14 remains available for compatibility and historical reproduction.
+Its earlier low-reuse rule falls back to Boost Rabbit and is not a headline
+paper contribution. New scientific comparisons should use explicit
+Algorithm-12 compositions and include ORIGINAL.
 
 ## How do I add a new algorithm or benchmark?
 
@@ -120,9 +119,11 @@ Cite the repository:
 }
 ```
 
-## Where is the runtime selection documentation?
+## What is Compact-and-Emit?
 
-[AdaptiveOrder](AdaptiveOrder).
+It compacts active one-pass community IDs and writes final IDs during
+intra-community BFS. The final permutation is unchanged; only construction
+work is removed. See [GraphBrewOrder](GraphBrewOrder#compact-and-emit).
 
 ## Common errors
 
@@ -133,6 +134,6 @@ Cite the repository:
 | `g++ unrecognized command line option '-std=c++17'` | install GCC 7+ |
 | `Cannot allocate memory` while building | `make -j2` instead of `-j` |
 | `*.sg file not found` after rebuild | re-run with `-f graph.el`; the binary will regenerate `.sg` |
-| The low-reuse rule always picks Rabbit | Confirm the exact algorithm-14 string, supported kernel, reuse 1 or 2, and graph size; fallback is expected when the frozen predicate is false |
+| Algorithm 14 selects an unexpected arm | Treat it as a compatibility surface; reproduce the exact historical policy or use an explicit Algorithm-12 composition |
 
 More in [Troubleshooting](Troubleshooting).

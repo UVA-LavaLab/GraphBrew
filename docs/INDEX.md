@@ -1,105 +1,59 @@
 # GraphBrew documentation index
 
-## Public story
+## Start here
 
-- [`README.md`](../README.md) — purpose, architecture, validated result, build,
-  and experiment entry points
-- [`wiki/Home.md`](../wiki/Home.md) — documentation navigation
+- [`README.md`](../README.md) — project story, confirmed claims, build, and
+  experiment entry point
+- [`wiki/Evidence-and-Claims.md`](../wiki/Evidence-and-Claims.md) — exact
+  evidence boundary and rejected claims
+- [`wiki/GraphBrew-Running-Example.md`](../wiki/GraphBrew-Running-Example.md) —
+  one graph through partition, layout, relabeling, and locality
 - [`wiki/GraphBrewOrder.md`](../wiki/GraphBrewOrder.md) — explicit composition
-  axes and configuration
-- [`wiki/AdaptiveOrder.md`](../wiki/AdaptiveOrder.md) — deterministic runtime
-  policy and legacy boundary
-- [`wiki/All-Kernel-Low-Reuse-Selector.md`](../wiki/All-Kernel-Low-Reuse-Selector.md)
-  — mechanism and frozen validation
-- [`wiki/Reordering-Figure-Catalog.md`](../wiki/Reordering-Figure-Catalog.md)
-  — one transformation figure per algorithm ID
+  grammar and the two paper contributions
+- [`wiki/Reproducible-Experiments.md`](../wiki/Reproducible-Experiments.md) —
+  frozen measurement workflow
 
-## Evidence
+## Public evidence
 
-- [`recommendation-evidence.json`](recommendation-evidence.json) — aggregate
-  evidence and source hashes for recommendation claims
-- [`allkernel-lowreuse-evidence.json`](allkernel-lowreuse-evidence.json) —
-  30-graph derivation and holdout rows for the frozen policy
+- [`recommendation-evidence.json`](recommendation-evidence.json) — claim
+  values, source artifact hashes, and rejected claims
 - [`figures/graphbrew-architecture.svg`](figures/graphbrew-architecture.svg) —
-  current validated path, proposed Rabbit-free direction, and six-stage map
-- [`figures/graphbrew-running-example.json`](figures/graphbrew-running-example.json)
-  — machine-checked topology, partition, mapping, CSR, catalog outputs, and
-  policy examples used by every public explanatory figure
-- [`figures/graphbrew-graph-to-csr.svg`](figures/graphbrew-graph-to-csr.svg) —
-  Stage 1 input graph and tracked CSR row
-- [`figures/graphbrew-lowreuse-policy.svg`](figures/graphbrew-lowreuse-policy.svg)
-  — history-free selector decision and Rabbit fallback semantics
-- [`figures/graphbrew-leiden-transform.svg`](figures/graphbrew-leiden-transform.svg)
-  — graph to community-membership transformation
-- [`figures/graphbrew-sizedesc-transform.svg`](figures/graphbrew-sizedesc-transform.svg)
-  — community membership to contiguous block ranges
-- [`figures/graphbrew-gorder-transform.svg`](figures/graphbrew-gorder-transform.svg)
-  — small-community Gorder8 transformation
-- [`figures/graphbrew-bfs-transform.svg`](figures/graphbrew-bfs-transform.svg)
-  — large-community BFS transformation
-- [`figures/graphbrew-relabel-emit.svg`](figures/graphbrew-relabel-emit.svg) —
-  Stage 5 mapping and relabeled CSR
-- [`figures/graphbrew-locality-outcome.svg`](figures/graphbrew-locality-outcome.svg)
-  — Stage 6 tracked cache-line locality outcome
-- [`figures/graphbrew-cd-parallel.svg`](figures/graphbrew-cd-parallel.svg) —
-  serial versus parallel community detection
-- [`figures/graphbrew-sgmb4096.svg`](figures/graphbrew-sgmb4096.svg) —
-  batched internal super-node moves
-- [`figures/graphbrew-gordf5000.svg`](figures/graphbrew-gordf5000.svg) —
-  community-size Gorder/BFS decision
-- [`figures/graphbrew-norefine.svg`](figures/graphbrew-norefine.svg) —
-  refinement bypass
+  explicit pipeline, quality arm, and construction optimization
+- [`figures/graphbrew-evidence-boundary.svg`](figures/graphbrew-evidence-boundary.svg)
+  — confirmed and rejected claims
+- [`figures/graphbrew-compact-emit.svg`](figures/graphbrew-compact-emit.svg) —
+  sparse-ID compaction and direct emission
 - [`figures/reordering/manifest.json`](figures/reordering/manifest.json) —
-  algorithm-to-SVG/editable-source index
-- [`figures/editable/README.md`](figures/editable/README.md) — Lucidchart
-  import and manual-editing workflow
+  measured output order and editable source for every algorithm ID
 
-Detailed raw matrices and large mappings are external artifacts; public claims
-are checked against the manifests above.
+Large raw matrices and mappings stay in the external artifact root. Public
+claims are checked against `recommendation-evidence.json`.
 
 ## Repository map
 
 ```text
-bench/src/                         canonical graph kernels
+bench/src/                         graph kernels
 bench/src_sim/                     cache-instrumented kernels
-bench/include/graphbrew/reorder/   ordering implementations and policies
-bench/include/graphbrew/partition/ partitioning implementations
+bench/include/graphbrew/reorder/   ordering implementations
+bench/include/graphbrew/partition/ partitioning and shard support
 bench/include/external/gapbs/      graph builder and benchmark lifecycle
-bench/include/external/            bundled comparison implementations
-bench/include/cache_sim/           cache simulator
 scripts/graphbrew_experiment.py    public experiment orchestrator
 scripts/experiments/               frozen and restartable campaigns
 scripts/lib/                       shared experiment infrastructure
 scripts/test/                      regression and evidence checks
-wiki/                              detailed documentation source
+wiki/                              documentation source
 ```
-
-## Key implementation files
-
-| File | Role |
-|---|---|
-| `bench/include/graphbrew/reorder/reorder.h` | algorithm dispatcher and variant resolution |
-| `bench/include/graphbrew/reorder/reorder_graphbrew.h` | GraphBrew composition and GVE-Leiden mechanisms |
-| `bench/include/graphbrew/reorder/reorder_graphbrew_diagnostics.h` | Callable diagnostic GraphBrew ordering families |
-| `bench/include/graphbrew/reorder/reorder_graphbrew_parser.h` | GraphBrew option parser |
-| `bench/include/graphbrew/reorder/reorder_adaptive.h` | deterministic rules and retained offline-model modes |
-| `bench/include/graphbrew/reorder/reorder_rabbit.h` | CSR and Boost Rabbit |
-| `bench/include/graphbrew/reorder/reorder_gorder.h` | faithful and relaxed Gorder variants |
-| `scripts/experiments/vldb/` | publication campaign SSOT |
 
 ## Interfaces
 
-- `-o 12:<configuration>` is an explicit hand-configured composition.
-- `-o 14:_:_:_:allkernel-lowreuse-rule:best-endtoend:<reuse>` is the
-  validated deterministic reuse-1/2 policy.
-- Historical perceptron, decision-tree, and emulator code remains available
-  for research compatibility but is not the validated deployed contribution.
+- `-o 12:<configuration>` runs one explicit GraphBrew composition.
+- `-o 13:<mapping>` loads a pre-generated permutation.
+- `-o 14` remains an experimental compatibility interface; it is not a
+  headline paper contribution.
 
 ## Validation
 
 ```bash
+python3 scripts/generate_public_figures.py --check
 make check
 ```
-
-`make check` is the authoritative core build, native-test, include-lint, and
-Python regression gate.

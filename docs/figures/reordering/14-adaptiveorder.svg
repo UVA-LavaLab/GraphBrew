@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v3">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v4">
   <title id="title">14. AdaptiveOrder</title>
-  <desc id="desc">Policy-selected arm. Output measured on the shared 9-vertex example.</desc>
+  <desc id="desc">Runtime policy dispatcher. Output measured on the shared 9-vertex example.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
@@ -88,11 +88,11 @@
   <rect x="865" y="125" width="300" height="230" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="2"/>
   <circle cx="895" cy="155" r="17" fill="#27313A" stroke="#27313A" stroke-width="1"/>
   <text x="895" y="161" class="sans label" text-anchor="middle" fill="#FFFFFF">14</text>
-  <text x="925" y="162" class="sans heading">Policy-selected arm</text>
+  <text x="925" y="162" class="sans label">Runtime policy dispatcher</text>
   <text x="890" y="215" class="sans body">features -&gt; selected arm</text>
   <text x="890" y="247" class="sans body">output equals selected arm</text>
   <path d="M315 240 H361" class="arrow"/>
   <path d="M815 240 H861" class="arrow"/>
   <rect x="144" y="380" width="912" height="36" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="403" class="sans small" text-anchor="middle">The output shown is the selected GraphBrew arm for this illustration.</text>
+  <text x="600" y="403" class="sans small" text-anchor="middle">Compatibility interface; not a headline result of the paper.</text>
 </svg>

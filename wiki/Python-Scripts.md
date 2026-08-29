@@ -9,7 +9,7 @@ python3 scripts/graphbrew_experiment.py --help
 Use the orchestrator for dependency management, graph preparation,
 reordering, benchmarking, cache simulation, verification, and frozen-study
 reproduction. Retained offline-model commands are compatibility surfaces, not
-the validated runtime path. Do not add one-off runners or duplicate policy
+the confirmed paper path. Do not add one-off runners or duplicate policy
 registries.
 
 ## Package layout
@@ -85,9 +85,9 @@ restartable stage by stage.
   `scripts/lib/pipeline/reorder_config.py`
 - Frozen evaluation graph/algorithm/trial matrix:
   `scripts/experiments/vldb/config.py`
-- Deployable adaptive portfolio: `scripts/lib/ml/portfolio.py`
-- Tier-0 features: `scripts/lib/ml/feature_schema.py` and the shared C++
-  schema definition
+- Historical selector portfolio: `scripts/lib/ml/portfolio.py`
+- Tier-0 compatibility features: `scripts/lib/ml/feature_schema.py` and the
+  shared C++ schema definition
 
 Call the shared canonical-name and converter-option helpers instead of
 rebuilding names or `-o` strings.
@@ -110,9 +110,8 @@ Do not let Python and C++ concurrently rewrite the same result file.
 ## Offline model tooling
 
 Modules under `scripts/lib/ml/` and `scripts/experiments/adaptive_ml/` support
-historical model experiments and Python/C++ parity checks. The validated
-`allkernel-lowreuse-rule` does not require those artifacts and never trains at
-runtime.
+historical model experiments and Python/C++ parity checks. They are not inputs
+to the confirmed fixed quality or Compact-and-Emit claims.
 
 ## Testing
 

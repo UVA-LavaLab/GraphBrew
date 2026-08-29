@@ -6,7 +6,7 @@
     "svg": "docs/figures/reordering/example-input.svg",
     "drawio": "docs/figures/editable/example-input.drawio"
   },
-  "converter_sha256": "70580d71854e222d299c488274feced6cdd8005667bc87b07fc326c3d6fc5d41",
+  "converter_sha256": "be25d6c260a41fcde3a2ed1585b3ac84faff64c882031c409bc9cf2598e65bff",
   "techniques": [
     {
       "id": 0,
@@ -308,7 +308,7 @@
       "name": "AdaptiveOrder",
       "flag": "14:<policy>",
       "family": "selector",
-      "mechanism": "Policy-selected arm",
+      "mechanism": "Runtime policy dispatcher",
       "measured_order": [
         8,
         5,

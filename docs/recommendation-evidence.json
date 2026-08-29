@@ -1,109 +1,104 @@
 {
-  "schema": "graphbrew-recommendation-evidence/v1",
-  "generated_at_utc": "2026-08-19T17:00:00Z",
+  "schema": "graphbrew-public-evidence/v2",
+  "generated_at_utc": "2026-08-29T17:00:00Z",
+  "story": "GraphBrew is an explicit composition framework with one confirmed quality configuration and one mapping-construction optimization. It does not claim a universal selector or a Rabbit-cost-balanced ordering.",
   "methodology": {
-    "kernel_quality_all": "Geometric mean of pre-generated-mapping kernel times over PR, PR-SpMV, BFS, CC, CC-SV, SSSP, and BC.",
-    "kernel_quality_controlled": "Geometric mean over fixed-work PR/PR-SpMV, fixed-source SSSP, and BC.",
-    "end_to_end": "Mapping generation + permutation validation + CSR relocation + reuse * kernel time.",
-    "comparison_direction": "A Rabbit/GraphBrew ratio above one means GraphBrew is faster."
+    "kernel_ratio": "Comparator median kernel time divided by GraphBrew median kernel time; values above one favor GraphBrew.",
+    "mapping_ratio": "GraphBrew complete mapping time divided by comparator complete mapping time; values below one favor GraphBrew.",
+    "end_to_end": "Complete mapping cost plus reuse multiplied by kernel time.",
+    "mandatory_baseline": "ORIGINAL is required whenever a low-reuse or amortization claim is evaluated.",
+    "invalidated_data": "Performance rows collected under inherited SCHED_IDLE/nice 19 are excluded. Their semantic verification rows remain verification evidence only."
   },
   "source_artifacts": {
-    "full_kernel_matrix": {
-      "path": "vldb_paper/exp2_speedup/speedup_results.json",
-      "sha256": "35b0fd0dc7152e8f57a7d34870bd2f3efbe438c35cf3e620770ed0c8fafd08a6"
+    "quality_confirmation": {
+      "path": "quality_confirmation_v4/analysis.json",
+      "sha256": "927fdd2434787404282f1e73c50d57ccf478727883ad39f31387348802aaffea",
+      "final_receipt_sha256": "d906c25809360e6350175d6ac49b52edf65fe62419988bfd66ef2ea1587c8c62"
     },
-    "full_reorder_matrix": {
-      "path": "vldb_paper/exp3_overhead/overhead_results.json",
-      "sha256": "e03aaf5960942644608700755b6c2dfbdd37d4f155d7c2940b3462767b851ac4"
+    "compact_and_emit_mapping": {
+      "path": "dual_arm_native_v1/v3_compact_emit/analysis.json",
+      "sha256": "e59b7470490462b90274feea4aa3f1f6586a16dc1ff0df4c43c3558164f7c5fe",
+      "final_receipt_sha256": "d898479cebd34ce2711c0814b344e372b881a18f02b4fd78814cfe71e74ad4f1"
     },
-    "full_end_to_end_matrix": {
-      "path": "vldb_paper/exp4_e2e/e2e_results.json",
-      "sha256": "f12390cd694361f1548103964202f86d54243432abba892307f9ab6bd699e2b7"
+    "compact_and_emit_development": {
+      "path": "dual_arm_native_v1/v4_balanced/analysis.json",
+      "sha256": "725cb8540bd0d514e6425fe6d8c4d901d111874f36dbfded9c6b2bbc7180f916",
+      "final_receipt_sha256": "5d74f19c2d098e1e4d2c89361d0a60ab159e63f3368ccf76425dc3e8141e747f"
     },
-    "low_reuse_rapid_matrix": {
-      "path": "multikernel_quality_rapid/analysis.json",
-      "sha256": "99ff52461be5b3399c18e4215ae1eb4bf216249b899afa3eb4d798086bf07a53"
+    "compact_and_emit_original_audit": {
+      "path": "dual_arm_native_v1/v5_community_order_screen/analysis.json",
+      "sha256": "3fa6a13492a99720db9b2856147ef782e74fc29651d74b879b38794501289289",
+      "final_receipt_sha256": "c517ed398fc08b622aa3efea12fd3876b1973a1207ffc6965af4740a969b1062"
     },
-    "allkernel_lowreuse_rule2": {
-      "path": "allkernel_lowreuse_rule2/analysis.json",
-      "sha256": "e01ebba0088a145af394d901f338c116ce8c4a5e5afda6dfb79ee3f143c762d9"
+    "composition_atlas": {
+      "path": "composition_oracle_atlas_v1/analysis_v2.json",
+      "sha256": "d3348b6be13db55f3835cfb05f6cf9e542564ed5d31706744061b83f61368292",
+      "final_receipt_sha256": "3d701a9b71993c2d83d351186ba2c9f1b7fb0ae13995590872939092e2e73911"
+    },
+    "invalidated_terminal_timing": {
+      "path": "dual_arm_native_v1/native_midreuse_terminal_v1/invalidation.json",
+      "sha256": "082f0a2bf2dbbbae2420aeface0ec533247c108c6efc0bf752cb93a7905d79f4"
     }
   },
-  "validated_recommendations": [
-    {
-      "objective": "Highest measured all-kernel ordering quality among the documented non-Rabbit compositions",
+  "confirmed_claims": {
+    "quality_arm": {
+      "name": "LeidenGVE-SizeDesc-LocalGorder8",
       "spec": "12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8",
-      "scope": "Eleven shuffled-label graphs; seven kernels; mapping cost excluded",
-      "rabbit_csr_over_graphbrew": 1.0487246114460378,
-      "rabbit_csr_lower_95": 1.0074715761031647,
-      "rabbit_boost_over_graphbrew": 1.0593080637002434,
-      "rabbit_boost_lower_95": 1.0182753628433805,
-      "mapping_cost_over_rabbit_csr": 18.16217429450946,
-      "mapping_cost_over_rabbit_boost": 16.834864277194445,
-      "caveat": "The full multi-pass Leiden partition is required for the quality win. A one-pass replacement mapped below Rabbit cost but lost 4.2-5.6% in kernel quality. The full composition does not beat Rabbit end-to-end through reuse 100 in the controlled-work matrix."
+      "scope": "Fresh semantics-v4 confirmation; 11 graphs, 7 kernels, 77 cells.",
+      "kernel_gm": {
+        "rabbit_csr_over_graphbrew": 1.041969100132076,
+        "rabbit_boost_over_graphbrew": 1.0443919202041194,
+        "gorder_csr_over_graphbrew": 1.051836941035804
+      },
+      "mapping_gm": {
+        "graphbrew_over_rabbit_csr": 18.523331068777082,
+        "graphbrew_over_rabbit_boost": 17.348429011919563,
+        "graphbrew_over_gorder_csr": 0.7517553169238351
+      },
+      "rabbit_cell_gm_break_even_reuse": {
+        "csr": 39874,
+        "boost": 37455
+      },
+      "caveat": "This is a fixed quality point. The Rabbit margin is driven by order-dependent Afforest CC work, the fastest per-cell comparator remains faster overall, and summed Rabbit seconds never cross."
     },
-    {
-      "objective": "Controlled-work non-Rabbit ordering quality",
-      "spec": "12:leiden:compose:sg_none:comm_size_desc:intra_rcmpp",
-      "scope": "Eleven shuffled-label graphs; fixed-work PR/PR-SpMV, fixed-source SSSP, and BC",
-      "rabbit_csr_over_graphbrew": 1.0260833724885086,
-      "rabbit_csr_lower_95": 1.0036574129874545,
-      "rabbit_boost_over_graphbrew": 1.0246458852165472,
-      "rabbit_boost_lower_95": 1.0013407979280577,
-      "caveat": "Loses the all-kernel aggregate because CC and CC-SV regress."
+    "compact_and_emit": {
+      "name": "Compact-and-Emit",
+      "spec": "12:leiden:compose:sg_none:comm_identity:intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1",
+      "mechanism": "Compact active one-pass community IDs and emit final IDs during BFS, eliminating sparse label-slot scheduling and the final assignment sweep.",
+      "mapping_only": {
+        "wiki_talk_complete_seconds": 0.31036,
+        "wiki_talk_rabbit_csr_seconds": 0.68089,
+        "three_graph_mapping_reduction": 0.5363473809383448,
+        "five_graph_candidate_over_min_rabbit_mapping_gm": 0.47858124386756007
+      },
+      "caveat": "The mandatory ORIGINAL audit found no low-reuse region that beats both doing nothing and Rabbit. Compact-and-Emit is a construction-cost contribution, not a balanced ordering claim."
     },
-    {
-      "objective": "Low-reuse end-to-end time on the rapid qualifying cohort",
-      "spec": "12:leiden:compose:sg_none:comm_identity:intra_gorder:gw32:gordf500:cd_parallel:1:1",
-      "scope": "Five-graph rapid cohort; seven kernels; reuse 1",
-      "rabbit_csr_over_graphbrew": 1.3259256646505633,
-      "rabbit_boost_over_graphbrew": 1.4469281626789388,
-      "caveat": "Rabbit kernels are about 5% faster; the gain comes from cheaper mapping and does not generalize to Friendster versus Rabbit Boost."
-    },
-    {
-      "objective": "Automatic all-kernel reuse-1/2 selection",
-      "model": "allkernel-lowreuse-rule",
-      "candidate": "12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8:cd_parallel:sgmb4096:gordf5000:norefine:2:2",
-      "fallback": "8:boost",
-      "scope": "Rule derived on 18 graphs and frozen before 12 untouched holdouts; seven measured kernels",
-      "selected_holdout_graphs": 7,
-      "reuse1_boost_over_candidate_gm": 1.6958966100311321,
-      "reuse1_lower_95": 1.5023899677130779,
-      "reuse2_boost_over_candidate_gm": 1.6423825059840471,
-      "reuse2_lower_95": 1.4599748680269227,
-      "caveat": "Requires explicit reuse <=2 and Boost Rabbit fallback; the candidate is not a universal static winner."
+    "composition_atlas": {
+      "scope": "Nine complete Rabbit-free GraphBrew arms on the historical 11-by-7 matrix.",
+      "in_sample_oracle_over_fastest_comparator_gm": 1.0617586897198292,
+      "in_sample_oracle_wins": 50,
+      "best_fixed_over_fastest_comparator_gm": 0.9461789628968205,
+      "graph_held_out_over_fastest_comparator_gm": 0.9066338550547385,
+      "graph_held_out_wins": 30,
+      "caveat": "The oracle is post-selected headroom. Fixed and graph-held-out results reject an automated composition-generator claim from the current library."
     }
-  ],
-  "rejected_or_unvalidated_recommendations": [
+  },
+  "rejected_claims": [
     {
-      "claim": "HRAB is generally the best locality choice",
-      "status": "rejected as universal",
-      "reason": "The best method varies by graph type and kernel; controlled one-axis supergraph ordering was harmful on average."
+      "claim": "GraphBrew has a Rabbit-cost-balanced arm that also beats ORIGINAL.",
+      "reason": "Every cheap candidate failed the mandatory ORIGINAL/Rabbit overlap gate."
     },
     {
-      "claim": "HUBCLUSTERDBG is often within 10% of the best on any graph",
-      "status": "unsupported",
-      "reason": "No bound establishing this statement exists in the frozen matrices."
+      "claim": "The Rabbit-fallback low-reuse policy is the paper contribution.",
+      "reason": "It is a competitor-backed diagnostic, omits selector feature time in its public accounting, and does not establish a Rabbit-free GraphBrew system."
     },
     {
-      "claim": "Streaming is preferred for dynamic or memory-constrained graphs",
-      "status": "implementation intent only",
-      "reason": "The frozen study does not measure dynamic updates, and no complete peak-memory superiority gate supports a performance recommendation."
+      "claim": "The current composition library supports a graph-held-out adaptive generator.",
+      "reason": "The corrected graph-held-out policy reaches only 0.907x against the fastest comparator."
     },
     {
-      "claim": "A graph type alone determines the best ordering",
-      "status": "rejected",
-      "reason": "Kernel choice changes winners within a graph, and most type-specific gains over one fixed Leiden method are small."
-    },
-    {
-      "claim": "One-pass Leiden can replace the full partition in the Gorder8 quality winner",
-      "status": "rejected",
-      "reason": "The one-pass SizeDesc-Gorder8 mapping is cheaper than both Rabbits but Rabbit kernels are 4.2-5.6% faster in the five-graph all-draw confirmation."
-    },
-    {
-      "claim": "The promoted cost-matched composition is a universal static winner",
-      "status": "rejected",
-      "reason": "The eleven-graph gate fails on road/mesh quality and large-graph mapping cost; the validated contribution is the frozen graph-feature and reuse selector."
+      "claim": "CC-SV lower-label portal layouts are promoted.",
+      "reason": "Frozen variants reduced work on selected graphs but failed locality, compression-work, or mapping-equivalence gates; all production hooks were removed."
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 Understanding the GraphBrew codebase structure for developers.
 
-[![GraphBrew pipeline architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v3)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v3)
+[![GraphBrew pipeline architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)
 
 The six numbered cards are the public stage map. Use
 [GraphBrew Running Example](GraphBrew-Running-Example) for the exact graph,
@@ -310,21 +310,19 @@ Key entry points:
 - `lib/pipeline/cache.py` — Cache simulation
 
 Retained offline-model and parity tools live under `lib/ml/` and
-`lib/tools/evaluate_all_modes.py`; they are not part of the validated runtime
-selector.
+`lib/tools/evaluate_all_modes.py`; they are compatibility research tools, not
+paper dependencies.
 
 #### Adaptive selection boundary
 
-The validated deployment path is
-`allkernel-lowreuse-rule:best-endtoend:<reuse>`. It computes lightweight
-sampled graph features, reads machine LLC capacity, and applies one frozen
-predicate before choosing the promoted GraphBrew composition or Boost Rabbit.
-It does not load `adaptive_models.json`, train at runtime, use graph names, or
-query benchmark rows.
+Algorithm 14 can dispatch to existing reorderers and retains the historical
+`allkernel-lowreuse-rule` for reproduction. The current paper does not promote
+this path because its fallback is Boost Rabbit and graph-held-out selection
+failed to recover the composition oracle.
 
 Perceptron, decision-tree, hybrid, oracle, and kNN code remains under
 `scripts/lib/ml/` and the C++ compatibility headers for offline research.
-Those components are not the validated runtime contribution.
+Those components are not validated paper contributions.
 
 **Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/core/utils.py`:
 
@@ -431,7 +429,7 @@ C++ benchmark binaries now write directly to `benchmarks.json` and
 JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Python-Scripts]] for format.
 
 Historical offline-model files may use `results/data/adaptive_models.json`.
-The validated deterministic rule does not require it. Results live under
+The confirmed paper results do not require it. Results live under
 `results/graphs/`, `results/logs/`, and `results/mappings/`; see
 [[Python-Scripts#output-structure]].
 
