@@ -22,11 +22,11 @@
     },
     {
       "path": "docs/recommendation-evidence.json",
-      "sha256": "437376dd6916c6dc03f1961c4cb7900b1709ea00e7a9573f96579e267c4745c6"
+      "sha256": "58c62954dc5f13105fb5f8adccf41382d6a82206b7464eeeed86778e5f414f64"
     },
     {
       "path": "scripts/generate_public_figures.py",
-      "sha256": "a04882b102d7ff7b02c955098f00d2eab6f9286cfc2e967c580ea40719a75367"
+      "sha256": "c6ca4ce7a8f502117b398c94c5178a361708a13413ec4b61012300b8ca72dce9"
     }
   ],
   "records": [
@@ -194,7 +194,7 @@
     {
       "path": "docs/figures/graphbrew-evidence-boundary.svg",
       "kind": "svg",
-      "sha256": "93bc2df9112a34e59ac8beff38100e5e196c19140d7b8aa198e5978dd670e6d0",
+      "sha256": "77a8bf9e0d672075c7c785756b05dff41072908d8b393bfba022a4edcb7e21da",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },

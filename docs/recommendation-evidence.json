@@ -1,7 +1,7 @@
 {
   "schema": "graphbrew-public-evidence/v2",
-  "generated_at_utc": "2026-08-29T17:00:00Z",
-  "story": "GraphBrew is an explicit composition framework with a faster, lower-cost GORDER-quality configuration and a separate mapping-construction optimization. Rabbit remains the practical low-overhead Pareto point, not a GraphBrew end-to-end victory.",
+  "generated_at_utc": "2026-08-30T03:13:42Z",
+  "story": "GraphBrew is an explicit composition framework with a faster, lower-cost GORDER-quality configuration, fresh evidence that its composition space contains workload-specialized layouts, and a separate mapping-construction optimization. Graph type alone does not yet predict the right composition, and Rabbit remains the practical low-overhead Pareto point.",
   "methodology": {
     "kernel_ratio": "Comparator median kernel time divided by GraphBrew median kernel time; values above one favor GraphBrew.",
     "mapping_ratio": "GraphBrew complete mapping time divided by comparator complete mapping time; values below one favor GraphBrew.",
@@ -37,8 +37,13 @@
     },
     "composability_certificate": {
       "path": "composition_oracle_atlas_v1/composability_certificate_v1.json",
-      "sha256": "f4d7a1784289db0832be1a5f2309ce6c768272e8070cef3650e8eeaad35f50a7",
-      "final_receipt_sha256": "9bd055b6332ee9b2c8ff95f67b1fdfcde53ece1f05025e9ed39e76031caa1d2a"
+      "sha256": "5d147fb78278705f03ba2ba87a73f372d7c8ada03feccd0784e1a96c4ead4b28",
+      "final_receipt_sha256": "50cc05781d835d6effde591be5b606e89320172af8d0a2a07f370f971cd01dfc"
+    },
+    "sealed_composability_confirmation": {
+      "path": "composition_sealed_confirmation_v1/final_analysis.json",
+      "sha256": "086f5f3922f3e142256785914de72cb37bd96e6928840f824e5306b033f5e6be",
+      "final_receipt_sha256": "3895331e0f3ba24387fc8377b0a2d1ad056299bdfb3024a81e633bc179f66a76"
     },
     "invalidated_terminal_timing": {
       "path": "dual_arm_native_v1/native_midreuse_terminal_v1/invalidation.json",
@@ -110,6 +115,33 @@
         "held_out_graph_type_kernel_over_fastest_comparator_gm": 0.9107323703635113
       },
       "caveat": "The atlas establishes compositional expressiveness: eight arms win cells and the cell oracle is 1.122x faster than the best fixed GraphBrew arm. It does not establish graph-type generalization: six of seven types are singletons and the held-out family/kernel policy reaches only 0.911x."
+    },
+    "sealed_composability": {
+      "scope": "Fresh five-trial confirmation on 10 sealed graphs, 5 kernels, 7 Rabbit-free compositions, and 50 graph-kernel cells; all 550 graph-ordering-kernel combinations passed semantic verification.",
+      "distinct_winning_compositions": 7,
+      "candidate_compositions": 7,
+      "minimum_distinct_winners_per_graph": 3,
+      "maximum_distinct_winners_per_graph": 5,
+      "minimum_distinct_winners_per_kernel": 2,
+      "maximum_distinct_winners_per_kernel": 5,
+      "cell_oracle_over_best_fixed_graphbrew_gm": 1.2293167047456035,
+      "fastest_comparator_over_cell_oracle_gm": 1.1163926624063005,
+      "postselected_graph_type_kernel_over_best_fixed_graphbrew_gm": 1.2232159141947068,
+      "fastest_comparator_over_postselected_graph_type_kernel_gm": 1.1108522855615002,
+      "frozen_family_kernel_over_fastest_comparator_gm": 0.8955943106387164,
+      "rapid_fixed_over_frozen_family_kernel_gm": 1.0354887242239519,
+      "rapid_fixed_over_frozen_family_kernel_graph_block_95": [
+        0.983568308488899,
+        1.0821033911334215
+      ],
+      "gorder_csr_over_frozen_family_kernel_gm": 1.1750992271875056,
+      "gorder_csr_over_frozen_family_kernel_graph_block_95": [
+        1.0534420567167069,
+        1.3299355229392757
+      ],
+      "gorder_csr_over_frozen_family_kernel_reuse1_end_to_end_gm": 0.85860756918074,
+      "gorder_csr_cell_gm_crossover_reuse": 67,
+      "caveat": "The sealed cohort confirms that the composition space contains workload-specialized layouts: every candidate wins cells and the oracle beats both the best fixed GraphBrew arm and the fastest Rabbit/GORDER comparator. The frozen graph-family/kernel rule fails its confidence, worst-graph, and reuse-one gates, so this is an expressiveness result rather than an automatic-selector claim."
     }
   },
   "rejected_claims": [
@@ -123,7 +155,7 @@
     },
     {
       "claim": "The current composition library supports a graph-held-out adaptive generator.",
-      "reason": "The corrected graph-held-out policy reaches only 0.907x against the fastest comparator."
+      "reason": "On the sealed confirmation, the independently frozen family/kernel rule reaches only 0.896x against the fastest comparator and fails its confidence, worst-graph, and reuse-one gates."
     },
     {
       "claim": "CC-SV lower-label portal layouts are promoted.",

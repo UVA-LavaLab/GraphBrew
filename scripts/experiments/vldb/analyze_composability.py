@@ -72,6 +72,7 @@ def load_protocol(path: Path) -> dict:
     if payload.get("schema") not in {
         "graphbrew-composition-oracle-atlas/v2",
         "graphbrew-composition-holdout-protocol/v1",
+        "graphbrew-composition-sealed-confirmation-protocol/v1",
     }:
         raise ValueError(f"Unsupported atlas protocol: {payload.get('schema')}")
     return payload
@@ -156,6 +157,13 @@ def evaluate_assignment(
     best_fixed_ratios: list[float] = []
     wins = ties = losses = 0
     selected = Counter()
+    baseline_ratios = {
+        spec: [] for spec in (*comparator_specs, ORIGINAL_SPEC)
+    }
+    policy_seconds = 0.0
+    baseline_seconds = {
+        spec: 0.0 for spec in (*comparator_specs, ORIGINAL_SPEC)
+    }
 
     for graph, kernel in cells:
         spec = assignment(graph, kernel)
@@ -177,6 +185,13 @@ def evaluate_assignment(
         best_fixed_ratios.append(
             matrix[(graph, kernel, best_fixed_spec)] / policy_time
         )
+        policy_seconds += policy_time
+        for baseline in baseline_ratios:
+            baseline_time = matrix[(graph, kernel, baseline)]
+            baseline_ratios[baseline].append(
+                baseline_time / policy_time
+            )
+            baseline_seconds[baseline] += baseline_time
         if ratio > 1.02:
             wins += 1
         elif ratio < 0.98:
@@ -200,7 +215,71 @@ def evaluate_assignment(
             "loss": losses,
         },
         "selected_arm_counts": dict(sorted(selected.items())),
+        "baseline_over_policy_kernel_gm": {
+            spec: geometric_mean(ratios)
+            for spec, ratios in baseline_ratios.items()
+        },
+        "baseline_over_policy_summed_kernel_seconds": {
+            spec: seconds / policy_seconds
+            for spec, seconds in baseline_seconds.items()
+        },
     }
+
+
+def percentile(sorted_values: list[float], probability: float) -> float:
+    if not sorted_values:
+        raise ValueError("Percentile requires at least one value")
+    index = round(probability * (len(sorted_values) - 1))
+    return sorted_values[index]
+
+
+def bootstrap_graph_geomean(
+    graph_values: dict[str, float],
+    *,
+    resamples: int,
+    seed: int = 20260829,
+) -> tuple[float, float]:
+    import random
+
+    values = list(graph_values.values())
+    if resamples <= 0:
+        raise ValueError("Bootstrap resamples must be positive")
+    rng = random.Random(seed)
+    samples = sorted(
+        geometric_mean(
+            values[rng.randrange(len(values))]
+            for _ in values
+        )
+        for _ in range(resamples)
+    )
+    return percentile(samples, 0.025), percentile(samples, 0.975)
+
+
+def mapping_seconds(
+    protocol: dict,
+    graph: str,
+    spec: str,
+) -> float:
+    if spec == ORIGINAL_SPEC:
+        return 0.0
+    execution = protocol.get("execution")
+    if not isinstance(execution, dict) or not execution.get("artifact_root"):
+        raise ValueError("Confirmation protocol lacks an artifact root")
+    meta_path = (
+        Path(execution["artifact_root"])
+        / "vldb_mappings"
+        / graph
+        / f"{spec.replace(':', '_')}.json"
+    )
+    meta = json.loads(meta_path.read_text())
+    return sum(
+        float(meta[field])
+        for field in (
+            "reorder_core_time",
+            "reorder_validation_time",
+            "reorder_apply_time",
+        )
+    )
 
 
 def build_certificate(protocol: dict, rows: list[dict]) -> dict:
@@ -333,6 +412,7 @@ def build_certificate(protocol: dict, rows: list[dict]) -> dict:
         "leave_one_graph_out_family_kernel": held_out_family_kernel,
     }
     frozen_policy = protocol.get("frozen_family_kernel_policy")
+    frozen_family_kernel_assignment: Assignment | None = None
     if frozen_policy is not None:
         by_family_kernel = frozen_policy["by_family_kernel"]
         fallback_by_kernel = frozen_policy["fallback_by_kernel"]
@@ -348,6 +428,7 @@ def build_certificate(protocol: dict, rows: list[dict]) -> dict:
                 )
             return spec
 
+        frozen_family_kernel_assignment = frozen_family_kernel
         assignments["frozen_family_kernel"] = frozen_family_kernel
     policy_results = {
         name: evaluate_assignment(
@@ -373,6 +454,181 @@ def build_certificate(protocol: dict, rows: list[dict]) -> dict:
         family: sum(graph_type[graph] == family for graph in graphs)
         for family in sorted(set(graph_type.values()))
     }
+    confirmation = None
+    confirmation_gates = protocol.get("confirmation_gates")
+    if confirmation_gates is not None:
+        if frozen_family_kernel_assignment is None:
+            raise ValueError(
+                "Confirmation protocol requires a frozen family/kernel policy"
+            )
+        controls = protocol["predeclared_uniform_controls"]
+        for spec in controls.values():
+            if spec not in candidates:
+                raise ValueError(
+                    f"Confirmation control is not a candidate arm: {spec}"
+                )
+        resamples = int(confirmation_gates["bootstrap_resamples"])
+        mapping_cache: dict[tuple[str, str], float] = {}
+
+        def complete_mapping_seconds(graph: str, spec: str) -> float:
+            key = (graph, spec)
+            if key not in mapping_cache:
+                mapping_cache[key] = mapping_seconds(
+                    protocol,
+                    graph,
+                    spec,
+                )
+            return mapping_cache[key]
+
+        def graph_kernel_ratios(spec: str) -> dict[str, float]:
+            return {
+                graph: geometric_mean(
+                    matrix[(graph, kernel, spec)]
+                    / matrix[(
+                        graph,
+                        kernel,
+                        frozen_family_kernel_assignment(graph, kernel),
+                    )]
+                    for kernel in kernels
+                )
+                for graph in graphs
+            }
+
+        def graph_end_to_end_ratios(
+            spec: str,
+            reuse: int,
+        ) -> dict[str, float]:
+            return {
+                graph: geometric_mean(
+                    (
+                        complete_mapping_seconds(graph, spec)
+                        + reuse * matrix[(graph, kernel, spec)]
+                    )
+                    / (
+                        complete_mapping_seconds(
+                            graph,
+                            frozen_family_kernel_assignment(graph, kernel),
+                        )
+                        + reuse
+                        * matrix[(
+                            graph,
+                            kernel,
+                            frozen_family_kernel_assignment(graph, kernel),
+                        )]
+                    )
+                    for kernel in kernels
+                )
+                for graph in graphs
+            }
+
+        control_results = {}
+        for name, spec in controls.items():
+            graph_ratios = graph_kernel_ratios(spec)
+            ci_low, ci_high = bootstrap_graph_geomean(
+                graph_ratios,
+                resamples=resamples,
+            )
+            control_results[name] = {
+                "spec": spec,
+                "control_over_frozen_policy_kernel_gm": geometric_mean(
+                    graph_ratios.values()
+                ),
+                "graph_block_95": [ci_low, ci_high],
+                "worst_graph_ratio": min(graph_ratios.values()),
+                "winning_graphs": sum(
+                    value > 1.0 for value in graph_ratios.values()
+                ),
+                "graph_ratios": graph_ratios,
+            }
+
+        gorder_spec = next(
+            spec
+            for spec in comparator_specs
+            if spec.startswith("9:")
+        )
+        gorder_graph_ratios = graph_kernel_ratios(gorder_spec)
+        gorder_ci_low, gorder_ci_high = bootstrap_graph_geomean(
+            gorder_graph_ratios,
+            resamples=resamples,
+        )
+        gorder_reuse = {}
+        for reuse in (1, 4, 16, 64, 256, 1000):
+            graph_ratios = graph_end_to_end_ratios(gorder_spec, reuse)
+            ci_low, ci_high = bootstrap_graph_geomean(
+                graph_ratios,
+                resamples=resamples,
+            )
+            gorder_reuse[str(reuse)] = {
+                "gorder_over_frozen_policy_gm": geometric_mean(
+                    graph_ratios.values()
+                ),
+                "graph_block_95": [ci_low, ci_high],
+                "worst_graph_ratio": min(graph_ratios.values()),
+            }
+        crossover = None
+        for reuse in range(1, 1_000_001):
+            if geometric_mean(
+                graph_end_to_end_ratios(
+                    gorder_spec,
+                    reuse,
+                ).values()
+            ) >= 1.0:
+                crossover = reuse
+                break
+
+        fixed_result = control_results["rapid_best_fixed"]
+        gorder_kernel_gm = geometric_mean(gorder_graph_ratios.values())
+        gate_results = {
+            "rapid_best_fixed_point": (
+                fixed_result["control_over_frozen_policy_kernel_gm"]
+                >= confirmation_gates[
+                    "minimum_rapid_best_fixed_over_policy_gm"
+                ]
+            ),
+            "rapid_best_fixed_ci": (
+                fixed_result["graph_block_95"][0]
+                >= confirmation_gates[
+                    "minimum_rapid_best_fixed_over_policy_graph_block_95_low"
+                ]
+            ),
+            "gorder_kernel_point": (
+                gorder_kernel_gm
+                >= confirmation_gates[
+                    "minimum_gorder_csr_over_policy_kernel_gm"
+                ]
+            ),
+            "gorder_kernel_ci": (
+                gorder_ci_low
+                >= confirmation_gates[
+                    "minimum_gorder_csr_over_policy_graph_block_95_low"
+                ]
+            ),
+            "gorder_reuse1_end_to_end": (
+                gorder_reuse["1"][
+                    "gorder_over_frozen_policy_gm"
+                ]
+                >= confirmation_gates[
+                    "minimum_gorder_csr_over_policy_reuse1_end_to_end_gm"
+                ]
+            ),
+            "worst_graph_floor": (
+                fixed_result["worst_graph_ratio"]
+                >= confirmation_gates[
+                    "minimum_worst_graph_rapid_best_fixed_over_policy"
+                ]
+            ),
+        }
+        confirmation = {
+            "controls": control_results,
+            "gorder_csr": {
+                "kernel_gm": gorder_kernel_gm,
+                "graph_block_95": [gorder_ci_low, gorder_ci_high],
+                "end_to_end": gorder_reuse,
+                "cell_gm_crossover_reuse": crossover,
+            },
+            "gate_results": gate_results,
+            "passes_all_gates": all(gate_results.values()),
+        }
 
     singleton_types = sum(count == 1 for count in family_support.values())
     classification = {
@@ -420,8 +676,12 @@ def build_certificate(protocol: dict, rows: list[dict]) -> dict:
         "schema": "graphbrew-composability-certificate/v1",
         "scope": {
             "provenance_class": (
-                "historical design-space evidence; not claim-eligible "
-                "timing or a deployable selector"
+                protocol.get("claim_scope")
+                or protocol.get("hypothesis")
+                or (
+                    "historical design-space evidence; not claim-eligible "
+                    "timing or a deployable selector"
+                )
             ),
             "graphs": graphs,
             "kernels": kernels,
@@ -472,6 +732,7 @@ def build_certificate(protocol: dict, rows: list[dict]) -> dict:
             },
         },
         "policy_results": policy_results,
+        **({"confirmation": confirmation} if confirmation else {}),
         "classification": classification,
     }
 

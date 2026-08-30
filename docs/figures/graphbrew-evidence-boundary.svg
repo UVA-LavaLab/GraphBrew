@@ -65,11 +65,11 @@
   <rect x="905" y="120" width="275" height="390" rx="10" fill="#EEE9FF" stroke="#27313A" stroke-width="3"/>
   <text x="925" y="158" class="sans domain">SUPPORTED: DESIGN SPACE</text>
   <text x="925" y="198" class="sans heading">Composition matters</text>
-  <text x="925" y="246" class="mono small">winning arms = 8/9</text>
-  <text x="925" y="278" class="mono small">oracle / fixed GB = 1.122x</text>
-  <text x="925" y="310" class="mono small">type+kernel = 1.033x</text>
-  <text x="925" y="342" class="mono micro">held-out type+kernel = 0.911x</text>
-  <text x="925" y="392" class="sans body">2-5 winners within each graph.</text>
+  <text x="925" y="246" class="mono small">winning arms = 7/7</text>
+  <text x="925" y="278" class="mono small">oracle / fixed GB = 1.229x</text>
+  <text x="925" y="310" class="mono small">fastest / oracle = 1.116x</text>
+  <text x="925" y="342" class="mono micro">frozen type+kernel = 0.896x</text>
+  <text x="925" y="392" class="sans body">3-5 winners within each graph.</text>
   <text x="925" y="426" class="sans body">Expressiveness is established.</text>
   <text x="925" y="460" class="sans body">Automatic selection is not.</text>
   <rect x="144" y="545" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>

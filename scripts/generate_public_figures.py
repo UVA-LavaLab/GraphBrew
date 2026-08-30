@@ -1645,7 +1645,7 @@ def generate_evidence_boundary(payload: dict) -> str:
     evidence = json.loads(RECOMMENDATION_EVIDENCE.read_text())
     quality = evidence["confirmed_claims"]["quality_arm"]
     compact = evidence["confirmed_claims"]["compact_and_emit"]
-    atlas = evidence["confirmed_claims"]["composition_atlas"]
+    sealed = evidence["confirmed_claims"]["sealed_composability"]
     svg = SVG(
         1200,
         620,
@@ -1744,7 +1744,6 @@ def generate_evidence_boundary(payload: dict) -> str:
     svg.text(630, 426, "No summed-time crossover.", "body")
     svg.text(630, 460, "Rabbit remains Pareto anchor.", "body")
 
-    dependence = atlas["workload_dependence"]
     svg.rect(905, 120, 275, 390, VIOLET, stroke_width=3)
     svg.text(925, 158, "SUPPORTED: DESIGN SPACE", "domain")
     svg.text(925, 198, "Composition matters", "heading")
@@ -1752,8 +1751,8 @@ def generate_evidence_boundary(payload: dict) -> str:
         925, 246,
         (
             "winning arms = "
-            f"{dependence['distinct_winning_compositions']}/"
-            f"{dependence['candidate_compositions']}"
+            f"{sealed['distinct_winning_compositions']}/"
+            f"{sealed['candidate_compositions']}"
         ),
         "small",
     )
@@ -1761,27 +1760,27 @@ def generate_evidence_boundary(payload: dict) -> str:
         925, 278,
         (
             "oracle / fixed GB = "
-            f"{dependence['cell_oracle_over_best_fixed_graphbrew_gm']:.3f}x"
+            f"{sealed['cell_oracle_over_best_fixed_graphbrew_gm']:.3f}x"
         ),
         "small",
     )
     svg.mono(
         925, 310,
         (
-            "type+kernel = "
-            f"{dependence['postselected_graph_type_kernel_over_fastest_comparator_gm']:.3f}x"
+            "fastest / oracle = "
+            f"{sealed['fastest_comparator_over_cell_oracle_gm']:.3f}x"
         ),
         "small",
     )
     svg.mono(
         925, 342,
         (
-            "held-out type+kernel = "
-            f"{dependence['held_out_graph_type_kernel_over_fastest_comparator_gm']:.3f}x"
+            "frozen type+kernel = "
+            f"{sealed['frozen_family_kernel_over_fastest_comparator_gm']:.3f}x"
         ),
         "micro",
     )
-    svg.text(925, 392, "2-5 winners within each graph.", "body")
+    svg.text(925, 392, "3-5 winners within each graph.", "body")
     svg.text(925, 426, "Expressiveness is established.", "body")
     svg.text(925, 460, "Automatic selection is not.", "body")
     svg.footer(

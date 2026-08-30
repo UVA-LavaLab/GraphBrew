@@ -44,6 +44,7 @@ def test_public_claims_match_frozen_evidence():
     _load_source(sources["compact_and_emit_original_audit"])
     atlas = _load_source(sources["composition_atlas"])
     composability = _load_source(sources["composability_certificate"])
+    sealed = _load_source(sources["sealed_composability_confirmation"])
     invalidation = _load_source(sources["invalidated_terminal_timing"])
 
     claims = evidence["confirmed_claims"]
@@ -204,6 +205,61 @@ def test_public_claims_match_frozen_evidence():
             "fastest_comparator_over_policy_gm"
         ]
     )
+
+    sealed_claim = claims["sealed_composability"]
+    sealed_diversity = sealed["winner_diversity"]
+    sealed_policies = sealed["policy_results"]
+    assert sealed_claim["distinct_winning_compositions"] == (
+        sealed_diversity["distinct_winning_compositions"]
+    )
+    assert sealed_claim["candidate_compositions"] == (
+        sealed["scope"]["candidate_compositions"]
+    )
+    assert sealed_claim[
+        "cell_oracle_over_best_fixed_graphbrew_gm"
+    ] == pytest.approx(
+        sealed_policies["cell_oracle"][
+            "best_fixed_graphbrew_over_policy_gm"
+        ]
+    )
+    assert sealed_claim[
+        "fastest_comparator_over_cell_oracle_gm"
+    ] == pytest.approx(
+        sealed_policies["cell_oracle"][
+            "fastest_comparator_over_policy_gm"
+        ]
+    )
+    assert sealed_claim[
+        "frozen_family_kernel_over_fastest_comparator_gm"
+    ] == pytest.approx(
+        sealed_policies["frozen_family_kernel"][
+            "fastest_comparator_over_policy_gm"
+        ]
+    )
+    sealed_confirmation = sealed["confirmation"]
+    assert sealed_claim[
+        "rapid_fixed_over_frozen_family_kernel_gm"
+    ] == pytest.approx(
+        sealed_confirmation["controls"]["rapid_best_fixed"][
+            "control_over_frozen_policy_kernel_gm"
+        ]
+    )
+    assert sealed_claim[
+        "gorder_csr_over_frozen_family_kernel_gm"
+    ] == pytest.approx(
+        sealed_confirmation["gorder_csr"]["kernel_gm"]
+    )
+    assert sealed_claim[
+        "gorder_csr_over_frozen_family_kernel_reuse1_end_to_end_gm"
+    ] == pytest.approx(
+        sealed_confirmation["gorder_csr"]["end_to_end"]["1"][
+            "gorder_over_frozen_policy_gm"
+        ]
+    )
+    assert sealed_claim["gorder_csr_cell_gm_crossover_reuse"] == (
+        sealed_confirmation["gorder_csr"]["cell_gm_crossover_reuse"]
+    )
+    assert sealed_confirmation["passes_all_gates"] is False
     assert invalidation["schema"].startswith(
         "graphbrew-native-midreuse-terminal-invalidation"
     )

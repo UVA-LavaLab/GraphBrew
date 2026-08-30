@@ -66,6 +66,13 @@ def test_public_evidence_has_only_current_claims():
         ]
         < 1.0
     )
+    sealed = claims["sealed_composability"]
+    assert sealed["distinct_winning_compositions"] == 7
+    assert sealed["candidate_compositions"] == 7
+    assert sealed["cell_oracle_over_best_fixed_graphbrew_gm"] > 1.2
+    assert sealed["fastest_comparator_over_cell_oracle_gm"] > 1.1
+    assert sealed["frozen_family_kernel_over_fastest_comparator_gm"] < 1.0
+    assert sealed["gorder_csr_cell_gm_crossover_reuse"] == 67
     assert not (PROJECT_ROOT / "docs/allkernel-lowreuse-evidence.json").exists()
 
 
@@ -92,9 +99,8 @@ def test_public_story_matches_claim_boundary():
         "1.044x",
         "1.052x",
         "0.752x",
-        "1.122x",
-        "0.911x",
-        "0.907x",
+        "1.229x",
+        "0.896x",
     ):
         assert required in story
 

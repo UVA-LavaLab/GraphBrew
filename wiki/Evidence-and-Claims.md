@@ -66,29 +66,33 @@ mandatory ORIGINAL audit found no low-reuse region that beats both doing
 nothing and Rabbit. The claim is therefore faster **construction**, not better
 ordering quality or a balanced end-to-end arm.
 
-## What the composition atlas proves
+## What composition proves
 
-The corrected historical atlas contains nine complete Rabbit-free GraphBrew
-arms:
+The corrected historical atlas first exposed the headroom. A subsequent
+five-trial confirmation used 10 sealed graphs, five kernels, seven
+Rabbit-free compositions, and 550 passing semantic-verification cells.
 
 | Observation | Result |
 |---|---:|
-| Distinct compositions winning at least one cell | 8 of 9 |
-| Distinct winners within each graph | 2–5 |
-| Distinct winners within each kernel | 3–8 |
-| Cell oracle / best fixed GraphBrew arm | 1.122x |
-| Fastest comparator / cell oracle | 1.062x |
-| Fastest comparator / post-selected type+kernel table | 1.033x |
+| Distinct compositions winning at least one sealed cell | 7 of 7 |
+| Distinct winners within each sealed graph | 3–5 |
+| Distinct winners within each kernel | 2–5 |
+| Cell oracle / best fixed GraphBrew arm | 1.229x |
+| Fastest comparator / cell oracle | 1.116x |
+| Fastest comparator / post-selected type+kernel table | 1.111x |
 
 These results establish that composition is useful and that one uniform
 GraphBrew recipe leaves measurable performance on the table. The best
 composition changes even within the same graph when the kernel changes.
 
-They do not establish automatic selection. Six of seven topology groups in
-this matrix contain one graph, and the leave-one-graph-out family+kernel rule
-reaches only 0.911x versus the fastest comparator; the kernel-only
-leave-one-graph-out policy reaches 0.907x. The result is therefore an
-expressiveness certificate and hypothesis source, not a deployable selector.
+They do not establish automatic selection. The family+kernel rule was frozen
+before the rapid holdout and then evaluated without changes on the sealed
+cohort. It reaches only 0.896x versus the fastest comparator. Against its
+predeclared uniform GraphBrew control, the point estimate is 1.035x but the
+graph-block interval is [0.984, 1.082] and the worst graph is 0.879x. It
+improves GORDER_csr kernels by 1.175x [1.053, 1.330], but its higher mapping
+cost delays end-to-end crossover to reuse 67. The result is therefore an
+expressiveness certificate, not a deployable graph-type selector.
 
 The earlier reuse-1/2 Rabbit-fallback rule remains reproducible through
 Algorithm 14, but it is a competitor-backed diagnostic and its public

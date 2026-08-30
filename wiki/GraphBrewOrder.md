@@ -72,16 +72,17 @@ creates a different treatment.
 
 ## Why composition matters
 
-The historical nine-arm atlas does not produce one universal winner. Eight
-compositions win at least one graph-kernel cell; each graph uses two to five
-different winners across kernels, and each kernel uses three to eight winners
-across graphs. The per-cell oracle is 1.122x faster than the best fixed
-GraphBrew composition.
+The fresh sealed matrix does not produce one universal winner. All seven
+tested compositions win at least one graph-kernel cell; each graph uses three
+to five different winners across kernels, and each kernel uses two to five
+winners across graphs. The per-cell oracle is 1.229x faster than the best
+fixed GraphBrew composition and 1.116x faster than the fastest Rabbit/GORDER
+comparator.
 
 This is evidence that the three stages expose useful workload-dependent
 choices. It is not evidence that graph type alone predicts those choices:
-the graph-held-out family+kernel rule reaches only 0.911x against the fastest
-comparator.
+the independently frozen family+kernel rule reaches only 0.896x against the
+fastest comparator and fails its confidence and worst-graph gates.
 
 ## Running example
 

@@ -57,22 +57,22 @@ composability result:
    **mapping-construction contribution**, not a balanced ordering claim.
 
 3. **Workload-dependent composition space.**
-   In the historical nine-arm atlas, eight distinct compositions win at least
-   one graph-kernel cell. Every graph selects between two and five different
-   compositions across kernels, and every kernel selects between three and
-   eight compositions across graphs. The per-cell oracle is **1.122x faster
-   than the best fixed GraphBrew arm** and **1.062x faster than the fastest
-   Rabbit/GORDER comparator**.
+   On a fresh five-trial matrix of 10 sealed graphs and five kernels, **all
+   seven compositions win at least one cell**. Every graph selects three to
+   five winners across kernels, and every kernel selects two to five winners
+   across graphs. The per-cell oracle is **1.229x faster than the best fixed
+   GraphBrew arm** and **1.116x faster than the fastest Rabbit/GORDER
+   comparator**.
 
    This proves useful compositional diversity, not automatic selection. The
-   post-selected graph-type-plus-kernel table reaches 1.033x, but its
-   graph-held-out counterpart reaches only 0.911x.
+   frozen graph-family-plus-kernel rule reaches only 0.896x versus the fastest
+   comparator and fails its confidence and worst-graph gates.
 
 ![GraphBrew evidence boundary](./docs/figures/graphbrew-evidence-boundary.svg)
 
-The corrected composition atlas therefore supports a workload-specific
-**design-space** claim while rejecting a deployable automatic-generator or
-universal-selector claim.
+The historical atlas and sealed confirmation therefore support a
+workload-specific **design-space** claim while rejecting a deployable
+automatic-generator or universal-selector claim.
 
 Machine-readable claim values and source hashes are in
 [`docs/recommendation-evidence.json`](docs/recommendation-evidence.json).

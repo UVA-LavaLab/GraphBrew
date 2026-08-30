@@ -59,12 +59,14 @@ The paper claims:
 
 - one fixed GraphBrew composition that is 1.052x faster in kernel GM and
   24.8% cheaper to map than GORDER_csr;
-- a workload-dependent composition space in which eight of nine arms win
-  cells and the oracle is 1.122x faster than the best fixed GraphBrew arm; and
+- a workload-dependent composition space in which all seven sealed candidates
+  win cells and the oracle is 1.229x faster than the best fixed GraphBrew arm;
+  and
 - Compact-and-Emit as a permutation-preserving construction optimization.
 
 It does not claim a universal winner, a Rabbit-cost-balanced arm, or an
-automatic generator: the held-out family+kernel rule reaches only 0.911x.
+automatic generator: the frozen family+kernel rule reaches only 0.896x
+against the fastest comparator.
 The 4% Rabbit per-cell GM does not offset 17–19x mapping cost, and summed
 Rabbit seconds never lose. See
 [Evidence and Claims](Evidence-and-Claims).
