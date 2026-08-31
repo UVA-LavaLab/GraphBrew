@@ -163,6 +163,9 @@ def test_mechanism_factorial_summary_preserves_ratio_direction():
     assert summary["block_order"]["marginal"]["left_over_right_gm"] == (
         pytest.approx(2.0)
     )
+    assert summary["block_order"]["marginal"][
+        "by_kernel_graph_block"
+    ]["pr"]["left_over_right_gm"] == pytest.approx(2.0)
     assert summary["ratio_semantics"].startswith(
         "left treatment divided by right treatment"
     )

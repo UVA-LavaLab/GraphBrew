@@ -343,6 +343,7 @@ def summarize_ratio_records(
 ) -> dict:
     by_graph: dict[str, list[float]] = {}
     by_kernel: dict[str, list[float]] = {}
+    by_kernel_graph: dict[str, dict[str, list[float]]] = {}
     for graph, kernel, ratio in records:
         if not math.isfinite(ratio) or ratio <= 0:
             raise ValueError(
@@ -350,6 +351,10 @@ def summarize_ratio_records(
             )
         by_graph.setdefault(graph, []).append(ratio)
         by_kernel.setdefault(kernel, []).append(ratio)
+        by_kernel_graph.setdefault(kernel, {}).setdefault(
+            graph,
+            [],
+        ).append(ratio)
     graph_ratios = {
         graph: geometric_mean(values)
         for graph, values in sorted(by_graph.items())
@@ -358,6 +363,23 @@ def summarize_ratio_records(
         graph_ratios,
         resamples=resamples,
     )
+    kernel_summaries = {}
+    for kernel, graph_values in sorted(by_kernel_graph.items()):
+        kernel_graph_ratios = {
+            graph: geometric_mean(values)
+            for graph, values in sorted(graph_values.items())
+        }
+        kernel_low, kernel_high = bootstrap_graph_geomean(
+            kernel_graph_ratios,
+            resamples=resamples,
+        )
+        kernel_summaries[kernel] = {
+            "left_over_right_gm": geometric_mean(
+                kernel_graph_ratios.values()
+            ),
+            "graph_block_95": [kernel_low, kernel_high],
+            "graph_ratios": kernel_graph_ratios,
+        }
     return {
         "left_over_right_gm": geometric_mean(graph_ratios.values()),
         "graph_block_95": [ci_low, ci_high],
@@ -373,6 +395,7 @@ def summarize_ratio_records(
             kernel: geometric_mean(values)
             for kernel, values in sorted(by_kernel.items())
         },
+        "by_kernel_graph_block": kernel_summaries,
         "graph_ratios": graph_ratios,
     }
 
@@ -574,6 +597,7 @@ def build_mechanism_certificate(
     cache_benchmark = cache_config["benchmark"]
     cache_size = int(cache_config["cache_size_bytes"])
     cache: dict[tuple[str, str], float] = {}
+    cache_components: dict[tuple[str, str], dict[str, float]] = {}
     for row in cache_rows:
         graph = str(row.get("graph", ""))
         spec = canonical_spec(row.get("algo_key"))
@@ -588,8 +612,19 @@ def build_mechanism_certificate(
         key = (graph, spec)
         if key in cache:
             raise ValueError(f"Duplicate cache row: {key}")
+        components = {
+            field: scalar_metric(row.get(field), name=field)
+            for field in (
+                "total_accesses",
+                "l1_misses",
+                "l2_misses",
+                "l3_misses",
+                "memory_accesses",
+            )
+        }
+        cache_components[key] = components
         cache[key] = sum(
-            scalar_metric(row.get(field), name=field)
+            components[field]
             for field in (
                 "total_accesses",
                 "l1_misses",
@@ -623,6 +658,25 @@ def build_mechanism_certificate(
         value=lambda graph, kernel, spec: timing[(graph, kernel, spec)],
         resamples=resamples,
     )
+    cache_component_factorials = {
+        field: factor_summaries(
+            graphs=graphs,
+            kernels=[cache_benchmark],
+            blocks=blocks,
+            intras=intras,
+            arm_by_axes=arm_by_axes,
+            value=lambda graph, _kernel, spec, metric=field: (
+                cache_components[(graph, spec)][metric]
+            ),
+            resamples=resamples,
+        )
+        for field in (
+            "l1_misses",
+            "l2_misses",
+            "l3_misses",
+            "memory_accesses",
+        )
+    }
 
     artifact_root = Path(protocol["execution"]["artifact_root"])
     memberships = {}
@@ -852,6 +906,7 @@ def build_mechanism_certificate(
                 "total_accesses + l1_misses + l2_misses + l3_misses"
             ),
             "factorial": cache_factors,
+            "component_factorials": cache_component_factorials,
             "matching_pr_timing_factorial": cache_timing_factors,
             "pr_rank_correlation": {
                 "by_graph": cache_rank_correlations,
