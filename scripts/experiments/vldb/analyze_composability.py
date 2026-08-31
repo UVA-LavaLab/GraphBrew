@@ -854,6 +854,121 @@ def build_mechanism_certificate(
             "graphs": len(graphs),
         }
 
+    dynamic_cache_explanation = {}
+    dynamic_cache_config = protocol["analysis"].get("dynamic_cache")
+    if dynamic_cache_config is not None:
+        for kernel in dynamic_cache_config["benchmarks"]:
+            primary_metric = protocol["analysis"]["dynamic_work"][kernel][
+                "primary_metric"
+            ]
+            dynamic_cache: dict[tuple[str, str], float] = {}
+            for row in cache_rows:
+                graph = str(row.get("graph", ""))
+                spec = canonical_spec(row.get("algo_key"))
+                if graph not in graphs or spec not in specs:
+                    continue
+                if (
+                    row.get("benchmark") != kernel
+                    or int(row.get("cache_size_bytes", -1)) != cache_size
+                    or row.get("cache_mode") != cache_config["mode"]
+                ):
+                    continue
+                key = (graph, spec)
+                if key in dynamic_cache:
+                    raise ValueError(f"Duplicate dynamic cache row: {key}")
+                dynamic_cache[key] = sum(
+                    scalar_metric(row.get(field), name=field)
+                    for field in (
+                        "total_accesses",
+                        "l1_misses",
+                        "l2_misses",
+                        "l3_misses",
+                    )
+                )
+            if set(dynamic_cache) != expected_cache:
+                missing = sorted(expected_cache - set(dynamic_cache))
+                raise ValueError(
+                    f"Incomplete {kernel} cache matrix; missing={missing[:1]}"
+                )
+
+            def primary_work(graph: str, spec: str) -> float:
+                metric = verification[(graph, kernel, spec)][
+                    "work_metrics"
+                ].get(primary_metric)
+                value = scalar_metric(metric, name=primary_metric)
+                if value <= 0:
+                    raise ValueError(
+                        f"{primary_metric} must be positive for {graph}/{spec}"
+                    )
+                return value
+
+            dynamic_cache_factors = factor_summaries(
+                graphs=graphs,
+                kernels=[kernel],
+                blocks=blocks,
+                intras=intras,
+                arm_by_axes=arm_by_axes,
+                value=lambda graph, _kernel, spec: dynamic_cache[
+                    (graph, spec)
+                ],
+                resamples=resamples,
+            )
+            normalized_timing_factors = work_explanation[kernel][
+                "seconds_per_work_unit_factorial"
+            ]
+            normalized_alignment = {
+                "block_order": {
+                    intra: contrast_alignment(
+                        normalized_timing_factors["block_order"][
+                            "by_intra_order"
+                        ][intra],
+                        dynamic_cache_factors["block_order"][
+                            "by_intra_order"
+                        ][intra],
+                    )
+                    for intra in intras
+                },
+                "intra_order_pairs": {
+                    pair: contrast_alignment(
+                        normalized_timing_factors[
+                            "intra_order_pairs"
+                        ][pair],
+                        dynamic_cache_factors["intra_order_pairs"][pair],
+                    )
+                    for pair in normalized_timing_factors[
+                        "intra_order_pairs"
+                    ]
+                },
+            }
+            graph_correlations = {
+                graph: spearman(
+                    [
+                        dynamic_cache[(graph, spec)]
+                        for spec in specs
+                    ],
+                    [
+                        timing[(graph, kernel, spec)]
+                        / primary_work(graph, spec)
+                        for spec in specs
+                    ],
+                )
+                for graph in graphs
+            }
+            finite_correlations = [
+                value for value in graph_correlations.values()
+                if value is not None
+            ]
+            dynamic_cache_explanation[kernel] = {
+                "primary_work_metric": primary_metric,
+                "cache_factorial": dynamic_cache_factors,
+                "seconds_per_work_unit_alignment": normalized_alignment,
+                "cache_vs_seconds_per_work_rank_correlation": {
+                    "by_graph": graph_correlations,
+                    "mean": statistics.fmean(finite_correlations),
+                    "median": statistics.median(finite_correlations),
+                },
+            }
+
     winner_counts = Counter()
     for graph in graphs:
         for kernel in kernels:
@@ -914,6 +1029,13 @@ def build_mechanism_certificate(
                 "median": statistics.median(cache_correlations),
             },
             "timing_alignment": cache_alignment,
+            **(
+                {
+                    "dynamic_work_normalized":
+                        dynamic_cache_explanation
+                }
+                if dynamic_cache_explanation else {}
+            ),
         },
         "dynamic_work": work_explanation,
         "negative_control": {
