@@ -108,6 +108,27 @@ def test_published_compose_specs_pin_both_block_axes():
         assert any(token.startswith("comm_") for token in tokens)
 
 
+def test_mechanism_factorial_degree_gorder_changes_only_block_order():
+    spec = (
+        "12:leiden:compose:sg_none:comm_degree_desc:"
+        "intra_gorder:gw8"
+    )
+    diagnostic = next(
+        config for config in DIAGNOSTIC_CONFIGS
+        if config["algo"] == spec
+    )
+    assert diagnostic["name"] == "LeidenGVE-DegreeDesc-Gorder8"
+    assert spec not in ALL_ALGORITHMS
+    size_desc = runner._expected_graphbrew_config(
+        dict(COMPOSE_VARIANTS)["Leiden-Gorder8"]
+    )
+    degree_desc = runner._expected_graphbrew_config(spec)
+    assert {
+        key for key in size_desc
+        if size_desc.get(key) != degree_desc.get(key)
+    } == {"community_order"}
+
+
 def test_retired_experimental_reorder_prototypes_are_absent():
     root = Path(__file__).resolve().parents[2]
     assert not (

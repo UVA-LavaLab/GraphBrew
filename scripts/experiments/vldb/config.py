@@ -722,6 +722,14 @@ DIAGNOSTIC_CONFIGS = [
 ]
 DIAGNOSTIC_CONFIGS.extend([
     {
+        "name": "LeidenGVE-DegreeDesc-Gorder8",
+        "algo": (
+            "12:leiden:compose:sg_none:comm_degree_desc:"
+            "intra_gorder:gw8"
+        ),
+        "desc": "Explicit-only fixed-membership mechanism factorial",
+    },
+    {
         "name": "RCM-MIND-Diagnostic",
         "algo": "11:mind",
         "desc": "Explicit-only single-pass MIND-start RCM upper bound",
