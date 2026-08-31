@@ -68,6 +68,23 @@ composability result:
    frozen graph-family-plus-kernel rule reaches only 0.896x versus the fastest
    comparator and fails its confidence and worst-graph gates.
 
+### Why the compositions help
+
+A fixed-membership `2 x 3` factorial holds Leiden communities constant and
+changes only block order (`SizeDesc`/`DegreeDesc`) and intra-block layout
+(`HubSort`/`LocalGorder8`/`RCMpp`):
+
+| Kernel | Resolved effect | Explanation |
+|---|---:|---|
+| BFS | LocalGorder8 / HubSort = **1.143x** | Faster per examined edge; the graph-level timing change aligns with fewer modeled hierarchy lookups |
+| CC | LocalGorder8 / HubSort = **1.248x** | HubSort performs 1.436x as many compression steps |
+| CC | LocalGorder8 / RCMpp = **1.514x** | LocalGorder8 performs only 0.405x as many compression steps |
+
+There is no universal block-order main effect: SizeDesc/DegreeDesc is only
+1.017x with a `[0.972, 1.067]` interval. PR strongly favors HubSort, but the
+single-thread cache model moves in the opposite direction; that hardware
+mechanism remains unresolved without `perf` counters.
+
 ![GraphBrew evidence boundary](./docs/figures/graphbrew-evidence-boundary.svg)
 
 The historical atlas and sealed confirmation therefore support a

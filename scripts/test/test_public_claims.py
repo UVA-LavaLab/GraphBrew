@@ -73,6 +73,19 @@ def test_public_evidence_has_only_current_claims():
     assert sealed["fastest_comparator_over_cell_oracle_gm"] > 1.1
     assert sealed["frozen_family_kernel_over_fastest_comparator_gm"] < 1.0
     assert sealed["gorder_csr_cell_gm_crossover_reuse"] == 67
+    mechanisms = claims["mechanism_factorial"]
+    assert mechanisms["membership_equivalent"] is True
+    assert mechanisms["bfs"][
+        "localgorder8_over_hubsort_speedup"
+    ] > 1.1
+    assert mechanisms["cc"][
+        "localgorder8_over_rcmpp_speedup"
+    ] > 1.5
+    assert mechanisms["block_order"]["graph_block_95"][0] < 1.0
+    assert mechanisms["block_order"]["graph_block_95"][1] > 1.0
+    assert mechanisms["unresolved"][
+        "pr_hubsort_over_localgorder8_speedup"
+    ] > 1.3
     assert not (PROJECT_ROOT / "docs/allkernel-lowreuse-evidence.json").exists()
 
 
@@ -101,6 +114,9 @@ def test_public_story_matches_claim_boundary():
         "0.752x",
         "1.229x",
         "0.896x",
+        "1.143x",
+        "1.514x",
+        "1.332x",
     ):
         assert required in story
 

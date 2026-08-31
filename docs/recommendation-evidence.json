@@ -1,7 +1,7 @@
 {
   "schema": "graphbrew-public-evidence/v2",
-  "generated_at_utc": "2026-08-30T03:13:42Z",
-  "story": "GraphBrew is an explicit composition framework with a faster, lower-cost GORDER-quality configuration, fresh evidence that its composition space contains workload-specialized layouts, and a separate mapping-construction optimization. Graph type alone does not yet predict the right composition, and Rabbit remains the practical low-overhead Pareto point.",
+  "generated_at_utc": "2026-08-31T08:03:34Z",
+  "story": "GraphBrew is an explicit composition framework with a faster, lower-cost GORDER-quality configuration, fresh evidence that its composition space contains workload-specialized layouts, causal evidence for selected BFS and CC mechanisms, and a separate mapping-construction optimization. Graph type alone does not yet predict the right composition, and Rabbit remains the practical low-overhead Pareto point.",
   "methodology": {
     "kernel_ratio": "Comparator median kernel time divided by GraphBrew median kernel time; values above one favor GraphBrew.",
     "mapping_ratio": "GraphBrew complete mapping time divided by comparator complete mapping time; values below one favor GraphBrew.",
@@ -44,6 +44,11 @@
       "path": "composition_sealed_confirmation_v1/final_analysis.json",
       "sha256": "086f5f3922f3e142256785914de72cb37bd96e6928840f824e5306b033f5e6be",
       "final_receipt_sha256": "3895331e0f3ba24387fc8377b0a2d1ad056299bdfb3024a81e633bc179f66a76"
+    },
+    "mechanism_factorial": {
+      "path": "mechanism_factorial_v1/final_analysis.json",
+      "sha256": "b52cc8e909e2390cfe91289c7331fc6e1bc6ccf1169cda6303dcb484dc82828c",
+      "final_receipt_sha256": "d71239afe85f293bb182c26322bf0e486038c6cf2bff533e6199bba194e9d9a9"
     },
     "invalidated_terminal_timing": {
       "path": "dual_arm_native_v1/native_midreuse_terminal_v1/invalidation.json",
@@ -142,6 +147,64 @@
       "gorder_csr_over_frozen_family_kernel_reuse1_end_to_end_gm": 0.85860756918074,
       "gorder_csr_cell_gm_crossover_reuse": 67,
       "caveat": "The sealed cohort confirms that the composition space contains workload-specialized layouts: every candidate wins cells and the oracle beats both the best fixed GraphBrew arm and the fastest Rabbit/GORDER comparator. The frozen graph-family/kernel rule fails its confidence, worst-graph, and reuse-one gates, so this is an expressiveness result rather than an automatic-selector claim."
+    },
+    "mechanism_factorial": {
+      "scope": "Fixed-membership 2x3 factorial on 10 sealed graphs and 5 kernels: SizeDesc/DegreeDesc crossed with HubSort/LocalGorder8/RCMpp. It contains 60 mappings, 300 verified work cells, 300 seven-trial timing cells, and full-trace 22 MiB cache diagnostics.",
+      "membership_equivalent": true,
+      "block_order": {
+        "classification": "no universal main effect",
+        "size_desc_over_degree_desc_speedup": 1.0167117375783432,
+        "graph_block_95": [
+          0.9720877822527261,
+          1.0668258294030522
+        ]
+      },
+      "bfs": {
+        "localgorder8_over_hubsort_speedup": 1.1426001693818193,
+        "localgorder8_over_hubsort_graph_block_95": [
+          1.0386470687452376,
+          1.2617512123861663
+        ],
+        "hubsort_over_localgorder8_examined_edges": 0.9862421854882029,
+        "hubsort_over_localgorder8_seconds_per_edge": 1.1585391359184427,
+        "cache_same_direction_fraction": 0.8,
+        "cache_rank_correlation": 0.8424242424242424,
+        "classification": "LocalGorder8's BFS advantage is a locality/throughput effect, not reduced work."
+      },
+      "cc": {
+        "localgorder8_over_hubsort_speedup": 1.247565890445569,
+        "localgorder8_over_hubsort_graph_block_95": [
+          1.074480979572978,
+          1.4478411377740077
+        ],
+        "hubsort_over_localgorder8_compression_steps": 1.4362423850338937,
+        "localgorder8_over_rcmpp_speedup": 1.5140748455551982,
+        "localgorder8_over_rcmpp_graph_block_95": [
+          1.2999963137528343,
+          1.772187721100787
+        ],
+        "localgorder8_over_rcmpp_compression_steps": 0.4045966859273461,
+        "classification": "LocalGorder8's CC advantage is driven by fewer order-dependent compression steps."
+      },
+      "unresolved": {
+        "pr_hubsort_over_localgorder8_speedup": 1.3324477794334353,
+        "pr_hubsort_over_localgorder8_graph_block_95": [
+          1.1527754454402193,
+          1.5242349861166848
+        ],
+        "pr_spmv_rcmpp_over_localgorder8_speedup": 1.0467093558628489,
+        "pr_spmv_rcmpp_over_localgorder8_graph_block_95": [
+          1.0192849132473645,
+          1.085120798959256
+        ],
+        "cc_sv": "No intra-order contrast is resolved.",
+        "reason": "The single-thread cache model and exploratory chunk-balance proxy do not explain PR, and hardware counters are unavailable. CC-SV work and modeled-cache effects conflict."
+      },
+      "negative_controls": {
+        "sampled_edge_span_mean_rank_correlation": -0.08325450808610751,
+        "pr_cache_timing_mean_rank_correlation": -0.30857142857142855
+      },
+      "caveat": "The experiment supports mechanism claims only for BFS locality/throughput and CC executed-work reduction. It rejects one universal block-order explanation and does not attribute PR or CC-SV to cache misses without hardware counters."
     }
   },
   "rejected_claims": [

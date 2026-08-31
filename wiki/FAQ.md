@@ -19,6 +19,21 @@ and [Troubleshooting](Troubleshooting).
 There is no universal winner. Compare complete preprocessing cost, kernel
 time, iteration/work changes, and expected mapping reuse on your workload.
 
+## Why can composition beat one uniform reordering?
+
+Different intra-block layouts optimize different kernel behavior while the
+community membership stays fixed:
+
+- LocalGorder8 is 1.143x faster than HubSort for BFS through a resolved
+  per-edge locality/throughput advantage.
+- LocalGorder8 is 1.248x faster than HubSort and 1.514x faster than RCMpp for
+  Afforest CC because it triggers fewer compression steps.
+- HubSort is 1.332x faster than LocalGorder8 for PR, but the available
+  single-thread cache model does not explain that hardware result.
+
+SizeDesc versus DegreeDesc has no universal main effect. See
+[Evidence and Claims](Evidence-and-Claims#why-selected-compositions-work).
+
 ## How much speedup should I expect?
 
 It depends on (a) how cache-unfriendly the original ordering is and

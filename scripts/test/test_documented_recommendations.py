@@ -45,6 +45,7 @@ def test_public_claims_match_frozen_evidence():
     atlas = _load_source(sources["composition_atlas"])
     composability = _load_source(sources["composability_certificate"])
     sealed = _load_source(sources["sealed_composability_confirmation"])
+    mechanisms = _load_source(sources["mechanism_factorial"])
     invalidation = _load_source(sources["invalidated_terminal_timing"])
 
     claims = evidence["confirmed_claims"]
@@ -260,6 +261,59 @@ def test_public_claims_match_frozen_evidence():
         sealed_confirmation["gorder_csr"]["cell_gm_crossover_reuse"]
     )
     assert sealed_confirmation["passes_all_gates"] is False
+
+    mechanism_claim = claims["mechanism_factorial"]
+    mechanism_timing = mechanisms["timing_factorial"]
+    mechanism_work = mechanisms["dynamic_work"]
+    assert mechanism_claim["membership_equivalent"] is (
+        mechanisms["factorial_contract"]["membership_equivalent"]
+    )
+    assert mechanism_claim["block_order"][
+        "size_desc_over_degree_desc_speedup"
+    ] == pytest.approx(
+        1
+        / mechanism_timing["block_order"]["marginal"][
+            "left_over_right_gm"
+        ]
+    )
+    assert mechanism_claim["bfs"][
+        "localgorder8_over_hubsort_speedup"
+    ] == pytest.approx(
+        mechanism_timing["intra_order_pairs"][
+            "hubsort_over_gorder8"
+        ]["by_kernel_graph_block"]["bfs"]["left_over_right_gm"]
+    )
+    assert mechanism_claim["bfs"][
+        "hubsort_over_localgorder8_examined_edges"
+    ] == pytest.approx(
+        mechanism_work["bfs"]["work_factorial"][
+            "intra_order_pairs"
+        ]["hubsort_over_gorder8"]["left_over_right_gm"]
+    )
+    assert mechanism_claim["cc"][
+        "localgorder8_over_rcmpp_speedup"
+    ] == pytest.approx(
+        1
+        / mechanism_timing["intra_order_pairs"][
+            "gorder8_over_rcmpp"
+        ]["by_kernel_graph_block"]["cc"]["left_over_right_gm"]
+    )
+    assert mechanism_claim["cc"][
+        "localgorder8_over_rcmpp_compression_steps"
+    ] == pytest.approx(
+        mechanism_work["cc"]["work_factorial"][
+            "intra_order_pairs"
+        ]["gorder8_over_rcmpp"]["left_over_right_gm"]
+    )
+    assert mechanism_claim["unresolved"][
+        "pr_hubsort_over_localgorder8_speedup"
+    ] == pytest.approx(
+        1
+        / mechanism_timing["intra_order_pairs"][
+            "hubsort_over_gorder8"
+        ]["by_kernel_graph_block"]["pr"]["left_over_right_gm"]
+    )
+    assert mechanisms["scope"]["hardware_counters"]["available"] is False
     assert invalidation["schema"].startswith(
         "graphbrew-native-midreuse-terminal-invalidation"
     )

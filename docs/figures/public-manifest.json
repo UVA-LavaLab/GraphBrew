@@ -22,7 +22,7 @@
     },
     {
       "path": "docs/recommendation-evidence.json",
-      "sha256": "58c62954dc5f13105fb5f8adccf41382d6a82206b7464eeeed86778e5f414f64"
+      "sha256": "7973ffb49ce59c0169fc149041ec2b33c2bb48748598dcdee3b443a2b541a872"
     },
     {
       "path": "scripts/generate_public_figures.py",

@@ -84,6 +84,27 @@ choices. It is not evidence that graph type alone predicts those choices:
 the independently frozen family+kernel rule reaches only 0.896x against the
 fastest comparator and fails its confidence and worst-graph gates.
 
+## Why individual stages help
+
+The fixed-membership factorial provides a narrower causal answer:
+
+- **Block order is secondary.** SizeDesc and DegreeDesc have no resolved
+  universal main effect when membership and intra layout are fixed.
+- **LocalGorder8 helps BFS through locality/throughput.** It is 1.143x faster
+  than HubSort even though it examines slightly more edges. Its per-edge
+  advantage aligns with the modeled hierarchy lookup change on 8/10 graphs.
+- **LocalGorder8 helps Afforest CC by reducing work.** It is 1.248x faster
+  than HubSort, which performs 1.436x as many compression steps, and 1.514x
+  faster than RCMpp while performing only 0.405x as many compression steps.
+- **PR remains hardware-sensitive.** HubSort is 1.332x faster than
+  LocalGorder8, but the single-thread cache model predicts the opposite
+  direction. Hardware prefetching, memory-level parallelism, atomic traffic,
+  and coherence cannot be separated on the current machine because hardware
+  counters are unavailable.
+
+Thus composition works for different reasons by kernel; GraphBrew does not
+promote one scalar locality metric as a universal explanation.
+
 ## Running example
 
 The [GraphBrew Running Example](GraphBrew-Running-Example) follows one graph

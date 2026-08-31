@@ -94,6 +94,26 @@ improves GORDER_csr kernels by 1.175x [1.053, 1.330], but its higher mapping
 cost delays end-to-end crossover to reuse 67. The result is therefore an
 expressiveness certificate, not a deployable graph-type selector.
 
+## Why selected compositions work
+
+A separate fixed-membership factorial keeps the Leiden partition identical
+and crosses two block orders with three intra-community layouts. This removes
+partition quality as a confounder.
+
+| Contrast | Timing result | Mechanism result |
+|---|---:|---|
+| BFS: LocalGorder8 vs HubSort | 1.143x [1.039, 1.262] | LocalGorder8 examines slightly more edges but is 1.159x faster per edge; cache/timing direction agrees on 8/10 graphs with rank correlation 0.842 |
+| BFS: LocalGorder8 vs RCMpp | 1.133x [1.021, 1.336] | LocalGorder8 examines 0.893x as many edges; per-edge time is unresolved |
+| CC: LocalGorder8 vs HubSort | 1.248x [1.074, 1.448] | HubSort performs 1.436x as many compression steps |
+| CC: LocalGorder8 vs RCMpp | 1.514x [1.300, 1.772] | LocalGorder8 performs 0.405x as many compression steps, overcoming slower time per step |
+
+Block order has no universal main effect: SizeDesc over DegreeDesc is 1.017x
+with interval [0.972, 1.067]. PR favors HubSort by 1.332x over LocalGorder8,
+but the trace model reports more L1 misses for HubSort and nearly identical
+L3 traffic. Sampled edge span and a post-hoc dynamic-chunk balance proxy also
+fail. PR therefore remains a real timing result with an unresolved hardware
+mechanism; CC-SV is likewise not assigned a mechanism.
+
 The earlier reuse-1/2 Rabbit-fallback rule remains reproducible through
 Algorithm 14, but it is a competitor-backed diagnostic and its public
 portfolio accounting did not include selector feature time. It is not a paper
