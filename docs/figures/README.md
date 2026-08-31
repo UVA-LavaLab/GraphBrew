@@ -5,10 +5,10 @@ one evidence manifest.
 
 ## Paper story
 
-- `graphbrew-architecture.svg` — explicit six-stage composition pipeline,
-  confirmed quality arm, and Compact-and-Emit
-- `graphbrew-evidence-boundary.svg` — confirmed claims versus rejected
-  selector and balanced-arm extensions
+- `graphbrew-architecture.svg` — executable layout expression, six-stage
+  pipeline, mechanism evidence, and practical operating point
+- `graphbrew-evidence-boundary.svg` — practical GORDER replacement,
+  composition headroom, and Rabbit/selector boundaries
 - `graphbrew-compact-emit.svg` — active-community compaction and direct BFS
   emission
 

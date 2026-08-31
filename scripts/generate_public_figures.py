@@ -815,23 +815,22 @@ def generate_architecture(payload: dict) -> str:
     svg = SVG(
         1200,
         840,
-        "GraphBrew: explicit composition with bounded claims",
+        "GraphBrew: composable and explainable vertex layouts",
         (
-            "The framework separates partition, block layout, and vertex "
-            "layout; the paper confirms one quality arm and one construction "
-            "optimization."
+            "GraphBrew compiles a partition, block placement, and intra-block "
+            "ordering expression into one persistent vertex permutation."
         ),
-        "One six-stage pipeline; quality, construction cost, and rejected extensions remain separate.",
+        "One layout model; kernel-specific mechanisms, practical performance, and construction cost remain separate.",
     )
     svg.rect(25, 112, 350, 82, BLUE, stroke_width=3)
-    svg.text(50, 142, "FRAMEWORK", "domain")
-    svg.text(50, 172, "Explicit partition / block / vertex choices", "small")
+    svg.text(50, 142, "LAYOUT EXPRESSION", "domain")
+    svg.text(50, 172, "<P, B, L> -> persistent permutation", "small")
     svg.rect(425, 112, 350, 82, GREEN, stroke_width=3)
-    svg.text(450, 142, "GORDER REPLACEMENT POINT", "domain")
-    svg.text(450, 172, "LeidenGVE - SizeDesc - LocalGorder8", "small")
+    svg.text(450, 142, "KERNEL-SPECIFIC MECHANISMS", "domain")
+    svg.text(450, 172, "BFS locality / CC executed work", "small")
     svg.rect(825, 112, 350, 82, AMBER, stroke_width=3)
-    svg.text(850, 142, "SYSTEMS OPTIMIZATION", "domain")
-    svg.text(850, 172, "Compact active IDs + direct emission", "small")
+    svg.text(850, 142, "PRACTICAL OPERATING POINT", "domain")
+    svg.text(850, 172, "Lower-cost GORDER-quality layout", "small")
     svg.rect(
         25,
         205,

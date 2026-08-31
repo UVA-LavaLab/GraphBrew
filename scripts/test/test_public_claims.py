@@ -25,6 +25,9 @@ SIDEBAR = PROJECT_ROOT / "wiki/_Sidebar.md"
 def test_public_evidence_has_only_current_claims():
     payload = json.loads(EVIDENCE.read_text())
     assert payload["schema"] == "graphbrew-public-evidence/v2"
+    assert payload["story"].startswith(
+        "Vertex reordering is a kernel-dependent layout-composition problem."
+    )
     claims = payload["confirmed_claims"]
     assert (
         claims["quality_arm"]["name"]
@@ -117,6 +120,9 @@ def test_public_story_matches_claim_boundary():
         "1.143x",
         "1.514x",
         "1.332x",
+        "kernel-dependent layout-composition problem",
+        "pi(v)",
+        "GraphIt",
     ):
         assert required in story
 
@@ -133,6 +139,7 @@ def test_public_story_matches_claim_boundary():
         "proposed Rabbit-free composition generator",
         "graphbrew-public-v3",
         "graphbrew-lowreuse-policy.svg",
+        "Multilayered Graph Reordering for Accelerated Graph Processing",
     ):
         assert stale not in story
 
@@ -158,4 +165,8 @@ def test_claim_figures_are_manifest_bound():
             f"docs/figures/{filename}"
         ]
 
+    architecture = (FIGURE_DIR / "graphbrew-architecture.svg").read_text()
+    assert "LAYOUT EXPRESSION" in architecture
+    assert "KERNEL-SPECIFIC MECHANISMS" in architecture
+    assert "PRACTICAL OPERATING POINT" in architecture
     assert not (FIGURE_DIR / "graphbrew-lowreuse-policy.svg").exists()

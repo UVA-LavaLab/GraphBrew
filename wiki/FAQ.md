@@ -132,7 +132,7 @@ Cite the repository:
 
 ```bibtex
 @misc{graphbrew,
-  title  = {GraphBrew: Multilayered Graph Reordering for Accelerated Graph Processing},
+  title  = {GraphBrew: Composable and Explainable Vertex Layouts for Graph Analytics},
   author = {Mughrabi, Abdullah T. and Baradaran, Morteza and Ibrahim,
             Mohannad M. and Byrd, Gregory T. and Skadron, Kevin},
   year   = 2026,

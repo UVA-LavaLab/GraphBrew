@@ -1,7 +1,9 @@
 # GraphBrew
 
-GraphBrew is a framework for composing vertex reorderings from three explicit
-decisions: **partitioner**, **block layout**, and **vertex layout**.
+GraphBrew is a framework for **composable and explainable vertex layouts**.
+
+> Vertex reordering is not one monolithic algorithm choice; it is a
+> kernel-dependent layout-composition problem.
 
 [![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)
 
@@ -9,14 +11,13 @@ decisions: **partitioner**, **block layout**, and **vertex layout**.
 
 | Contribution | Result |
 |---|---|
-| GORDER-quality replacement point | LeidenGVE–SizeDesc–LocalGorder8 is 1.052x faster in kernel GM, maps at 0.752x GORDER_csr cost, and wins end to end from reuse one |
-| Rabbit Pareto boundary | The 4% per-cell GM requires 17–19x mapping cost; without Afforest CC the margin disappears, and summed seconds never win |
-| Compositional diversity | On 10 sealed graphs, all seven arms win cells and the oracle is 1.229x faster than the best fixed GraphBrew arm; the frozen family/kernel rule still fails |
-| Mechanism evidence | Fixed membership shows LocalGorder8 improves BFS through per-edge locality and Afforest CC through fewer compression steps; block order has no universal main effect |
-| Compact-and-Emit | Preserves the BFS permutation while removing sparse community scheduling and final-emission work |
+| Compositional layout model | An executable `<P,B,L>` expression partitions vertices, places blocks, and orders vertices inside each block before producing one persistent permutation |
+| Kernel-specific mechanism evidence | All seven sealed layouts win cells; fixed membership attributes LocalGorder8’s BFS gain to per-edge locality and its Afforest CC gain to fewer compression steps |
+| Practical layout and construction | LeidenGVE–SizeDesc–LocalGorder8 is 1.052x faster and 0.752x as expensive to map as GORDER_csr; Compact-and-Emit preserves a selected permutation while reducing construction work |
 
 These are bounded claims. GraphBrew does **not** claim a universal ordering,
-a Rabbit-cost-balanced arm, or a graph-held-out automatic generator.
+a Rabbit-cost-balanced arm, or a graph-held-out automatic generator. Rabbit
+remains the low-overhead Pareto boundary.
 
 See [Evidence and Claims](Evidence-and-Claims) for the exact scope.
 

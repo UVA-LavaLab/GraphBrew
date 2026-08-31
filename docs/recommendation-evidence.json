@@ -1,7 +1,7 @@
 {
   "schema": "graphbrew-public-evidence/v2",
   "generated_at_utc": "2026-08-31T08:03:34Z",
-  "story": "GraphBrew is an explicit composition framework with a faster, lower-cost GORDER-quality configuration, fresh evidence that its composition space contains workload-specialized layouts, causal evidence for selected BFS and CC mechanisms, and a separate mapping-construction optimization. Graph type alone does not yet predict the right composition, and Rabbit remains the practical low-overhead Pareto point.",
+  "story": "Vertex reordering is a kernel-dependent layout-composition problem. GraphBrew compiles an explicit partition, block-placement, and intra-block-order expression into a persistent permutation, explains selected BFS and CC mechanisms under fixed membership, provides a lower-cost GORDER-quality operating point, and preserves Rabbit and failed graph-type selection as explicit limits.",
   "methodology": {
     "kernel_ratio": "Comparator median kernel time divided by GraphBrew median kernel time; values above one favor GraphBrew.",
     "mapping_ratio": "GraphBrew complete mapping time divided by comparator complete mapping time; values below one favor GraphBrew.",

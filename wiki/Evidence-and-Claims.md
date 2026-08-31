@@ -1,10 +1,39 @@
 # Evidence and Claims
 
-GraphBrew separates **ordering quality**, **mapping cost**, and **amortized
-end-to-end time**. A claim is included only when its baseline, workload,
-mapping policy, and verification cohort are explicit.
+GraphBrew treats a persistent vertex permutation as an executable layout
+expression:
+
+```text
+<partitioner P, block order B, intra-block order L>
+
+pi(v) = block_offset(B(P(v))) + L[P(v)](v)
+```
+
+This is the paper’s novelty boundary: GraphBrew composes the vertex-ID layout
+itself, then separates **ordering quality**, **mapping cost**, **executed
+work**, and **amortized end-to-end time**. It does not claim the first
+community-plus-local ordering or a successful automatic selector.
 
 [![GraphBrew evidence boundary](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-evidence-boundary.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-evidence-boundary.svg?v=graphbrew-public-v4)
+
+The detailed evidence follows the contribution order:
+
+1. [What composition proves](#what-composition-proves)
+2. [Why selected compositions work](#why-selected-compositions-work)
+3. [Primary practical performance claim](#primary-performance-claim-gorder-quality-at-lower-cost)
+4. [Construction optimization](#confirmed-construction-optimization)
+
+## Relation to closest systems
+
+| Prior work | What it composes | GraphBrew distinction |
+|---|---|---|
+| [GraphIt](https://arxiv.org/abs/1805.00923) | Execution schedules: traversal direction, parallelism, blocking, NUMA, cache, and data layout | Composes the persistent vertex-ID permutation and accounts for its construction and reuse |
+| Rabbit Order / Corder / [ReBO](https://doi.org/10.1109/IPDPS65963.2026.00088) | Fixed or tightly integrated multistage pipelines | Exposes partition, block order, and intra-block order as independently addressable operators |
+| [Leiden+LLP](https://arxiv.org/abs/2605.21510) | One fixed community-plus-local ordering for graph compression | Provides a general graph-analytics layout expression and fixed-membership cross-kernel mechanism tests |
+
+GraphBrew therefore does not claim the first multistage ordering. Its claim is
+the explicit three-stage vertex-layout model and the causal isolation of its
+kernel-specific effects.
 
 ## Primary performance claim: GORDER-quality at lower cost
 

@@ -2,8 +2,9 @@
 
 # GraphBrew
 
-GraphBrew is a C++17/OpenMP framework for **composable vertex reordering**.
-It separates three decisions that monolithic reorderers usually couple:
+GraphBrew is a C++17/OpenMP framework for **composable and explainable vertex
+layouts**. It separates three decisions that monolithic reorderers usually
+couple:
 
 | Decision | Purpose | Examples |
 |---|---|---|
@@ -15,81 +16,65 @@ It separates three decisions that monolithic reorderers usually couple:
 
 ## Paper story
 
-GraphBrew makes each composition explicit, records the realized mapping, and
-measures mapping cost, kernel behavior, executed work, and amortized
-end-to-end time separately.
+> **Vertex reordering is not one monolithic algorithm choice; it is a
+> kernel-dependent layout-composition problem.**
 
-The current paper supports two measured contributions and one bounded
-composability result:
+GraphBrew represents a layout as `<P,B,L>`: partition vertices, place the
+resulting blocks, and order vertices inside each block. It compiles that
+expression into one persistent permutation and records requested/realized
+semantics, mapping fingerprints, construction cost, executed work, and
+amortized time.
 
-1. **Faster, lower-cost GORDER-quality composition.**
+The paper has three contributions:
+
+1. **A compositional vertex-layout model and runtime.**
+
+   For partition `P`, block permutation `B`, and local permutation `L`, the
+   final ID is:
+
+   ```text
+   pi(v) = block_offset(B(P(v))) + L[P(v)](v)
+   ```
+
+   On 10 sealed graphs and five kernels, all seven evaluated compositions win
+   cells. The oracle is **1.229x faster than the best fixed GraphBrew layout**
+   and **1.116x faster than the fastest Rabbit/GORDER comparator**.
+
+2. **Causal, kernel-specific mechanism evidence.**
+
+   A fixed-membership `2 x 3` factorial holds Leiden communities constant and
+   changes only `SizeDesc/DegreeDesc` and
+   `HubSort/LocalGorder8/RCMpp`:
+
+   | Kernel | Resolved effect | Explanation |
+   |---|---:|---|
+   | BFS | LocalGorder8 / HubSort = **1.143x** | Faster per examined edge; timing aligns with modeled hierarchy lookups |
+   | CC | LocalGorder8 / HubSort = **1.248x** | HubSort performs 1.436x as many compression steps |
+   | CC | LocalGorder8 / RCMpp = **1.514x** | LocalGorder8 performs only 0.405x as many compression steps |
+
+   Block order has no universal main effect. PR favors HubSort by 1.332x, but
+   its hardware mechanism remains unresolved.
+
+3. **A practical layout and construction point.**
+
    `LeidenGVE-SizeDesc-LocalGorder8`
 
    ```text
    12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8
    ```
 
-   On the fresh 11-graph, seven-kernel confirmation:
+   is **1.052x faster in kernel GM**, costs **0.752x** as much to map, and is
+   **1.332x faster end to end at reuse 1** than `GORDER_csr`.
 
-   | Primary comparison | Result |
-   |---|---:|
-   | GORDER_csr / GraphBrew kernel GM | 1.052x |
-   | GraphBrew / GORDER_csr mapping GM | 0.752x |
-   | GORDER_csr / GraphBrew end-to-end GM at reuse 1 | 1.332x |
+   Compact-and-Emit preserves a selected BFS permutation while removing
+   sparse-community scheduling and final-emission work; its five-graph mapping
+   cost is 0.479x the faster Rabbit implementation.
 
-   Rabbit is the practical Pareto limitation, not the headline win.
-   GraphBrew’s per-cell kernel GM is only 1.042x/1.044x versus Rabbit
-   CSR/Boost, while mapping costs 18.52x/17.35x as much. Without Afforest CC,
-   GraphBrew loses the Rabbit GM, and summed kernel seconds are about 24% worse.
-
-2. **Compact-and-Emit.**
-   A one-pass construction optimization that compacts active community IDs
-   and writes final IDs during intra-community BFS.
-
-   ```text
-   12:leiden:compose:sg_none:comm_identity:
-   intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1
-   ```
-
-   It preserves the BFS permutation and reduces five-graph mapping cost to
-   0.479x the faster Rabbit implementation. A mandatory ORIGINAL audit found
-   no low-reuse region that beats both doing nothing and Rabbit, so this is a
-   **mapping-construction contribution**, not a balanced ordering claim.
-
-3. **Workload-dependent composition space.**
-   On a fresh five-trial matrix of 10 sealed graphs and five kernels, **all
-   seven compositions win at least one cell**. Every graph selects three to
-   five winners across kernels, and every kernel selects two to five winners
-   across graphs. The per-cell oracle is **1.229x faster than the best fixed
-   GraphBrew arm** and **1.116x faster than the fastest Rabbit/GORDER
-   comparator**.
-
-   This proves useful compositional diversity, not automatic selection. The
-   frozen graph-family-plus-kernel rule reaches only 0.896x versus the fastest
-   comparator and fails its confidence and worst-graph gates.
-
-### Why the compositions help
-
-A fixed-membership `2 x 3` factorial holds Leiden communities constant and
-changes only block order (`SizeDesc`/`DegreeDesc`) and intra-block layout
-(`HubSort`/`LocalGorder8`/`RCMpp`):
-
-| Kernel | Resolved effect | Explanation |
-|---|---:|---|
-| BFS | LocalGorder8 / HubSort = **1.143x** | Faster per examined edge; the graph-level timing change aligns with fewer modeled hierarchy lookups |
-| CC | LocalGorder8 / HubSort = **1.248x** | HubSort performs 1.436x as many compression steps |
-| CC | LocalGorder8 / RCMpp = **1.514x** | LocalGorder8 performs only 0.405x as many compression steps |
-
-There is no universal block-order main effect: SizeDesc/DegreeDesc is only
-1.017x with a `[0.972, 1.067]` interval. PR strongly favors HubSort, but the
-single-thread cache model moves in the opposite direction; that hardware
-mechanism remains unresolved without `perf` counters.
+These results establish a useful composition space, not an automatic
+selector. The frozen family-plus-kernel rule reaches only 0.896x versus the
+fastest comparator. Rabbit remains the practical low-overhead Pareto boundary.
 
 ![GraphBrew evidence boundary](./docs/figures/graphbrew-evidence-boundary.svg)
-
-The historical atlas and sealed confirmation therefore support a
-workload-specific **design-space** claim while rejecting a deployable
-automatic-generator or universal-selector claim.
 
 Machine-readable claim values and source hashes are in
 [`docs/recommendation-evidence.json`](docs/recommendation-evidence.json).

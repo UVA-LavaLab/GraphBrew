@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840" role="img" aria-labelledby="title desc" fill="#27313A" data-figure-schema="graphbrew-public/v4">
-  <title id="title">GraphBrew: explicit composition with bounded claims</title>
-  <desc id="desc">The framework separates partition, block layout, and vertex layout; the paper confirms one quality arm and one construction optimization.</desc>
+  <title id="title">GraphBrew: composable and explainable vertex layouts</title>
+  <desc id="desc">GraphBrew compiles a partition, block placement, and intra-block ordering expression into one persistent vertex permutation.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 4 L0 8 Z" fill="#1769C2"/>
@@ -27,18 +27,18 @@
     </style>
   </defs>
   <rect width="1200" height="840" fill="#FFFFFF"/>
-  <text x="42" y="47" class="sans title">GraphBrew: explicit composition with bounded claims</text>
-  <text x="42" y="75" class="sans subtitle">One six-stage pipeline; quality, construction cost, and rejected extensions remain separate.</text>
+  <text x="42" y="47" class="sans title">GraphBrew: composable and explainable vertex layouts</text>
+  <text x="42" y="75" class="sans subtitle">One layout model; kernel-specific mechanisms, practical performance, and construction cost remain separate.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
   <rect x="25" y="112" width="350" height="82" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
-  <text x="50" y="142" class="sans domain">FRAMEWORK</text>
-  <text x="50" y="172" class="sans small">Explicit partition / block / vertex choices</text>
+  <text x="50" y="142" class="sans domain">LAYOUT EXPRESSION</text>
+  <text x="50" y="172" class="sans small">&lt;P, B, L&gt; -&gt; persistent permutation</text>
   <rect x="425" y="112" width="350" height="82" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <text x="450" y="142" class="sans domain">GORDER REPLACEMENT POINT</text>
-  <text x="450" y="172" class="sans small">LeidenGVE - SizeDesc - LocalGorder8</text>
+  <text x="450" y="142" class="sans domain">KERNEL-SPECIFIC MECHANISMS</text>
+  <text x="450" y="172" class="sans small">BFS locality / CC executed work</text>
   <rect x="825" y="112" width="350" height="82" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
-  <text x="850" y="142" class="sans domain">SYSTEMS OPTIMIZATION</text>
-  <text x="850" y="172" class="sans small">Compact active IDs + direct emission</text>
+  <text x="850" y="142" class="sans domain">PRACTICAL OPERATING POINT</text>
+  <text x="850" y="172" class="sans small">Lower-cost GORDER-quality layout</text>
   <rect x="25" y="205" width="1150" height="555" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="45" y="229" class="sans domain">SHARED SIX-STAGE PIPELINE</text>
   <rect x="35" y="240" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#1769C2" stroke-width="2"/>

@@ -22,11 +22,11 @@
     },
     {
       "path": "docs/recommendation-evidence.json",
-      "sha256": "7973ffb49ce59c0169fc149041ec2b33c2bb48748598dcdee3b443a2b541a872"
+      "sha256": "ec26b0e889738e616b12666c232b2be2362a6860123018e5a04a583f344b6061"
     },
     {
       "path": "scripts/generate_public_figures.py",
-      "sha256": "c6ca4ce7a8f502117b398c94c5178a361708a13413ec4b61012300b8ca72dce9"
+      "sha256": "72d2bc61ee93645c89a30bf1738658ba6ae6cabeac52a58aa7afcd85863a6a19"
     }
   ],
   "records": [
@@ -166,7 +166,7 @@
     {
       "path": "docs/figures/graphbrew-architecture.svg",
       "kind": "svg",
-      "sha256": "7ee7070a82347fe43e3a500f13f47be8f89e3ebfe410ffe8c75a1c36093d2884",
+      "sha256": "8d075b00fdbb99e081d53baa21d77487d1285950a32c19f7b6ef31e3704511f1",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },

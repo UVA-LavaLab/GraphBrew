@@ -11,6 +11,21 @@ It changes vertex IDs and CSR placement, not graph topology.
 
 [![GraphBrew architecture](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-architecture.svg?v=graphbrew-public-v4)
 
+## Layout expression
+
+Let `P(v)` assign vertex `v` to a block, `B` order the blocks, and `L[c](v)`
+give the local position of `v` inside block `c`. GraphBrew emits:
+
+```text
+pi(v) = block_offset(B(P(v))) + L[P(v)](v)
+```
+
+If `B` and each local `L[c]` are permutations, `pi` is a permutation because
+the block intervals are disjoint and cover every final ID. Holding `P` fixed
+isolates block and intra-block effects; holding both `P` and `B` fixed isolates
+the local layout. Requested and realized expressions are recorded separately
+so fallbacks cannot silently change a treatment.
+
 ## Confirmed GORDER-quality composition
 
 ```text
