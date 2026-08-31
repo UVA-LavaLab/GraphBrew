@@ -614,6 +614,15 @@ def build_mechanism_certificate(
         value=lambda graph, _kernel, spec: cache[(graph, spec)],
         resamples=resamples,
     )
+    cache_timing_factors = factor_summaries(
+        graphs=graphs,
+        kernels=[cache_benchmark],
+        blocks=blocks,
+        intras=intras,
+        arm_by_axes=arm_by_axes,
+        value=lambda graph, kernel, spec: timing[(graph, kernel, spec)],
+        resamples=resamples,
+    )
 
     artifact_root = Path(protocol["execution"]["artifact_root"])
     memberships = {}
@@ -693,14 +702,16 @@ def build_mechanism_certificate(
     cache_alignment = {
         "block_order": {
             intra: contrast_alignment(
-                timing_factors["block_order"]["by_intra_order"][intra],
+                cache_timing_factors["block_order"]["by_intra_order"][
+                    intra
+                ],
                 cache_factors["block_order"]["by_intra_order"][intra],
             )
             for intra in intras
         },
         "intra_order_pairs": {
             pair: contrast_alignment(
-                timing_factors["intra_order_pairs"][pair],
+                cache_timing_factors["intra_order_pairs"][pair],
                 cache_factors["intra_order_pairs"][pair],
             )
             for pair in timing_factors["intra_order_pairs"]
@@ -841,6 +852,7 @@ def build_mechanism_certificate(
                 "total_accesses + l1_misses + l2_misses + l3_misses"
             ),
             "factorial": cache_factors,
+            "matching_pr_timing_factorial": cache_timing_factors,
             "pr_rank_correlation": {
                 "by_graph": cache_rank_correlations,
                 "mean": statistics.fmean(cache_correlations),
