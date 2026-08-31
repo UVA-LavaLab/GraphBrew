@@ -20,6 +20,7 @@ import json
 import math
 import os
 from pathlib import Path
+import statistics
 import sys
 from typing import Callable, Iterable
 
@@ -73,6 +74,7 @@ def load_protocol(path: Path) -> dict:
         "graphbrew-composition-oracle-atlas/v2",
         "graphbrew-composition-holdout-protocol/v1",
         "graphbrew-composition-sealed-confirmation-protocol/v1",
+        "graphbrew-mechanism-factorial-protocol/v1",
     }:
         raise ValueError(f"Unsupported atlas protocol: {payload.get('schema')}")
     return payload
@@ -280,6 +282,581 @@ def mapping_seconds(
             "reorder_apply_time",
         )
     )
+
+
+def scalar_metric(value: object, *, name: str) -> float:
+    if isinstance(value, list):
+        if len(value) != 1:
+            raise ValueError(f"{name} must contain exactly one value")
+        value = value[0]
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+    ):
+        raise ValueError(f"Invalid {name}: {value!r}")
+    return float(value)
+
+
+def average_ranks(values: list[float]) -> list[float]:
+    order = sorted(range(len(values)), key=values.__getitem__)
+    ranks = [0.0] * len(values)
+    start = 0
+    while start < len(order):
+        end = start + 1
+        while (
+            end < len(order)
+            and values[order[end]] == values[order[start]]
+        ):
+            end += 1
+        rank = (start + end - 1) / 2.0
+        for index in order[start:end]:
+            ranks[index] = rank
+        start = end
+    return ranks
+
+
+def pearson(values_x: list[float], values_y: list[float]) -> float | None:
+    if len(values_x) != len(values_y) or len(values_x) < 2:
+        return None
+    mean_x = statistics.fmean(values_x)
+    mean_y = statistics.fmean(values_y)
+    numerator = sum(
+        (x - mean_x) * (y - mean_y)
+        for x, y in zip(values_x, values_y)
+    )
+    denominator = math.sqrt(
+        sum((x - mean_x) ** 2 for x in values_x)
+        * sum((y - mean_y) ** 2 for y in values_y)
+    )
+    return numerator / denominator if denominator else None
+
+
+def spearman(values_x: list[float], values_y: list[float]) -> float | None:
+    return pearson(average_ranks(values_x), average_ranks(values_y))
+
+
+def summarize_ratio_records(
+    records: list[tuple[str, str, float]],
+    *,
+    resamples: int,
+) -> dict:
+    by_graph: dict[str, list[float]] = {}
+    by_kernel: dict[str, list[float]] = {}
+    for graph, kernel, ratio in records:
+        if not math.isfinite(ratio) or ratio <= 0:
+            raise ValueError(
+                f"Invalid paired ratio for {graph}/{kernel}: {ratio}"
+            )
+        by_graph.setdefault(graph, []).append(ratio)
+        by_kernel.setdefault(kernel, []).append(ratio)
+    graph_ratios = {
+        graph: geometric_mean(values)
+        for graph, values in sorted(by_graph.items())
+    }
+    ci_low, ci_high = bootstrap_graph_geomean(
+        graph_ratios,
+        resamples=resamples,
+    )
+    return {
+        "left_over_right_gm": geometric_mean(graph_ratios.values()),
+        "graph_block_95": [ci_low, ci_high],
+        "right_wins_ties_losses_2pct": {
+            "win": sum(value > 1.02 for value in records_value(records)),
+            "tie": sum(
+                0.98 <= value <= 1.02
+                for value in records_value(records)
+            ),
+            "loss": sum(value < 0.98 for value in records_value(records)),
+        },
+        "by_kernel": {
+            kernel: geometric_mean(values)
+            for kernel, values in sorted(by_kernel.items())
+        },
+        "graph_ratios": graph_ratios,
+    }
+
+
+def records_value(
+    records: list[tuple[str, str, float]],
+) -> list[float]:
+    return [ratio for _graph, _kernel, ratio in records]
+
+
+def factor_summaries(
+    *,
+    graphs: list[str],
+    kernels: list[str],
+    blocks: list[str],
+    intras: list[str],
+    arm_by_axes: dict[tuple[str, str], str],
+    value: Callable[[str, str, str], float],
+    resamples: int,
+) -> dict:
+    block_records = []
+    for graph in graphs:
+        for kernel in kernels:
+            for intra in intras:
+                left = value(
+                    graph,
+                    kernel,
+                    arm_by_axes[(blocks[0], intra)],
+                )
+                right = value(
+                    graph,
+                    kernel,
+                    arm_by_axes[(blocks[1], intra)],
+                )
+                block_records.append((graph, kernel, left / right))
+    block_by_intra = {}
+    for intra in intras:
+        records = []
+        for graph in graphs:
+            for kernel in kernels:
+                left = value(
+                    graph,
+                    kernel,
+                    arm_by_axes[(blocks[0], intra)],
+                )
+                right = value(
+                    graph,
+                    kernel,
+                    arm_by_axes[(blocks[1], intra)],
+                )
+                records.append((graph, kernel, left / right))
+        block_by_intra[intra] = summarize_ratio_records(
+            records,
+            resamples=resamples,
+        )
+
+    intra_pairs = {}
+    for left_index, left_intra in enumerate(intras):
+        for right_intra in intras[left_index + 1:]:
+            records = []
+            for graph in graphs:
+                for kernel in kernels:
+                    for block in blocks:
+                        left = value(
+                            graph,
+                            kernel,
+                            arm_by_axes[(block, left_intra)],
+                        )
+                        right = value(
+                            graph,
+                            kernel,
+                            arm_by_axes[(block, right_intra)],
+                        )
+                        records.append((graph, kernel, left / right))
+            intra_pairs[f"{left_intra}_over_{right_intra}"] = (
+                summarize_ratio_records(records, resamples=resamples)
+            )
+    return {
+        "ratio_semantics": (
+            "left treatment divided by right treatment; values above one "
+            "mean the right treatment is faster or performs less work"
+        ),
+        "block_order": {
+            "left": blocks[0],
+            "right": blocks[1],
+            "marginal": summarize_ratio_records(
+                block_records,
+                resamples=resamples,
+            ),
+            "by_intra_order": block_by_intra,
+        },
+        "intra_order_pairs": intra_pairs,
+    }
+
+
+def contrast_alignment(
+    timing: dict,
+    locality: dict,
+) -> dict:
+    common_graphs = sorted(
+        set(timing["graph_ratios"]) & set(locality["graph_ratios"])
+    )
+    timing_logs = [
+        math.log(timing["graph_ratios"][graph])
+        for graph in common_graphs
+    ]
+    locality_logs = [
+        math.log(locality["graph_ratios"][graph])
+        for graph in common_graphs
+    ]
+    same_direction = sum(
+        timing_log * locality_log > 0
+        for timing_log, locality_log in zip(
+            timing_logs,
+            locality_logs,
+        )
+    )
+    return {
+        "graphs": len(common_graphs),
+        "same_direction_graphs": same_direction,
+        "same_direction_fraction": (
+            same_direction / len(common_graphs)
+            if common_graphs else None
+        ),
+        "log_ratio_pearson": pearson(timing_logs, locality_logs),
+        "rank_correlation": spearman(timing_logs, locality_logs),
+    }
+
+
+def build_mechanism_certificate(
+    protocol: dict,
+    timing_rows: list[dict],
+    verification_rows: list[dict],
+    cache_rows: list[dict],
+) -> dict:
+    graphs = list(protocol["graphs"])
+    kernels = list(protocol["kernels"])
+    arms = list(protocol["arms"])
+    specs = [canonical_spec(record["spec"]) for record in arms]
+    arm_by_axes = {
+        (record["block_order"], record["intra_order"]):
+            canonical_spec(record["spec"])
+        for record in arms
+    }
+    blocks = list(protocol["factors"]["block_order"])
+    intras = list(protocol["factors"]["intra_order"])
+    expected_axes = {
+        (block, intra)
+        for block in blocks
+        for intra in intras
+    }
+    if set(arm_by_axes) != expected_axes:
+        raise ValueError("Factorial arms do not cover the declared 2x3 grid")
+    resamples = int(protocol["analysis"]["bootstrap_resamples"])
+
+    timing = build_matrix(
+        timing_rows,
+        graphs=graphs,
+        kernels=kernels,
+        specs=set(specs),
+    )
+    timing_factors = factor_summaries(
+        graphs=graphs,
+        kernels=kernels,
+        blocks=blocks,
+        intras=intras,
+        arm_by_axes=arm_by_axes,
+        value=lambda graph, kernel, spec: timing[(graph, kernel, spec)],
+        resamples=resamples,
+    )
+
+    verification: dict[tuple[str, str, str], dict] = {}
+    for row in verification_rows:
+        graph = str(row.get("graph", ""))
+        kernel = str(row.get("benchmark", ""))
+        spec = canonical_spec(row.get("algo_key"))
+        if graph not in graphs or kernel not in kernels or spec not in specs:
+            continue
+        key = (graph, kernel, spec)
+        if key in verification:
+            raise ValueError(f"Duplicate verification row: {key}")
+        if row.get("verification_state") != "pass":
+            raise ValueError(f"Verification did not pass: {key}")
+        verification[key] = row
+    expected_verification = {
+        (graph, kernel, spec)
+        for graph in graphs
+        for kernel in kernels
+        for spec in specs
+    }
+    if set(verification) != expected_verification:
+        missing = sorted(expected_verification - set(verification))
+        raise ValueError(
+            "Incomplete mechanism verification matrix; "
+            f"missing={missing[:1]}"
+        )
+
+    cache_config = protocol["analysis"]["cache"]
+    cache_benchmark = cache_config["benchmark"]
+    cache_size = int(cache_config["cache_size_bytes"])
+    cache: dict[tuple[str, str], float] = {}
+    for row in cache_rows:
+        graph = str(row.get("graph", ""))
+        spec = canonical_spec(row.get("algo_key"))
+        if graph not in graphs or spec not in specs:
+            continue
+        if (
+            row.get("benchmark") != cache_benchmark
+            or int(row.get("cache_size_bytes", -1)) != cache_size
+            or row.get("cache_mode") != cache_config["mode"]
+        ):
+            continue
+        key = (graph, spec)
+        if key in cache:
+            raise ValueError(f"Duplicate cache row: {key}")
+        cache[key] = sum(
+            scalar_metric(row.get(field), name=field)
+            for field in (
+                "total_accesses",
+                "l1_misses",
+                "l2_misses",
+                "l3_misses",
+            )
+        )
+    expected_cache = {
+        (graph, spec) for graph in graphs for spec in specs
+    }
+    if set(cache) != expected_cache:
+        missing = sorted(expected_cache - set(cache))
+        raise ValueError(
+            f"Incomplete cache matrix; missing={missing[:1]}"
+        )
+    cache_factors = factor_summaries(
+        graphs=graphs,
+        kernels=[cache_benchmark],
+        blocks=blocks,
+        intras=intras,
+        arm_by_axes=arm_by_axes,
+        value=lambda graph, _kernel, spec: cache[(graph, spec)],
+        resamples=resamples,
+    )
+
+    artifact_root = Path(protocol["execution"]["artifact_root"])
+    memberships = {}
+    edge_spans: dict[tuple[str, str], float] = {}
+    allowed_fields = set(
+        protocol["analysis"]["allowed_effective_config_differences"]
+    )
+    for graph in graphs:
+        fingerprints = {}
+        effective_configs = {}
+        realized_configs = {}
+        for spec in specs:
+            meta_path = (
+                artifact_root
+                / "vldb_mappings"
+                / graph
+                / f"{spec.replace(':', '_')}.json"
+            )
+            meta = json.loads(meta_path.read_text())
+            effective = meta.get("graphbrew_effective_configs", [])
+            realized = meta.get("graphbrew_realized_configs", [])
+            if len(effective) != 1 or len(realized) != 1:
+                raise ValueError(
+                    f"Missing GraphBrew configuration metadata: {graph}/{spec}"
+                )
+            effective_configs[spec] = effective[0]
+            realized_configs[spec] = realized[0]
+            fingerprints[spec] = realized[0]["membership_fingerprint"]
+            edge_spans[(graph, spec)] = scalar_metric(
+                meta["mapping_draws"][0]["mapping_sampled_edge_span"],
+                name="mapping_sampled_edge_span",
+            )
+        if len(set(fingerprints.values())) != 1:
+            raise ValueError(f"Membership drift on {graph}")
+        reference_spec = specs[0]
+        reference = effective_configs[reference_spec]
+        for spec, effective in effective_configs.items():
+            unexpected = {
+                field
+                for field in set(reference) | set(effective)
+                if reference.get(field) != effective.get(field)
+                and field not in allowed_fields
+            }
+            if unexpected:
+                raise ValueError(
+                    f"Unexpected factorial config drift on {graph}/{spec}: "
+                    f"{sorted(unexpected)}"
+                )
+        memberships[graph] = {
+            "membership_fingerprint": next(iter(fingerprints.values())),
+            "num_communities": sorted({
+                config["num_communities"]
+                for config in realized_configs.values()
+            }),
+            "num_passes": sorted({
+                config["num_passes"]
+                for config in realized_configs.values()
+            }),
+        }
+
+    cache_rank_correlations = {}
+    span_rank_correlations: dict[str, dict[str, float | None]] = {}
+    for graph in graphs:
+        cache_rank_correlations[graph] = spearman(
+            [cache[(graph, spec)] for spec in specs],
+            [timing[(graph, cache_benchmark, spec)] for spec in specs],
+        )
+    for kernel in kernels:
+        span_rank_correlations[kernel] = {
+            graph: spearman(
+                [edge_spans[(graph, spec)] for spec in specs],
+                [timing[(graph, kernel, spec)] for spec in specs],
+            )
+            for graph in graphs
+        }
+
+    cache_alignment = {
+        "block_order": {
+            intra: contrast_alignment(
+                timing_factors["block_order"]["by_intra_order"][intra],
+                cache_factors["block_order"]["by_intra_order"][intra],
+            )
+            for intra in intras
+        },
+        "intra_order_pairs": {
+            pair: contrast_alignment(
+                timing_factors["intra_order_pairs"][pair],
+                cache_factors["intra_order_pairs"][pair],
+            )
+            for pair in timing_factors["intra_order_pairs"]
+        },
+    }
+
+    work_explanation = {}
+    for kernel, work_config in protocol["analysis"]["dynamic_work"].items():
+        primary_metric = work_config["primary_metric"]
+
+        def work_value(graph: str, target_kernel: str, spec: str) -> float:
+            metrics = verification[(graph, target_kernel, spec)][
+                "work_metrics"
+            ]
+            value = scalar_metric(
+                metrics.get(primary_metric),
+                name=primary_metric,
+            )
+            if value <= 0:
+                raise ValueError(
+                    f"{primary_metric} must be positive for {graph}/{spec}"
+                )
+            return value
+
+        work_factors = factor_summaries(
+            graphs=graphs,
+            kernels=[kernel],
+            blocks=blocks,
+            intras=intras,
+            arm_by_axes=arm_by_axes,
+            value=work_value,
+            resamples=resamples,
+        )
+        normalized_factors = factor_summaries(
+            graphs=graphs,
+            kernels=[kernel],
+            blocks=blocks,
+            intras=intras,
+            arm_by_axes=arm_by_axes,
+            value=lambda graph, target_kernel, spec: (
+                timing[(graph, target_kernel, spec)]
+                / work_value(graph, target_kernel, spec)
+            ),
+            resamples=resamples,
+        )
+        graph_correlations = {
+            graph: spearman(
+                [
+                    work_value(graph, kernel, spec)
+                    for spec in specs
+                ],
+                [
+                    timing[(graph, kernel, spec)]
+                    for spec in specs
+                ],
+            )
+            for graph in graphs
+        }
+        fastest_is_least_work = sum(
+            min(
+                specs,
+                key=lambda spec: timing[(graph, kernel, spec)],
+            )
+            == min(
+                specs,
+                key=lambda spec: work_value(graph, kernel, spec),
+            )
+            for graph in graphs
+        )
+        work_explanation[kernel] = {
+            "primary_metric": primary_metric,
+            "work_factorial": work_factors,
+            "seconds_per_work_unit_factorial": normalized_factors,
+            "work_time_rank_correlation": {
+                "by_graph": graph_correlations,
+                "mean": statistics.fmean(
+                    value for value in graph_correlations.values()
+                    if value is not None
+                ),
+                "median": statistics.median(
+                    value for value in graph_correlations.values()
+                    if value is not None
+                ),
+            },
+            "fastest_arm_is_least_work": fastest_is_least_work,
+            "graphs": len(graphs),
+        }
+
+    winner_counts = Counter()
+    for graph in graphs:
+        for kernel in kernels:
+            winner_counts[min(
+                specs,
+                key=lambda spec: timing[(graph, kernel, spec)],
+            )] += 1
+
+    cache_correlations = [
+        value for value in cache_rank_correlations.values()
+        if value is not None
+    ]
+    span_correlations = [
+        value
+        for kernel_values in span_rank_correlations.values()
+        for value in kernel_values.values()
+        if value is not None
+    ]
+    return {
+        "schema": "graphbrew-mechanism-factorial-analysis/v1",
+        "scope": {
+            "graphs": graphs,
+            "kernels": kernels,
+            "arms": len(specs),
+            "timing_cells": len(graphs) * len(kernels) * len(specs),
+            "cache_cells": len(graphs) * len(specs),
+            "hardware_counters": protocol["analysis"][
+                "hardware_counter_status"
+            ],
+        },
+        "factorial_contract": {
+            "block_orders": blocks,
+            "intra_orders": intras,
+            "allowed_effective_config_differences": sorted(
+                allowed_fields
+            ),
+            "memberships": memberships,
+            "membership_equivalent": True,
+        },
+        "winner_counts": {
+            next(
+                record["name"] for record in arms
+                if canonical_spec(record["spec"]) == spec
+            ): count
+            for spec, count in sorted(winner_counts.items())
+        },
+        "timing_factorial": timing_factors,
+        "cache_hierarchy": {
+            "metric": (
+                "total_accesses + l1_misses + l2_misses + l3_misses"
+            ),
+            "factorial": cache_factors,
+            "pr_rank_correlation": {
+                "by_graph": cache_rank_correlations,
+                "mean": statistics.fmean(cache_correlations),
+                "median": statistics.median(cache_correlations),
+            },
+            "timing_alignment": cache_alignment,
+        },
+        "dynamic_work": work_explanation,
+        "negative_control": {
+            "sampled_edge_span_time_rank_correlation": {
+                "by_kernel_graph": span_rank_correlations,
+                "mean": statistics.fmean(span_correlations),
+                "median": statistics.median(span_correlations),
+            },
+        },
+    }
 
 
 def build_certificate(protocol: dict, rows: list[dict]) -> dict:
@@ -757,6 +1334,16 @@ def main() -> None:
         help="Override the timing source recorded by the protocol.",
     )
     parser.add_argument(
+        "--verification-source",
+        type=Path,
+        help="Override the verification/work source for a mechanism factorial.",
+    )
+    parser.add_argument(
+        "--cache-source",
+        type=Path,
+        help="Override the cache source for a mechanism factorial.",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=DEFAULT_ATLAS_ROOT / "composability_certificate_v1.json",
@@ -780,8 +1367,7 @@ def main() -> None:
     if not isinstance(rows, list):
         raise ValueError("Timing source must contain a JSON row list")
 
-    certificate = build_certificate(protocol, rows)
-    certificate["sources"] = {
+    source_bindings = {
         "protocol": {
             "path": str(args.protocol),
             "sha256": sha256(args.protocol),
@@ -795,14 +1381,69 @@ def main() -> None:
             "sha256": sha256(Path(__file__)),
         },
     }
+    if protocol["schema"] == "graphbrew-mechanism-factorial-protocol/v1":
+        verification_record = protocol["verification_source"]
+        verification_source = (
+            args.verification_source
+            or Path(verification_record["path"])
+        )
+        if (
+            verification_record.get("sha256")
+            and sha256(verification_source)
+            != verification_record["sha256"]
+        ):
+            raise ValueError(
+                "Verification source hash does not match the protocol"
+            )
+        verification_rows = json.loads(verification_source.read_text())
+        if not isinstance(verification_rows, list):
+            raise ValueError("Verification source must contain a row list")
+
+        cache_record = protocol["cache_source"]
+        cache_source = args.cache_source or Path(cache_record["path"])
+        if (
+            cache_record.get("sha256")
+            and sha256(cache_source) != cache_record["sha256"]
+        ):
+            raise ValueError("Cache source hash does not match the protocol")
+        cache_rows = json.loads(cache_source.read_text())
+        if not isinstance(cache_rows, list):
+            raise ValueError("Cache source must contain a row list")
+        certificate = build_mechanism_certificate(
+            protocol,
+            rows,
+            verification_rows,
+            cache_rows,
+        )
+        source_bindings.update({
+            "verification": {
+                "path": str(verification_source),
+                "sha256": sha256(verification_source),
+            },
+            "cache": {
+                "path": str(cache_source),
+                "sha256": sha256(cache_source),
+            },
+        })
+    else:
+        certificate = build_certificate(protocol, rows)
+    certificate["sources"] = source_bindings
     write_json(args.output, certificate)
+    conclusion = certificate.get("classification")
+    if conclusion is None:
+        conclusion = {
+            "membership_equivalent":
+                certificate["factorial_contract"]["membership_equivalent"],
+            "hardware_counters":
+                certificate["scope"]["hardware_counters"],
+        }
     receipt = {
         "schema": "graphbrew-composability-receipt/v1",
         "certificate": {
             "path": str(args.output),
             "sha256": sha256(args.output),
         },
-        "conclusion": certificate["classification"],
+        "conclusion": conclusion,
     }
     write_json(args.receipt, receipt)
     print(json.dumps(receipt, indent=2))

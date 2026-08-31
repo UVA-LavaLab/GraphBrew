@@ -20,7 +20,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts.experiments.vldb import figures, runner
+from scripts.experiments.vldb import (
+    analyze_composability,
+    figures,
+    runner,
+)
 from scripts.experiments.vldb.config import (
     ABLATION_CONTRASTS,
     ABLATION_CONFIGS,
@@ -127,6 +131,50 @@ def test_mechanism_factorial_degree_gorder_changes_only_block_order():
         key for key in size_desc
         if size_desc.get(key) != degree_desc.get(key)
     } == {"community_order"}
+
+
+def test_mechanism_factorial_summary_preserves_ratio_direction():
+    graphs = ["g1", "g2"]
+    kernels = ["pr", "bfs"]
+    blocks = ["size-desc", "degree-desc"]
+    intras = ["hubsort", "gorder8", "rcmpp"]
+    arm_by_axes = {
+        (block, intra): f"{block}/{intra}"
+        for block in blocks
+        for intra in intras
+    }
+    values = {
+        (graph, kernel, arm): (
+            2.0 if arm.startswith("size-desc") else 1.0
+        )
+        for graph in graphs
+        for kernel in kernels
+        for arm in arm_by_axes.values()
+    }
+    summary = analyze_composability.factor_summaries(
+        graphs=graphs,
+        kernels=kernels,
+        blocks=blocks,
+        intras=intras,
+        arm_by_axes=arm_by_axes,
+        value=lambda graph, kernel, arm: values[(graph, kernel, arm)],
+        resamples=100,
+    )
+    assert summary["block_order"]["marginal"]["left_over_right_gm"] == (
+        pytest.approx(2.0)
+    )
+    assert summary["ratio_semantics"].startswith(
+        "left treatment divided by right treatment"
+    )
+
+
+def test_mechanism_contrast_alignment_uses_graph_ratios():
+    timing = {"graph_ratios": {"g1": 1.2, "g2": 0.8, "g3": 1.1}}
+    cache = {"graph_ratios": {"g1": 1.1, "g2": 0.9, "g3": 0.95}}
+    aligned = analyze_composability.contrast_alignment(timing, cache)
+    assert aligned["graphs"] == 3
+    assert aligned["same_direction_graphs"] == 2
+    assert aligned["same_direction_fraction"] == pytest.approx(2 / 3)
 
 
 def test_retired_experimental_reorder_prototypes_are_absent():
@@ -284,7 +332,7 @@ def test_parallel_leiden_budget_frontier_is_diagnostic_only():
     specs = [
         config["algo"]
         for config in DIAGNOSTIC_CONFIGS
-        if config["algo"].startswith("12:")
+        if ":cd_parallel:" in config["algo"]
     ]
     assert len(specs) == 5
     assert {
