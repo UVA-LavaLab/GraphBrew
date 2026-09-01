@@ -72,7 +72,12 @@ The paper has three contributions:
 
 These results establish a useful composition space, not an automatic
 selector. The frozen family-plus-kernel rule reaches only 0.896x versus the
-fastest comparator. Rabbit remains the practical low-overhead Pareto boundary.
+fastest comparator. Two preregistered low-cost discovery routes also fail:
+access-sampled cache/proxy screening reaches at most 2.02x cost reduction, and
+three 32,768-vertex topology samples running the real kernels reach 3.51x with
+mean Kendall tau 0.220, 58.3% top-two winner retention, and 113.2% worst
+shortlist regret. No sampled selector or held-out confirmation is claimed.
+Rabbit remains the practical low-overhead Pareto boundary.
 
 ![GraphBrew evidence boundary](./docs/figures/graphbrew-evidence-boundary.svg)
 

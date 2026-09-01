@@ -1,7 +1,7 @@
 {
   "schema": "graphbrew-public-evidence/v2",
-  "generated_at_utc": "2026-08-31T08:03:34Z",
-  "story": "Vertex reordering is a kernel-dependent layout-composition problem. GraphBrew compiles an explicit partition, block-placement, and intra-block-order expression into a persistent permutation, explains selected BFS and CC mechanisms under fixed membership, provides a lower-cost GORDER-quality operating point, and preserves Rabbit and failed graph-type selection as explicit limits.",
+  "generated_at_utc": "2026-09-01T12:43:08Z",
+  "story": "Vertex reordering is a kernel-dependent layout-composition problem. GraphBrew compiles an explicit partition, block-placement, and intra-block-order expression into a persistent permutation, explains selected BFS and CC mechanisms under fixed membership, provides a lower-cost GORDER-quality operating point, and preserves Rabbit plus failed graph-type and sampled-screen selection as explicit limits.",
   "methodology": {
     "kernel_ratio": "Comparator median kernel time divided by GraphBrew median kernel time; values above one favor GraphBrew.",
     "mapping_ratio": "GraphBrew complete mapping time divided by comparator complete mapping time; values below one favor GraphBrew.",
@@ -49,6 +49,16 @@
       "path": "mechanism_factorial_v1/final_analysis.json",
       "sha256": "b52cc8e909e2390cfe91289c7331fc6e1bc6ccf1169cda6303dcb484dc82828c",
       "final_receipt_sha256": "d71239afe85f293bb182c26322bf0e486038c6cf2bff533e6199bba194e9d9a9"
+    },
+    "access_sampled_proxy_screen": {
+      "path": "multifidelity_screen_v1/analysis.json",
+      "sha256": "d0452277e284459dc003a56cb8aec0bfcaaf7afdde6b2e309cd474a7cda339be",
+      "final_receipt_sha256": "2bf3bc23536441cfecb402b043a911955a4a0547282996768507fb50c2c315a4"
+    },
+    "topology_sample_screen": {
+      "path": "topology_sample_screen_v1/analysis.json",
+      "sha256": "c485f12d9822fc6fb3e4b59fb5847a179a25868b953c9886a98de3bd0944c360",
+      "final_receipt_sha256": "0b51f4cd5264040a49ae13ddd231bb900429e2c5b149cb34f04a730db554f7f1"
     },
     "invalidated_terminal_timing": {
       "path": "dual_arm_native_v1/native_midreuse_terminal_v1/invalidation.json",
@@ -207,6 +217,25 @@
       "caveat": "The experiment supports mechanism claims only for BFS locality/throughput and CC executed-work reduction. It rejects one universal block-order explanation and does not attribute PR or CC-SV to cache misses without hardware counters."
     }
   },
+  "selection_limits": {
+    "access_sampled_cache_and_proxy": {
+      "scope": "Six development graphs, six layouts, access-sampling rates 8/16/32/64, and preregistered proxy transfers.",
+      "best_sampled_cache_runtime_speedup": 2.020487535675545,
+      "best_sampled_cache_kendall_tau_b": 0.6799999999999999,
+      "best_sampled_cache_winner_in_top2": 0.7666666666666667,
+      "fast_proxy_bfs_to_bc_kendall_tau_b": 0.35555555555555557,
+      "fast_proxy_cc_to_cc_sv_kendall_tau_b": 0.15555555555555556,
+      "classification": "Rejected. Periodic access sampling missed the 10x cost gate, while the cheaper BFS and CC proxies did not preserve target-kernel layout rankings."
+    },
+    "topology_sample_actual_kernel": {
+      "scope": "Six development graphs, three deterministic 32,768-vertex samples per graph, six layouts, six actual target kernels, and 648 verified three-trial timing cells.",
+      "full_over_sample_cost_speedup_gm": 3.5099203943736876,
+      "kendall_tau_b_mean": 0.21953808160893354,
+      "reference_winner_in_top2": 0.5833333333333334,
+      "maximum_shortlist_regret": 1.1316758747697975,
+      "classification": "Rejected. The screen failed all four frozen gates; method-held-out confirmation and repository integration were not authorized."
+    }
+  },
   "rejected_claims": [
     {
       "claim": "GraphBrew has a Rabbit-cost-balanced arm that also beats ORIGINAL.",
@@ -219,6 +248,14 @@
     {
       "claim": "The current composition library supports a graph-held-out adaptive generator.",
       "reason": "On the sealed confirmation, the independently frozen family/kernel rule reaches only 0.896x against the fastest comparator and fails its confidence, worst-graph, and reuse-one gates."
+    },
+    {
+      "claim": "A cheap sampled-cache or proxy-kernel pass can safely shortlist layouts.",
+      "reason": "Access sampling reached at most 2.020x rather than the required 10x, and the genuinely cheaper BFS-to-BC and CC-to-CC-SV proxies had Kendall tau values of only 0.356 and 0.156."
+    },
+    {
+      "claim": "A 32,768-vertex topology sample running the real kernel can safely shortlist layouts.",
+      "reason": "Across 36 graph-kernel contexts, the frozen three-seed screen reached 3.510x cost speedup, mean Kendall tau 0.220, 58.3% full-winner retention in the top two, and 113.2% worst shortlist regret. Every gate failed."
     },
     {
       "claim": "CC-SV lower-label portal layouts are promoted.",

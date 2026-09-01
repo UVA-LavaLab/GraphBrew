@@ -19,9 +19,10 @@ community-plus-local ordering or a successful automatic selector.
 The detailed evidence follows the contribution order:
 
 1. [What composition proves](#what-composition-proves)
-2. [Why selected compositions work](#why-selected-compositions-work)
-3. [Primary practical performance claim](#primary-performance-claim-gorder-quality-at-lower-cost)
-4. [Construction optimization](#confirmed-construction-optimization)
+2. [Why sampled discovery is not yet the selector](#why-sampled-discovery-is-not-yet-the-selector)
+3. [Why selected compositions work](#why-selected-compositions-work)
+4. [Primary practical performance claim](#primary-performance-claim-gorder-quality-at-lower-cost)
+5. [Construction optimization](#confirmed-construction-optimization)
 
 ## Relation to closest systems
 
@@ -122,6 +123,28 @@ graph-block interval is [0.984, 1.082] and the worst graph is 0.879x. It
 improves GORDER_csr kernels by 1.175x [1.053, 1.330], but its higher mapping
 cost delays end-to-end crossover to reuse 67. The result is therefore an
 expressiveness certificate, not a deployable graph-type selector.
+
+## Why sampled discovery is not yet the selector
+
+Two separately frozen low-cost screens were rejected rather than tuned after
+seeing their development results.
+
+| Screen | Cost reduction | Kendall tau | Full winner in sample top two | Worst shortlist regret |
+|---|---:|---:|---:|---:|
+| Periodic cache-access sampling | at most 2.020x | at most 0.680 | at most 76.7% | at least 2.9% |
+| Three 32,768-vertex topology samples, real target kernel | 3.510x GM | 0.220 | 58.3% | 113.2% |
+
+Periodic cache-access sampling never approached the preregistered 10x cost
+gate. PR and PR-SpMV transferred rankings but were not different enough in
+cost; the genuinely cheaper BFS-to-BC and CC-to-CC-SV proxies did not transfer
+rankings safely.
+
+The topology route used degree-stratified multi-source BFS plus a bounded
+one-hop halo, then ran the actual target kernel on six layouts. All 648 timing
+cells passed the semantic/work gate, but the screen failed every frozen cost,
+rank, winner-retention, and regret threshold. CC alone transferred well;
+CC-SV reversed strongly. We therefore did not open the method-held-out cohort
+and did not integrate the sampler into the repository.
 
 ## Why selected compositions work
 
