@@ -75,6 +75,7 @@ def load_protocol(path: Path) -> dict:
         "graphbrew-composition-holdout-protocol/v1",
         "graphbrew-composition-sealed-confirmation-protocol/v1",
         "graphbrew-mechanism-factorial-protocol/v1",
+        "graphbrew-multifidelity-screen-protocol/v1",
     }:
         raise ValueError(f"Unsupported atlas protocol: {payload.get('schema')}")
     return payload
@@ -334,6 +335,512 @@ def pearson(values_x: list[float], values_y: list[float]) -> float | None:
 
 def spearman(values_x: list[float], values_y: list[float]) -> float | None:
     return pearson(average_ranks(values_x), average_ranks(values_y))
+
+
+def kendall_tau_b(
+    values_x: list[float],
+    values_y: list[float],
+) -> float | None:
+    if len(values_x) != len(values_y) or len(values_x) < 2:
+        return None
+    concordant = 0
+    discordant = 0
+    ties_x = 0
+    ties_y = 0
+    for left in range(len(values_x)):
+        for right in range(left + 1, len(values_x)):
+            delta_x = values_x[left] - values_x[right]
+            delta_y = values_y[left] - values_y[right]
+            if delta_x == 0 and delta_y == 0:
+                continue
+            if delta_x == 0:
+                ties_x += 1
+            elif delta_y == 0:
+                ties_y += 1
+            elif delta_x * delta_y > 0:
+                concordant += 1
+            else:
+                discordant += 1
+    denominator = math.sqrt(
+        (concordant + discordant + ties_x)
+        * (concordant + discordant + ties_y)
+    )
+    if denominator == 0:
+        return None
+    return (concordant - discordant) / denominator
+
+
+def ranking_fidelity(
+    reference: dict[str, float],
+    candidate: dict[str, float],
+    *,
+    shortlist_size: int,
+) -> dict:
+    if set(reference) != set(candidate) or not reference:
+        raise ValueError("Ranking fidelity requires matching non-empty arms")
+    specs = sorted(reference)
+    if shortlist_size < 1 or shortlist_size > len(specs):
+        raise ValueError("Invalid shortlist size")
+    for label, values in (
+        ("reference", reference),
+        ("candidate", candidate),
+    ):
+        if any(
+            not math.isfinite(value) or value <= 0
+            for value in values.values()
+        ):
+            raise ValueError(f"{label} ranking contains invalid values")
+    reference_order = sorted(
+        specs,
+        key=lambda spec: (reference[spec], spec),
+    )
+    candidate_order = sorted(
+        specs,
+        key=lambda spec: (candidate[spec], spec),
+    )
+    reference_best = reference[reference_order[0]]
+    shortlist = candidate_order[:shortlist_size]
+    best_shortlisted = min(reference[spec] for spec in shortlist)
+    return {
+        "kendall_tau_b": kendall_tau_b(
+            [reference[spec] for spec in specs],
+            [candidate[spec] for spec in specs],
+        ),
+        "spearman": spearman(
+            [reference[spec] for spec in specs],
+            [candidate[spec] for spec in specs],
+        ),
+        "top1_match": candidate_order[0] == reference_order[0],
+        "reference_winner_in_shortlist":
+            reference_order[0] in shortlist,
+        "shortlist_overlap": (
+            len(
+                set(reference_order[:shortlist_size])
+                & set(shortlist)
+            )
+            / shortlist_size
+        ),
+        "candidate_top1_reference_regret":
+            reference[candidate_order[0]] / reference_best - 1.0,
+        "shortlist_reference_regret":
+            best_shortlisted / reference_best - 1.0,
+        "reference_order": reference_order,
+        "candidate_order": candidate_order,
+    }
+
+
+def aggregate_ranking_fidelity(records: list[dict]) -> dict:
+    if not records:
+        raise ValueError("Ranking aggregation requires records")
+    taus = [
+        record["kendall_tau_b"]
+        for record in records
+        if record["kendall_tau_b"] is not None
+    ]
+    spearmans = [
+        record["spearman"]
+        for record in records
+        if record["spearman"] is not None
+    ]
+    top1_regrets = sorted(
+        record["candidate_top1_reference_regret"]
+        for record in records
+    )
+    shortlist_regrets = sorted(
+        record["shortlist_reference_regret"]
+        for record in records
+    )
+    return {
+        "contexts": len(records),
+        "kendall_tau_b_mean": (
+            statistics.fmean(taus) if taus else None
+        ),
+        "kendall_tau_b_median": (
+            statistics.median(taus) if taus else None
+        ),
+        "kendall_tau_b_min": min(taus) if taus else None,
+        "spearman_mean": (
+            statistics.fmean(spearmans) if spearmans else None
+        ),
+        "top1_accuracy": statistics.fmean(
+            float(record["top1_match"]) for record in records
+        ),
+        "reference_winner_in_shortlist_rate": statistics.fmean(
+            float(record["reference_winner_in_shortlist"])
+            for record in records
+        ),
+        "shortlist_overlap_mean": statistics.fmean(
+            record["shortlist_overlap"] for record in records
+        ),
+        "top1_regret": {
+            "mean": statistics.fmean(top1_regrets),
+            "p90": percentile(top1_regrets, 0.90),
+            "max": max(top1_regrets),
+        },
+        "shortlist_regret": {
+            "mean": statistics.fmean(shortlist_regrets),
+            "p90": percentile(shortlist_regrets, 0.90),
+            "max": max(shortlist_regrets),
+        },
+    }
+
+
+def cache_hierarchy_metric(row: dict) -> float:
+    return sum(
+        scalar_metric(row.get(field), name=field)
+        for field in (
+            "total_accesses",
+            "l1_misses",
+            "l2_misses",
+            "l3_misses",
+        )
+    )
+
+
+def build_multifidelity_certificate(
+    protocol: dict,
+    timing_rows: list[dict],
+    cache_rows: list[dict],
+) -> dict:
+    graphs = list(protocol["graphs"])
+    kernels = list(protocol["kernels"])
+    specs = [
+        canonical_spec(record["spec"])
+        for record in protocol["arms"]
+    ]
+    sample_rates = [
+        int(rate) for rate in protocol["sample_rates"]
+    ]
+    shortlist_size = int(protocol["shortlist_size"])
+    cache_size = int(protocol["cache"]["cache_size_bytes"])
+
+    timing = build_matrix(
+        timing_rows,
+        graphs=graphs,
+        kernels=kernels,
+        specs=set(specs),
+    )
+    cache: dict[tuple[str, str, str, str, int], dict] = {}
+    for row in cache_rows:
+        graph = str(row.get("graph", ""))
+        kernel = str(row.get("benchmark", ""))
+        spec = canonical_spec(row.get("algo_key"))
+        if graph not in graphs or kernel not in kernels or spec not in specs:
+            continue
+        if int(row.get("cache_size_bytes", -1)) != cache_size:
+            continue
+        mode = str(row.get("cache_mode", ""))
+        rate = int(row.get("cache_sample_rate", 1))
+        if mode == protocol["cache"]["full_mode"]:
+            rate = 1
+        elif mode != protocol["cache"]["sampled_mode"]:
+            continue
+        key = (graph, kernel, spec, mode, rate)
+        if key in cache:
+            raise ValueError(f"Duplicate multi-fidelity cache row: {key}")
+        cache[key] = row
+
+    expected_full = {
+        (
+            graph,
+            kernel,
+            spec,
+            protocol["cache"]["full_mode"],
+            1,
+        )
+        for graph in graphs
+        for kernel in kernels
+        for spec in specs
+    }
+    missing_full = sorted(expected_full - set(cache))
+    if missing_full:
+        raise ValueError(
+            f"Incomplete full-cache matrix; missing={missing_full[:1]}"
+        )
+    expected_sampled = {
+        (
+            graph,
+            kernel,
+            spec,
+            protocol["cache"]["sampled_mode"],
+            rate,
+        )
+        for graph in graphs
+        for kernel in kernels
+        for spec in specs
+        for rate in sample_rates
+    }
+    missing_sampled = sorted(expected_sampled - set(cache))
+    if missing_sampled:
+        raise ValueError(
+            "Incomplete sampled-cache matrix; "
+            f"missing={missing_sampled[:1]}"
+        )
+
+    cache_rates = {}
+    cache_gates = protocol["gates"]["sampled_cache"]
+    for rate in sample_rates:
+        context_records = []
+        speedups = []
+        full_seconds = 0.0
+        sampled_seconds = 0.0
+        for graph in graphs:
+            for kernel in kernels:
+                reference = {
+                    spec: cache_hierarchy_metric(cache[(
+                        graph,
+                        kernel,
+                        spec,
+                        protocol["cache"]["full_mode"],
+                        1,
+                    )])
+                    for spec in specs
+                }
+                candidate = {
+                    spec: cache_hierarchy_metric(cache[(
+                        graph,
+                        kernel,
+                        spec,
+                        protocol["cache"]["sampled_mode"],
+                        rate,
+                    )])
+                    for spec in specs
+                }
+                fidelity = ranking_fidelity(
+                    reference,
+                    candidate,
+                    shortlist_size=shortlist_size,
+                )
+                fidelity.update({"graph": graph, "kernel": kernel})
+                context_records.append(fidelity)
+                for spec in specs:
+                    full_time = scalar_metric(
+                        cache[(
+                            graph,
+                            kernel,
+                            spec,
+                            protocol["cache"]["full_mode"],
+                            1,
+                        )].get("average_time"),
+                        name="full cache average_time",
+                    )
+                    sampled_time = scalar_metric(
+                        cache[(
+                            graph,
+                            kernel,
+                            spec,
+                            protocol["cache"]["sampled_mode"],
+                            rate,
+                        )].get("average_time"),
+                        name="sampled cache average_time",
+                    )
+                    speedups.append(full_time / sampled_time)
+                    full_seconds += full_time
+                    sampled_seconds += sampled_time
+        aggregate = aggregate_ranking_fidelity(context_records)
+        runtime = {
+            "full_over_sampled_runtime_gm": geometric_mean(speedups),
+            "full_over_sampled_summed_runtime": (
+                full_seconds / sampled_seconds
+            ),
+        }
+        gate_results = {
+            "runtime": (
+                runtime["full_over_sampled_runtime_gm"]
+                >= cache_gates["minimum_runtime_speedup"]
+            ),
+            "rank": (
+                aggregate["kendall_tau_b_mean"]
+                is not None
+                and aggregate["kendall_tau_b_mean"]
+                >= cache_gates["minimum_kendall_tau_b"]
+            ),
+            "winner_recall": (
+                aggregate["reference_winner_in_shortlist_rate"]
+                >= cache_gates[
+                    "minimum_reference_winner_in_shortlist_rate"
+                ]
+            ),
+            "regret": (
+                aggregate["shortlist_regret"]["max"]
+                <= cache_gates["maximum_shortlist_regret"]
+            ),
+        }
+        cache_rates[str(rate)] = {
+            "aggregate": aggregate,
+            "runtime": runtime,
+            "gate_results": gate_results,
+            "passes_all_gates": all(gate_results.values()),
+            "contexts_detail": context_records,
+        }
+
+    proxy_results = {}
+    proxy_gates = protocol["gates"]["proxy_kernel"]
+    for pair in protocol["proxy_pairs"]:
+        proxy = pair["proxy"]
+        target = pair["target"]
+        records = []
+        runtime_speedups = []
+        for graph in graphs:
+            reference = {
+                spec: timing[(graph, target, spec)]
+                for spec in specs
+            }
+            candidate = {
+                spec: timing[(graph, proxy, spec)]
+                for spec in specs
+            }
+            fidelity = ranking_fidelity(
+                reference,
+                candidate,
+                shortlist_size=shortlist_size,
+            )
+            fidelity["graph"] = graph
+            records.append(fidelity)
+            runtime_speedups.extend(
+                timing[(graph, target, spec)]
+                / timing[(graph, proxy, spec)]
+                for spec in specs
+            )
+        aggregate = aggregate_ranking_fidelity(records)
+        gate_results = {
+            "rank": (
+                aggregate["kendall_tau_b_mean"]
+                is not None
+                and aggregate["kendall_tau_b_mean"]
+                >= proxy_gates["minimum_kendall_tau_b"]
+            ),
+            "winner_recall": (
+                aggregate["reference_winner_in_shortlist_rate"]
+                >= proxy_gates[
+                    "minimum_reference_winner_in_shortlist_rate"
+                ]
+            ),
+            "regret": (
+                aggregate["shortlist_regret"]["max"]
+                <= proxy_gates["maximum_shortlist_regret"]
+            ),
+        }
+        proxy_results[pair["name"]] = {
+            "proxy": proxy,
+            "target": target,
+            "aggregate": aggregate,
+            "target_over_proxy_runtime_gm": geometric_mean(
+                runtime_speedups
+            ),
+            "gate_results": gate_results,
+            "passes_all_gates": all(gate_results.values()),
+            "graphs_detail": records,
+        }
+
+    combined_results = {}
+    combined_gates = protocol["gates"]["combined_shortlist"]
+    for pair in protocol["proxy_pairs"]:
+        proxy = pair["proxy"]
+        target = pair["target"]
+        rate_results = {}
+        for rate in sample_rates:
+            records = []
+            for graph in graphs:
+                reference = {
+                    spec: timing[(graph, target, spec)]
+                    for spec in specs
+                }
+                proxy_values = [
+                    timing[(graph, proxy, spec)]
+                    for spec in specs
+                ]
+                cache_values = [
+                    cache_hierarchy_metric(cache[(
+                        graph,
+                        proxy,
+                        spec,
+                        protocol["cache"]["sampled_mode"],
+                        rate,
+                    )])
+                    for spec in specs
+                ]
+                proxy_ranks = average_ranks(proxy_values)
+                cache_ranks = average_ranks(cache_values)
+                candidate = {
+                    spec: (
+                        proxy_ranks[index] + cache_ranks[index]
+                    ) / 2.0 + 1.0
+                    for index, spec in enumerate(specs)
+                }
+                fidelity = ranking_fidelity(
+                    reference,
+                    candidate,
+                    shortlist_size=shortlist_size,
+                )
+                fidelity["graph"] = graph
+                records.append(fidelity)
+            aggregate = aggregate_ranking_fidelity(records)
+            gate_results = {
+                "rank": (
+                    aggregate["kendall_tau_b_mean"]
+                    is not None
+                    and aggregate["kendall_tau_b_mean"]
+                    >= combined_gates["minimum_kendall_tau_b"]
+                ),
+                "winner_recall": (
+                    aggregate["reference_winner_in_shortlist_rate"]
+                    >= combined_gates[
+                        "minimum_reference_winner_in_shortlist_rate"
+                    ]
+                ),
+                "regret": (
+                    aggregate["shortlist_regret"]["max"]
+                    <= combined_gates["maximum_shortlist_regret"]
+                ),
+            }
+            rate_results[str(rate)] = {
+                "aggregate": aggregate,
+                "gate_results": gate_results,
+                "passes_all_gates": all(gate_results.values()),
+                "graphs_detail": records,
+            }
+        combined_results[pair["name"]] = rate_results
+
+    passing_cache_rates = [
+        rate for rate in sample_rates
+        if cache_rates[str(rate)]["passes_all_gates"]
+    ]
+    authorized_pairs = {
+        pair["name"]: [
+            rate for rate in passing_cache_rates
+            if proxy_results[pair["name"]]["passes_all_gates"]
+            and combined_results[pair["name"]][str(rate)][
+                "passes_all_gates"
+            ]
+        ]
+        for pair in protocol["proxy_pairs"]
+    }
+    return {
+        "schema": "graphbrew-multifidelity-screen-analysis/v1",
+        "scope": {
+            "graphs": graphs,
+            "kernels": kernels,
+            "arms": specs,
+            "sample_rates": sample_rates,
+            "shortlist_size": shortlist_size,
+        },
+        "sampled_cache": cache_rates,
+        "proxy_kernel": proxy_results,
+        "combined_shortlist": combined_results,
+        "decision": {
+            "passing_cache_rates": passing_cache_rates,
+            "authorized_proxy_rates": authorized_pairs,
+            "graph_sampling_authorized": any(
+                rates for rates in authorized_pairs.values()
+            ),
+            "policy": (
+                "Proceed to topology-aware graph sampling only for proxy "
+                "pairs and access-sampling rates that pass every frozen "
+                "fidelity, regret, and runtime gate."
+            ),
+        },
+    }
 
 
 def summarize_ratio_records(
@@ -1614,18 +2121,43 @@ def main() -> None:
                 "sha256": sha256(cache_source),
             },
         })
+    elif protocol["schema"] == "graphbrew-multifidelity-screen-protocol/v1":
+        cache_record = protocol["cache_source"]
+        cache_source = args.cache_source or Path(cache_record["path"])
+        if (
+            cache_record.get("sha256")
+            and sha256(cache_source) != cache_record["sha256"]
+        ):
+            raise ValueError("Cache source hash does not match the protocol")
+        cache_rows = json.loads(cache_source.read_text())
+        if not isinstance(cache_rows, list):
+            raise ValueError("Cache source must contain a row list")
+        certificate = build_multifidelity_certificate(
+            protocol,
+            rows,
+            cache_rows,
+        )
+        source_bindings["cache"] = {
+            "path": str(cache_source),
+            "sha256": sha256(cache_source),
+        }
     else:
         certificate = build_certificate(protocol, rows)
     certificate["sources"] = source_bindings
     write_json(args.output, certificate)
     conclusion = certificate.get("classification")
     if conclusion is None:
-        conclusion = {
-            "membership_equivalent":
-                certificate["factorial_contract"]["membership_equivalent"],
-            "hardware_counters":
-                certificate["scope"]["hardware_counters"],
-        }
+        if "factorial_contract" in certificate:
+            conclusion = {
+                "membership_equivalent":
+                    certificate["factorial_contract"][
+                        "membership_equivalent"
+                    ],
+                "hardware_counters":
+                    certificate["scope"]["hardware_counters"],
+            }
+        else:
+            conclusion = certificate["decision"]
     receipt = {
         "schema": "graphbrew-composability-receipt/v1",
         "certificate": {

@@ -180,6 +180,31 @@ def test_mechanism_contrast_alignment_uses_graph_ratios():
     assert aligned["same_direction_fraction"] == pytest.approx(2 / 3)
 
 
+def test_multifidelity_ranking_fidelity_preserves_shortlist_safety():
+    reference = {"a": 1.0, "b": 1.1, "c": 1.4, "d": 2.0}
+    candidate = {"a": 1.2, "b": 1.0, "c": 1.3, "d": 2.1}
+    result = analyze_composability.ranking_fidelity(
+        reference,
+        candidate,
+        shortlist_size=2,
+    )
+    assert result["top1_match"] is False
+    assert result["reference_winner_in_shortlist"] is True
+    assert result["shortlist_reference_regret"] == pytest.approx(0.0)
+    assert result["candidate_top1_reference_regret"] == pytest.approx(0.1)
+
+
+def test_multifidelity_kendall_tau_handles_ties():
+    assert analyze_composability.kendall_tau_b(
+        [1.0, 2.0, 3.0],
+        [1.0, 2.0, 3.0],
+    ) == pytest.approx(1.0)
+    assert analyze_composability.kendall_tau_b(
+        [1.0, 1.0, 2.0],
+        [1.0, 2.0, 2.0],
+    ) == pytest.approx(0.5)
+
+
 def test_retired_experimental_reorder_prototypes_are_absent():
     root = Path(__file__).resolve().parents[2]
     assert not (
