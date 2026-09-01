@@ -504,6 +504,9 @@ def build_multifidelity_certificate(
 ) -> dict:
     graphs = list(protocol["graphs"])
     kernels = list(protocol["kernels"])
+    cache_kernels = list(protocol.get("cache_kernels", kernels))
+    if not set(cache_kernels).issubset(kernels):
+        raise ValueError("Cache kernels must be a subset of timing kernels")
     specs = [
         canonical_spec(record["spec"])
         for record in protocol["arms"]
@@ -525,7 +528,11 @@ def build_multifidelity_certificate(
         graph = str(row.get("graph", ""))
         kernel = str(row.get("benchmark", ""))
         spec = canonical_spec(row.get("algo_key"))
-        if graph not in graphs or kernel not in kernels or spec not in specs:
+        if (
+            graph not in graphs
+            or kernel not in cache_kernels
+            or spec not in specs
+        ):
             continue
         if int(row.get("cache_size_bytes", -1)) != cache_size:
             continue
@@ -549,7 +556,7 @@ def build_multifidelity_certificate(
             1,
         )
         for graph in graphs
-        for kernel in kernels
+        for kernel in cache_kernels
         for spec in specs
     }
     missing_full = sorted(expected_full - set(cache))
@@ -566,7 +573,7 @@ def build_multifidelity_certificate(
             rate,
         )
         for graph in graphs
-        for kernel in kernels
+        for kernel in cache_kernels
         for spec in specs
         for rate in sample_rates
     }
@@ -585,7 +592,7 @@ def build_multifidelity_certificate(
         full_seconds = 0.0
         sampled_seconds = 0.0
         for graph in graphs:
-            for kernel in kernels:
+            for kernel in cache_kernels:
                 reference = {
                     spec: cache_hierarchy_metric(cache[(
                         graph,
@@ -679,6 +686,10 @@ def build_multifidelity_certificate(
     for pair in protocol["proxy_pairs"]:
         proxy = pair["proxy"]
         target = pair["target"]
+        if proxy not in cache_kernels:
+            raise ValueError(
+                f"Proxy kernel lacks cache evidence: {proxy}"
+            )
         records = []
         runtime_speedups = []
         for graph in graphs:
@@ -821,6 +832,7 @@ def build_multifidelity_certificate(
         "scope": {
             "graphs": graphs,
             "kernels": kernels,
+            "cache_kernels": cache_kernels,
             "arms": specs,
             "sample_rates": sample_rates,
             "shortlist_size": shortlist_size,

@@ -205,6 +205,15 @@ def test_multifidelity_kendall_tau_handles_ties():
     ) == pytest.approx(0.5)
 
 
+def test_multifidelity_cache_kernel_subset_is_explicit():
+    source = inspect.getsource(
+        analyze_composability.build_multifidelity_certificate
+    )
+    assert 'protocol.get("cache_kernels", kernels)' in source
+    assert "Cache kernels must be a subset of timing kernels" in source
+    assert "Proxy kernel lacks cache evidence" in source
+
+
 def test_retired_experimental_reorder_prototypes_are_absent():
     root = Path(__file__).resolve().parents[2]
     assert not (
