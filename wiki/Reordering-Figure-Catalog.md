@@ -209,7 +209,7 @@ On a narrow screen, select any figure to open the full-resolution SVG.
 
 [![AdaptiveOrder measured output](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/reordering/14-adaptiveorder.svg?v=graphbrew-public-v4)
 
-**Figure.** Compatibility interface; not a headline result of the paper.
+**Figure.** Compatibility interface; the selected policy defines the ordering.
 
 [Editable draw.io source](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/figures/editable/14-adaptiveorder.drawio).
 

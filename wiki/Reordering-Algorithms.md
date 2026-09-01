@@ -19,7 +19,7 @@ Three interacting locality dimensions matter:
 |---|---|---|
 | Spatial (community structure) | Leiden, Rabbit Order | `12:leiden`, `12:rabbit`, RABBIT (8) |
 | Temporal (degree skew) | hub grouping | HUBCLUSTER (4), DBG (5) |
-| Directed convergence (separate extension) | edge-direction optimisation | GoGraph (16), chained `12:leiden → 16`; not a claim on the symmetric main corpus |
+| Directed convergence (separate extension) | edge-direction optimisation | GoGraph (16), chained `12:leiden → 16`; symmetric inputs are diagnostic controls |
 
 GraphBrew (`-o 12`) is the framework that composes these dimensions;
 the other IDs are individual primitives or baselines.
@@ -54,26 +54,25 @@ draw.io source for every algorithm ID.
 | 11 | `-o 11` | RCM | O(n log n + m) | historical double-pass; variants `mind`, `bnf` expose explicit single-pass methods |
 | 12 | `-o 12` | GraphBrewOrder | O(n log n + m) | composable pipeline — see [GraphBrewOrder](GraphBrewOrder) |
 | 13 | `-o 13:<file>` | MAP | O(n) | load permutation from `.lo` / `.so` file |
-| 14 | `-o 14` | AdaptiveOrder | varies | experimental compatibility selector; not a headline result |
+| 14 | `-o 14:<policy>` | AdaptiveOrder | varies | experimental policy dispatcher |
 | 15 | `-o 15` | LeidenOrder | O(n log n + m) | GVE-Leiden communities plus an explicit post-layout policy |
-| 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; published Rabbit clustering omitted |
+| 16 | `-o 16` | GoGraphOrder | O(m log d + n log n) | M-maximizing core diagnostic; upstream Rabbit clustering omitted |
 
-## Evidence-scoped selection
+## Choosing an ordering
 
-Select an objective before selecting an ordering. These rows summarize frozen
-measurements, not universal graph-type rules. Exact evidence and confidence
-intervals are recorded in
-[`docs/recommendation-evidence.json`](https://github.com/UVA-LavaLab/GraphBrew/blob/main/docs/recommendation-evidence.json).
+Start from the behavior you want to test, then compare against ORIGINAL:
 
-| Objective | First measured configuration | What is proved |
-|---|---|---|
-| GORDER-quality replacement | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` | GraphBrew is 1.052x faster in kernel GM, maps at 0.752x GORDER_csr cost, and wins end to end from reuse one. Rabbit remains 17–19x cheaper to map and faster in summed kernel seconds. |
-| Workload-specific composition | Seven-arm sealed confirmation | Every composition wins cells; the cell oracle is 1.229x faster than the best fixed GraphBrew arm and 1.116x faster than the fastest Rabbit/GORDER comparator. |
-| Mechanism attribution | Fixed-membership `2 x 3` factorial | LocalGorder8 improves BFS through locality/throughput and Afforest CC through reduced compression work. Block order has no universal main effect; PR and CC-SV remain mechanistically unresolved. |
-| Mapping construction | `12:leiden:compose:sg_none:comm_identity:intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1` | Compact-and-Emit preserves the BFS permutation and reaches 0.479x min-Rabbit mapping GM on five development graphs. ORIGINAL closes the low-reuse ordering claim. |
-| Automated selection | none promoted | The frozen family+kernel rule reaches only 0.896x versus the fastest comparator and fails its confidence, worst-graph, and reuse-one gates. |
-| Road/mesh diagnosis | Compare `12:hrab`, `12:hrab:bfs_intra`, `11:bnf`, and both Rabbits | HRAB-RCM has the best point estimate on the single road and mesh graphs, but each type has one graph, so this is descriptive rather than a general recommendation. |
-| Unknown workload | `0`, `8:csr`, `8:boost`, plus one objective-matched COMPOSE row | Measure kernel-only quality and end-to-end time separately. Graph type alone does not identify the winner. |
+| Objective | Useful controls |
+|---|---|
+| Minimal construction | SORT, DBG, HUBCLUSTERDBG |
+| Community locality | RabbitOrder and an explicit GraphBrew partition/block/local composition |
+| Window locality | Gorder and local-Gorder compositions |
+| Graph bandwidth | RCM variants |
+| Existing mapping | MAP |
+| Policy dispatch | AdaptiveOrder, with the resolved mapping recorded |
+
+No graph-domain label determines the winner. Measure mapping construction,
+CSR relocation, kernel time, executed work, and expected reuse separately.
 
 ## Algorithm details
 
@@ -110,8 +109,9 @@ a dendrogram of community merges, then orders vertices by DFS of that
 dendrogram. Fast (~2-10× slower than degree-based, much faster than
 Gorder) and produces high-quality cache locality on graphs with clear
 community structure. Standalone Rabbit mappings are schedule-sensitive;
-GraphBrew records a stable permutation fingerprint for every draw, and final
-studies use explicitly versioned repeated draws rather than cherry-picking.
+GraphBrew records a stable permutation fingerprint for every draw. Controlled
+runs should retain explicitly versioned repeated draws rather than
+cherry-picking.
 
 Variants:
 
@@ -125,7 +125,7 @@ graph-dependent: neither implementation is a universal winner.
 
 ### Heavyweight (9, 10)
 
-**GORDER** (`-o 9:csr` for paper runs) — Wei et al. (2016). Sliding window of width 5
+**GORDER** (`-o 9:csr`) — Wei et al. (2016). Sliding window of width 5
 greedy vertex placement maximising a local cache-locality score
 (Gscore). Targets a strong window-locality objective but is serial and
 NP-hard in the limit; its measured reorder time is often much larger than a
@@ -159,18 +159,16 @@ Variants:
 and intra-community layout. These parameters are hand selected; GraphBrew
 does not search them at runtime.
 
-Two evidence-bound examples are:
+Two explicit examples are:
 
-| Objective | Exact configuration |
+| Purpose | Exact configuration |
 |---|---|
-| Kernel-only all-kernel quality | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` |
-| Faster one-pass construction | `12:leiden:compose:sg_none:comm_identity:intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1` |
+| Leiden blocks with local Gorder | `12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8` |
+| One-pass compact direct BFS emission | `12:leiden:compose:sg_none:comm_identity:intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1` |
 
 Named historical presets such as `hrab`, `tqr`, and `hcache` remain callable
-for reproduction. They are not aliases for the confirmed quality composition
-and should not be treated as automatic recommendations. See
-[GraphBrewOrder](GraphBrewOrder) for stage tokens and the measurement
-contract.
+for compatibility. They are not automatic recommendations. See
+[GraphBrewOrder](GraphBrewOrder) for stage tokens and the measurement contract.
 
 ### Meta (13, 14)
 
@@ -178,10 +176,9 @@ contract.
 (`.lo` or `.so` file). Used by the benchmark pipeline to apply a
 pregenerated reordering without redoing the work.
 
-**AdaptiveOrder** (`-o 14`) — experimental runtime-selection compatibility
-surface. The earlier deterministic Rabbit-fallback rule remains callable for
-reproduction, but no selector is a headline paper contribution. See
-[AdaptiveOrder](AdaptiveOrder).
+**AdaptiveOrder** (`-o 14:<policy>`) — experimental runtime-selection
+compatibility surface. It resolves to another ordering and has no intrinsic
+permutation. See [AdaptiveOrder](AdaptiveOrder).
 
 ### Reference Leiden (15)
 
@@ -241,8 +238,8 @@ sequence and measure its combined mapping cost.
 2. Decide whether the objective is kernel quality, construction cost, or
    amortized time-to-solution.
 3. Include both `8:csr` and `8:boost`; they can reverse order by graph.
-4. Add the exact COMPOSE row from the evidence-scoped table that matches the
-   objective.
+4. Add an explicit COMPOSE row that isolates the stage or mechanism being
+   tested.
 5. Use pre-generated mappings so every kernel sees the same permutation.
 6. Report mapping and kernel time separately before reporting amortized totals.
 
@@ -251,4 +248,4 @@ sequence and measure its combined mapping cost.
 - [GraphBrewOrder](GraphBrewOrder) — the `-o 12` pipeline in detail
 - [Cache-Simulation](Cache-Simulation) — measuring cache quality
 - [Command-Line-Reference](Command-Line-Reference) — every flag
-- [Reproducible-Experiments](Reproducible-Experiments) — frozen study reproduction
+- [Reproducible Experiments](Reproducible-Experiments) — controlled measurement workflow

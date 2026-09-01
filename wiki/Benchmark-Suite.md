@@ -22,8 +22,6 @@ python3 scripts/graphbrew_experiment.py --phase benchmark --size small
 # Inspect a broad plan without executing it
 python3 scripts/graphbrew_experiment.py --target-graphs 50 --dry-run
 
-# Frozen publication workflow
-python3 scripts/graphbrew_experiment.py --vldb --paper-preview
 ```
 
 Large graphs, mappings, and campaign results belong under the configured
@@ -63,10 +61,10 @@ replace the raw timing records.
 - generic observations: `results/data/benchmarks.json`
 - graph properties: `results/data/graph_properties.json`
 - mappings: `results/mappings/`
-- frozen campaigns: configured `--paper-artifact-root`
+- large campaigns: an explicitly configured external output root
 
-Historical offline-model files may exist under `results/data/`; they are not
-inputs to the confirmed fixed-composition results.
+Historical offline-model files may exist under `results/data/`; they are
+optional compatibility artifacts.
 
 ## Related pages
 

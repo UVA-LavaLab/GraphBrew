@@ -2,7 +2,6 @@
 
 - [Home](Home)
 - [Getting Started](Getting-Started)
-- [Evidence and Claims](Evidence-and-Claims)
 
 ## Core idea
 

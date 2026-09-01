@@ -68,9 +68,9 @@
   <text x="865" y="252" class="mono small">pop(v) -&gt; new_id[v] = base+k</text>
   <text x="865" y="305" class="sans body">No global localIds array.</text>
   <text x="865" y="337" class="sans body">No final sparse-ID sweep.</text>
-  <text x="865" y="385" class="mono small">five-graph map ratio = 0.479x</text>
+  <text x="865" y="385" class="sans body">Verify permutation equivalence.</text>
   <path d="M360 275 H431" class="arrow"/>
   <path d="M765 275 H836" class="arrow"/>
   <rect x="144" y="475" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="502" class="sans small" text-anchor="middle">Claim boundary: faster mapping construction; mandatory ORIGINAL results reject a low-reuse ordering win.</text>
+  <text x="600" y="502" class="sans small" text-anchor="middle">Construction optimization: record mapping cost separately from kernel execution.</text>
 </svg>

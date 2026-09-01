@@ -28,17 +28,17 @@
   </defs>
   <rect width="1200" height="840" fill="#FFFFFF"/>
   <text x="42" y="47" class="sans title">GraphBrew: composable and explainable vertex layouts</text>
-  <text x="42" y="75" class="sans subtitle">One layout model; kernel-specific mechanisms, practical performance, and construction cost remain separate.</text>
+  <text x="42" y="75" class="sans subtitle">One layout model; construction, application, kernel execution, and reuse remain separately measurable.</text>
   <line x1="42" y1="99" x2="1158" y2="99" stroke="#27313A" stroke-width="2"/>
   <rect x="25" y="112" width="350" height="82" rx="10" fill="#EDF5FF" stroke="#27313A" stroke-width="3"/>
   <text x="50" y="142" class="sans domain">LAYOUT EXPRESSION</text>
   <text x="50" y="172" class="sans small">&lt;P, B, L&gt; -&gt; persistent permutation</text>
   <rect x="425" y="112" width="350" height="82" rx="10" fill="#E7F7EA" stroke="#27313A" stroke-width="3"/>
-  <text x="450" y="142" class="sans domain">KERNEL-SPECIFIC MECHANISMS</text>
-  <text x="450" y="172" class="sans small">BFS locality / CC executed work</text>
+  <text x="450" y="142" class="sans domain">EXPLICIT OPERATORS</text>
+  <text x="450" y="172" class="sans small">Partition / block / intra-block</text>
   <rect x="825" y="112" width="350" height="82" rx="10" fill="#FFF0D8" stroke="#27313A" stroke-width="3"/>
-  <text x="850" y="142" class="sans domain">PRACTICAL OPERATING POINT</text>
-  <text x="850" y="172" class="sans small">Lower-cost GORDER-quality layout</text>
+  <text x="850" y="142" class="sans domain">MEASUREMENT OUTPUTS</text>
+  <text x="850" y="172" class="sans small">Mapping / kernel / end-to-end</text>
   <rect x="25" y="205" width="1150" height="555" rx="12" fill="none" stroke="#9AA3AD" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="45" y="229" class="sans domain">SHARED SIX-STAGE PIPELINE</text>
   <rect x="35" y="240" width="340" height="230" rx="11" fill="#FFFFFF" stroke="#1769C2" stroke-width="2"/>
@@ -263,5 +263,5 @@
   <path d="M375 615 H426" class="arrow"/>
   <path d="M770 615 H821" class="arrow"/>
   <rect x="144" y="785" width="912" height="44" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="812" class="sans small" text-anchor="middle">Invariant: topology and kernel semantics do not change; every performance claim names its mapping cost and baseline.</text>
+  <text x="600" y="812" class="sans small" text-anchor="middle">Invariant: topology and kernel semantics do not change; mapping and kernel costs are recorded separately.</text>
 </svg>

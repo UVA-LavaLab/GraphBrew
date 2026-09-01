@@ -1,14 +1,9 @@
-# Public figures
+# Documentation figures
 
-All explanatory figures are generated from one checked running example and
-one evidence manifest.
-
-## Paper story
+All explanatory figures are generated from one checked running example.
 
 - `graphbrew-architecture.svg` — executable layout expression, six-stage
-  pipeline, mechanism evidence, and practical operating point
-- `graphbrew-evidence-boundary.svg` — practical GORDER replacement,
-  composition headroom, and Rabbit/selector boundaries
+  pipeline, and measurement boundary
 - `graphbrew-compact-emit.svg` — active-community compaction and direct BFS
   emission
 
@@ -30,7 +25,6 @@ Canonical inputs:
 
 - `graphbrew-running-example.json`
 - `catalog-capture.json`
-- `../recommendation-evidence.json`
 - `../../scripts/generate_public_figures.py`
 
 Regenerate and verify:
@@ -40,5 +34,4 @@ python3 scripts/generate_public_figures.py
 python3 scripts/generate_public_figures.py --check
 ```
 
-Experimental plots remain in content-addressed artifact directories rather
-than being committed as duplicate image sets.
+Experiment result plots are not part of this public figure catalog.

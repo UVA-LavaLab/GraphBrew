@@ -7,10 +7,9 @@ python3 scripts/graphbrew_experiment.py --help
 ```
 
 Use the orchestrator for dependency management, graph preparation,
-reordering, benchmarking, cache simulation, verification, and frozen-study
-reproduction. Retained offline-model commands are compatibility surfaces, not
-the confirmed paper path. Do not add one-off runners or duplicate policy
-registries.
+reordering, benchmarking, cache simulation, and verification. Retained
+offline-model commands are compatibility surfaces. Do not add one-off runners
+or duplicate policy registries.
 
 ## Package layout
 
@@ -41,10 +40,7 @@ scripts/
 │   │   └── adaptive_emulator.py  Python/C++ parity diagnostics
 │   ├── analysis/                 downstream metrics and diagnostics
 │   └── tools/                    maintenance utilities
-├── experiments/
-│   ├── vldb/                     frozen evaluation runner and restartable stages
-│   ├── partition_cut/            separate partition evaluation path
-│   └── adaptive_ml/              retired legacy ablation entry points
+├── experiments/                  specialized restartable campaign runners
 └── test/                         pytest regression suite
 ```
 
@@ -73,18 +69,12 @@ python3 scripts/graphbrew_experiment.py --target-graphs 50 --dry-run
 python3 scripts/graphbrew_experiment.py --test
 ```
 
-The frozen evaluation is also launched through the orchestrator. Use
-`scripts/experiments/vldb/stages/` directly only when a long run must be
-restartable stage by stage.
-
 ## Single sources of truth
 
 - Algorithm IDs and general variants: `scripts/lib/core/utils.py`
 - Benchmark and cache subsets: `scripts/lib/core/experiment_policy.py`
 - GraphBrew config parsing/validation:
   `scripts/lib/pipeline/reorder_config.py`
-- Frozen evaluation graph/algorithm/trial matrix:
-  `scripts/experiments/vldb/config.py`
 - Historical selector portfolio: `scripts/lib/ml/portfolio.py`
 - Tier-0 compatibility features: `scripts/lib/ml/feature_schema.py` and the
   shared C++ schema definition
@@ -110,8 +100,8 @@ Do not let Python and C++ concurrently rewrite the same result file.
 ## Offline model tooling
 
 Modules under `scripts/lib/ml/` and `scripts/experiments/adaptive_ml/` support
-historical model experiments and Python/C++ parity checks. They are not inputs
-to the confirmed fixed quality or Compact-and-Emit claims.
+historical model experiments and Python/C++ parity checks. They are optional
+and are not required by explicit GraphBrew compositions.
 
 ## Testing
 

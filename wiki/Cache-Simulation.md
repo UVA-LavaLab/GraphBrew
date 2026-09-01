@@ -263,7 +263,7 @@ python3 scripts/graphbrew_experiment.py --phase cache
 ```
 
 These files support diagnostics and historical model experiments. They are
-not inputs to the confirmed fixed quality or Compact-and-Emit claims.
+not required by the explicit composition path.
 
 ### 4. Automated Cache Benchmark Suite
 
@@ -302,8 +302,7 @@ Results are saved to `results/cache_*.json`:
 ### 5. Interpreting Cache Patterns
 
 Cache characteristics motivate hypotheses; they do not select an ordering by
-themselves. The corrected graph-held-out study found that lightweight
-topology/cache features did not reliably recover the composition oracle.
+themselves.
 
 | Cache pattern | Hypothesis to test |
 |---------------|-------------------|
@@ -346,7 +345,6 @@ The cache policies have been validated against the original reference implementa
 
 ## Related Pages
 
-- [Evidence and Claims](Evidence-and-Claims) - current paper boundary
 - [AdaptiveOrder](AdaptiveOrder) - historical compatibility interface
 - [Benchmark Suite](Benchmark-Suite) - correlating cache stats with performance
 

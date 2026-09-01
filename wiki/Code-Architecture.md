@@ -310,19 +310,16 @@ Key entry points:
 - `lib/pipeline/cache.py` — Cache simulation
 
 Retained offline-model and parity tools live under `lib/ml/` and
-`lib/tools/evaluate_all_modes.py`; they are compatibility research tools, not
-paper dependencies.
+`lib/tools/evaluate_all_modes.py`; they are optional compatibility tools.
 
-#### Adaptive selection boundary
+#### Adaptive policy compatibility
 
-Algorithm 14 can dispatch to existing reorderers and retains the historical
-`allkernel-lowreuse-rule` for reproduction. The current paper does not promote
-this path because its fallback is Boost Rabbit and graph-held-out selection
-failed to recover the composition oracle.
+Algorithm 14 dispatches to an existing reorderer through a registered policy.
+It has no intrinsic permutation, so result records must preserve both the
+requested policy and the resolved mapping.
 
-Perceptron, decision-tree, hybrid, oracle, and kNN code remains under
-`scripts/lib/ml/` and the C++ compatibility headers for offline research.
-Those components are not validated paper contributions.
+Perceptron, decision-tree, hybrid, and kNN code remains under
+`scripts/lib/ml/` and the C++ compatibility headers for offline analysis.
 
 **Unified Naming Convention (SSOT):** All Python modules use five SSOT functions from `lib/core/utils.py`:
 
@@ -429,7 +426,7 @@ C++ benchmark binaries now write directly to `benchmarks.json` and
 JSON config: specify `graphs`, `benchmarks`, `algorithms`, `trials`, and `options` (symmetrize, verify). See [[Python-Scripts]] for format.
 
 Historical offline-model files may use `results/data/adaptive_models.json`.
-The confirmed paper results do not require it. Results live under
+The explicit composition path does not require it. Results live under
 `results/graphs/`, `results/logs/`, and `results/mappings/`; see
 [[Python-Scripts#output-structure]].
 

@@ -62,27 +62,7 @@ python3 scripts/graphbrew_experiment.py --precompute --phase benchmark
 
 See [[Command-Line-Reference]] for phases, download size options, and
 memory/disk management. See [[Python-Scripts]] for module documentation and
-[[Reproducible-Experiments]] for the isolated frozen-study matrix.
-
-### Frozen Study Reproduction
-
-Use the top-level orchestrator for normal preview and full runs:
-
-```bash
-# Preview
-python3 scripts/graphbrew_experiment.py --vldb --paper-preview \
-  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
-  --paper-threads 4 --paper-cpu-list 24-27
-
-# Full frozen matrix
-python3 scripts/graphbrew_experiment.py --vldb \
-  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
-  --paper-threads 16 --paper-cpu-list 0-15
-```
-
-Use `scripts/experiments/vldb/stages/` only for restartable long runs.
+[[Reproducible-Experiments]] for the controlled measurement workflow.
 
 ### Full Collection Example
 
@@ -107,7 +87,7 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --size small
 | **Reorder** | Runs 17 algorithms × 14 variants on each graph → `.lo` label maps | `results/mappings/<name>/<algo>.lo` |
 | **Benchmark** | Runs 7 kernels (PR, PR_SPMV, BFS, CC, CC_SV, SSSP, BC) × all orderings × 2 trials | `results/data/benchmarks.json` |
 | **Cache Sim** | Simulates L1/L2/L3 cache hit rates for PR and BFS | `results/data/benchmarks.json` (cache fields) |
-| **Compatibility export** | Optionally writes offline model artifacts; not a paper claim | `results/data/adaptive_models.json` |
+| **Compatibility export** | Optionally writes offline model artifacts | `results/data/adaptive_models.json` |
 
 Timelines are workload- and machine-dependent; use `--dry-run` and the
 orchestrator's budget/planning modes before broad collection.
@@ -213,9 +193,8 @@ See [[Command-Line-Reference#reordering-algorithm-ids]] for the full algorithm t
 | bandwidth-oriented control | RCM-BNF | `11:bnf` |
 
 Do not choose from graph-domain labels such as “social” or “road.” Start with
-[Evidence and Claims](Evidence-and-Claims) and the
-[GraphBrew Running Example](GraphBrew-Running-Example), then select an explicit
-mechanism.
+the [GraphBrew Running Example](GraphBrew-Running-Example), then select an
+explicit mechanism and measure it on the target workload.
 
 ---
 

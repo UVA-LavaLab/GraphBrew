@@ -3,14 +3,14 @@
 
 This is the public front door for dependency checks, graph preparation,
 reordering, canonical kernel runs, cache simulation, offline model fitting,
-verification, and frozen-study reproduction.
+and verification.
 
 Use two explicit execution paths:
 
 * Rapid iteration: small graph/algorithm/kernel subsets, one trial, and cache
   simulation only when it is the feature under test.
-* Final evaluation: frozen manifests, fixed thread/affinity policy,
-  pre-generated mappings, repeated trials, and external artifact storage.
+* Controlled evaluation: fixed inputs, thread/affinity policy, pre-generated
+  mappings, repeated trials, verification, and external artifact storage.
 
 Benchmark binaries never train models at runtime. Python persists raw
 observations and exports versioned load-only model artifacts.
@@ -2274,10 +2274,10 @@ def main():
     g_clean.add_argument("--install-boost", action="store_true",
                          help="Download and install Boost 1.58.0 for RabbitOrder")
 
-    # ── Frozen-study reproduction & testing ──────────────────────────
+    # ── Testing and internal campaign compatibility ──────────────────
     g_paper = parser.add_argument_group(
-        "Reproducibility & Testing",
-        "Run frozen-study suites or verification commands (early exit)",
+        "Testing",
+        "Run validation commands (early exit)",
     )
     g_paper.add_argument("--vldb", nargs="*", type=int, metavar="EXP",
                          help="Run the frozen study matrix (all or selected compatibility IDs)")
@@ -2462,6 +2462,10 @@ def main():
         metavar="DIR",
         help="External output root for forensic plans/results",
     )
+    for action in g_paper._group_actions:
+        if action.dest not in {"evaluate", "test"}:
+            action.help = argparse.SUPPRESS
+
     # ── Standalone Sub-workflows ─────────────────────────────────────
     g_sub = parser.add_argument_group("Sub-workflows", "Standalone analysis tasks (early exit)")
     g_sub.add_argument("--benchmark-fresh", action="store_true",

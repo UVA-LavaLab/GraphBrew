@@ -46,8 +46,8 @@ python3 scripts/graphbrew_experiment.py --target-graphs 200 --size small
 
 ### Historical offline-model modes
 
-These commands are retained for research compatibility. They are not required
-by the confirmed fixed-composition paper results.
+These commands are retained for offline compatibility. They are not required
+by explicit GraphBrew compositions.
 
 | Mode | Command | Description |
 |------|---------|-------------|
@@ -104,8 +104,7 @@ python3 scripts/graphbrew_experiment.py --phase cache --size small
 **Note:** Results are saved to `results/` after each phase. Later benchmark
 and cache phases load pregenerated `.lo` mappings from the reorder phase.
 Historical model commands may also read
-`results/data/adaptive_models.json`; the confirmed quality and
-Compact-and-Emit results do not.
+`results/data/adaptive_models.json`; explicit compositions do not.
 
 ---
 
@@ -231,12 +230,11 @@ GOrder supports four variants:
 |---------|---------|-------------|
 | (default) | `-o 9` | Compatibility auto mode — legacy GoGraph below the 32-bit edge-position limit, faithful CSR above it |
 | `gograph` | `-o 9:gograph` | Force the legacy GoGraph path for reproducibility checks |
-| `csr` | `-o 9:csr` | Faithful CSR-native implementation used by the paper |
+| `csr` | `-o 9:csr` | Faithful CSR-native implementation |
 | `fast` | `-o 9:fast` | Parallel batch — atomic score updates, fan-out cap, scales across threads |
 
 The `gograph` and `csr` variants use the same RCM warm start and faithful
-serial greedy semantics; validation found byte-identical mappings on the paper
-graph families. The CSR path avoids the legacy edge-list materialization and
+serial greedy semantics. The CSR path avoids the legacy edge-list materialization and
 32-bit edge-position limit. Default window size w=5 (matching the original
 SIGMOD'16 paper). Override with `GORDER_WINDOW=N`.
 
@@ -293,7 +291,7 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 | `rabbit:dfs` | `-o 12:rabbit:dfs` | RabbitOrder + DFS post-ordering |
 | `compose` | `-o 12:compose:sg_*:comm_*:intra_*` | Pluggable three-axis composition (see below) |
 
-**Compose-variant axes** (paper-aligned vocabulary; pick one of each):
+**Compose-variant axes** (pick one of each):
 
 | Axis | Prefix | Picks | Maps to |
 |------|--------|-------|---------|
@@ -564,10 +562,9 @@ Historical deterministic low-reuse policy:
 ```
 
 The final field is the declared mapping reuse count. This interface remains
-available for compatibility, but its fallback is Boost Rabbit and it is not a
-headline paper contribution. New scientific runs should prefer explicit
+available for compatibility. Controlled runs should prefer explicit
 Algorithm-12 compositions and include ORIGINAL. See
-[AdaptiveOrder](AdaptiveOrder) and [Evidence and Claims](Evidence-and-Claims).
+[AdaptiveOrder](AdaptiveOrder).
 
 Historical model-emulation modes can use:
 
@@ -575,7 +572,7 @@ Historical model-emulation modes can use:
 export PERCEPTRON_WEIGHTS_FILE=/path/to/weights.json
 ```
 
-Those modes are research compatibility surfaces, not validated paper results.
+Those modes are offline compatibility surfaces.
 
 ### NUMA Binding
 
@@ -692,7 +689,6 @@ See [[Python-Scripts]] for complete script documentation and module reference.
 | Labels | `--precompute`, `--generate-maps`, `--use-maps` |
 | Validation | `--brute-force`, `--validation-benchmark NAME` |
 | Dependencies | `--check-deps`, `--install-deps`, `--install-boost` |
-| Frozen-study reproduction | `--vldb [EXP...]`, `--paper-preview`, `--paper-graph-dir DIR` |
 | Testing | `--test [FILTER]`, `--evaluate` |
 
 ```bash
@@ -700,9 +696,6 @@ See [[Python-Scripts]] for complete script documentation and module reference.
 python3 scripts/graphbrew_experiment.py --full --size small --auto --quick
 python3 scripts/graphbrew_experiment.py --train --size medium --auto --precompute
 python3 scripts/graphbrew_experiment.py --brute-force --validation-benchmark bfs
-
-# Paper experiments
-python3 scripts/graphbrew_experiment.py --vldb                # All 8 VLDB experiments
 
 # Testing & evaluation
 python3 scripts/graphbrew_experiment.py --test                # Run make check

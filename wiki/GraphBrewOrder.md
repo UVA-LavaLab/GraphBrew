@@ -21,50 +21,9 @@ pi(v) = block_offset(B(P(v))) + L[P(v)](v)
 ```
 
 If `B` and each local `L[c]` are permutations, `pi` is a permutation because
-the block intervals are disjoint and cover every final ID. Holding `P` fixed
-isolates block and intra-block effects; holding both `P` and `B` fixed isolates
-the local layout. Requested and realized expressions are recorded separately
-so fallbacks cannot silently change a treatment.
-
-## Confirmed GORDER-quality composition
-
-```text
-12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8
-```
-
-**Name:** LeidenGVE–SizeDesc–LocalGorder8
-
-| Axis | Choice |
-|---|---|
-| Partitioner | GVE-Leiden path |
-| Final supergraph order | none |
-| Block layout | community size descending |
-| Vertex layout | relaxed local Gorder, window 8 |
-
-This fixed composition is the paper’s practical performance point relative to
-GORDER_csr: 1.052x kernel GM, 0.752x mapping cost, and an end-to-end win from
-reuse one. Rabbit remains faster in summed kernel seconds and 17–19x cheaper
-to map, so Rabbit is a Pareto limitation rather than a headline victory.
-`LocalGorder8` distinguishes this relaxed per-community heuristic from the
-faithful standalone `GORDER_csr` comparator.
-
-## Compact-and-Emit
-
-```text
-12:leiden:compose:sg_none:comm_identity:
-intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1
-```
-
-[![Compact-and-Emit](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-compact-emit.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-compact-emit.svg?v=graphbrew-public-v4)
-
-One-pass community detection can leave sparse representative labels.
-Compact-and-Emit renumbers active labels monotonically and emits final IDs
-during BFS. It removes empty-slot scheduling, the global local-ID array, and
-the final sparse assignment sweep.
-
-The resulting permutation is byte-identical to conventional BFS under the
-validated controls. This is an implementation optimization, not a new
-locality objective.
+the block intervals are disjoint and cover every final ID. Requested and
+realized expressions are recorded separately so a fallback cannot silently
+change the treatment.
 
 ## Composition grammar
 
@@ -78,47 +37,53 @@ Common explicit tokens:
 |---|---|
 | Partitioner | `leiden`, `rabbit` |
 | Supergraph order | `sg_none`, `sg_super_rabbit`, `sg_super_rcm`, `sg_hilbert` |
-| Community order | `comm_identity`, `comm_size_desc`, `comm_size_asc`, `comm_degree_desc`, `comm_degree_asc` |
-| Intra-community order | `intra_bfs`, `intra_rcm`, `intra_rcmpp`, `intra_gorder`, `intra_hubsort`, `intra_deg_asc` |
+| Block order | `comm_identity`, `comm_size_desc`, `comm_size_asc`, `comm_degree_desc`, `comm_degree_asc` |
+| Intra-block order | `intra_bfs`, `intra_rcm`, `intra_rcmpp`, `intra_gorder`, `intra_hubsort`, `intra_deg_asc` |
 | Refinement | `refine_none`, `refine_2swap` |
 
-Every published configuration pins all changed axes. Changing any token
-creates a different treatment.
+Changing any token creates a different layout configuration.
 
-## Why composition matters
+Example:
 
-The fresh sealed matrix does not produce one universal winner. All seven
-tested compositions win at least one graph-kernel cell; each graph uses three
-to five different winners across kernels, and each kernel uses two to five
-winners across graphs. The per-cell oracle is 1.229x faster than the best
-fixed GraphBrew composition and 1.116x faster than the fastest Rabbit/GORDER
-comparator.
+```text
+12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8
+```
 
-This is evidence that the three stages expose useful workload-dependent
-choices. It is not evidence that graph type alone predicts those choices:
-the independently frozen family+kernel rule reaches only 0.896x against the
-fastest comparator and fails its confidence and worst-graph gates.
+This means: use the Leiden partitioner, do not reorder the quotient graph,
+place larger blocks first, and apply the local Gorder heuristic with window
+eight inside each block. It is an explicit example, not a universal default.
 
-## Why individual stages help
+## Compact-and-Emit
 
-The fixed-membership factorial provides a narrower causal answer:
+```text
+12:leiden:compose:sg_none:comm_identity:
+intra_bfs_compact_direct:cd_parallel:sgmb4096:norefine:1:1
+```
 
-- **Block order is secondary.** SizeDesc and DegreeDesc have no resolved
-  universal main effect when membership and intra layout are fixed.
-- **LocalGorder8 helps BFS through locality/throughput.** It is 1.143x faster
-  than HubSort even though it examines slightly more edges. Its per-edge
-  advantage aligns with the modeled hierarchy lookup change on 8/10 graphs.
-- **LocalGorder8 helps Afforest CC by reducing work.** It is 1.248x faster
-  than HubSort, which performs 1.436x as many compression steps, and 1.514x
-  faster than RCMpp while performing only 0.405x as many compression steps.
-- **PR remains hardware-sensitive.** HubSort is 1.332x faster than
-  LocalGorder8, but the single-thread cache model predicts the opposite
-  direction. Hardware prefetching, memory-level parallelism, atomic traffic,
-  and coherence cannot be separated on the current machine because hardware
-  counters are unavailable.
+[![Compact-and-Emit](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-compact-emit.svg?v=graphbrew-public-v4)](https://raw.githubusercontent.com/UVA-LavaLab/GraphBrew/main/docs/figures/graphbrew-compact-emit.svg?v=graphbrew-public-v4)
 
-Thus composition works for different reasons by kernel; GraphBrew does not
-promote one scalar locality metric as a universal explanation.
+One-pass community detection can leave sparse representative labels.
+Compact-and-Emit renumbers active labels monotonically and writes final IDs
+during BFS. It removes empty-slot scheduling, the global local-ID array, and
+the final sparse assignment sweep.
+
+Use permutation fingerprints and semantic verification to confirm that the
+optimized path produces the intended layout.
+
+## How stages can affect execution
+
+Different stages target different structural effects:
+
+| Stage | Typical effect to measure |
+|---|---|
+| Partitioner | block membership and cross-block edges |
+| Block order | global placement of groups and ID-sensitive traversal behavior |
+| Intra-block order | local co-access distance, bandwidth, or hub placement |
+| Refinement | additional locality improvement versus construction cost |
+
+These are hypotheses, not guarantees. Compare the exact graph and kernel,
+including executed work where vertex IDs can affect convergence or
+compression.
 
 ## Running example
 
@@ -130,10 +95,9 @@ through:
 3. contiguous block placement;
 4. local vertex ordering;
 5. permutation validation and CSR relocation; and
-6. the resulting property-access locality.
+6. resulting property-access locality.
 
-The small example demonstrates multiple local-layout options. It is not a
-performance result and does not imply runtime composition search.
+The example explains semantics and does not imply runtime composition search.
 
 ## Measurement contract
 
@@ -147,22 +111,6 @@ kernel-only time
 mapping + reuse x kernel
 ```
 
-Always include:
-
-- ORIGINAL (`-o 0`);
-- both Rabbit implementations when Rabbit is a comparator;
-- exact graph and binary provenance;
-- mapping fingerprints and draw policy;
-- scheduler, nice value, affinity, governor, and turbo state;
-- semantic verification and executed-work counters.
-
-## Claim boundary
-
-GraphBrew does not currently claim:
-
-- one universal best composition;
-- a Rabbit-cost-balanced arm that also beats ORIGINAL;
-- a graph-held-out automatic generator; or
-- a promoted CC-SV portal layout.
-
-See [Evidence and Claims](Evidence-and-Claims).
+Always record the input-label baseline, exact ordered `-o` specification,
+mapping fingerprint, graph and binary provenance, scheduler state, and
+semantic verification result.

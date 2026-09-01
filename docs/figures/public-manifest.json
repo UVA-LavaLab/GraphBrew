@@ -21,12 +21,8 @@
       "sha256": "0c81299d49c53c1847f4ed31318dc317568630cff22e910e3cdbc01ad37cc4ff"
     },
     {
-      "path": "docs/recommendation-evidence.json",
-      "sha256": "ec26b0e889738e616b12666c232b2be2362a6860123018e5a04a583f344b6061"
-    },
-    {
       "path": "scripts/generate_public_figures.py",
-      "sha256": "72d2bc61ee93645c89a30bf1738658ba6ae6cabeac52a58aa7afcd85863a6a19"
+      "sha256": "39ceee55e2ed27a4eba0b523016d45677f7ab9afc089e709a6d5864f090f255e"
     }
   ],
   "records": [
@@ -131,7 +127,7 @@
     {
       "path": "docs/figures/editable/14-adaptiveorder.drawio",
       "kind": "drawio",
-      "sha256": "294a4d216328219f9cf77324eedcde3566e936700fd9859149f829b4a01e8227",
+      "sha256": "c373cfe4d15f9c9c97537f36aa6f1115adef6c65da33b48d9aa0bef5284bbf36",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -152,7 +148,7 @@
     {
       "path": "docs/figures/editable/GraphBrew-reordering-figures.drawio",
       "kind": "drawio",
-      "sha256": "91fdf4f9f9413121f4fb007f67daf92fb272ec65ac9f9b0658b7e01968c66047",
+      "sha256": "4d2578904996f942de56e39a241c9e9decf5ceea7a95570b70bfe53669d33a0f",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -166,7 +162,7 @@
     {
       "path": "docs/figures/graphbrew-architecture.svg",
       "kind": "svg",
-      "sha256": "8d075b00fdbb99e081d53baa21d77487d1285950a32c19f7b6ef31e3704511f1",
+      "sha256": "bdb395672e0fa153156a4c305a6087b90bf20ee2c7b9c683588d389a856cd544",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -187,14 +183,7 @@
     {
       "path": "docs/figures/graphbrew-compact-emit.svg",
       "kind": "svg",
-      "sha256": "9ef6fef3822226ae652aea20b64537b1ef277a9cdd9bb923d9fd4b5649f1fdca",
-      "generator": "scripts/generate_public_figures.py",
-      "fixture": "docs/figures/graphbrew-running-example.json"
-    },
-    {
-      "path": "docs/figures/graphbrew-evidence-boundary.svg",
-      "kind": "svg",
-      "sha256": "77a8bf9e0d672075c7c785756b05dff41072908d8b393bfba022a4edcb7e21da",
+      "sha256": "76c4faadfe740394df8930702a20425820b98aed2f1658243226262405076238",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -236,7 +225,7 @@
     {
       "path": "docs/figures/graphbrew-norefine.svg",
       "kind": "svg",
-      "sha256": "88cbd44063fd3914110da106cb66e26e0e3f9cfe24c04f97d950be1c32fbc094",
+      "sha256": "9e6c1f9fa06d68660b9b67952d96ae59b18b95093d6234b895d6750a223ea77e",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -362,7 +351,7 @@
     {
       "path": "docs/figures/reordering/14-adaptiveorder.svg",
       "kind": "svg",
-      "sha256": "f864149c3f16255b4870335d7afd5b1820ff374c3d72dd9e6ff38e4f548d0e01",
+      "sha256": "5ee4803af6a4da8a1559f3ebacba9ff93d65d5ba872bfe2d69bbc6a0ad50a205",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     },
@@ -397,7 +386,7 @@
     {
       "path": "wiki/Reordering-Figure-Catalog.md",
       "kind": "md",
-      "sha256": "3b6f9c8f8d650f575a44ad5955028c3c00a280ba4447e106714fa19ff97f3f6a",
+      "sha256": "ebfbc00c6af39bacae93c3e517c0aa6fb4ff544df532471b6af503b6b7eebc4f",
       "generator": "scripts/generate_public_figures.py",
       "fixture": "docs/figures/graphbrew-running-example.json"
     }

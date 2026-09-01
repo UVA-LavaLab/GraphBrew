@@ -20,7 +20,7 @@ https://help.lucid.co/hc/en-us/articles/16389149809428-Import-files-into-Lucidch
 - `graphbrew-running-example.json` and `scripts/generate_public_figures.py`
   are the canonical sources.
 - `.drawio` is the generated editable form for visual prototyping.
-- `.svg` is the generated publication artifact embedded by the wiki.
+- `.svg` is the generated rendered artifact embedded by the wiki.
 - Each algorithm ID has one same-stem pair, for example:
   `08-rabbitorder.drawio` and `08-rabbitorder.svg`.
 - `example-input.drawio` is the shared input page.

@@ -36,7 +36,6 @@ TOP_LEVEL_FIGURES = {
     "graphbrew-locality-outcome.svg",
     "graphbrew-cd-parallel.svg",
     "graphbrew-compact-emit.svg",
-    "graphbrew-evidence-boundary.svg",
     "graphbrew-sgmb4096.svg",
     "graphbrew-norefine.svg",
 }
@@ -252,7 +251,6 @@ def test_public_manifest_binds_generated_outputs():
         "docs/figures/catalog-capture.json",
         "docs/figures/data/graphbrew-running-example.el",
         "docs/figures/data/graphbrew-running-example.lo",
-        "docs/recommendation-evidence.json",
         "scripts/generate_public_figures.py",
     }
 

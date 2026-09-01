@@ -593,7 +593,7 @@ def test_forensics_plan_and_discovery_fixture(tmp_path):
     assert failure["negative_result"]["failed_gate"] == "artifact"
 
 
-def test_top_level_forensics_commands_are_exposed():
+def test_top_level_forensics_commands_are_hidden():
     result = subprocess.run(
         [
             sys.executable,
@@ -605,9 +605,9 @@ def test_top_level_forensics_commands_are_exposed():
         text=True,
         check=True,
     )
-    assert "--mapping-forensics-plan" in result.stdout
-    assert "--mapping-forensics-discovery" in result.stdout
-    assert "--mapping-forensics-confirmation" in result.stdout
+    assert "--mapping-forensics-plan" not in result.stdout
+    assert "--mapping-forensics-discovery" not in result.stdout
+    assert "--mapping-forensics-confirmation" not in result.stdout
 
 
 def test_confirmation_requires_bound_discovery_nominee(tmp_path):

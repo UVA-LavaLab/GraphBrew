@@ -94,5 +94,5 @@
   <path d="M315 240 H361" class="arrow"/>
   <path d="M815 240 H861" class="arrow"/>
   <rect x="144" y="380" width="912" height="36" rx="9" fill="#F8F6EC" stroke="#27313A" stroke-width="2"/>
-  <text x="600" y="403" class="sans small" text-anchor="middle">Compatibility interface; not a headline result of the paper.</text>
+  <text x="600" y="403" class="sans small" text-anchor="middle">Compatibility interface; the selected policy defines the ordering.</text>
 </svg>

@@ -400,19 +400,11 @@ make all
 --bin-dir /full/path/to/GraphBrew/bench/bin
 ```
 
-### Reproducing the historical low-reuse policy
+### AdaptiveOrder policy errors
 
-Use the complete algorithm-14 string and provide reuse 1 or 2:
-
-```bash
-./bench/bin/pr -f graph.sg -s \
-  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' -n 3
-```
-
-The policy can fall back when its historical predicate is false. It is a
-compatibility experiment, not the current paper recommendation. For new
-scientific runs, use an explicit Algorithm-12 composition and include
-ORIGINAL. See [AdaptiveOrder](AdaptiveOrder).
+Algorithm 14 requires a complete registered policy string. For controlled
+comparisons, use an explicit Algorithm-12 composition or a pre-generated
+Algorithm-13 mapping instead. See [AdaptiveOrder](AdaptiveOrder).
 
 ### Historical offline-model artifact errors
 

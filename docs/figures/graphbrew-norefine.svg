@@ -42,10 +42,10 @@
   <text x="475" y="320" class="sans heading">full Leiden path</text>
   <text x="475" y="357" class="sans body">Refine within bounds, then aggregate.</text>
   <rect x="865" y="130" width="300" height="265" rx="10" fill="#F7DEDC" stroke="#27313A" stroke-width="3"/>
-  <text x="890" y="165" class="sans heading">Scientific consequence</text>
+  <text x="890" y="165" class="sans heading">Behavioral consequence</text>
   <text x="890" y="205" class="sans body">norefine lowers preprocessing.</text>
   <text x="890" y="235" class="sans body">It may change the partition.</text>
-  <text x="890" y="265" class="sans body">Do not claim Leiden guarantees.</text>
+  <text x="890" y="265" class="sans body">It is not equivalent to full Leiden.</text>
   <rect x="890" y="310" width="250" height="48" rx="7" fill="#FFFFFF" stroke="#27313A" stroke-width="2"/>
   <text x="1015" y="340" class="mono small" text-anchor="middle">bounded local-moving path</text>
   <path d="M335 205 H446" class="arrow"/>

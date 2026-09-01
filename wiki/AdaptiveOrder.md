@@ -1,27 +1,19 @@
 # AdaptiveOrder
 
-AdaptiveOrder (`-o 14`) is an experimental runtime-selection compatibility
-interface. It has no intrinsic permutation; it dispatches to another ordering.
+AdaptiveOrder (`-o 14:<policy>`) is an experimental compatibility interface
+that dispatches to another ordering. It has no intrinsic permutation.
 
-The repository retains a frozen reuse-1/2 rule for reproducing an earlier
-GraphBrew-or-Rabbit portfolio:
+The selected policy must determine a concrete ordering, after which GraphBrew
+records the requested policy, resolved ordering, and mapping identity.
 
-```bash
-./bench/bin/pr -f graph.sg -s \
-  -o '14:_:_:_:allkernel-lowreuse-rule:best-endtoend:1' \
-  -n 3
-```
+For controlled comparisons, prefer either:
 
-That rule is **not a paper contribution**:
+- `-o 12:<configuration>` for an explicit composition; or
+- `-o 13:<mapping>` for a pre-generated permutation.
 
-- its fallback is Boost Rabbit;
-- public portfolio accounting did not include `Adaptive Feature Time`;
-- it does not establish a Rabbit-free GraphBrew system; and
-- later graph-held-out studies failed to recover enough oracle headroom.
+If Algorithm 14 is used, preserve the complete policy string and resolved
+mapping fingerprint in the result record. Do not treat the interface itself
+as an ordering algorithm.
 
-Use Algorithm 14 only for compatibility and historical reproduction. New
-paper experiments use explicit Algorithm-12 compositions and always include
-ORIGINAL.
-
-See [Historical Low-Reuse Policy](Historical-Low-Reuse-Policy) and
-[Evidence and Claims](Evidence-and-Claims).
+See [Command-Line Reference](Command-Line-Reference) and
+[Reordering Algorithms](Reordering-Algorithms).

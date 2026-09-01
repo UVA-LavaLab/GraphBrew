@@ -124,7 +124,7 @@ def test_screen_plan_is_capped_and_exact(tmp_path):
     ] == ["0", "5", "8:csr", "9:csr"]
 
 
-def test_top_level_orchestrator_exposes_separate_discovery_stages():
+def test_top_level_orchestrator_hides_discovery_stages():
     result = subprocess.run(
         [
             sys.executable,
@@ -136,11 +136,11 @@ def test_top_level_orchestrator_exposes_separate_discovery_stages():
         text=True,
         check=True,
     )
-    assert "--mechanism-discovery-plan" in result.stdout
-    assert "--mechanism-discovery-screen" in result.stdout
-    assert "--mechanism-discovery-no-resume" in result.stdout
-    assert "--mechanism-discovery-refreeze-plan" in result.stdout
-    assert "--mechanism-discovery-refreeze-graphs" in result.stdout
+    assert "--mechanism-discovery-plan" not in result.stdout
+    assert "--mechanism-discovery-screen" not in result.stdout
+    assert "--mechanism-discovery-no-resume" not in result.stdout
+    assert "--mechanism-discovery-refreeze-plan" not in result.stdout
+    assert "--mechanism-discovery-refreeze-graphs" not in result.stdout
 
 
 def test_biclique_reference_interleaves_partitions(tmp_path):

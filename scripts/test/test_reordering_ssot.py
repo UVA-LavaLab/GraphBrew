@@ -1,6 +1,5 @@
-"""Guard cross-language reordering identities and promoted recipes."""
+"""Guard cross-language reordering identities."""
 
-import json
 from pathlib import Path
 import re
 
@@ -14,15 +13,8 @@ REORDER_TYPES = (
 REORDER_ADAPTIVE = (
     PROJECT_ROOT / "bench/include/graphbrew/reorder/reorder_adaptive.h"
 )
-VLDB_CONFIG = PROJECT_ROOT / "scripts/experiments/vldb/config.py"
-EVIDENCE = PROJECT_ROOT / "docs/recommendation-evidence.json"
 REORDER_HEADER = PROJECT_ROOT / "bench/include/graphbrew/reorder/reorder.h"
 ADAPTIVE_EMULATOR = PROJECT_ROOT / "scripts/lib/ml/adaptive_emulator.py"
-
-
-def _joined_string_literals(text: str) -> str:
-    return "".join(re.findall(r'"([^"]*)"', text))
-
 
 def test_algorithm_ids_match_cpp_name_registry():
     source = REORDER_TYPES.read_text()
@@ -54,15 +46,6 @@ def test_algorithm_ids_match_cpp_name_registry():
     assert sorted(cpp_ids) == list(range(17))
     for algorithm_id, name in ALGORITHMS.items():
         assert cpp_names[name.upper()] == cpp_ids[algorithm_id]
-
-
-def test_confirmed_compositions_match_campaign_registry():
-    claims = json.loads(EVIDENCE.read_text())["confirmed_claims"]
-    quality = claims["quality_arm"]["spec"]
-    compact = claims["compact_and_emit"]["spec"]
-    config_source = VLDB_CONFIG.read_text()
-    assert quality in _joined_string_literals(config_source)
-    assert compact in _joined_string_literals(config_source)
 
 
 def test_retired_recursive_adaptive_path_has_no_don_lite_surface():

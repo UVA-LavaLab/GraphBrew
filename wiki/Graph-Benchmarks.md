@@ -87,8 +87,9 @@ when comparing orderings.
 ./bench/bin/tc -f graph.sg -s -o 12:leiden -n 5
 ```
 
-TC is available but excluded from the seven-kernel frozen selector evidence.
-Do not extend selector claims to TC without a separate protocol.
+TC has a different access pattern from the traversal and propagation kernels.
+Evaluate it independently rather than transferring conclusions from another
+kernel.
 
 ## Reporting
 

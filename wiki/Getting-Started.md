@@ -8,7 +8,7 @@ Build GraphBrew and run your first benchmark.
 |---|---|---|
 | OS | Linux (Ubuntu 20.04+) or macOS | tested on Ubuntu 22.04 LTS |
 | Compiler | GCC 7+ | C++17 required |
-| RAM | 8 GB | 16 GB+ for large graphs, 64 GB+ for the paper's full suite |
+| RAM | 8 GB | 16 GB+ for large graphs |
 | Disk | 50 GB | benchmark graphs |
 | Python | 3.8+ (optional) | analysis scripts use stdlib only |
 
@@ -75,7 +75,7 @@ GRAPH=scripts/test/graphs/tiny/tiny.el
 # Cheap degree/bucket control
 ./bench/bin/pr -f $GRAPH -s -o 7 -n 3
 
-# Explicit Rabbit-free GraphBrew composition
+# Explicit GraphBrew composition
 ./bench/bin/pr -f $GRAPH -s \
   -o 12:leiden:compose:sg_none:comm_size_desc:intra_gorder:gw8 \
   -n 3
@@ -83,9 +83,9 @@ GRAPH=scripts/test/graphs/tiny/tiny.el
 
 `-o N` selects the reordering algorithm (see [Reordering-Algorithms](Reordering-Algorithms)). `-s` symmetrises a directed input. `-n N` runs N trials.
 
-The explicit recipe above is the confirmed fixed quality composition. The
-[running example](GraphBrew-Running-Example) also shows BFS to illustrate that
-local layouts are independently configurable.
+The explicit recipe above demonstrates the composition grammar. The
+[running example](GraphBrew-Running-Example) also shows BFS to illustrate
+that local layouts are independently configurable.
 
 ## Run a real graph
 
@@ -102,8 +102,7 @@ mv ego-Facebook.txt facebook.el
 
 GraphBrew recipes explicitly select the partitioner, block layout, and local
 vertex layout. Rabbit-dependent presets remain available as baselines. Start
-with [Evidence and Claims](Evidence-and-Claims) and the
-[GraphBrew Running Example](GraphBrew-Running-Example), then use
+with the [GraphBrew Running Example](GraphBrew-Running-Example), then use
 [GraphBrewOrder](GraphBrewOrder) as the token reference.
 
 ## Common flags
@@ -139,26 +138,6 @@ python3 scripts/graphbrew_experiment.py --target-graphs 150 --dry-run
 
 `--target-graphs N` is shorthand for `--full --catalog-size N --auto --all-variants`. See [Benchmark-Suite](Benchmark-Suite) for size buckets.
 
-## Reproducing the frozen study
-
-```bash
-# Preview: 2 small graphs, 1 trial — sanity check (~5 min)
-python3 scripts/graphbrew_experiment.py --vldb --paper-preview \
-  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
-  --paper-threads 4 --paper-cpu-list 24-27
-
-# Full frozen matrix on the dedicated 16-core evaluation host
-python3 scripts/graphbrew_experiment.py --vldb \
-  --paper-graph-dir /media/NVMeData/00_GraphDatasets/GraphBrew \
-  --paper-artifact-root /media/NVMeData/00_GraphDatasets/GraphBrew/artifacts \
-  --paper-threads 16 --paper-cpu-list 0-15
-```
-
-Use the independent stage runners only for restartable long runs. See
-[Reproducible-Experiments](Reproducible-Experiments) for the frozen matrix and
-stage guide.
-
 ## Common build issues
 
 | Error | Fix |
@@ -176,4 +155,4 @@ More in [Troubleshooting](Troubleshooting).
 - [GraphBrew Running Example](GraphBrew-Running-Example) — one graph carried through all six stages
 - [GraphBrewOrder](GraphBrewOrder) — the explicit composition grammar and cost controls
 - [Running-Benchmarks](Running-Benchmarks) — manual benchmark workflow
-- [Reproducible-Experiments](Reproducible-Experiments) — reproducing the frozen study
+- [Reproducible Experiments](Reproducible-Experiments) — controlled measurement workflow
